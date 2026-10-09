@@ -11,7 +11,7 @@ import { FolderSearch, ListChecks } from 'lucide-react';
 
 import { formatBytes, formatCount } from '../lib/format';
 import { api, errorText, pickFolder } from '../lib/ipc';
-import type { DedupeReport, LibraryInfo, RelocatePlan } from '../lib/types';
+import type { DedupeReport, DraftList, LibraryInfo, RelocatePlan } from '../lib/types';
 
 export interface NoticePayload {
   kind: 'info' | 'warn' | 'error';
@@ -162,6 +162,111 @@ export function DedupePanel({ onClose }: { onClose: () => void }) {
           </div>
         </>
       ) : null}
+    </>
+  );
+}
+
+/* ── 变更集（虚拟变更集） ─────────────────────────────────────────── */
+
+const CHECK_LABEL: Record<string, string> = {
+  conflict: '冲突',
+  illegal: '名字非法',
+  tooLong: '路径超长',
+  outOfRoot: '超出工作根',
+  protected: '受保护',
+  referenced: '被引用',
+};
+
+export function DraftsPanel({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<DraftList | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const act = async (fn: () => Promise<DraftList>) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      setList(await fn());
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    void act(api.draftList);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <div className="detail-sec">
+        <div className="detail-title">变更集（虚拟变更集）</div>
+        <div className="kv">
+          <div className="kv-key">待提交 / 有问题</div>
+          <div className="kv-val">
+            {formatCount(list?.count ?? 0)} 项 / {formatCount(list?.problems ?? 0)} 项
+          </div>
+          <div className="kv-key">磁盘状态</div>
+          <div className="kv-val">草稿只写在库目录，**提交前真实文件零变化**</div>
+        </div>
+        <div style={{ marginTop: 'var(--spacing-2)' }}>
+          <button className="btn" type="button" disabled={busy || !list?.count} onClick={() => void act(api.draftUndo)}>
+            撤销（Ctrl+Z）
+          </button>{' '}
+          <button className="btn" type="button" disabled={busy} onClick={() => void act(api.draftRedo)}>
+            重做（Ctrl+Y）
+          </button>{' '}
+          <button className="btn" type="button" disabled={busy || !list?.count} onClick={() => void act(api.draftClear)}>
+            放弃全部…
+          </button>{' '}
+          <Back onClose={onClose} />
+        </div>
+      </div>
+
+      {err ? (
+        <div className="detail-sec">
+          <div className="tbd">{err}</div>
+        </div>
+      ) : null}
+
+      {list && list.drafts.length > 0 ? (
+        <div className="detail-sec">
+          <div className="detail-title">草稿（新的在上面）</div>
+          {list.drafts
+            .slice()
+            .reverse()
+            .slice(0, 30)
+            .map((d) => (
+              <div key={d.seq} style={{ marginBottom: 'var(--spacing-2)' }}>
+                <div className="kv-key">
+                  #{d.seq} {d.op}
+                  {d.check !== 'ok' ? ` · ${CHECK_LABEL[d.check] ?? d.check}` : ''}
+                </div>
+                <div className="kv-val mono" title={d.src}>
+                  {d.src}
+                </div>
+                {d.dst ? (
+                  <div className="kv-val mono" title={d.dst}>
+                    → {d.dst}
+                  </div>
+                ) : null}
+                {d.reason ? <div className="tbd">{d.reason}</div> : null}
+              </div>
+            ))}
+        </div>
+      ) : (
+        <div className="detail-sec">
+          <div className="tbd">还没有草稿。在文件详情里用「排入变更集」先排一条重命名试试。</div>
+        </div>
+      )}
+
+      <div className="detail-sec">
+        <div className="tbd">
+          提交执行（生成计划 → 最终预览 → 二次确认 → 落盘）属 P6；本阶段只做草稿与预检。
+        </div>
+      </div>
     </>
   );
 }

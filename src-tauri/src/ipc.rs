@@ -396,6 +396,109 @@ pub fn relocate_apply(
     Ok(changed)
 }
 
+/* ── 虚拟变更集（§7.2） ───────────────────────────────────────────── */
+
+/// 草稿列表 + 计数（界面状态条用「待提交 M 项，其中 K 项有问题」）。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftListDto {
+    pub drafts: Vec<crate::domain::drafts::Draft>,
+    pub count: usize,
+    pub problems: usize,
+}
+
+fn draft_dto(state: &crate::app::drafts::DraftState) -> Result<DraftListDto, String> {
+    Ok(DraftListDto {
+        drafts: state.snapshot()?,
+        count: state.len()?,
+        problems: state.problems()?,
+    })
+}
+
+#[tauri::command]
+pub fn draft_list(
+    app: AppHandle,
+    state: State<'_, crate::app::drafts::DraftState>,
+) -> Result<DraftListDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    state.ensure_loaded(&conn)?;
+    let dto = draft_dto(&state)?;
+    let _ = app.emit("draft://changed", &dto);
+    Ok(dto)
+}
+
+/// 追加一条草稿。预检结论**不阻断加入**（§7.2：加入即标注，用户在行内看到角标与原因）。
+#[tauri::command]
+pub fn draft_add(
+    app: AppHandle,
+    state: State<'_, crate::app::drafts::DraftState>,
+    op: String,
+    src: String,
+    dst: Option<String>,
+    asset_id: Option<i64>,
+) -> Result<DraftListDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    state.ensure_loaded(&conn)?;
+    let op = crate::domain::drafts::DraftOp::parse(&op).ok_or_else(|| format!("未知操作 `{op}`"))?;
+    let mut draft = crate::domain::drafts::Draft::new(op, src, dst);
+    draft.asset_id = asset_id;
+    state.add(&conn, draft)?;
+    let dto = draft_dto(&state)?;
+    let _ = app.emit("draft://changed", &dto);
+    Ok(dto)
+}
+
+#[tauri::command]
+pub fn draft_undo(
+    app: AppHandle,
+    state: State<'_, crate::app::drafts::DraftState>,
+) -> Result<DraftListDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    state.ensure_loaded(&conn)?;
+    state.undo(&conn)?;
+    let dto = draft_dto(&state)?;
+    let _ = app.emit("draft://changed", &dto);
+    Ok(dto)
+}
+
+#[tauri::command]
+pub fn draft_redo(
+    app: AppHandle,
+    state: State<'_, crate::app::drafts::DraftState>,
+) -> Result<DraftListDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    state.ensure_loaded(&conn)?;
+    state.redo(&conn)?;
+    let dto = draft_dto(&state)?;
+    let _ = app.emit("draft://changed", &dto);
+    Ok(dto)
+}
+
+/// 放弃全部变更（§7.2「放弃变更并关闭」；界面需二次确认，这里只负责清空）。
+#[tauri::command]
+pub fn draft_clear(
+    app: AppHandle,
+    state: State<'_, crate::app::drafts::DraftState>,
+) -> Result<DraftListDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    state.ensure_loaded(&conn)?;
+    state.clear(&conn)?;
+    let dto = draft_dto(&state)?;
+    let _ = app.emit("draft://changed", &dto);
+    Ok(dto)
+}
+
+/// 投影：把一批真实路径折算成界面该显示的样子（§7.2 投影视图）。
+#[tauri::command]
+pub fn draft_project(
+    state: State<'_, crate::app::drafts::DraftState>,
+    paths: Vec<String>,
+) -> Result<Vec<crate::domain::drafts::Projection>, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    state.ensure_loaded(&conn)?;
+    state.project(&paths)
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {

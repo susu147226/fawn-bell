@@ -12,8 +12,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { absolutePath, dirDisplayName, subDirsOf, type ScanIndex } from '../lib/folders';
 import { formatBytes, formatCount, formatDateTime, formatDuration } from '../lib/format';
 import { KindIcon } from '../lib/icons';
-import { api } from '../lib/ipc';
-import { DedupePanel, RelocateWizard, type NoticePayload } from './Panels';
+import { api, errorText } from '../lib/ipc';
+import { DedupePanel, DraftsPanel, RelocateWizard, type NoticePayload } from './Panels';
 import {
   KINDS,
   KIND_LABEL,
@@ -24,8 +24,8 @@ import {
   type ScanSummary,
 } from '../lib/types';
 
-/** 右栏可切换的 P1 工具面板。 */
-export type PanelKind = 'none' | 'dedupe' | 'relocate';
+/** 右栏可切换的 P1/P2 工具面板。 */
+export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts';
 
 /** Shell 属性键 → 中文标签（§6.4）。 */
 const PROP_LABEL: Record<string, string> = {
@@ -344,7 +344,41 @@ function FolderView({ index, rel }: { index: ScanIndex; rel: string }) {
   );
 }
 
-function FileView({ index, file, root }: { index: ScanIndex; file: FileRow; root: string }) {
+function FileView({
+  index,
+  file,
+  root,
+  onNotice,
+}: {
+  index: ScanIndex;
+  file: FileRow;
+  root: string;
+  onNotice: (n: NoticePayload) => void;
+}) {
+  const [newName, setNewName] = useState('');
+
+  /** 排一条重命名草稿（§7.2：只进变更集，磁盘一个字节都不动）。 */
+  const addDraft = async () => {
+    const abs = absolutePath(index, file.relPath);
+    const dir = abs.slice(0, Math.max(0, abs.length - file.name.length));
+    try {
+      const list = await api.draftAdd('rename', abs, dir + newName.trim());
+      onNotice({
+        kind: list.problems > 0 ? 'warn' : 'info',
+        title: '已排入变更集',
+        lines: [
+          `${file.name} → ${newName.trim()}`,
+          list.problems > 0
+            ? `当前有 ${formatCount(list.problems)} 条草稿需要处理，详见右栏「变更集…」`
+            : '磁盘没有任何改动；按 Ctrl+Z 可以撤销这条草稿。',
+        ],
+      });
+      setNewName('');
+    } catch (e) {
+      onNotice({ kind: 'error', title: '排入草稿失败', lines: [errorText(e)] });
+    }
+  };
+
   return (
     <>
       <div className="detail-sec">
@@ -375,6 +409,33 @@ function FileView({ index, file, root }: { index: ScanIndex; file: FileRow; root
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="detail-sec">
+        <div className="detail-title">排入变更集（草稿）</div>
+        <div className="kv">
+          <div className="kv-key">新名字</div>
+          <div className="kv-val">
+            <input
+              type="text"
+              value={newName}
+              placeholder={file.name}
+              onChange={(e) => setNewName(e.target.value)}
+              style={{ width: '100%' }}
+            />
+            <div style={{ marginTop: 'var(--spacing-2)' }}>
+              <button
+                className="btn"
+                type="button"
+                disabled={!newName.trim() || newName.trim() === file.name}
+                onClick={() => void addDraft()}
+              >
+                加入草稿（重命名）
+              </button>
+              <span className="tbd"> 只进变更集，磁盘不动</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="detail-sec">
@@ -435,6 +496,9 @@ function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
     <div className="detail-sec">
       <div className="detail-title">工具</div>
       <div className="empty-actions" style={{ flexWrap: 'wrap' }}>
+        <button className="btn" type="button" onClick={() => onPanel('drafts')}>
+          变更集…
+        </button>
         <button className="btn" type="button" onClick={() => onPanel('dedupe')}>
           重复内容…
         </button>
@@ -460,6 +524,8 @@ export default function DetailPanel({
 
   if (panel === 'dedupe') {
     body = <DedupePanel onClose={() => onPanel('none')} />;
+  } else if (panel === 'drafts') {
+    body = <DraftsPanel onClose={() => onPanel('none')} />;
   } else if (panel === 'relocate') {
     body = (
       <RelocateWizard root={summary?.root ?? null} onClose={() => onPanel('none')} onNotice={onNotice} />
@@ -471,7 +537,11 @@ export default function DetailPanel({
   } else if (selected.length === 1) {
     const rel = selected[0];
     const file = index.fileByRel.get(rel);
-    body = file ? <FileView index={index} file={file} root={summary.root} /> : <FolderView index={index} rel={rel} />;
+    body = file ? (
+      <FileView index={index} file={file} root={summary.root} onNotice={onNotice} />
+    ) : (
+      <FolderView index={index} rel={rel} />
+    );
   } else {
     const name = dirDisplayName(index, current);
     body = (

@@ -227,3 +227,48 @@ export interface LibraryInfo {
   location: 'appData' | 'portable';
   degraded: string | null;
 }
+
+/* ── 虚拟变更集（§7.2） ─────────────────────────────────────────── */
+
+export type DraftOp =
+  | 'rename'
+  | 'move'
+  | 'copy'
+  | 'mkdir'
+  | 'rmdir'
+  | 'trash'
+  | 'retag'
+  | 'rewriteRef';
+
+/** 预检结论（§13.3 drafts.check_status）。 */
+export type CheckStatus =
+  | 'ok'
+  | 'conflict'
+  | 'illegal'
+  | 'tooLong'
+  | 'outOfRoot'
+  | 'protected'
+  | 'referenced';
+
+export interface Draft {
+  seq: number;
+  op: DraftOp;
+  assetId: number | null;
+  src: string;
+  dst: string | null;
+  check: CheckStatus;
+  reason: string | null;
+}
+
+export interface DraftList {
+  drafts: Draft[];
+  count: number;
+  problems: number;
+}
+
+/** 投影结果（§7.2：真实状态 + 草稿 → 界面显示的样子）。 */
+export interface Projection {
+  path: string;
+  drafted: boolean;
+  removed: boolean;
+}

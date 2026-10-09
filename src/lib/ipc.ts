@@ -10,7 +10,10 @@ import type {
   AppInfo,
   AssetMeta,
   DedupeReport,
+  DraftList,
+  DraftOp,
   LibraryInfo,
+  Projection,
   RelocatePlan,
   ScanDone,
   ScanProgress,
@@ -41,6 +44,19 @@ export const api = {
   /** 重新定位：应用（高置信一律改写；待确认需 includeConfirm=true）。 */
   relocateApply: (oldRoot: string, newRoot: string, includeConfirm: boolean) =>
     invoke<number>('relocate_apply', { oldRoot, newRoot, includeConfirm }),
+
+  /* ── 虚拟变更集（§7.2）：草稿只在库目录，提交前不碰磁盘 ── */
+  draftList: () => invoke<DraftList>('draft_list'),
+  draftAdd: (
+    op: DraftOp,
+    src: string,
+    dst: string | null = null,
+    assetId: number | null = null,
+  ) => invoke<DraftList>('draft_add', { op, src, dst, assetId }),
+  draftUndo: () => invoke<DraftList>('draft_undo'),
+  draftRedo: () => invoke<DraftList>('draft_redo'),
+  draftClear: () => invoke<DraftList>('draft_clear'),
+  draftProject: (paths: string[]) => invoke<Projection[]>('draft_project', { paths }),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

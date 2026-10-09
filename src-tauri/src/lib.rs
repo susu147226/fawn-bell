@@ -18,6 +18,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(ipc::ScanState::new())
+        .manage(app::drafts::DraftState::new())
         .invoke_handler(tauri::generate_handler![
             ipc::app_info,
             ipc::scan_start,
@@ -30,6 +31,12 @@ pub fn run() {
             ipc::dedupe_report,
             ipc::relocate_plan,
             ipc::relocate_apply,
+            ipc::draft_list,
+            ipc::draft_add,
+            ipc::draft_undo,
+            ipc::draft_redo,
+            ipc::draft_clear,
+            ipc::draft_project,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");

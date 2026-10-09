@@ -294,7 +294,7 @@ export default function App() {
     });
   }, [activeId]);
 
-  /* ── 快捷键（§8.4 的一部分：Esc 取消扫描 / Ctrl+1 文件夹视图） ── */
+  /* ── 快捷键（§8.4 / §7.2：Esc 取消扫描 · Ctrl+1 文件夹视图 · Ctrl+Z/Y 撤销重做草稿） ── */
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -306,6 +306,35 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key === '1') {
         e.preventDefault();
         setView('folders');
+        return;
+      }
+      // §7.2：撤销 / 重做只在草稿上下文内动，**不触碰磁盘**
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        api
+          .draftUndo()
+          .then((list) =>
+            setNotice({
+              kind: 'info',
+              title: '已撤销一条草稿',
+              lines: [`当前待提交 ${formatCount(list.count)} 项，其中 ${formatCount(list.problems)} 项有问题。`],
+            }),
+          )
+          .catch((err) => setNotice({ kind: 'error', title: '撤销失败', lines: [errorText(err)] }));
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        api
+          .draftRedo()
+          .then((list) =>
+            setNotice({
+              kind: 'info',
+              title: '已重做一条草稿',
+              lines: [`当前待提交 ${formatCount(list.count)} 项，其中 ${formatCount(list.problems)} 项有问题。`],
+            }),
+          )
+          .catch((err) => setNotice({ kind: 'error', title: '重做失败', lines: [errorText(err)] }));
       }
     };
     window.addEventListener('keydown', onKey);
