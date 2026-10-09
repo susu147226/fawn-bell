@@ -134,9 +134,27 @@ export default function App() {
       if (r.summary.excluded.length > 0) {
         lines.push(`已自动排除鹿铃自己的库目录：${r.summary.excluded.join('、')}`);
       }
+      // P1：索引结果（增量扫描与内容指纹的可见凭据）
+      if (d.index) {
+        lines.push(
+          `索引：新增 ${formatCount(d.index.inserted)} · 更新 ${formatCount(d.index.updated)} · 未变 ${formatCount(
+            d.index.unchanged,
+          )} · 缺失 ${formatCount(d.index.missing)}｜库内共 ${formatCount(d.index.entries)} 项`,
+        );
+        if (d.index.refs > 0) {
+          lines.push(`已记录 ${formatCount(d.index.refs)} 行文件名引用，后续改名时可提示「该文件被 N 处引用」。`);
+        }
+        for (const w of d.index.warnings.slice(0, 3)) lines.push(w);
+      } else if (d.indexError) {
+        lines.push(d.indexError);
+      }
       setNotice(
         lines.length > 0
-          ? { kind: r.summary.truncated ? 'warn' : 'info', title: '扫描完成，有几点需要知道', lines }
+          ? {
+              kind: r.summary.truncated || d.indexError ? 'warn' : 'info',
+              title: '扫描完成，有几点需要知道',
+              lines,
+            }
           : null,
       );
     } catch (e) {

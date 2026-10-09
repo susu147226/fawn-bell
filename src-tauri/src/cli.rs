@@ -21,13 +21,16 @@ const HELP: &str = "\
 
 用法：
   luling scan <文件夹> [<文件夹>…] [选项]
+  luling dedupe [选项]
 
 选项：
-  --json                以 JSON 输出扫描摘要
+  --json                以 JSON 输出
   --out <文件>          把结果写入文件（发布版无控制台，脚本请用这个）
   --follow-links        跟随符号链接与 junction（默认否）
   --max-depth <N>       递归深度上限（默认不限）
   --limit <N>           单次扫描文件数上限（默认 200000）
+  --no-index            只扫描，不写入索引库（默认会写：增量索引 + 内容指纹）
+  --keep <档位>         去重保留策略：earliest（默认）/ shortest / manual
   -h, --help            显示本帮助
   -v, --version         显示版本
 
@@ -89,11 +92,17 @@ fn write_out(path: &PathBuf, json: bool, body: &str) -> Result<(), String> {
 }
 
 pub fn run(args: &[String]) -> i32 {
+    // §12.2 强制项 ⑤：去重也必须能独立驱动
+    if args.first().map(|s| s.as_str()) == Some("dedupe") {
+        return run_dedupe(&args[1..]);
+    }
+
     let mut json = false;
     let mut out_file: Option<PathBuf> = None;
     let mut follow_links = false;
     let mut max_depth: Option<usize> = None;
     let mut limit: Option<u64> = None;
+    let mut no_index = false;
     let mut roots: Vec<String> = Vec::new();
 
     let mut i = 0usize;
@@ -103,6 +112,7 @@ pub fn run(args: &[String]) -> i32 {
             "scan" => {}
             "--json" => json = true,
             "--follow-links" => follow_links = true,
+            "--no-index" => no_index = true,
             "--out" => {
                 i += 1;
                 match args.get(i) {
@@ -157,6 +167,7 @@ pub fn run(args: &[String]) -> i32 {
 
     let library_dir = crate::infra::paths::library_dir();
     let mut summaries: Vec<crate::app::scan::ScanSummary> = Vec::new();
+    let mut indexes: Vec<crate::app::index::IndexReport> = Vec::new();
     let mut text = String::new();
     let cancel = AtomicBool::new(false);
 
@@ -203,6 +214,32 @@ pub fn run(args: &[String]) -> i32 {
                 if s.truncated {
                     text.push_str("  注意：已达单次扫描文件数上限，结果不完整。\n");
                 }
+
+                // §7.1：扫描成功后写索引库（增量判定 + 首尾 64 KB 指纹 + 元数据 + 引用映射）
+                if !no_index {
+                    let provider = crate::app::metadata::FullMetadata;
+                    match crate::app::index::index_scan(
+                        &PathBuf::from(&s.root),
+                        &result.files,
+                        &crate::infra::library::layout(),
+                        &cancel,
+                        &provider,
+                        |_| {},
+                    ) {
+                        Ok(r) => {
+                            text.push_str(&format!(
+                                "  索引：新增 {} · 更新 {} · 未变 {} · 缺失 {} · 条目 {} · 引用 {} 行 · 指纹 {} 个\n",
+                                r.inserted, r.updated, r.unchanged, r.missing, r.entries, r.refs, r.hashed
+                            ));
+                            for w in &r.warnings {
+                                text.push_str(&format!("  ⚠ {w}\n"));
+                            }
+                            indexes.push(r);
+                        }
+                        Err(e) => text.push_str(&format!("  ⚠ 建立索引失败：{e}\n")),
+                    }
+                }
+
                 summaries.push(s.clone());
             }
             ScanOutcome::Cancelled { .. } => {
@@ -222,6 +259,7 @@ pub fn run(args: &[String]) -> i32 {
             "version": env!("CARGO_PKG_VERSION"),
             "libraryDir": library_dir.to_string_lossy(),
             "results": summaries,
+            "indexes": indexes,
         });
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => s,
@@ -232,6 +270,125 @@ pub fn run(args: &[String]) -> i32 {
         }
     } else {
         text
+    };
+
+    match out_file {
+        Some(p) => match write_out(&p, json, &body) {
+            Ok(()) => {
+                out_text(&format!("结果已写入 {}", p.display()));
+                0
+            }
+            Err(e) => {
+                err_text(&e);
+                1
+            }
+        },
+        None => {
+            out_text(&body);
+            0
+        }
+    }
+}
+
+/// `luling dedupe`：内容去重（§7.12）。
+///
+/// 只读素材、只写库：判定结果同时落进「重复内容」智能集合；真正的清理动作
+/// （只进回收站）属于 P7 文件操作矩阵，这里不做任何删除。
+fn run_dedupe(args: &[String]) -> i32 {
+    use crate::domain::dedupe::KeepPolicy;
+
+    let mut json = false;
+    let mut out_file: Option<PathBuf> = None;
+    let mut policy = KeepPolicy::default();
+
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--json" => json = true,
+            "--out" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => out_file = Some(PathBuf::from(v)),
+                    None => {
+                        err_text("错误：--out 需要一个文件路径。");
+                        return 1;
+                    }
+                }
+            }
+            "--keep" => {
+                i += 1;
+                match args.get(i).and_then(|v| KeepPolicy::parse(v)) {
+                    Some(p) => policy = p,
+                    None => {
+                        err_text("错误：--keep 只支持 earliest / shortest / manual。");
+                        return 1;
+                    }
+                }
+            }
+            "-h" | "--help" => {
+                out_text(HELP);
+                return 0;
+            }
+            other => {
+                err_text(&format!("错误：未知参数 `{other}`。用 --help 查看用法。"));
+                return 1;
+            }
+        }
+        i += 1;
+    }
+
+    let cancel = AtomicBool::new(false);
+    let layout = crate::infra::library::layout();
+    let report = match crate::app::dedupe::run(&layout, policy, true, &cancel) {
+        Ok(r) => r,
+        Err(e) => {
+            err_text(&format!("内容去重失败：{e}"));
+            return 1;
+        }
+    };
+
+    let body = if json {
+        match serde_json::to_string_pretty(&report) {
+            Ok(s) => s,
+            Err(e) => {
+                err_text(&format!("序列化失败：{e}"));
+                return 1;
+            }
+        }
+    } else {
+        let mut t = String::new();
+        t.push_str(&format!(
+            "内容去重（保留策略：{}）· 库 {}\n",
+            report.policy.as_str(),
+            layout.db.display()
+        ));
+        t.push_str(&format!(
+            "  候选 {} 项 · 重复组 {} 组 · 重复项 {} 项 · 保留 {} 项 · 可清理 {}\n",
+            group_thousands(report.candidates),
+            group_thousands(report.group_count),
+            group_thousands(report.duplicate_count),
+            group_thousands(report.keepers),
+            human_bytes(report.waste_bytes.max(0) as u64)
+        ));
+        for (n, g) in report.groups.iter().enumerate() {
+            t.push_str(&format!(
+                "  组 {}（{} · {}）：\n",
+                n + 1,
+                human_bytes(g.size.max(0) as u64),
+                g.hash_partial
+            ));
+            for m in &g.members {
+                t.push_str(&format!(
+                    "    {} {}\n",
+                    if m.keeper { "保留" } else { "重复" },
+                    m.abs_path.clone().unwrap_or_else(|| m.rel_path.clone())
+                ));
+            }
+        }
+        for w in &report.warnings {
+            t.push_str(&format!("  ⚠ {w}\n"));
+        }
+        t
     };
 
     match out_file {

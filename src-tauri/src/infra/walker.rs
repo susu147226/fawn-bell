@@ -100,6 +100,15 @@ fn mtime_ms(md: &fs::Metadata) -> i64 {
         .unwrap_or(0)
 }
 
+/// 创建时间（§7.1 增量判定三项之一；取不到记 0，此时退化为「体积 + 修改时间」判定）。
+fn ctime_ms(md: &fs::Metadata) -> i64 {
+    md.created()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
 fn is_cloud(attrs: u32) -> bool {
     attrs
         & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_OPEN | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
@@ -272,6 +281,7 @@ where
                     rel_path: child_rel,
                     size,
                     mtime_ms: mtime_ms(&target),
+                    ctime_ms: ctime_ms(&target),
                     cloud,
                 }));
             }

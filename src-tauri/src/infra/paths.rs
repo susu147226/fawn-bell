@@ -6,9 +6,10 @@
 use std::path::PathBuf;
 
 use crate::domain::guard::Sensitive;
+use crate::infra::library;
 
 /// 库目录名（§10：默认位置 `%LOCALAPPDATA%\鹿铃\`）。
-pub const APP_DIR_NAME: &str = "鹿铃";
+pub const APP_DIR_NAME: &str = library::APP_DIR_NAME;
 
 fn env_path(key: &str) -> Option<PathBuf> {
     std::env::var_os(key)
@@ -16,19 +17,13 @@ fn env_path(key: &str) -> Option<PathBuf> {
         .filter(|p| !p.as_os_str().is_empty())
 }
 
-/// 库（应用数据）目录。
+/// 库（应用数据）目录的**默认**落点。
 ///
-/// §10：默认 `%LOCALAPPDATA%\鹿铃\`，可改到程序目录相对路径 `.\data\`（设置项，P8 接入）。
-/// §13.4：库目录不可写时降级到用户目录并明确提示，**绝不退化到素材目录**——P0 只解析不落盘。
+/// §10：默认 `%LOCALAPPDATA%\鹿铃\`；可改到程序目录相对路径 `.\data\`（P1 起生效，
+/// 见 [`crate::infra::library`]）。§13.4：便携位置不可写时降级到用户目录并在界面提示，
+/// **绝不退化到素材目录**。
 pub fn default_library_dir() -> PathBuf {
-    if let Some(local) = env_path("LOCALAPPDATA") {
-        return local.join(APP_DIR_NAME);
-    }
-    if let Some(profile) = env_path("USERPROFILE") {
-        return profile.join("AppData").join("Local").join(APP_DIR_NAME);
-    }
-    // 环境变量全部缺失时（极罕见）退到进程当前目录下的 data\，由上层提示用户
-    PathBuf::from("data")
+    library::default_root()
 }
 
 /// 收集系统与敏感目录（§14⑥ 拒绝列表），交给核心域做纯路径判定。
@@ -45,7 +40,7 @@ pub fn sensitive_dirs(data_dir: PathBuf) -> Sensitive {
     Sensitive { data_dir, dirs }
 }
 
-/// 库目录（P0 只用于显示与排除判定，不创建）。
+/// 库目录（进程内缓存；P1 起会按标记文件解析到便携位置，必要时降级）。
 pub fn library_dir() -> PathBuf {
-    default_library_dir()
+    library::root()
 }

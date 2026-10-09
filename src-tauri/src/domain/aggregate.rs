@@ -25,6 +25,8 @@ pub struct FileMeta {
     pub kind: Kind,
     pub size: u64,
     pub mtime_ms: i64,
+    /// 创建时间。§7.1 的增量判定看「体积 + 修改时间 + 创建时间」三项，缺一不可。
+    pub ctime_ms: i64,
     pub cloud: bool,
 }
 
@@ -172,6 +174,7 @@ mod tests {
             kind,
             size,
             mtime_ms: 0,
+            ctime_ms: 0,
             cloud: false,
         }
     }

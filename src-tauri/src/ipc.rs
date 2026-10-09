@@ -72,6 +72,10 @@ pub struct ScanDone {
     pub status: &'static str,
     pub summary: Option<ScanSummary>,
     pub message: Option<String>,
+    /// P1：本次扫描写入索引库的结果（新增 / 更新 / 未变 / 缺失 / 指纹 / 引用）。
+    pub index: Option<crate::app::index::IndexReport>,
+    /// 建立索引失败的原因（扫描本身已成功，索引失败不把整次扫描算失败）。
+    pub index_error: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -125,6 +129,40 @@ pub fn scan_start(
             match outcome {
                 ScanOutcome::Done(result) => {
                     let summary = result.summary.clone();
+
+                    // §7.1：扫描成功后把结果写进索引库（增量判定 + 首尾 64 KB 指纹 + 元数据 + 引用映射）。
+                    // 取消 / 失败的扫描不会走到这里，所以「取消只丢弃本次结果」依然成立。
+                    let emit_handle = app_handle.clone();
+                    let emit_bytes = summary.total_bytes;
+                    let emit_elapsed = summary.elapsed_ms;
+                    let on_index_progress = move |p: crate::app::index::IndexProgress| {
+                        let _ = emit_handle.emit(
+                            "scan://progress",
+                            &serde_json::json!({
+                                "scanId": scan_id,
+                                "files": p.done,
+                                "dirsDone": p.done,
+                                "dirsPending": p.total.saturating_sub(p.done),
+                                "bytes": emit_bytes,
+                                "current": "",
+                                "elapsedMs": emit_elapsed,
+                                "etaMs": null,
+                                "phase": p.phase,
+                            }),
+                        );
+                    };
+                    let (index, index_error) = match crate::app::index::index_scan(
+                        &PathBuf::from(&summary.root),
+                        &result.files,
+                        &crate::infra::library::layout(),
+                        &cancel,
+                        &crate::app::metadata::FullMetadata,
+                        on_index_progress,
+                    ) {
+                        Ok(r) => (Some(r), None),
+                        Err(e) => (None, Some(format!("建立索引失败：{e}"))),
+                    };
+
                     if let Ok(mut g) = inner_thread.lock() {
                         g.last = Some((scan_id, Arc::new(*result)));
                         g.running = None;
@@ -136,6 +174,8 @@ pub fn scan_start(
                         status: "done",
                         summary: Some(summary),
                         message: None,
+                        index,
+                        index_error,
                     }
                 }
                 ScanOutcome::Cancelled { files, elapsed_ms } => {
@@ -151,6 +191,8 @@ pub fn scan_start(
                         message: Some(format!(
                             "已取消（取消前已浏览 {files} 个文件，用时 {elapsed_ms} ms）。本次结果已丢弃，磁盘上没有任何改动。"
                         )),
+                        index: None,
+                        index_error: None,
                     }
                 }
                 ScanOutcome::Failed(msg) => {
@@ -164,6 +206,8 @@ pub fn scan_start(
                         status: "failed",
                         summary: None,
                         message: Some(msg),
+                        index: None,
+                        index_error: None,
                     }
                 }
             }

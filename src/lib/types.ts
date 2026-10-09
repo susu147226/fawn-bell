@@ -100,11 +100,32 @@ export interface ScanProgress {
   phase: string;
 }
 
+/** 索引结果（§7.1；P1 起每次扫描成功后由后端返回）。 */
+export interface IndexReport {
+  volumeId: string;
+  /** 库内现有条目总数。 */
+  entries: number;
+  inserted: number;
+  updated: number;
+  unchanged: number;
+  /** 本次没再出现、被标记为缺失的条数。 */
+  missing: number;
+  hashed: number;
+  /** 本次重建的引用映射行数。 */
+  refs: number;
+  cancelled: boolean;
+  db: string;
+  warnings: string[];
+}
+
 export interface ScanDone {
   scanId: number;
   status: 'done' | 'cancelled' | 'failed';
   summary: ScanSummary | null;
   message: string | null;
+  /** 索引结果；索引写库失败时为 null（见 indexError）。 */
+  index: IndexReport | null;
+  indexError: string | null;
 }
 
 export interface ScanSnapshot {
