@@ -502,6 +502,100 @@ pub fn draft_project(
     state.project(&paths)
 }
 
+/* ── 命名预设（§7.3.2） ───────────────────────────────────────────── */
+
+/// 预设套用结果：模板 + **立刻**给出的前三项预览（§7.3.2 固定契约）。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PresetApplyDto {
+    pub template: String,
+    pub preview: Vec<String>,
+}
+
+#[tauri::command]
+pub fn preset_list() -> Result<Vec<crate::app::naming::PresetDto>, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::naming::list(&conn)
+}
+
+#[tauri::command]
+pub fn preset_save(
+    id: Option<i64>,
+    base_name: String,
+    label: Option<String>,
+    template: String,
+) -> Result<i64, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::naming::save(&conn, id, &base_name, label.as_deref(), &template)
+}
+
+#[tauri::command]
+pub fn preset_delete(id: i64) -> Result<(), String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::naming::remove(&conn, id)
+}
+
+#[tauri::command]
+pub fn preset_reorder(ids: Vec<i64>) -> Result<(), String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::naming::reorder(&conn, &ids)
+}
+
+#[tauri::command]
+pub fn preset_export() -> Result<String, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::naming::export_json(&conn)
+}
+
+#[tauri::command]
+pub fn preset_import(json: String) -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::naming::import_json(&conn, &json)
+}
+
+#[tauri::command]
+pub fn preset_apply(
+    id: i64,
+    ext: String,
+    start: u64,
+    rule: crate::domain::naming::SeqRule,
+) -> Result<PresetApplyDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let (template, preview) = crate::app::naming::apply(&conn, id, &ext, start, &rule)?;
+    Ok(PresetApplyDto { template, preview })
+}
+
+/// 模板实时预览（§7.3.3 第 2 点：起始值 / 补零位数 / 作用域任一变动都要立刻出结果）。
+#[tauri::command]
+pub fn naming_preview(
+    template: String,
+    rule: crate::domain::naming::SeqRule,
+    stem: String,
+    ext: String,
+) -> Result<Vec<crate::domain::naming::Rendered>, String> {
+    let mut out = Vec::new();
+    for i in 0..3u64 {
+        let ctx = crate::domain::naming::NameCtx {
+            stem: &stem,
+            ext: &ext,
+            camera: None,
+            width: None,
+            height: None,
+            group: None,
+            parent: None,
+            kind: "image",
+            hash8: None,
+            capture_time: None,
+            mtime: 1_700_000_000_000,
+            ctime: 0,
+            seq: rule.start + i,
+            counter: None,
+        };
+        out.push(crate::domain::naming::render(&template, &ctx, &rule));
+    }
+    Ok(out)
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {

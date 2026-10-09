@@ -14,7 +14,7 @@
 use unicode_normalization::UnicodeNormalization;
 
 /// 补零档位（§7.3.3 表）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PadMode {
     /// 默认：自然数位宽，不额外补零、不设下限。
@@ -34,7 +34,7 @@ impl Default for PadMode {
 }
 
 /// 序号前分隔符（§7.3.3 表）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SeqSep {
     /// 默认：自动补 `_`。
@@ -62,7 +62,7 @@ impl SeqSep {
 }
 
 /// 序号作用域（§7.3.3 表，默认当前文件夹）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SeqScope {
     CurrentFolder,
@@ -77,7 +77,7 @@ impl Default for SeqScope {
 }
 
 /// 原名序号剥离（§7.3.3 表，默认「剥离尾随 `_数字`」）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum StripRule {
     None,
@@ -96,7 +96,7 @@ impl Default for StripRule {
 }
 
 /// 序号规则整体。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SeqRule {
     /// 起始值：0 或 1（两个都必须可用）。
@@ -311,7 +311,8 @@ impl<'a> NameCtx<'a> {
 }
 
 /// 渲染结果。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Rendered {
     /// 最终文件名（含扩展名）。
     pub name: String,

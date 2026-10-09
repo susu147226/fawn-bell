@@ -37,6 +37,14 @@ pub fn run() {
             ipc::draft_redo,
             ipc::draft_clear,
             ipc::draft_project,
+            ipc::preset_list,
+            ipc::preset_save,
+            ipc::preset_delete,
+            ipc::preset_reorder,
+            ipc::preset_export,
+            ipc::preset_import,
+            ipc::preset_apply,
+            ipc::naming_preview,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");
