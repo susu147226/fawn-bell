@@ -31,7 +31,8 @@ const HELP: &str = "\
   --out <文件>          把结果写入文件（发布版无控制台，脚本请用这个）
   --follow-links        跟随符号链接与 junction（默认否）
   --max-depth <N>       递归深度上限（默认不限）
-  --limit <N>           单次扫描文件数上限（默认 200000）
+  --limit <N>           计划预览最多显示多少条（默认 20）
+  --exclude <文件名>    逐行剔除该条目（可重复；剔除行不参与编号且不跳号）
   --no-index            只扫描，不写入索引库（默认会写：增量索引 + 内容指纹）
   --keep <档位>         去重保留策略：earliest（默认）/ shortest / manual
   --template <模板>     命名模板（plan 用，默认 date_{seq}）
@@ -347,6 +348,7 @@ fn run_plan(args: &[String]) -> i32 {
     let mut folder = String::new();
     let mut root_arg: Option<String> = None;
     let mut limit: Option<usize> = None;
+    let mut excludes: Vec<String> = Vec::new();
 
     let mut i = 0usize;
     while i < args.len() {
@@ -446,6 +448,16 @@ fn run_plan(args: &[String]) -> i32 {
                     }
                 }
             }
+            "--exclude" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => excludes.push(v.to_lowercase()),
+                    None => {
+                        err_text("错误：--exclude 需要一个文件名（可重复）。");
+                        return 1;
+                    }
+                }
+            }
             "--json" => json = true,
             "--out" => {
                 i += 1;
@@ -537,6 +549,8 @@ fn run_plan(args: &[String]) -> i32 {
             Some((s, e)) => (s.to_string(), e.to_string()),
             None => (r.name.clone(), String::new()),
         };
+        // 被逐行剔除的条目：不参与编号、也不跳号（§7.3.3）
+        let excluded = excludes.iter().any(|x| x == &r.name.to_lowercase());
         sources.push(PlanSource {
             asset_id: r.id,
             abs,
@@ -553,7 +567,7 @@ fn run_plan(args: &[String]) -> i32 {
             // 类别名（{kind}）在索引里有，但这一版 CLI 没取；界面侧的计划会带上真实值
             kind: String::new(),
             hash8: None,
-            excluded: false,
+            excluded,
         });
     }
 

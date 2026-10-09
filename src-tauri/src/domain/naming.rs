@@ -448,9 +448,11 @@ fn resolve_placeholder(token: &str, ctx: &NameCtx, rule: &SeqRule) -> (String, O
                 .unwrap_or(rule.pad);
             match format_seq(ctx.seq, pad) {
                 Ok(s) => s,
+                // 固定档超限：**报警，但绝不输出空号**——空号会变成 `date_.jpg` 这种残名，
+                // 比「档位不够」更糟。这里按自然位宽给出数值，并把档位问题明确写进提醒等用户改档。
                 Err(e) => {
-                    note = Some(e);
-                    String::new()
+                    note = Some(format!("{e}；本次按自然位宽输出 `{}`，未静默补齐", ctx.seq));
+                    ctx.seq.to_string()
                 }
             }
         }
