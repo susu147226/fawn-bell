@@ -26,6 +26,10 @@ pub fn run() {
             ipc::scan_snapshot,
             ipc::thumb_data_url,
             ipc::asset_meta,
+            ipc::library_info,
+            ipc::dedupe_report,
+            ipc::relocate_plan,
+            ipc::relocate_apply,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");

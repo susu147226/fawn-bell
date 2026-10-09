@@ -110,6 +110,8 @@ export interface IndexReport {
   unchanged: number;
   /** 本次没再出现、被标记为缺失的条数。 */
   missing: number;
+  /** 上次缺失、这次又看见并恢复的条数。 */
+  unmissed: number;
   hashed: number;
   /** 本次重建的引用映射行数。 */
   refs: number;
@@ -163,3 +165,65 @@ export const VIEW_LABEL: Record<ViewMode, string> = {
   list: '列表',
   detail: '详情',
 };
+
+/** 内容去重的一个成员（§7.12）。 */
+export interface DuplicateMember {
+  assetId: number;
+  relPath: string;
+  absPath: string | null;
+  size: number;
+  ctime: number;
+  keeper: boolean;
+}
+
+export interface DuplicateGroup {
+  size: number;
+  hashPartial: string;
+  members: DuplicateMember[];
+  wasteBytes: number;
+}
+
+export interface DedupeReport {
+  groups: DuplicateGroup[];
+  groupCount: number;
+  duplicateCount: number;
+  keepers: number;
+  wasteBytes: number;
+  candidates: number;
+  policy: 'earliestCreated' | 'shortestPath' | 'manual';
+  collectionId: number | null;
+  warnings: string[];
+  cancelled: boolean;
+}
+
+/** 重定位的三档置信度（§13.4）。 */
+export type RelocateConfidence = 'high' | 'needsConfirm' | 'unmatched';
+
+export interface RelocateMatch {
+  assetId: number;
+  confidence: RelocateConfidence;
+  why: string;
+  oldRelPath: string;
+  newRelPath: string | null;
+}
+
+export interface RelocatePlan {
+  oldRoot: string;
+  newRoot: string;
+  oldVolume: string;
+  newVolume: string;
+  matches: RelocateMatch[];
+  high: number;
+  needsConfirm: number;
+  unmatched: number;
+}
+
+/** 库位置信息（§13.1 / §13.4）。 */
+export interface LibraryInfo {
+  root: string;
+  db: string;
+  thumbs: string;
+  backups: string;
+  location: 'appData' | 'portable';
+  degraded: string | null;
+}

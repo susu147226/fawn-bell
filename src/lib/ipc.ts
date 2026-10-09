@@ -6,7 +6,17 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 
-import type { AppInfo, AssetMeta, ScanDone, ScanProgress, ScanResult, ScanSnapshot } from './types';
+import type {
+  AppInfo,
+  AssetMeta,
+  DedupeReport,
+  LibraryInfo,
+  RelocatePlan,
+  ScanDone,
+  ScanProgress,
+  ScanResult,
+  ScanSnapshot,
+} from './types';
 
 export const api = {
   appInfo: () => invoke<AppInfo>('app_info'),
@@ -17,6 +27,20 @@ export const api = {
   /** 取索引里的元数据（EXIF / Shell 属性）；不在索引里返回 null。 */
   assetMeta: (root: string, relPath: string) =>
     invoke<AssetMeta | null>('asset_meta', { root, relPath }),
+
+  /** 库位置信息（设置 / 重定位向导用）。 */
+  libraryInfo: () => invoke<LibraryInfo>('library_info'),
+
+  /** 内容去重报告（§7.12）；判定与「重复内容」集合同源。 */
+  dedupeReport: (policy?: string) => invoke<DedupeReport>('dedupe_report', { policy: policy ?? null }),
+
+  /** 重新定位：只出计划，不改索引。 */
+  relocatePlan: (oldRoot: string, newRoot: string) =>
+    invoke<RelocatePlan>('relocate_plan', { oldRoot, newRoot }),
+
+  /** 重新定位：应用（高置信一律改写；待确认需 includeConfirm=true）。 */
+  relocateApply: (oldRoot: string, newRoot: string, includeConfirm: boolean) =>
+    invoke<number>('relocate_apply', { oldRoot, newRoot, includeConfirm }),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

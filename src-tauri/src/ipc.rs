@@ -279,6 +279,13 @@ pub fn thumb_data_url(path: String) -> Result<Option<String>, String> {
         return Ok(None);
     }
     let layout = crate::infra::library::layout();
+
+    // §10：缩略图缓存超上限时按 LRU 淘汰。逐次统计缓存目录代价太高，按调用次数抽样触发即可。
+    static THUMB_CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    if THUMB_CALLS.fetch_add(1, Ordering::Relaxed) % 256 == 255 {
+        let _ = crate::infra::thumb::evict(&layout);
+    }
+
     match crate::infra::thumb::bytes_for(&layout, &p) {
         Some(bytes) => Ok(Some(format!(
             "data:image/png;base64,{}",
@@ -316,6 +323,77 @@ pub fn asset_meta(root: String, rel_path: String) -> Result<Option<AssetMetaDto>
         missing: detail.missing,
         props,
     }))
+}
+
+/// 库位置信息（设置页 / 重定位向导要用；§13.1 / §13.4）。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryInfoDto {
+    pub root: String,
+    pub db: String,
+    pub thumbs: String,
+    pub backups: String,
+    /// `appData` / `portable`。
+    pub location: &'static str,
+    /// 便携位置不可写而降级时的说明（没有降级则为 null）。
+    pub degraded: Option<String>,
+}
+
+#[tauri::command]
+pub fn library_info() -> LibraryInfoDto {
+    let res = crate::infra::library::cached();
+    LibraryInfoDto {
+        root: res.layout.root.to_string_lossy().to_string(),
+        db: res.layout.db.to_string_lossy().to_string(),
+        thumbs: res.layout.thumbs.to_string_lossy().to_string(),
+        backups: res.layout.backups.to_string_lossy().to_string(),
+        location: res.location.as_str(),
+        degraded: res.degraded.clone(),
+    }
+}
+
+/// 内容去重报告（§7.12）：判定与「重复内容」集合同源，界面入口直接展示它。
+#[tauri::command]
+pub fn dedupe_report(policy: Option<String>) -> Result<crate::app::dedupe::DedupeReport, String> {
+    let keep = policy
+        .as_deref()
+        .and_then(crate::domain::dedupe::KeepPolicy::parse)
+        .unwrap_or_default();
+    let cancel = AtomicBool::new(false);
+    crate::app::dedupe::run(&crate::infra::library::layout(), keep, true, &cancel)
+}
+
+/// 重新定位素材树：只出计划，不改写任何索引（§13.4）。
+#[tauri::command]
+pub fn relocate_plan(
+    old_root: String,
+    new_root: String,
+) -> Result<crate::app::library::RelocatePlan, String> {
+    let (plan, _) = crate::app::library::run(
+        &crate::infra::library::layout(),
+        std::path::Path::new(&old_root),
+        std::path::Path::new(&new_root),
+        false,
+        false,
+    )?;
+    Ok(plan)
+}
+
+/// 应用重定位：高置信一档一律改写；「待确认」需显式放开。返回改写条数。
+#[tauri::command]
+pub fn relocate_apply(
+    old_root: String,
+    new_root: String,
+    include_confirm: bool,
+) -> Result<usize, String> {
+    let (_, changed) = crate::app::library::run(
+        &crate::infra::library::layout(),
+        std::path::Path::new(&old_root),
+        std::path::Path::new(&new_root),
+        true,
+        include_confirm,
+    )?;
+    Ok(changed)
 }
 
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。

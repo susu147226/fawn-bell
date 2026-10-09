@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 
 import AssetList from './components/AssetList';
 import Breadcrumb from './components/Breadcrumb';
-import DetailPanel from './components/DetailPanel';
+import DetailPanel, { type PanelKind } from './components/DetailPanel';
 import EmptyState from './components/EmptyState';
 import Notice, { type NoticeKind } from './components/Notice';
 import ScanBanner from './components/ScanBanner';
@@ -55,6 +55,8 @@ export default function App() {
   const [view, setView] = useState<ViewMode>('folders');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  /** 右栏当前显示的 P1 工具面板（去重集合 / 重定位向导）。 */
+  const [panel, setPanel] = useState<PanelKind>('none');
 
   const left = useResizable({ storageKey: 'luling.leftWidth', initial: 248, min: 180, max: 420, side: 'left' });
   const right = useResizable({ storageKey: 'luling.rightWidth', initial: 320, min: 240, max: 480, side: 'right' });
@@ -445,6 +447,9 @@ export default function App() {
               current={current}
               selected={selectedList}
               summary={summary}
+              panel={panel}
+              onPanel={setPanel}
+              onNotice={setNotice}
             />
           </>
         )}

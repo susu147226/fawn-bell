@@ -13,6 +13,7 @@ import { absolutePath, dirDisplayName, subDirsOf, type ScanIndex } from '../lib/
 import { formatBytes, formatCount, formatDateTime, formatDuration } from '../lib/format';
 import { KindIcon } from '../lib/icons';
 import { api } from '../lib/ipc';
+import { DedupePanel, RelocateWizard, type NoticePayload } from './Panels';
 import {
   KINDS,
   KIND_LABEL,
@@ -22,6 +23,9 @@ import {
   type KindCount,
   type ScanSummary,
 } from '../lib/types';
+
+/** 右栏可切换的 P1 工具面板。 */
+export type PanelKind = 'none' | 'dedupe' | 'relocate';
 
 /** Shell 属性键 → 中文标签（§6.4）。 */
 const PROP_LABEL: Record<string, string> = {
@@ -150,6 +154,10 @@ export interface DetailPanelProps {
   current: string;
   selected: string[];
   summary: ScanSummary | null;
+  /** 当前显示的 P1 工具面板；`none` 时显示常规详情。 */
+  panel: PanelKind;
+  onPanel: (p: PanelKind) => void;
+  onNotice: (n: NoticePayload) => void;
 }
 
 function aggregateKinds(index: ScanIndex, rels: string[]): KindCount[] {
@@ -421,10 +429,42 @@ function SummaryFallback({ text }: { text: string }) {
   );
 }
 
-export default function DetailPanel({ width, index, current, selected, summary }: DetailPanelProps) {
+/** 常规详情底部的两个 P1 工具入口（去重集合、重定位向导）。 */
+function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
+  return (
+    <div className="detail-sec">
+      <div className="detail-title">工具</div>
+      <div className="empty-actions" style={{ flexWrap: 'wrap' }}>
+        <button className="btn" type="button" onClick={() => onPanel('dedupe')}>
+          重复内容…
+        </button>
+        <button className="btn" type="button" onClick={() => onPanel('relocate')}>
+          重新定位素材树…
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function DetailPanel({
+  width,
+  index,
+  current,
+  selected,
+  summary,
+  panel,
+  onPanel,
+  onNotice,
+}: DetailPanelProps) {
   let body: ReactNode;
 
-  if (!index || !summary) {
+  if (panel === 'dedupe') {
+    body = <DedupePanel onClose={() => onPanel('none')} />;
+  } else if (panel === 'relocate') {
+    body = (
+      <RelocateWizard root={summary?.root ?? null} onClose={() => onPanel('none')} onNotice={onNotice} />
+    );
+  } else if (!index || !summary) {
     body = <SummaryFallback text="还没有扫描结果。选择素材文件夹并扫描后，这里显示详情。" />;
   } else if (selected.length > 1) {
     body = <BatchView index={index} rels={selected} />;
@@ -451,6 +491,7 @@ export default function DetailPanel({ width, index, current, selected, summary }
   return (
     <div className="detail" style={{ width }}>
       {body}
+      {panel === 'none' ? <ToolsEntry onPanel={onPanel} /> : null}
     </div>
   );
 }

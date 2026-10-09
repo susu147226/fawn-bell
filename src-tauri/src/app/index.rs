@@ -39,6 +39,8 @@ pub struct IndexReport {
     pub unchanged: u64,
     /// 本次没再出现、被标记为缺失的条数（§7.1）。
     pub missing: usize,
+    /// 上次标成缺失、这次又看见了、恢复正常的条数。
+    pub unmissed: usize,
     pub hashed: u64,
     /// 本次重建的引用行数（§6.3.1）。
     pub refs: usize,
@@ -228,6 +230,9 @@ pub fn index_scan(
 
     if !report.cancelled {
         report.missing = db::mark_missing(&conn, &vol, &seen)?;
+        // 反过来也要做：未变条目被整条跳过，它们身上残留的 missing 必须在这里清掉，
+        // 否则「文件明明在、索引却说是缺失」会让去重/统计全部失真。
+        report.unmissed = db::clear_missing(&conn, &vol, &seen)?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
@@ -400,6 +405,32 @@ mod tests {
         let rep2 = index_scan(&s.root, &files, &layout, &cancel2, &NoMetadata, |_| {}).unwrap();
         assert!(rep2.cancelled);
         assert_eq!(rep2.missing, 0);
+    }
+
+    #[test]
+    fn 缺失条目重新出现时恢复且仍算未变() {
+        let (s, layout) = scene("unmissed");
+        fs::write(s.root.join("a.png"), b"aaaa").unwrap();
+        let cancel = AtomicBool::new(false);
+        let files = scan_all(&s.root);
+        index_scan(&s.root, &files, &layout, &cancel, &NoMetadata, |_| {}).unwrap();
+
+        // 模拟「先扫了别的根，把它标成缺失」
+        let vol = volume::volume_id(&s.root);
+        {
+            let conn = db::open_library(&layout).unwrap();
+            conn.execute("UPDATE assets SET missing = 1", []).unwrap();
+            assert_eq!(db::missing_assets(&conn, &vol).unwrap().len(), 1);
+        }
+
+        // 再扫本根：条目未变（体积/时间都没动）→ 仍走「跳过」路径，但 missing 必须被清掉
+        let rep = index_scan(&s.root, &files, &layout, &cancel, &NoMetadata, |_| {}).unwrap();
+        assert_eq!(rep.unchanged, 1);
+        assert_eq!(rep.unmissed, 1, "重新看见的条目要恢复");
+        assert_eq!(rep.missing, 0);
+
+        let conn = db::open_library(&layout).unwrap();
+        assert!(db::missing_assets(&conn, &vol).unwrap().is_empty());
     }
 
     #[test]

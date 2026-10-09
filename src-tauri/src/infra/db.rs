@@ -350,6 +350,42 @@ pub fn mark_missing(
     Ok(marked)
 }
 
+/// 把**这次又看见了**的条目从 `missing` 恢复（§7.1 的对称操作）。
+///
+/// 为什么需要它：增量扫描会整条跳过「体积/时间都没变」的条目，于是这些条目的 `missing`
+/// 标记不会被 `upsert_asset` 顺手清掉——素材树搬回来、或先扫了别的根把它标成缺失之后再扫回本根，
+/// 就会出现「文件在、索引却说是缺失」的假象。返回恢复条数。
+pub fn clear_missing(
+    conn: &Connection,
+    volume_id: &str,
+    seen_rel_paths: &HashSet<String>,
+) -> Result<usize, String> {
+    let seen: HashSet<String> = seen_rel_paths.iter().map(|s| s.to_lowercase()).collect();
+    let mut stmt = conn
+        .prepare("SELECT id, rel_path FROM assets WHERE volume_id = ?1 AND missing = 1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![volume_id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut recovered = Vec::new();
+    for row in rows {
+        let (id, rel) = row.map_err(|e| e.to_string())?;
+        if seen.contains(&rel.to_lowercase()) {
+            recovered.push(id);
+        }
+    }
+    drop(stmt);
+    let mut n = 0usize;
+    for id in recovered {
+        conn.execute("UPDATE assets SET missing = 0 WHERE id = ?1", params![id])
+            .map_err(|e| e.to_string())?;
+        n += 1;
+    }
+    Ok(n)
+}
+
 /// 某个卷上被标记为 `missing` 的条目（§7.1：灰色显示 + 两个动作）。
 pub fn missing_assets(conn: &Connection, volume_id: &str) -> Result<Vec<(i64, String, String)>, String> {
     let mut stmt = conn
