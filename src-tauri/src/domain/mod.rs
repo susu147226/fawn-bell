@@ -8,3 +8,4 @@ pub mod drafts;
 pub mod guard;
 pub mod ignore;
 pub mod kind;
+pub mod naming;
