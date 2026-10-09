@@ -10,7 +10,8 @@
     "build:web": "tsc && vite build",
     "preview": "vite preview",
     "check:tokens": "node scripts/check-tokens.mjs",
-    "check:licenses": "node scripts/license-audit.mjs",
+    "check:licenses": "node scripts/license-audit.mjs && node scripts/license-audit-rust.mjs",
+    "check:licenses:rust": "node scripts/license-audit-rust.mjs --write",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -22,10 +23,12 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "vite": "^8.0.16"
   }

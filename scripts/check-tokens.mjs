@@ -242,6 +242,25 @@ if (!darkBlock) {
 }
 
 // ── 逐文件检查 ─────────────────────────────────────────────────────────
+
+/**
+ * 已知例外：Tailwind v4 会在产物里输出一段**能力探测**文本
+ *   `@supports (not (color: rgb(from red r g b))) { … }`
+ * 它用来判断浏览器是否支持相对颜色语法（决定要不要发 @property 兼容层），既不是组件写死的
+ * 色值，也不可能影响主题。这里按**精确区间**豁免，不做任何模糊放行：只有落在该探测文本内的
+ * 颜色匹配才跳过，其它位置照旧一律报错。
+ */
+const FEATURE_PROBES = [/@supports[^{]*rgb\(from\s+red\s+r\s+g\s+b\)[^{]*/g];
+
+function inFeatureProbe(text, index) {
+  for (const re of FEATURE_PROBES) {
+    for (const m of text.matchAll(re)) {
+      if (index >= m.index && index < m.index + m[0].length) return true;
+    }
+  }
+  return false;
+}
+
 function checkFile(file) {
   const raw = readFileSync(file, 'utf8');
   const ext = extname(file).toLowerCase();
@@ -250,7 +269,7 @@ function checkFile(file) {
 
   if (!isTokens) {
     for (const m of text.matchAll(COLOR_RE)) {
-      if (!allowedColors.has(canonColor(m[0]))) {
+      if (!allowedColors.has(canonColor(m[0])) && !inFeatureProbe(text, m.index)) {
         const rule = m[0].startsWith('#') ? 'hex-color' : 'color-func';
         report(rule, file, lineOf(text, m.index), `${m[0]} 不在 tokens.css 登记（§12.4② 组件内禁止写死色值）`);
       }

@@ -1,0 +1,61 @@
+/**
+ * Tailwind v4 接入层（执行版 §12.4「样式与前端依赖策略」/ §16⑦）。
+ *
+ * 三条硬约束，缺一条都会踩到验收项：
+ *
+ * 1. **只引 theme + utilities，不引 preflight**。preflight 会重置原生控件外观
+ *    （按钮/输入框的边框、背景、字体全部被改写），与 §16⑦「工具类框架的重置样式未改变
+ *    原生控件表现」直接冲突。本项目的 `base.css` 已是收敛过的重置，原生控件按系统外观显示。
+ *
+ * 2. **清空默认调色板再映射令牌**。Tailwind 自带整套色板（含 oklch 字面值），直接引入会让
+ *    产物里出现第二套颜色真源，违反 §9.1「令牌是唯一真源」。这里用 `--color-*: initial`
+ *    清空命名空间，再把每个颜色映射到 `tokens.css` 的 CSS 变量。
+ *
+ * 3. **动效时长只认令牌**。Tailwind 默认主题含 `--animate-spin: spin 1s …` 等硬编码时长，
+ *    与 §12.4 第 2 条门禁（禁硬编码时长）和 §16⑦「第三方动画时长 ≤250 ms」冲突；
+ *    这里清空 `--animate-*` 并把 `--default-transition-duration` 指向令牌。
+ */
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  /* 颜色：先清空，再逐个映射到令牌 */
+  --color-*: initial;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-draft: var(--draft-mark);
+  --color-protected: var(--protected-mark);
+  --color-organized: var(--organized-mark);
+
+  /* 圆角与阴影：同样只来自令牌 */
+  --radius-*: initial;
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-*: initial;
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+
+  /* 字体与尺寸 */
+  --font-sans: var(--font-family);
+  --font-mono: var(--font-mono);
+  --spacing: var(--spacing-1);
+
+  /* 动效：清空默认动画，时长只认令牌（禁硬编码时长） */
+  --animate-*: initial;
+  --default-transition-duration: var(--motion-duration);
+}
