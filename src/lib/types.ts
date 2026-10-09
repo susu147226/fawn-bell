@@ -118,6 +118,26 @@ export interface IndexReport {
   warnings: string[];
 }
 
+/** Shell 扩展属性的一条（键名 → 值，§6.4）。 */
+export interface MetaProp {
+  key: string;
+  value: string;
+}
+
+/** 索引里的素材元数据（§6.4：图片走 EXIF、其余走 Shell 属性）。 */
+export interface AssetMeta {
+  width: number | null;
+  height: number | null;
+  captureTime: number | null;
+  camera: string | null;
+  gpsLat: number | null;
+  gpsLon: number | null;
+  orientation: number | null;
+  /** 索引后被外部删除/移动（§7.1：元数据仍保留）。 */
+  missing: boolean;
+  props: MetaProp[];
+}
+
 export interface ScanDone {
   scanId: number;
   status: 'done' | 'cancelled' | 'failed';

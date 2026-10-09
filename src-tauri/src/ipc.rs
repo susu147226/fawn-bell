@@ -244,6 +244,80 @@ pub fn scan_result(state: State<'_, ScanState>, scan_id: u64) -> Result<ScanResu
     }
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetaProp {
+    pub key: String,
+    pub value: String,
+}
+
+/// 索引里某个素材的元数据（§6.4 EXIF/Shell、§8.5 右栏详情）。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetMetaDto {
+    pub width: Option<i64>,
+    pub height: Option<i64>,
+    pub capture_time: Option<i64>,
+    pub camera: Option<String>,
+    pub gps_lat: Option<f64>,
+    pub gps_lon: Option<f64>,
+    pub orientation: Option<i64>,
+    /// 索引后被外部删除/移动（§7.1）。
+    pub missing: bool,
+    /// Shell 扩展属性（时长、码率、艺术家、标题、作者…）。
+    pub props: Vec<MetaProp>,
+}
+
+/// 缩略图（PNG 的 data URL）。
+///
+/// §12.3：优先走系统缩略图接口；拿不到返回 `null`，界面**降级为类型图标**而不是编造图形。
+/// §10：缓存写在库目录内，命中即返回；超上限由 [`crate::infra::thumb::evict`] 淘汰。
+#[tauri::command]
+pub fn thumb_data_url(path: String) -> Result<Option<String>, String> {
+    let p = PathBuf::from(&path);
+    if !p.is_file() {
+        return Ok(None);
+    }
+    let layout = crate::infra::library::layout();
+    match crate::infra::thumb::bytes_for(&layout, &p) {
+        Some(bytes) => Ok(Some(format!(
+            "data:image/png;base64,{}",
+            crate::infra::png::base64(&bytes)
+        ))),
+        None => Ok(None),
+    }
+}
+
+/// 取某素材在索引里的元数据。
+///
+/// 界面给的是「素材根 + 根内相对路径」，索引的主键是「卷标识 + 相对卷根路径」（§13.4），
+/// 这里做一次换算，界面不需要知道索引的存储口径。
+#[tauri::command]
+pub fn asset_meta(root: String, rel_path: String) -> Result<Option<AssetMetaDto>, String> {
+    let abs = PathBuf::from(&root).join(rel_path.replace('/', "\\"));
+    let vol = crate::infra::volume::volume_id(std::path::Path::new(&root));
+    let rel = crate::infra::volume::rel_path_from_volume(&abs);
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let Some(detail) = crate::infra::db::asset_detail(&conn, &vol, &rel)? else {
+        return Ok(None);
+    };
+    let props = crate::infra::db::meta_all(&conn, detail.id)?
+        .into_iter()
+        .map(|(key, value)| MetaProp { key, value })
+        .collect();
+    Ok(Some(AssetMetaDto {
+        width: detail.width,
+        height: detail.height,
+        capture_time: detail.capture_time,
+        camera: detail.camera,
+        gps_lat: detail.gps_lat,
+        gps_lon: detail.gps_lon,
+        orientation: detail.orientation,
+        missing: detail.missing,
+        props,
+    }))
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {

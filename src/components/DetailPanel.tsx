@@ -7,12 +7,142 @@
  */
 
 import { CircleAlert, Cloud, Folder, Info } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { absolutePath, dirDisplayName, subDirsOf, type ScanIndex } from '../lib/folders';
 import { formatBytes, formatCount, formatDateTime, formatDuration } from '../lib/format';
 import { KindIcon } from '../lib/icons';
-import { KINDS, KIND_LABEL, type FileRow, type Kind, type KindCount, type ScanSummary } from '../lib/types';
+import { api } from '../lib/ipc';
+import {
+  KINDS,
+  KIND_LABEL,
+  type AssetMeta,
+  type FileRow,
+  type Kind,
+  type KindCount,
+  type ScanSummary,
+} from '../lib/types';
+
+/** Shell 属性键 → 中文标签（§6.4）。 */
+const PROP_LABEL: Record<string, string> = {
+  'System.Media.Duration': '时长',
+  'System.Video.FrameWidth': '视频宽',
+  'System.Video.FrameHeight': '视频高',
+  'System.Video.EncodingBitrate': '视频码率',
+  'System.Video.TotalBitrate': '总码率',
+  'System.Music.Artist': '艺术家',
+  'System.Title': '标题',
+  'System.Author': '作者',
+  'System.ItemTypeText': '系统类型',
+};
+
+/** `System.Media.Duration` 是 100 ns 单位，展示时换算成秒。 */
+function propText(key: string, value: string): string {
+  if (key === 'System.Media.Duration') {
+    const n = Number(value);
+    return Number.isFinite(n) ? `${formatDuration(n / 10_000)}` : value;
+  }
+  return value;
+}
+
+/** 缩略图（§12.3：走系统缩略图；拿不到就降级，绝不编造图形）。 */
+function FilePreview({ abs, kind }: { abs: string; kind: Kind }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [state, setState] = useState<'loading' | 'ok' | 'none'>('loading');
+
+  useEffect(() => {
+    let alive = true;
+    setState('loading');
+    setUrl(null);
+    api
+      .thumb(abs)
+      .then((u) => {
+        if (!alive) return;
+        if (u) {
+          setUrl(u);
+          setState('ok');
+        } else {
+          setState('none');
+        }
+      })
+      .catch(() => {
+        if (alive) setState('none');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [abs, kind]);
+
+  if (state === 'loading') return <div className="tbd">正在生成缩略图…</div>;
+  if (state === 'none' || !url) {
+    return <div className="tbd">系统没有提供这个文件的缩略图，已降级为类型图标。</div>;
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      style={{
+        width: '100%',
+        maxWidth: 'calc(var(--thumb-size) * 2)',
+        maxHeight: 'calc(var(--thumb-size) * 2)',
+        objectFit: 'contain',
+        background: 'var(--surface-alt)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+      }}
+    />
+  );
+}
+
+/** 索引里的元数据（§6.4）：EXIF 的尺寸/拍摄时间/机型/方向/GPS + Shell 扩展属性。 */
+function FileMetaRows({ root, relPath }: { root: string; relPath: string }) {
+  const [meta, setMeta] = useState<AssetMeta | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoaded(false);
+    api
+      .assetMeta(root, relPath)
+      .then((m) => {
+        if (alive) {
+          setMeta(m);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (alive) setLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [root, relPath]);
+
+  if (!loaded) return <div className="tbd">正在读取索引…</div>;
+  if (!meta) return <div className="tbd">这个文件还没有进索引（扫描一次就会出现）。</div>;
+
+  const rows: ReactNode[] = [];
+  if (meta.width && meta.height) {
+    rows.push(<Kv k="尺寸" v={`${formatCount(meta.width)} × ${formatCount(meta.height)}`} key="wh" />);
+  }
+  if (meta.captureTime) rows.push(<Kv k="拍摄时间" v={formatDateTime(meta.captureTime)} key="ct" />);
+  if (meta.camera) rows.push(<Kv k="机型" v={meta.camera} key="cam" />);
+  if (meta.orientation) rows.push(<Kv k="方向" v={`EXIF ${meta.orientation}`} key="ori" />);
+  if (meta.gpsLat != null && meta.gpsLon != null) {
+    rows.push(<Kv k="GPS" v={`${meta.gpsLat.toFixed(5)}, ${meta.gpsLon.toFixed(5)}`} key="gps" />);
+  }
+  for (const p of meta.props) {
+    rows.push(<Kv k={PROP_LABEL[p.key] ?? p.key} v={propText(p.key, p.value)} key={p.key} />);
+  }
+  if (meta.missing) {
+    rows.push(<Kv k="索引状态" v="文件已不在磁盘上（元数据仍保留，可重新扫描或从索引移除）" key="missing" />);
+  }
+  return rows.length > 0 ? (
+    <div className="kv">{rows}</div>
+  ) : (
+    <div className="tbd">索引里没有这个文件的额外元数据（无 EXIF，系统也未提供属性）。</div>
+  );
+}
 
 export interface DetailPanelProps {
   width: number;
@@ -206,7 +336,7 @@ function FolderView({ index, rel }: { index: ScanIndex; rel: string }) {
   );
 }
 
-function FileView({ index, file }: { index: ScanIndex; file: FileRow }) {
+function FileView({ index, file, root }: { index: ScanIndex; file: FileRow; root: string }) {
   return (
     <>
       <div className="detail-sec">
@@ -237,6 +367,16 @@ function FileView({ index, file }: { index: ScanIndex; file: FileRow }) {
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="detail-sec">
+        <div className="detail-title">预览</div>
+        <FilePreview abs={absolutePath(index, file.relPath)} kind={file.kind} />
+      </div>
+
+      <div className="detail-sec">
+        <div className="detail-title">元数据（索引）</div>
+        <FileMetaRows root={root} relPath={file.relPath} />
       </div>
 
       <DisabledActions title="文件操作" items={['重命名', '移动到…', '复制到…', '整理命名…', '移入保护区']} />
@@ -291,7 +431,7 @@ export default function DetailPanel({ width, index, current, selected, summary }
   } else if (selected.length === 1) {
     const rel = selected[0];
     const file = index.fileByRel.get(rel);
-    body = file ? <FileView index={index} file={file} /> : <FolderView index={index} rel={rel} />;
+    body = file ? <FileView index={index} file={file} root={summary.root} /> : <FolderView index={index} rel={rel} />;
   } else {
     const name = dirDisplayName(index, current);
     body = (

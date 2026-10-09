@@ -588,6 +588,48 @@ pub fn group_members(conn: &Connection, group_id: i64) -> Result<Vec<i64>, Strin
     Ok(out)
 }
 
+/// 界面上「点开一个文件」需要的索引字段（§8.5 右栏详情 / §6.4 元数据）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssetDetail {
+    pub id: i64,
+    pub width: Option<i64>,
+    pub height: Option<i64>,
+    pub capture_time: Option<i64>,
+    pub camera: Option<String>,
+    pub gps_lat: Option<f64>,
+    pub gps_lon: Option<f64>,
+    pub orientation: Option<i64>,
+    pub missing: bool,
+}
+
+/// 按索引键 `(volume_id, rel_path)` 取一条素材的元数据；不在索引里返回 `None`。
+pub fn asset_detail(
+    conn: &Connection,
+    volume_id: &str,
+    rel_path: &str,
+) -> Result<Option<AssetDetail>, String> {
+    conn.query_row(
+        "SELECT id, width, height, capture_time, camera, gps_lat, gps_lon, orientation, missing
+         FROM assets WHERE volume_id = ?1 AND rel_path = ?2",
+        params![volume_id, rel_path],
+        |row| {
+            Ok(AssetDetail {
+                id: row.get(0)?,
+                width: row.get(1)?,
+                height: row.get(2)?,
+                capture_time: row.get(3)?,
+                camera: row.get(4)?,
+                gps_lat: row.get(5)?,
+                gps_lon: row.get(6)?,
+                orientation: row.get(7)?,
+                missing: row.get::<_, i64>(8)? != 0,
+            })
+        },
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {

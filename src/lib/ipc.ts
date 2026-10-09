@@ -6,10 +6,17 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 
-import type { AppInfo, ScanDone, ScanProgress, ScanResult, ScanSnapshot } from './types';
+import type { AppInfo, AssetMeta, ScanDone, ScanProgress, ScanResult, ScanSnapshot } from './types';
 
 export const api = {
   appInfo: () => invoke<AppInfo>('app_info'),
+
+  /** 取素材缩略图（PNG 的 data URL）；拿不到返回 null，界面降级为类型图标（§12.3）。 */
+  thumb: (path: string) => invoke<string | null>('thumb_data_url', { path }),
+
+  /** 取索引里的元数据（EXIF / Shell 属性）；不在索引里返回 null。 */
+  assetMeta: (root: string, relPath: string) =>
+    invoke<AssetMeta | null>('asset_meta', { root, relPath }),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

@@ -24,6 +24,8 @@ pub fn run() {
             ipc::scan_cancel,
             ipc::scan_result,
             ipc::scan_snapshot,
+            ipc::thumb_data_url,
+            ipc::asset_meta,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");
