@@ -1,0 +1,14 @@
+# 鹿铃 · pnpm 设置
+#
+# 这个文件存在的原因（2026-10-09 实测记录，勿随手删除）：
+#
+# pnpm 11 默认启用一条供应链检查 minimumReleaseAge —— 距发布不足 24 小时的包
+# 不允许被安装。本项目的锁文件里恰好有 3 个刚发布的依赖
+# （@tauri-apps/api@2.12.2 / lucide-react@1.53.0 / vite@8.3.4），于是
+# `pnpm install` 以及 tauri-cli 在 `tauri dev` 前自动执行的依赖检查会失败：
+#   [ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] 3 lockfile entries failed verification
+#
+# pnpm 11 不再从 .npmrc 读取 pnpm 自身的设置：在项目 .npmrc 里写
+# `minimum-release-age=0` 实测无效（仍被拦截），必须写在 pnpm-workspace.yaml。
+# 置 0 = 关闭这条最小发布年龄检查（仅影响本项目的依赖安装）。
+minimumReleaseAge: 0

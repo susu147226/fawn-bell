@@ -76,11 +76,15 @@
 
 ## 开发与构建
 
-前置：Node.js + pnpm、Rust 工具链（edition 2021）。首次拉取后：
+前置：Node.js + pnpm、Rust 工具链（edition 2021）。本项目使用 **pnpm 11**（corepack 提供，实测 `pnpm -v` → `11.22.0`）。首次拉取后：
 
 ```powershell
 pnpm install
 ```
+
+> **`pnpm-workspace.yaml` 是必须的，不要删**：pnpm 11 默认启用供应链检查 `minimumReleaseAge`（距发布不足 24 小时的包不许安装），会拦住锁文件里刚发布的依赖，导致 `pnpm install` 以及 `tauri dev` 前自动执行的依赖检查失败（`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`）。该项目文件把这条设为 `0`。注意 pnpm 11 **不再从 `.npmrc` 读取 pnpm 自身的设置**，所以这条只能写在这里（`minimum-release-age=0` 写进 `.npmrc` 实测无效）。
+>
+> 另：若 node_modules 是用别的 pnpm 大版本装的，pnpm 会提示「The modules directory … will be removed and reinstalled from scratch」，在终端里答 Yes 即可（它只是重建 `node_modules/`，不动源码与锁文件）。
 
 | 命令 | 作用 |
 | --- | --- |
@@ -163,6 +167,7 @@ cargo build --bin luling
 ├─ .gitignore
 ├─ index.html                     # 前端入口（zh-CN / data-theme）
 ├─ package.json / pnpm-lock.yaml  # 前端依赖与脚本
+├─ pnpm-workspace.yaml            # pnpm 设置：minimumReleaseAge: 0（原因见文件内注释）
 ├─ tsconfig.json / tsconfig.node.json / vite.config.mts
 ├─ assets/
 │  └─ icon/                       # 作者提供的 鹿铃.ico + 抽出的多尺寸 PNG（见目录内 README）
