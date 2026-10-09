@@ -90,6 +90,11 @@ export function onScanDone(cb: (d: ScanDone) => void): Promise<UnlistenFn> {
   return listen<ScanDone>('scan://done', (e) => cb(e.payload));
 }
 
+/** 草稿变化事件（§7.2）：界面据此刷新投影与计数。 */
+export function onDraftChanged(cb: (d: DraftList) => void): Promise<UnlistenFn> {
+  return listen<DraftList>('draft://changed', (e) => cb(e.payload));
+}
+
 /** 把后端抛出的错误统一成可展示的中文文案。 */
 export function errorText(e: unknown): string {
   if (typeof e === 'string') return e;

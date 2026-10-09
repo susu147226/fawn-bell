@@ -16,12 +16,14 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import { formatBytes, formatCount, formatTime } from '../lib/format';
 import { KindIcon } from '../lib/icons';
 import type { ListRow } from '../lib/rows';
-import { KIND_LABEL } from '../lib/types';
+import { KIND_LABEL, type Projection } from '../lib/types';
 
 export interface AssetListProps {
   rows: ListRow[];
   selection: Set<string>;
   activeId: string | null;
+  /** 投影结果（键＝根内相对路径的小写形式）：草稿态行显示新名字 + 斜体 + 橙点（§7.2）。 */
+  drafts?: Map<string, Projection>;
   onSelect: (id: string, mode: 'single' | 'toggle' | 'range') => void;
   onOpenDir: (relPath: string) => void;
   onToggleExpand: (relPath: string) => void;
@@ -42,6 +44,7 @@ export default function AssetList({
   rows,
   selection,
   activeId,
+  drafts,
   onSelect,
   onOpenDir,
   onToggleExpand,
@@ -219,18 +222,46 @@ export default function AssetList({
             }
 
             const f = row.file;
+            const proj = drafts?.get(f.relPath.toLowerCase());
+            const displayName = proj?.drafted
+              ? proj.path.split(/[\\/]/).filter(Boolean).pop() ?? f.name
+              : f.name;
             return (
               <div
-                className={['tbl-row', 'body', selected ? 'selected' : ''].filter(Boolean).join(' ')}
+                className={[
+                  'tbl-row',
+                  'body',
+                  proj?.drafted ? 'drafted' : '',
+                  proj?.removed ? 'removed' : '',
+                  selected ? 'selected' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 style={style}
                 key={row.id}
                 onClick={(e) => clickRow(row, e)}
-                title={f.relPath}
+                title={proj?.drafted ? `${f.relPath} → ${proj.path}` : f.relPath}
               >
                 <div className="cell cell-name" style={{ paddingLeft: indent }}>
                   <span className="caret" />
                   <KindIcon kind={f.kind} />
-                  <span className="name-text">{f.name}</span>
+                  <span className="name-text" style={proj?.drafted ? { fontStyle: 'italic' } : undefined}>
+                    {displayName}
+                  </span>
+                  {proj?.drafted ? (
+                    <span
+                      aria-hidden
+                      title={proj.removed ? '草稿态：已排入回收站，尚未落盘' : '草稿态：尚未落盘'}
+                      style={{
+                        display: 'inline-block',
+                        width: 'var(--spacing-1)',
+                        height: 'var(--spacing-1)',
+                        marginLeft: 'var(--spacing-1)',
+                        borderRadius: 'var(--radius-lg)',
+                        background: 'var(--draft-mark)',
+                      }}
+                    />
+                  ) : null}
                 </div>
                 <div className="cell cell-kind">
                   <KindIcon kind={f.kind} size={13} />
@@ -242,14 +273,18 @@ export default function AssetList({
                 </div>
                 <div className="cell cell-time">{formatTime(f.mtimeMs)}</div>
                 <div className="cell cell-status">
+                  {proj?.drafted ? (
+                    <span className="badge" title="草稿态：尚未落盘">
+                      {proj.removed ? '待删除' : '草稿'}
+                    </span>
+                  ) : null}
                   {f.cloud ? (
                     <span className="badge" title="云端占位文件">
                       <Cloud size={12} strokeWidth={1.75} aria-hidden />
                       云端
                     </span>
-                  ) : (
-                    <span className="tbd">—</span>
-                  )}
+                  ) : null}
+                  {!proj?.drafted && !f.cloud ? <span className="tbd">—</span> : null}
                 </div>
               </div>
             );

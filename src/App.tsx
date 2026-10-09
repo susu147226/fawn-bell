@@ -25,11 +25,19 @@ import Toolbar from './components/Toolbar';
 import TypeStats from './components/TypeStats';
 import { breadcrumbOf, buildIndex, dirDisplayName } from './lib/folders';
 import { basename, formatCount } from './lib/format';
-import { api, errorText, onScanDone, onScanProgress, pickFolder } from './lib/ipc';
+import { api, errorText, onDraftChanged, onScanDone, onScanProgress, pickFolder } from './lib/ipc';
 import { buildRows } from './lib/rows';
 import { useResizable } from './lib/useResizable';
 import { useTheme } from './lib/useTheme';
-import type { AppInfo, ScanDone, ScanProgress, ScanResult, ViewMode } from './lib/types';
+import type {
+  AppInfo,
+  DraftList,
+  Projection,
+  ScanDone,
+  ScanProgress,
+  ScanResult,
+  ViewMode,
+} from './lib/types';
 
 interface NoticeState {
   kind: NoticeKind;
@@ -57,6 +65,9 @@ export default function App() {
   const [rightCollapsed, setRightCollapsed] = useState(false);
   /** 右栏当前显示的 P1 工具面板（去重集合 / 重定位向导）。 */
   const [panel, setPanel] = useState<PanelKind>('none');
+  /** 草稿（§7.2）：列表 + 投影（投影键＝根内相对路径的小写形式）。 */
+  const [draftList, setDraftList] = useState<DraftList | null>(null);
+  const [draftMap, setDraftMap] = useState<Map<string, Projection>>(new Map());
 
   const left = useResizable({ storageKey: 'luling.leftWidth', initial: 248, min: 180, max: 420, side: 'left' });
   const right = useResizable({ storageKey: 'luling.rightWidth', initial: 320, min: 240, max: 480, side: 'right' });
@@ -347,6 +358,50 @@ export default function App() {
   const selectedList = useMemo(() => Array.from(selected).sort(), [selected]);
   const currentKinds = index?.dirByRel.get(current)?.kindCounts ?? [];
 
+  /* ── 草稿（§7.2）：拉取 + 订阅变化 ── */
+  useEffect(() => {
+    let alive = true;
+    api
+      .draftList()
+      .then((d) => {
+        if (alive) setDraftList(d);
+      })
+      .catch(() => {
+        /* 拿不到草稿不影响使用 */
+      });
+    const un = onDraftChanged((d) => setDraftList(d));
+    return () => {
+      alive = false;
+      void un.then((f) => f());
+    };
+  }, []);
+
+  /* 投影：把当前列表里看得见的路径交给后端折算成「界面该显示的样子」（§7.2 投影视图） */
+  useEffect(() => {
+    if (!root || rows.length === 0) {
+      setDraftMap(new Map());
+      return;
+    }
+    const visible = rows.filter((r) => r.type !== 'note');
+    const paths = visible.map((r) => `${root}\\${r.relPath.replace(/\//g, '\\')}`);
+    let alive = true;
+    api
+      .draftProject(paths)
+      .then((ps) => {
+        if (!alive) return;
+        const m = new Map<string, Projection>();
+        visible.forEach((r, i) => {
+          const p = ps[i];
+          if (p && (p.drafted || p.removed)) m.set(r.relPath.toLowerCase(), p);
+        });
+        setDraftMap(m);
+      })
+      .catch(() => setDraftMap(new Map()));
+    return () => {
+      alive = false;
+    };
+  }, [draftList, rows, root]);
+
   let mainBody: ReactNode;
   if (index && summary) {
     mainBody =
@@ -366,6 +421,7 @@ export default function App() {
           rows={rows}
           selection={selected}
           activeId={activeId}
+          drafts={draftMap}
           onSelect={onSelect}
           onOpenDir={onNavigate}
           onToggleExpand={onToggleExpand}
