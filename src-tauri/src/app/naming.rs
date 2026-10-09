@@ -339,6 +339,69 @@ pub fn two_phase(plan: &RenamePlan) -> (Vec<(String, String)>, Vec<(String, Stri
     (step1, step2)
 }
 
+/* ── 引用感知 ─────────────────────────────────────────────────────── */
+
+/// 一条「新名字被引用命中」的记录。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefHit {
+    pub item_index: usize,
+    pub ref_count: i64,
+    pub ref_name: String,
+}
+
+fn file_name_of(path: &str) -> String {
+    Path::new(path)
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
+/// 用给定的计数函数给计划补引用说明（便于单测；生产路径用 [`annotate_references`]）。
+///
+/// 条文口径（§6.3.1 / §7.3.3）：**默认不改写引用**，只在计划里把「新名字被 N 处引用命中」
+/// 说清楚；是否同步改写由用户在危险确认里显式开启（执行属 P6）。
+pub fn annotate_with<F: Fn(&str) -> i64>(plan: &mut RenamePlan, count: F) -> Vec<RefHit> {
+    let mut hits = Vec::new();
+    for (i, item) in plan.items.iter_mut().enumerate() {
+        if item.excluded || item.dst.is_empty() {
+            continue;
+        }
+        let src_name = file_name_of(&item.src);
+        let dst_name = file_name_of(&item.dst);
+        if dst_name.is_empty() || dst_name.eq_ignore_ascii_case(&src_name) {
+            continue;
+        }
+        let n = count(&dst_name);
+        if n > 0 {
+            item.notes
+                .push(format!("新名字被 {n} 处引用命中（默认不改写引用，提交前请确认）"));
+            hits.push(RefHit {
+                item_index: i,
+                ref_count: n,
+                ref_name: dst_name,
+            });
+        }
+    }
+    hits
+}
+
+/// 从库里的引用映射（`refs` 表）给计划补引用说明。
+pub fn annotate_references(conn: &Connection, plan: &mut RenamePlan) -> Result<Vec<RefHit>, String> {
+    let err: std::cell::RefCell<Option<String>> = std::cell::RefCell::new(None);
+    let hits = annotate_with(plan, |name| match db::ref_count(conn, name) {
+        Ok(n) => n,
+        Err(e) => {
+            *err.borrow_mut() = Some(e);
+            0
+        }
+    });
+    match err.into_inner() {
+        Some(e) => Err(e),
+        None => Ok(hits),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -525,6 +588,41 @@ mod tests {
         assert_eq!(step2[0].1, r"D:\素材\a.jpg");
         // 仅大小写变化在 Windows 眼里是「同一个路径」，因此也算伪环——正是两阶段要解决的场景
         assert_eq!(detect_cycles(&plan), vec![0], "大小写伪冲突应被识别出来");
+    }
+
+    #[test]
+    fn 引用命中会在计划里说明且默认不改写() {
+        let mut plan = RenamePlan {
+            items: vec![
+                PlanItem {
+                    asset_id: 1,
+                    src: r"D:\素材\海边日落.jpg".to_string(),
+                    dst: r"D:\素材\date_0.jpg".to_string(),
+                    seq: Some(0),
+                    excluded: false,
+                    notes: vec![],
+                },
+                PlanItem {
+                    asset_id: 2,
+                    src: r"D:\素材\另一张.jpg".to_string(),
+                    dst: r"D:\素材\date_1.jpg".to_string(),
+                    seq: Some(1),
+                    excluded: false,
+                    notes: vec![],
+                },
+            ],
+            notes: vec![],
+        };
+        // 假装 manifest 里引用了 date_0.jpg 两次
+        let hits = annotate_with(&mut plan, |name| if name == "date_0.jpg" { 2 } else { 0 });
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].item_index, 0);
+        assert_eq!(hits[0].ref_count, 2);
+        assert!(plan.items[0]
+            .notes
+            .iter()
+            .any(|n| n.contains("被 2 处引用命中") && n.contains("默认不改写引用")));
+        assert!(plan.items[1].notes.is_empty(), "没被引用的条目不该被加说明");
     }
 
     #[test]
