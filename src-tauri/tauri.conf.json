@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.yunshumianmian.luling",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm.cmd dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm.cmd build",
     "frontendDist": "../dist"
   },
   "app": {

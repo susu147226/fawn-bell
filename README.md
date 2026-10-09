@@ -92,6 +92,13 @@ pnpm install
 | `pnpm check:licenses` | 单独跑依赖许可证逐版本核对 |
 | `pnpm tauri build` | 出安装包（**P9 前不要出正式安装包**，见执行版 §15） |
 
+> **如果 PowerShell 报「无法加载文件 …`pnpm.ps1`，因为在此系统上禁止运行脚本」（执行策略 Restricted）**——这不是项目问题，是 Windows 默认执行策略禁止运行 `pnpm.ps1`。任选一种解法：
+> 1. 用不受执行策略限制的 `pnpm.cmd`：`pnpm.cmd tauri dev`；
+> 2. 在**命令提示符（cmd）**里执行：`pnpm tauri dev`；
+> 3. 一次性放开当前用户的脚本执行：`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`（无需管理员）。
+>
+> `src-tauri/tauri.conf.json` 里的 `beforeDevCommand` / `beforeBuildCommand` 写的是 **`pnpm.cmd`**，所以 Tauri 自己拉起前端（`vite` / 发布构建）时不会受该策略影响。
+
 Rust 侧自测与命令行：
 
 ```powershell
