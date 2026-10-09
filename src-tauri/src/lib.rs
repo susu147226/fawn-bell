@@ -45,6 +45,18 @@ pub fn run() {
             ipc::preset_import,
             ipc::preset_apply,
             ipc::naming_preview,
+            ipc::groups_list,
+            ipc::group_create,
+            ipc::group_rename,
+            ipc::group_delete,
+            ipc::group_add_members,
+            ipc::group_remove_members,
+            ipc::group_members_eval,
+            ipc::protected_list,
+            ipc::protected_add,
+            ipc::protected_remove,
+            ipc::protected_remove_all,
+            ipc::protection_stats,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");

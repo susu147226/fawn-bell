@@ -914,7 +914,8 @@ pub fn reorder_presets(conn: &Connection, ids: &[i64]) -> Result<(), String> {
 /* ── 保护区（§7.6 / §13.2 protections） ───────────────────────────── */
 
 /// 保护区条目（横切安全属性，独立于分组）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProtectionRow {
     pub asset_id: i64,
     pub added_by: String,
@@ -1000,7 +1001,8 @@ pub fn protected_week_new(conn: &Connection, now: i64) -> Result<i64, String> {
 
 /* ── 分组（§7.5 / §13.2 groups / asset_group） ────────────────────── */
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GroupRow {
     pub id: i64,
     pub name: String,

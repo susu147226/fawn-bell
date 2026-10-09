@@ -596,6 +596,106 @@ pub fn naming_preview(
     Ok(out)
 }
 
+/* ── 分组与保护区（§7.5 / §7.6） ─────────────────────────────────── */
+
+/// 保护区的统计（§7.6：总数 + 当周新增，两个数字并列显示）。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtectionStatsDto {
+    pub total: i64,
+    pub week_new: i64,
+}
+
+#[tauri::command]
+pub fn groups_list() -> Result<Vec<crate::infra::db::GroupRow>, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::list(&conn)
+}
+
+#[tauri::command]
+pub fn group_create(name: String) -> Result<i64, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::create(&conn, &name)
+}
+
+#[tauri::command]
+pub fn group_rename(id: i64, name: String) -> Result<(), String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::rename(&conn, id, &name)
+}
+
+/// 删除分组：只删分组与成员关系，保护区 / 标签 / 已整理标记都不动（§7.6）。
+#[tauri::command]
+pub fn group_delete(id: i64) -> Result<(), String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::remove(&conn, id)
+}
+
+#[tauri::command]
+pub fn group_add_members(id: i64, asset_ids: Vec<i64>) -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::add_members(&conn, id, &asset_ids)
+}
+
+#[tauri::command]
+pub fn group_remove_members(id: i64, asset_ids: Vec<i64>) -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::remove_members(&conn, id, &asset_ids)
+}
+
+/// 求值一个集合的成员（§7.5：智能集合每次打开动态求值）。
+///
+/// `重复内容` 读的是**内容去重用例物化进 `asset_group` 的那份成员**，与去重判定同源（§16⑰①）。
+#[tauri::command]
+pub fn group_members_eval(id: i64) -> Result<Vec<i64>, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let groups = crate::app::groups::list(&conn)?;
+    let g = groups
+        .into_iter()
+        .find(|x| x.id == id)
+        .ok_or_else(|| "集合不存在".to_string())?;
+    if g.kind != "smart" {
+        return crate::infra::db::group_members(&conn, id);
+    }
+    let rule = g.rule_json.clone().unwrap_or_default();
+    if rule.contains("duplicates") {
+        return crate::infra::db::group_members(&conn, id);
+    }
+    crate::app::groups::eval_smart(&conn, &rule, &[])
+}
+
+#[tauri::command]
+pub fn protected_list() -> Result<Vec<crate::infra::db::ProtectionRow>, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::list_protected(&conn)
+}
+
+#[tauri::command]
+pub fn protected_add(asset_ids: Vec<i64>, reason: Option<String>) -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::protect(&conn, &asset_ids, "manual", reason.as_deref())
+}
+
+#[tauri::command]
+pub fn protected_remove(asset_ids: Vec<i64>) -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::unprotect(&conn, &asset_ids)
+}
+
+/// 「全部移出」（界面须二次确认，§7.6）。
+#[tauri::command]
+pub fn protected_remove_all() -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::unprotect_all(&conn)
+}
+
+#[tauri::command]
+pub fn protection_stats() -> Result<ProtectionStatsDto, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let (total, week_new) = crate::app::groups::stats(&conn)?;
+    Ok(ProtectionStatsDto { total, week_new })
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {
