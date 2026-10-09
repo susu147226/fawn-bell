@@ -4,6 +4,7 @@
 
 pub mod aggregate;
 pub mod dedupe;
+pub mod drafts;
 pub mod guard;
 pub mod ignore;
 pub mod kind;
