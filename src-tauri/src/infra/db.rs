@@ -630,6 +630,54 @@ pub fn asset_detail(
     .map_err(|e| e.to_string())
 }
 
+/// 「重新定位素材树」用的一行索引（§13.4）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct RelocateRow {
+    pub id: i64,
+    pub volume_id: String,
+    pub rel_path: String,
+    pub name: String,
+    pub size: i64,
+    pub mtime: i64,
+}
+
+/// 取某个卷上的全部索引行（重定位要拿全量比对）。
+pub fn assets_of_volume(conn: &Connection, volume_id: &str) -> Result<Vec<RelocateRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, volume_id, rel_path, name, COALESCE(size, 0), COALESCE(mtime, 0)
+             FROM assets WHERE volume_id = ?1 ORDER BY id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![volume_id], |row| {
+            Ok(RelocateRow {
+                id: row.get(0)?,
+                volume_id: row.get(1)?,
+                rel_path: row.get(2)?,
+                name: row.get(3)?,
+                size: row.get(4)?,
+                mtime: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+/// 重定位：改写一条索引的定位键（§13.4 高置信 / 待确认两档都走这里）。
+pub fn rewrite_location(conn: &Connection, id: i64, volume_id: &str, rel_path: &str) -> Result<(), String> {
+    conn.execute(
+        "UPDATE assets SET volume_id = ?2, rel_path = ?3, missing = 0 WHERE id = ?1",
+        params![id, volume_id, rel_path],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {

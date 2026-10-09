@@ -22,6 +22,8 @@ const HELP: &str = "\
 用法：
   luling scan <文件夹> [<文件夹>…] [选项]
   luling dedupe [选项]
+  luling relocate <旧素材根> <新素材根> [选项]
+  luling migrate <目标库目录> [选项]
 
 选项：
   --json                以 JSON 输出
@@ -31,6 +33,8 @@ const HELP: &str = "\
   --limit <N>           单次扫描文件数上限（默认 200000）
   --no-index            只扫描，不写入索引库（默认会写：增量索引 + 内容指纹）
   --keep <档位>         去重保留策略：earliest（默认）/ shortest / manual
+  --apply               重定位：真的改写索引（默认只给计划）
+  --include-confirm     重定位：连「待确认」一档也一起改写
   -h, --help            显示本帮助
   -v, --version         显示版本
 
@@ -92,9 +96,15 @@ fn write_out(path: &PathBuf, json: bool, body: &str) -> Result<(), String> {
 }
 
 pub fn run(args: &[String]) -> i32 {
-    // §12.2 强制项 ⑤：去重也必须能独立驱动
+    // §12.2 强制项 ⑤：去重、重定位、库迁移都必须能独立驱动
     if args.first().map(|s| s.as_str()) == Some("dedupe") {
         return run_dedupe(&args[1..]);
+    }
+    if args.first().map(|s| s.as_str()) == Some("relocate") {
+        return run_relocate(&args[1..]);
+    }
+    if args.first().map(|s| s.as_str()) == Some("migrate") {
+        return run_migrate(&args[1..]);
     }
 
     let mut json = false;
@@ -388,6 +398,243 @@ fn run_dedupe(args: &[String]) -> i32 {
         for w in &report.warnings {
             t.push_str(&format!("  ⚠ {w}\n"));
         }
+        t
+    };
+
+    match out_file {
+        Some(p) => match write_out(&p, json, &body) {
+            Ok(()) => {
+                out_text(&format!("结果已写入 {}", p.display()));
+                0
+            }
+            Err(e) => {
+                err_text(&e);
+                1
+            }
+        },
+        None => {
+            out_text(&body);
+            0
+        }
+    }
+}
+
+/// `luling relocate`：重新定位素材树（§13.4）。默认只出计划，`--apply` 才改写索引。
+fn run_relocate(args: &[String]) -> i32 {
+    use crate::app::library::Confidence;
+
+    let mut json = false;
+    let mut out_file: Option<PathBuf> = None;
+    let mut apply_now = false;
+    let mut include_confirm = false;
+    let mut roots: Vec<String> = Vec::new();
+
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--json" => json = true,
+            "--apply" => apply_now = true,
+            "--include-confirm" => include_confirm = true,
+            "--out" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => out_file = Some(PathBuf::from(v)),
+                    None => {
+                        err_text("错误：--out 需要一个文件路径。");
+                        return 1;
+                    }
+                }
+            }
+            "-h" | "--help" => {
+                out_text(HELP);
+                return 0;
+            }
+            other if other.starts_with("--") => {
+                err_text(&format!("错误：未知参数 `{other}`。用 --help 查看用法。"));
+                return 1;
+            }
+            other => roots.push(other.to_string()),
+        }
+        i += 1;
+    }
+
+    if roots.len() != 2 {
+        err_text("用法：luling relocate <旧素材根> <新素材根> [--apply] [--include-confirm]");
+        return 1;
+    }
+
+    let layout = crate::infra::library::layout();
+    let (plan, changed) = match crate::app::library::run(
+        &layout,
+        &PathBuf::from(&roots[0]),
+        &PathBuf::from(&roots[1]),
+        apply_now,
+        include_confirm,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            err_text(&format!("重定位失败：{e}"));
+            return 1;
+        }
+    };
+
+    let body = if json {
+        match serde_json::to_string_pretty(&serde_json::json!({ "plan": plan, "changed": changed })) {
+            Ok(s) => s,
+            Err(e) => {
+                err_text(&format!("序列化失败：{e}"));
+                return 1;
+            }
+        }
+    } else {
+        let mut t = String::new();
+        t.push_str("重新定位素材树\n");
+        t.push_str(&format!("  原根：{}（卷 {}）\n", plan.old_root, plan.old_volume));
+        t.push_str(&format!("  新根：{}（卷 {}）\n", plan.new_root, plan.new_volume));
+        t.push_str(&format!(
+            "  高置信 {} · 待确认 {} · 无法匹配 {}｜本次改写 {} 条\n",
+            group_thousands(plan.high),
+            group_thousands(plan.needs_confirm),
+            group_thousands(plan.unmatched),
+            group_thousands(changed as u64)
+        ));
+        for m in plan.matches.iter().take(40) {
+            let tag = match m.confidence {
+                Confidence::High => "高置信",
+                Confidence::NeedsConfirm => "待确认",
+                Confidence::Unmatched => "无法匹配",
+            };
+            match &m.new_rel_path {
+                Some(new_rel) => t.push_str(&format!("  [{tag}] {} → {}\n", m.old_rel_path, new_rel)),
+                None => t.push_str(&format!("  [{tag}] {} —— {}\n", m.old_rel_path, m.why)),
+            }
+        }
+        if plan.matches.len() > 40 {
+            t.push_str(&format!("  …… 另有 {} 条（用 --json 看全部）\n", plan.matches.len() - 40));
+        }
+        if !apply_now {
+            t.push_str("  这是计划：没有改写任何索引；加 --apply 才会改写（待确认一档需再加 --include-confirm）。\n");
+        }
+        t
+    };
+
+    match out_file {
+        Some(p) => match write_out(&p, json, &body) {
+            Ok(()) => {
+                out_text(&format!("结果已写入 {}", p.display()));
+                0
+            }
+            Err(e) => {
+                err_text(&e);
+                1
+            }
+        },
+        None => {
+            out_text(&body);
+            0
+        }
+    }
+}
+
+/// `luling migrate`：把库整体搬到另一个目录（§13.4 第 3 条）。
+///
+/// 只复制与校验，**保留旧目录**（由用户确认后再自行删除）；目标若是约定位置，顺带改写位置标记。
+fn run_migrate(args: &[String]) -> i32 {
+    let mut json = false;
+    let mut out_file: Option<PathBuf> = None;
+    let mut target: Option<String> = None;
+
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--json" => json = true,
+            "--out" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => out_file = Some(PathBuf::from(v)),
+                    None => {
+                        err_text("错误：--out 需要一个文件路径。");
+                        return 1;
+                    }
+                }
+            }
+            "-h" | "--help" => {
+                out_text(HELP);
+                return 0;
+            }
+            other if other.starts_with("--") => {
+                err_text(&format!("错误：未知参数 `{other}`。用 --help 查看用法。"));
+                return 1;
+            }
+            other => target = Some(other.to_string()),
+        }
+        i += 1;
+    }
+
+    let Some(target) = target else {
+        err_text("用法：luling migrate <目标库目录>（例如 D:\\鹿铃数据 或程序目录下的 data）");
+        return 1;
+    };
+    let to_root = PathBuf::from(&target);
+
+    let from = crate::infra::library::layout();
+    let report = match crate::infra::library::migrate(&from, &to_root) {
+        Ok(r) => r,
+        Err(e) => {
+            err_text(&format!("库迁移失败：{e}"));
+            return 1;
+        }
+    };
+
+    // 目标是「程序目录\data」或默认位置时，改写位置标记，让下次启动就落到新库
+    let program = crate::infra::library::program_dir();
+    let portable_root = program.join("data");
+    let app_root = crate::infra::library::default_root();
+    let norm = crate::domain::guard::norm;
+    let mut switched: Option<&'static str> = None;
+    if norm(&to_root) == norm(&portable_root) {
+        if crate::infra::library::write_marker(&program, crate::infra::library::LibraryLocation::Portable).is_ok() {
+            switched = Some("portable");
+        }
+    } else if norm(&to_root) == norm(&app_root) {
+        if crate::infra::library::write_marker(&program, crate::infra::library::LibraryLocation::AppData).is_ok() {
+            switched = Some("appData");
+        }
+    }
+
+    let body = if json {
+        match serde_json::to_string_pretty(&serde_json::json!({
+            "source": report.source.to_string_lossy(),
+            "target": report.target.to_string_lossy(),
+            "files": report.files,
+            "bytes": report.bytes,
+            "entries": report.entries,
+            "writable": report.writable,
+            "switched": switched,
+        })) {
+            Ok(s) => s,
+            Err(e) => {
+                err_text(&format!("序列化失败：{e}"));
+                return 1;
+            }
+        }
+    } else {
+        let mut t = String::new();
+        t.push_str("库迁移\n");
+        t.push_str(&format!("  源：{}\n", report.source.display()));
+        t.push_str(&format!("  目标：{}\n", report.target.display()));
+        t.push_str(&format!(
+            "  文件 {} 个 · {} · 目标库条目 {} 条 · 可写 {}\n",
+            group_thousands(report.files as u64),
+            human_bytes(report.bytes),
+            report.entries,
+            if report.writable { "是" } else { "否" }
+        ));
+        match switched {
+            Some(which) => t.push_str(&format!("  库位置已切换为 {which}（标记文件写在程序目录）。\n")),
+            None => t.push_str("  这是自定义目录：库位置标记未改动，请在设置里指定该位置。\n"),
+        }
+        t.push_str("  旧目录保留未删（确认无误后可自行删除）。\n");
         t
     };
 

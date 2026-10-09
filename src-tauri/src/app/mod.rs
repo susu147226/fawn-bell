@@ -2,5 +2,6 @@
 
 pub mod dedupe;
 pub mod index;
+pub mod library;
 pub mod metadata;
 pub mod scan;
