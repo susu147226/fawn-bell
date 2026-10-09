@@ -714,6 +714,90 @@ pub fn rewrite_location(conn: &Connection, id: i64, volume_id: &str, rel_path: &
     Ok(())
 }
 
+/* ── 草稿（虚拟变更集，§7.2 / §13.3） ─────────────────────────────── */
+
+/// 草稿行（只含基本类型，不依赖核心域类型，便于 infra 保持独立）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DraftRow {
+    pub seq: i64,
+    pub op: String,
+    pub asset_id: Option<i64>,
+    pub src: String,
+    pub dst: Option<String>,
+    pub check_status: String,
+    pub check_reason: Option<String>,
+}
+
+/// 覆盖式写入全部草稿（草稿量级小，整体替换最简单也最不容易出错）。
+pub fn replace_drafts(conn: &Connection, rows: &[DraftRow]) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM drafts", []).map_err(|e| e.to_string())?;
+    let now = now_ms();
+    for r in rows {
+        tx.execute(
+            "INSERT INTO drafts(seq, op, asset_id, src, dst, payload_json, check_status, check_reason, created_at)
+             VALUES(?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8)",
+            params![r.seq, r.op, r.asset_id, r.src, r.dst, r.check_status, r.check_reason, now],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 读回全部草稿（启动恢复用）。
+pub fn load_drafts(conn: &Connection) -> Result<Vec<DraftRow>, String> {
+    let mut stmt = conn
+        .prepare("SELECT seq, op, asset_id, src, dst, check_status, check_reason FROM drafts ORDER BY seq")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(DraftRow {
+                seq: row.get(0)?,
+                op: row.get(1)?,
+                asset_id: row.get(2)?,
+                src: row.get(3)?,
+                dst: row.get(4)?,
+                check_status: row.get(5)?,
+                check_reason: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+pub fn clear_drafts(conn: &Connection) -> Result<(), String> {
+    conn.execute("DELETE FROM drafts", []).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 该素材是否在保护区内（§7.6；保护区是独立表，不随分组删除而丢）。
+pub fn is_protected_asset(conn: &Connection, asset_id: i64) -> bool {
+    conn.query_row(
+        "SELECT 1 FROM protections WHERE asset_id = ?1",
+        params![asset_id],
+        |_| Ok(()),
+    )
+    .optional()
+    .ok()
+    .flatten()
+    .is_some()
+}
+
+/// 该名字被多少处引用（§6.3.1：预览里提示「该文件被 N 处引用」）。
+pub fn ref_count(conn: &Connection, name: &str) -> Result<i64, String> {
+    conn.query_row(
+        "SELECT COUNT(*) FROM refs WHERE ref_name = ?1",
+        params![name.to_lowercase()],
+        |row| row.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {
