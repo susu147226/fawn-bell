@@ -518,9 +518,12 @@ export default function App() {
         view={view}
         leftCollapsed={leftCollapsed}
         rightCollapsed={rightCollapsed}
+        draftCount={draftList?.count ?? 0}
+        theme={theme.pref}
         onPick={onPick}
         onRescan={onRescan}
         onView={setView}
+        onTheme={theme.setPref}
         onToggleLeft={() => setLeftCollapsed((v) => !v)}
         onToggleRight={() => setRightCollapsed((v) => !v)}
       />

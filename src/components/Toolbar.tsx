@@ -17,7 +17,8 @@ import {
   Table,
 } from 'lucide-react';
 
-import { ellipsizeMiddle } from '../lib/format';
+import { ellipsizeMiddle, formatCount } from '../lib/format';
+import { THEME_LABEL, type ThemePref } from '../lib/useTheme';
 import type { ViewMode } from '../lib/types';
 
 export interface ToolbarProps {
@@ -27,9 +28,13 @@ export interface ToolbarProps {
   view: ViewMode;
   leftCollapsed: boolean;
   rightCollapsed: boolean;
+  /** 变更集里待提交的条数（设计稿的「提交变更 N」按钮；执行属 P6，这里只显示真数字）。 */
+  draftCount: number;
+  theme: ThemePref;
   onPick: () => void;
   onRescan: () => void;
   onView: (v: ViewMode) => void;
+  onTheme: (t: ThemePref) => void;
   onToggleLeft: () => void;
   onToggleRight: () => void;
 }
@@ -50,9 +55,12 @@ export default function Toolbar({
   view,
   leftCollapsed,
   rightCollapsed,
+  draftCount,
+  theme,
   onPick,
   onRescan,
   onView,
+  onTheme,
   onToggleLeft,
   onToggleRight,
 }: ToolbarProps) {
@@ -108,6 +116,38 @@ export default function Toolbar({
           );
         })}
       </div>
+
+      {/* 设计稿顶栏右侧顺序：搜索 → 视图 → 排序 → 主题 → 提交变更 → 面板开关 */}
+      <select className="btn" disabled title="排序（P5 接入：按名称 / 大小 / 修改时间 / 类型）" defaultValue="name">
+        <option value="name">按名称</option>
+      </select>
+
+      <select
+        className="btn"
+        value={theme}
+        onChange={(e) => onTheme(e.target.value as ThemePref)}
+        title="主题"
+      >
+        {(Object.keys(THEME_LABEL) as ThemePref[]).map((t) => (
+          <option key={t} value={t}>
+            {THEME_LABEL[t]}
+          </option>
+        ))}
+      </select>
+
+      <button
+        className="btn primary"
+        type="button"
+        disabled
+        title={
+          draftCount > 0
+            ? `提交变更 ${draftCount} 项（提交执行属 P6，尚未实现）`
+            : '暂无待提交变更（提交执行属 P6，尚未实现）'
+        }
+      >
+        提交变更 <span className="status-num">{formatCount(draftCount)}</span>
+        <span className="tag-soon">P6</span>
+      </button>
 
       <button
         className="btn ghost icon"
