@@ -24,6 +24,7 @@ const HELP: &str = "\
   luling dedupe [选项]
   luling relocate <旧素材根> <新素材根> [选项]
   luling migrate <目标库目录> [选项]
+  luling plan [选项]
 
 选项：
   --json                以 JSON 输出
@@ -33,6 +34,13 @@ const HELP: &str = "\
   --limit <N>           单次扫描文件数上限（默认 200000）
   --no-index            只扫描，不写入索引库（默认会写：增量索引 + 内容指纹）
   --keep <档位>         去重保留策略：earliest（默认）/ shortest / manual
+  --template <模板>     命名模板（plan 用，默认 date_{seq}）
+  --start <0|1>         序号起始值（默认 0；0 与 1 都必须可用）
+  --pad <档位>          补零：none（默认）/ 2 / 3 / 1..6（固定位数，超限报警）
+  --sep <分隔符>        序号前分隔符：_（默认）/ - / space / none
+  --strip <档位>        原名序号剥离：none / digits / under（默认）/ regex
+  --folder <文件夹>     只处理该相对文件夹（默认素材根一层）
+  --root <路径>         指定素材根（默认取索引里的第一个）
   --apply               重定位：真的改写索引（默认只给计划）
   --include-confirm     重定位：连「待确认」一档也一起改写
   -h, --help            显示本帮助
@@ -105,6 +113,10 @@ pub fn run(args: &[String]) -> i32 {
     }
     if args.first().map(|s| s.as_str()) == Some("migrate") {
         return run_migrate(&args[1..]);
+    }
+    // 命名引擎也要能独立驱动（§12.2 强制项 ⑤）
+    if args.first().map(|s| s.as_str()) == Some("plan") {
+        return run_plan(&args[1..]);
     }
 
     let mut json = false;
@@ -304,6 +316,343 @@ pub fn run(args: &[String]) -> i32 {
 ///
 /// 只读素材、只写库：判定结果同时落进「重复内容」智能集合；真正的清理动作
 /// （只进回收站）属于 P7 文件操作矩阵，这里不做任何删除。
+fn file_name_of(p: &str) -> String {
+    std::path::Path::new(p)
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default()
+}
+
+fn pad_label(p: crate::domain::naming::PadMode) -> String {
+    use crate::domain::naming::PadMode;
+    match p {
+        PadMode::NoPad => "不补零".to_string(),
+        PadMode::Min2 => "最少 2 位".to_string(),
+        PadMode::Min3 => "最少 3 位".to_string(),
+        PadMode::Fixed(n) => format!("固定 {n} 位"),
+    }
+}
+
+/// `luling plan`（§12.2 强制项 ⑤：命名引擎必须能独立驱动）。
+///
+/// 只读：读索引 → 出计划 → 打印「旧名 → 新名 + 说明」。**不改名、不碰磁盘**（执行属 P6）。
+fn run_plan(args: &[String]) -> i32 {
+    use crate::app::naming::{build_plan, detect_cycles, PlanSource};
+    use crate::domain::naming::{PadMode, SeqRule, SeqSep, StripRule};
+
+    let mut json = false;
+    let mut out_file: Option<PathBuf> = None;
+    let mut template = "date_{seq}".to_string();
+    let mut rule = SeqRule::default();
+    let mut folder = String::new();
+    let mut root_arg: Option<String> = None;
+    let mut limit: Option<usize> = None;
+
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--template" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => template = v.clone(),
+                    None => {
+                        err_text("错误：--template 需要一个模板文本（如 date_{seq}）。");
+                        return 1;
+                    }
+                }
+            }
+            "--start" => {
+                i += 1;
+                match args.get(i).and_then(|v| v.parse::<u64>().ok()) {
+                    Some(v) if v <= 1 => rule.start = v,
+                    _ => {
+                        err_text("错误：--start 只支持 0 或 1（两个都必须可用）。");
+                        return 1;
+                    }
+                }
+            }
+            "--pad" => {
+                i += 1;
+                match args.get(i).map(|s| s.as_str()) {
+                    Some("none") => rule.pad = PadMode::NoPad,
+                    Some("2") => rule.pad = PadMode::Min2,
+                    Some("3") => rule.pad = PadMode::Min3,
+                    Some(v) => match v.parse::<u8>() {
+                        Ok(n) if (1..=6).contains(&n) => rule.pad = PadMode::Fixed(n),
+                        _ => {
+                            err_text("错误：--pad 只支持 none / 2 / 3 / 1..6（固定位数）。");
+                            return 1;
+                        }
+                    },
+                    None => {
+                        err_text("错误：--pad 需要一个值。");
+                        return 1;
+                    }
+                }
+            }
+            "--sep" => {
+                i += 1;
+                match args.get(i).map(|s| s.as_str()) {
+                    Some("_") => rule.sep = SeqSep::AutoUnderscore,
+                    Some("-") => rule.sep = SeqSep::Dash,
+                    Some("space") => rule.sep = SeqSep::Space,
+                    Some("none") => rule.sep = SeqSep::None,
+                    _ => {
+                        err_text("错误：--sep 只支持 _ / - / space / none。");
+                        return 1;
+                    }
+                }
+            }
+            "--strip" => {
+                i += 1;
+                match args.get(i).map(|s| s.as_str()) {
+                    Some("none") => rule.strip = StripRule::None,
+                    Some("digits") => rule.strip = StripRule::TrailingDigits,
+                    Some("under") => rule.strip = StripRule::TrailingUnderscoreDigits,
+                    Some("regex") => rule.strip = StripRule::Regex,
+                    _ => {
+                        err_text("错误：--strip 只支持 none / digits / under / regex。");
+                        return 1;
+                    }
+                }
+            }
+            "--folder" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => folder = v.clone(),
+                    None => {
+                        err_text("错误：--folder 需要一个相对素材根的文件夹。");
+                        return 1;
+                    }
+                }
+            }
+            "--root" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => root_arg = Some(v.clone()),
+                    None => {
+                        err_text("错误：--root 需要一个素材根路径。");
+                        return 1;
+                    }
+                }
+            }
+            "--limit" => {
+                i += 1;
+                match args.get(i).and_then(|v| v.parse::<usize>().ok()) {
+                    Some(v) if v >= 1 => limit = Some(v),
+                    _ => {
+                        err_text("错误：--limit 需要一个正整数。");
+                        return 1;
+                    }
+                }
+            }
+            "--json" => json = true,
+            "--out" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => out_file = Some(PathBuf::from(v)),
+                    None => {
+                        err_text("错误：--out 需要一个文件路径。");
+                        return 1;
+                    }
+                }
+            }
+            "-h" | "--help" => {
+                out_text(HELP);
+                return 0;
+            }
+            other => {
+                err_text(&format!("错误：未知参数 `{other}`。用 --help 查看用法。"));
+                return 1;
+            }
+        }
+        i += 1;
+    }
+
+    let layout = crate::infra::library::layout();
+    let conn = match crate::infra::db::open_library(&layout) {
+        Ok(c) => c,
+        Err(e) => {
+            err_text(&format!("打不开索引库：{e}"));
+            return 1;
+        }
+    };
+    let roots = match crate::infra::db::scan_roots_all(&conn) {
+        Ok(r) => r,
+        Err(e) => {
+            err_text(&format!("读取素材根失败：{e}"));
+            return 1;
+        }
+    };
+    let root = match root_arg.or_else(|| roots.first().cloned()) {
+        Some(r) => r,
+        None => {
+            err_text("还没有扫描过任何素材根：先跑 `luling scan <文件夹>`。");
+            return 1;
+        }
+    };
+    let volume = crate::infra::volume::volume_id(std::path::Path::new(&root));
+    // 索引里的 rel_path 是**相对卷根**的（§13.4），所以绝对路径要用卷挂载点拼，而不是用素材根拼
+    let mp = crate::infra::volume::mount_point(std::path::Path::new(&root))
+        .map(|p| p.to_string_lossy().trim_end_matches('\\').to_string())
+        .unwrap_or_default();
+    let root_rel = crate::infra::volume::rel_path_from_volume(std::path::Path::new(&root));
+    let root_rel_prefix = format!("{}\\", root_rel.trim_matches('\\'));
+    let rows = match crate::infra::db::assets_of_volume(&conn, &volume) {
+        Ok(r) => r,
+        Err(e) => {
+            err_text(&format!("读取索引失败：{e}"));
+            return 1;
+        }
+    };
+
+    let prefix = if folder.trim().is_empty() {
+        String::new()
+    } else {
+        folder.trim().replace('/', "\\").to_lowercase()
+    };
+    let root_clean = root.trim_end_matches('\\').to_string();
+    let mut sources: Vec<PlanSource> = Vec::new();
+    let mut existing: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for r in &rows {
+        let rel_norm = r.rel_path.replace('/', "\\");
+        let rel_lower = rel_norm.to_lowercase();
+        // 只处理落在这个素材根之下的条目
+        if !rel_lower.starts_with(&root_rel_prefix.to_lowercase()) {
+            continue;
+        }
+        let rest = &rel_norm[root_rel_prefix.len()..];
+        let rest_lower = rest.to_lowercase();
+        let abs = format!("{mp}\\{rel_norm}");
+        existing.insert(abs.to_lowercase());
+        let in_folder = if prefix.is_empty() {
+            !rest_lower.contains('\\')
+        } else {
+            rest_lower.starts_with(&format!("{prefix}\\"))
+        };
+        if !in_folder {
+            continue;
+        }
+        let (stem, ext) = match r.name.rsplit_once('.') {
+            Some((s, e)) => (s.to_string(), e.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        sources.push(PlanSource {
+            asset_id: r.id,
+            abs,
+            stem,
+            ext,
+            capture_time: None,
+            mtime: r.mtime,
+            ctime: 0,
+            camera: None,
+            width: None,
+            height: None,
+            group: None,
+            parent: None,
+            // 类别名（{kind}）在索引里有，但这一版 CLI 没取；界面侧的计划会带上真实值
+            kind: String::new(),
+            hash8: None,
+            excluded: false,
+        });
+    }
+
+    if sources.is_empty() {
+        err_text(&format!(
+            "`{root_clean}\\{folder}` 里没有被索引到的素材（先扫描该文件夹）。"
+        ));
+        return 1;
+    }
+
+    let mut plan = build_plan(&template, &rule, &sources, &existing);
+    let hits = match crate::app::naming::annotate_references(&conn, &mut plan) {
+        Ok(h) => h,
+        Err(e) => {
+            err_text(&format!("引用检查失败：{e}"));
+            return 1;
+        }
+    };
+    let cycles = detect_cycles(&plan);
+    let (step1, _step2) = crate::app::naming::two_phase(&plan);
+
+    let mut body = String::new();
+    body.push_str(&format!("命名计划（模板 {template}）\n"));
+    body.push_str(&format!(
+        "  素材根 {root_clean} · 文件夹 {} · 参与编号 {} 项 · 剔除 {} 项\n",
+        if folder.trim().is_empty() { "（根）" } else { folder.trim() },
+        plan.items.iter().filter(|i| !i.excluded).count(),
+        plan.items.iter().filter(|i| i.excluded).count()
+    ));
+    body.push_str(&format!(
+        "  序号：起始 {} · {} · 作用于{:?} · 原名剥离{:?}\n",
+        rule.start,
+        pad_label(rule.pad),
+        rule.scope,
+        rule.strip
+    ));
+    if !cycles.is_empty() {
+        body.push_str(&format!(
+            "  {} 条构成环或大小写伪冲突：提交时会走两阶段改名（先改临时名再改目标名）\n",
+            cycles.len()
+        ));
+    }
+    if !hits.is_empty() {
+        body.push_str(&format!(
+            "  {} 条的新名字被引用命中：默认不改写引用，提交前需要确认\n",
+            hits.len()
+        ));
+    }
+    body.push_str(&format!(
+        "  预览（共 {} 条，显示前 {} 条）：\n",
+        plan.items.len(),
+        limit.unwrap_or(20)
+    ));
+    for item in plan.items.iter().take(limit.unwrap_or(20)) {
+        let old = file_name_of(&item.src);
+        let new = if item.excluded {
+            "（已剔除，不参与编号）".to_string()
+        } else {
+            file_name_of(&item.dst)
+        };
+        body.push_str(&format!("    {old} → {new}"));
+        if !item.notes.is_empty() {
+            body.push_str(&format!("   // {}", item.notes.join("；")));
+        }
+        body.push('\n');
+    }
+    body.push_str(&format!(
+        "\n说明：本命令只读，不创建/修改/删除素材树里的任何文件；真实改名在提交阶段执行（本次计划里 {} 条会先改临时名再改目标名）。\n",
+        step1.len()
+    ));
+
+    if json {
+        match serde_json::to_string_pretty(&plan) {
+            Ok(s) => {
+                if let Some(f) = &out_file {
+                    if let Err(e) = write_out(f, true, &s) {
+                        err_text(&format!("写文件失败：{e}"));
+                        return 1;
+                    }
+                } else {
+                    out_text(&s);
+                }
+            }
+            Err(e) => {
+                err_text(&format!("序列化失败：{e}"));
+                return 1;
+            }
+        }
+    } else if let Some(f) = &out_file {
+        if let Err(e) = write_out(f, false, &body) {
+            err_text(&format!("写文件失败：{e}"));
+            return 1;
+        }
+    } else {
+        out_text(&body);
+    }
+    0
+}
+
 fn run_dedupe(args: &[String]) -> i32 {
     use crate::domain::dedupe::KeepPolicy;
 
