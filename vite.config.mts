@@ -14,6 +14,8 @@ export default defineConfig(() => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+  // 构建产物目录每次清空：令牌门禁要扫 dist，残留的旧 bundle 会造成假命中
+  build: { emptyOutDir: true },
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,

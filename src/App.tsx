@@ -10,11 +10,13 @@
  *   - 不做的事都有明确标注，不显示假数据（§12.4⑨）。
  */
 
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { FolderOpen, ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import AssetList from './components/AssetList';
 import Breadcrumb from './components/Breadcrumb';
+import CloseDialog from './components/CloseDialog';
 import DetailPanel, { type PanelKind } from './components/DetailPanel';
 import EmptyState from './components/EmptyState';
 import Notice, { type NoticeKind } from './components/Notice';
@@ -68,6 +70,8 @@ export default function App() {
   /** 草稿（§7.2）：列表 + 投影（投影键＝根内相对路径的小写形式）。 */
   const [draftList, setDraftList] = useState<DraftList | null>(null);
   const [draftMap, setDraftMap] = useState<Map<string, Projection>>(new Map());
+  /** 关闭前询问（§7.2：变更集非空时必须三选项并列）。 */
+  const [closeAsk, setCloseAsk] = useState(false);
 
   const left = useResizable({ storageKey: 'luling.leftWidth', initial: 248, min: 180, max: 420, side: 'left' });
   const right = useResizable({ storageKey: 'luling.rightWidth', initial: 320, min: 240, max: 480, side: 'right' });
@@ -402,6 +406,38 @@ export default function App() {
     };
   }, [draftList, rows, root]);
 
+  /* ── 关闭窗口（§7.2）：变更集非空时先问，三个选项并列、不设默认焦点 ── */
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let alive = true;
+    void getCurrentWindow()
+      .onCloseRequested((event) => {
+        if ((draftList?.count ?? 0) > 0) {
+          event.preventDefault();
+          setCloseAsk(true);
+        }
+      })
+      .then((f) => {
+        if (alive) unlisten = f;
+        else f();
+      });
+    return () => {
+      alive = false;
+      unlisten?.();
+    };
+  }, [draftList]);
+
+  const closeWindow = useCallback(() => {
+    void getCurrentWindow().close();
+  }, []);
+
+  const discardAndClose = useCallback(() => {
+    void api
+      .draftClear()
+      .catch(() => undefined)
+      .then(() => closeWindow());
+  }, [closeWindow]);
+
   let mainBody: ReactNode;
   if (index && summary) {
     mainBody =
@@ -541,6 +577,15 @@ export default function App() {
       </div>
 
       <StatusBar selectedCount={selected.size} summary={summary} scanning={scanId !== null} />
+
+      {closeAsk ? (
+        <CloseDialog
+          count={draftList?.count ?? 0}
+          onSaveAndClose={closeWindow}
+          onDiscardAndClose={discardAndClose}
+          onCancel={() => setCloseAsk(false)}
+        />
+      ) : null}
     </div>
   );
 }

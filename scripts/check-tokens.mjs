@@ -261,6 +261,32 @@ function inFeatureProbe(text, index) {
   return false;
 }
 
+/**
+ * `rgba` / `rgb` 既可能是**颜色值**，也可能是**标识符**：依赖代码里存在
+ * `plugin:image|rgba`、`async rgba()`、`{rgba: …}` 这类名字。后者按属性名/方法名处理，
+ * 不该被当成写死色值（§12.4② 的真实意图是「组件里不写死颜色」）。
+ */
+function isIdentifierUse(text, index, match) {
+  // 空括号形式（`rgba()` / `hsla()`）只可能是方法名或函数声明，不可能是颜色值
+  if (/^(rgba?|hsla?)\(\)$/i.test(match)) return true;
+  const before = index > 0 ? text[index - 1] : '';
+  const after = text[index + match.length] ?? '';
+  // 属性名 / 方法名写法：`.rgba(`、`"rgba"`、`rgba:`
+  if (
+    before === '.' ||
+    before === '"' ||
+    before === "'" ||
+    after === ':' ||
+    after === '"' ||
+    after === "'" ||
+    after === '`'
+  ) {
+    return true;
+  }
+  // 空括号（`async rgba(){…}` 这种声明）永远不可能是颜色值
+  return after === ')';
+}
+
 function checkFile(file) {
   const raw = readFileSync(file, 'utf8');
   const ext = extname(file).toLowerCase();
@@ -269,10 +295,11 @@ function checkFile(file) {
 
   if (!isTokens) {
     for (const m of text.matchAll(COLOR_RE)) {
-      if (!allowedColors.has(canonColor(m[0])) && !inFeatureProbe(text, m.index)) {
-        const rule = m[0].startsWith('#') ? 'hex-color' : 'color-func';
-        report(rule, file, lineOf(text, m.index), `${m[0]} 不在 tokens.css 登记（§12.4② 组件内禁止写死色值）`);
-      }
+      if (allowedColors.has(canonColor(m[0]))) continue;
+      if (inFeatureProbe(text, m.index)) continue;
+      if (isIdentifierUse(text, m.index, m[0])) continue;
+      const rule = m[0].startsWith('#') ? 'hex-color' : 'color-func';
+      report(rule, file, lineOf(text, m.index), `${m[0]} 不在 tokens.css 登记（§12.4② 组件内禁止写死色值）`);
     }
     for (const m of text.matchAll(TIME_RE)) {
       if (!allowedTimes.has(canonTime(m[1], m[2]))) {

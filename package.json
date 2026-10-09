@@ -6,7 +6,7 @@
   "author": "云舒眠眠",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-tokens.mjs --src && tsc && vite build && node scripts/check-tokens.mjs --dist",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && node scripts/check-tokens.mjs --src && tsc && vite build && node scripts/check-tokens.mjs --dist",
     "build:web": "tsc && vite build",
     "preview": "vite preview",
     "check:tokens": "node scripts/check-tokens.mjs",
