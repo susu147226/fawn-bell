@@ -43,7 +43,7 @@ const VIEW_ICON = { folders: FolderTree, grid: LayoutGrid, list: List, detail: T
 
 const VIEW_HINT: Record<ViewMode, string> = {
   folders: '文件夹视图（Ctrl+1）',
-  grid: '网格视图（后续阶段接入）',
+  grid: '网格视图',
   list: '列表视图（后续阶段接入）',
   detail: '详情视图（后续阶段接入）',
 };
@@ -101,7 +101,7 @@ export default function Toolbar({
       <div className="seg" role="group" aria-label="视图">
         {(Object.keys(VIEW_ICON) as ViewMode[]).map((v) => {
           const Icon = VIEW_ICON[v];
-          const implemented = v === 'folders';
+          const implemented = v === 'folders' || v === 'grid';
           return (
             <button
               key={v}

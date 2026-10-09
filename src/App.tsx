@@ -14,6 +14,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { FolderOpen, ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import AssetGrid from './components/AssetGrid';
 import AssetList from './components/AssetList';
 import Breadcrumb from './components/Breadcrumb';
 import CloseDialog from './components/CloseDialog';
@@ -502,17 +503,28 @@ export default function App() {
               大小范围<span className="tag-soon">P5</span>
             </button>
           </div>
-          <AssetList
-            rows={rows}
-            selection={selected}
-            activeId={activeId}
-            drafts={draftMap}
-            onSelect={onSelect}
-            onOpenDir={onNavigate}
-            onToggleExpand={onToggleExpand}
-            onMoveActive={onMoveActive}
-            onToggleActive={onToggleActive}
-          />
+          {view === 'grid' ? (
+            <AssetGrid
+              index={index}
+              rows={rows}
+              selection={selected}
+              drafts={draftMap}
+              onSelect={onSelect}
+              onOpenDir={onNavigate}
+            />
+          ) : (
+            <AssetList
+              rows={rows}
+              selection={selected}
+              activeId={activeId}
+              drafts={draftMap}
+              onSelect={onSelect}
+              onOpenDir={onNavigate}
+              onToggleExpand={onToggleExpand}
+              onMoveActive={onMoveActive}
+              onToggleActive={onToggleActive}
+            />
+          )}
         </>
       );
   } else if (scanId !== null) {
