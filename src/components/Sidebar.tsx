@@ -6,7 +6,7 @@
  * 界面上的数字必须能被用户当场验证。
  */
 
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Palette } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Lock, Palette } from 'lucide-react';
 import { Fragment } from 'react';
 
 import { subDirsOf, type ScanIndex } from '../lib/folders';
@@ -178,6 +178,44 @@ export default function Sidebar({
             <span className="tbd">选择素材文件夹后，这里显示目录树。</span>
           </div>
         )}
+      </div>
+
+      {/* 分组 / 智能集合 / 保护区：壳按设计稿摆齐（§8.1 左栏四组），数据属 P4，
+          这里如实标注阶段而不是编数字（§12.4⑨）。 */}
+      <div className="side-sec">
+        <div className="side-title">
+          <span>分组</span>
+          <button className="btn ghost" type="button" disabled title="新建分组在 P4 接入">
+            +
+          </button>
+        </div>
+        <div className="tbd">
+          暂无分组 <span className="tag-soon">P4</span>
+        </div>
+      </div>
+
+      <div className="side-sec">
+        <div className="side-title">
+          <span>智能集合</span>
+          <button className="btn ghost" type="button" disabled title="新建智能集合在 P4 接入">
+            +
+          </button>
+        </div>
+        <div className="tbd">
+          暂无智能集合 <span className="tag-soon">P4</span>
+        </div>
+      </div>
+
+      <div className="side-sec">
+        <div className="side-title">
+          <span>
+            <Lock size={12} strokeWidth={1.75} aria-hidden /> 保护区
+          </span>
+          <span className="tag-soon">锁定</span>
+        </div>
+        <div className="tbd">
+          默认排除一切操作 <span className="tag-soon">P4</span>
+        </div>
       </div>
 
       <div className="side-sec">

@@ -396,6 +396,12 @@ function FileView({
         </div>
       </div>
 
+      {/* §8.1 设计稿：右栏顺序是「预览 → 字段 → 待提交变更」，预览在最上（原先被排在最后） */}
+      <div className="detail-sec">
+        <div className="detail-title">预览</div>
+        <FilePreview abs={absolutePath(index, file.relPath)} kind={file.kind} />
+      </div>
+
       <div className="detail-sec">
         <div className="detail-title">整理状态</div>
         <Todo phase="P2" text="整理进度" />
@@ -437,11 +443,6 @@ function FileView({
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="detail-sec">
-        <div className="detail-title">预览</div>
-        <FilePreview abs={absolutePath(index, file.relPath)} kind={file.kind} />
       </div>
 
       <div className="detail-sec">
