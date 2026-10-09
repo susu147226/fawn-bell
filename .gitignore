@@ -1,0 +1,36 @@
+# ── Rust / Tauri 构建产物 ─────────────────────────────
+/target/
+**/target/
+/src-tauri/target/
+/src-tauri/gen/schemas/
+*.pdb
+
+# ── Node / 前端构建产物 ───────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# ── 编辑器与系统文件 ─────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 临时文件 ─────────────────────────────────────────
+*.tmp
+*.log
+~$*
+
+# ── 设计稿目录：只提交 HTML + tokens.css + 渲染图 ──────
+# 渲染脚本、静态检查脚本、几何审计脚本与自检报告均为开发自用，不入库。
+docs/mockups/*.js
+docs/mockups/*.ps1
+docs/mockups/shots/*.txt
+docs/mockups/shots/*.ps1
+
+# ── 图标目录：下划线开头的均为选型 / 校样文件 ──────────
+assets/icon/png/_*

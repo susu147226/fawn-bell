@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>鹿铃 · 主界面（浅色 · 网格视图）</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* 页面级补充：只使用 tokens.css 的变量，不引入新色值 */
+  .win { position: relative; }
+
+  /* 左栏紧凑化，保证目录树 + 分组 + 智能集合 + 保护区在 778px 内完整呈现 */
+  .sidebar.compact .side-sec { padding: var(--s2) var(--s3); }
+  .sidebar.compact .side-sec + .side-sec { border-top: 1px solid var(--border); }
+  .sidebar.compact .tree-row,
+  .sidebar.compact .list-row { height: 25px; }
+
+  /* 素材网格：3 行等高铺满中间栏 */
+  .content.gridfill { display: flex; flex-direction: column; padding: 0; }
+  .sec-hd {
+    height: 34px; flex: none; display: flex; align-items: center; gap: var(--s2);
+    padding: 0 var(--s4); border-bottom: 1px solid var(--border); background: var(--surface);
+    font-size: var(--fs-sm); color: var(--text-2);
+  }
+  .sec-hd .ttl { font-weight: 600; color: var(--text); }
+  .sec-hd .spacer { flex: 1; }
+  .gridwrap { flex: 1; min-height: 0; padding: var(--s4); }
+  .grid.g4.fill { height: 100%; grid-auto-rows: 1fr; }
+  .grid.g4.fill .thumb { display: flex; flex-direction: column; }
+  .grid.g4.fill .thumb .img { flex: 1; height: auto; min-height: 0; }
+
+  /* 右栏字段与变更 */
+  .fields.k2 { grid-template-columns: 78px 1fr; gap: 8px var(--s3); }
+  .mini-diff {
+    border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; background: var(--surface);
+  }
+  .mini-diff .diff-line { padding: 7px var(--s3); flex-direction: column; align-items: stretch; gap: 4px; }
+  .mini-diff .diff-line:last-child { border-bottom: none; }
+  .mini-diff .linerow { display: flex; align-items: center; gap: 6px; }
+  .mini-diff .from { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-diff .to { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail-empty-note { font-size: var(--fs-xs); color: var(--text-3); }
+  .circle {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--accent-soft); color: var(--accent); font-size: var(--fs-xl); font-weight: 700;
+  }
+  .sumline { display: flex; align-items: baseline; gap: 6px; font-size: var(--fs-sm); color: var(--text-2); }
+  .sumline b { font-size: var(--fs-lg); color: var(--text); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="win">
+
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <span class="app-name">鹿铃</span>
+    <span>D:/素材/2026</span>
+    <span class="spacer"></span>
+    <span class="win-btns"><span>—</span><span>□</span><span>✕</span></span>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="toolbar">
+    <span class="workspace-tab">工作根 <b>D:/素材/2026</b></span>
+    <span class="input search">搜索文件名、扩展名、标签…</span>
+    <span class="spacer"></span>
+    <div class="btn-group">
+      <span class="icon-btn" title="文件夹视图">▣</span>
+      <span class="icon-btn on" title="网格视图">▦</span>
+      <span class="icon-btn" title="列表视图">☰</span>
+      <span class="icon-btn" title="详情视图">▤</span>
+    </div>
+    <span class="select">按名称 <span class="caret">▼</span></span>
+    <span class="select">浅色 <span class="caret">▼</span></span>
+    <span class="btn primary">提交变更 <span class="count-pill">12</span></span>
+  </div>
+
+  <!-- 主体三栏 -->
+  <div class="body">
+
+    <!-- 左栏 -->
+    <div class="sidebar compact">
+      <div class="side-sec">
+        <div class="side-title">目录 <span class="add">＋</span></div>
+        <div class="tree">
+          <div class="tree-row"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">素材</span><span class="ct">1 842</span></div>
+          <div class="tree-row ind1"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">2026</span><span class="ct">1 240</span></div>
+          <div class="tree-row ind2"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">09 旅行</span><span class="ct">128</span></div>
+          <div class="tree-row ind3"><span class="tw"></span><span class="ic">▪</span><span class="nm">海边日落</span><span class="ct">46</span></div>
+          <div class="tree-row ind3"><span class="tw"></span><span class="ic">▪</span><span class="nm">城市夜景</span><span class="ct">38</span></div>
+          <div class="tree-row ind2"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">10 商业拍摄</span><span class="ct">302</span></div>
+          <div class="tree-row ind1"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">项目文件</span><span class="ct">410</span></div>
+          <div class="tree-row ind1 active"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">09 旅行</span><span class="ct">128</span></div>
+        </div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">分组 <span class="add">＋</span></div>
+        <div class="list-row"><span class="dot c1"></span><span class="nm">旅行</span><span class="ct">128</span></div>
+        <div class="list-row"><span class="dot c2"></span><span class="nm">客户交付</span><span class="ct">64</span></div>
+        <div class="list-row"><span class="dot c3"></span><span class="nm">待筛选</span><span class="ct">27</span></div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">智能集合 <span class="add">＋</span></div>
+        <div class="list-row"><span class="dot c4"></span><span class="nm">近 30 天新增</span><span class="ct">86</span></div>
+        <div class="list-row"><span class="dot gray"></span><span class="nm">未分类</span><span class="ct">42</span></div>
+        <div class="list-row"><span class="dot c5"></span><span class="nm">大于 50MB</span><span class="ct">19</span></div>
+      </div>
+
+      <div class="side-sec">
+        <div class="list-row"><span class="lockchip"></span><span class="nm">保护区</span><span class="badge lock">锁定</span><span class="ct">210</span></div>
+      </div>
+    </div>
+
+    <!-- 中栏 -->
+    <div class="main">
+      <div class="crumb">
+        <span class="sep">D:</span><span class="sep">›</span>
+        <span>素材</span><span class="sep">›</span>
+        <span>2026</span><span class="sep">›</span>
+        <b>09 旅行</b>
+        <span class="spacer grow"></span>
+        <span>128 个素材</span>
+      </div>
+
+      <div class="subbar">
+        <span class="badge accent">全部 128</span>
+        <span class="badge neutral">图片 96</span>
+        <span class="badge neutral">视频 18</span>
+        <span class="badge neutral">音频 6</span>
+        <span class="badge neutral">3D 工程 5</span>
+        <span class="badge neutral">文档 3</span>
+        <span class="spacer grow"></span>
+        <span class="muted">按名称</span>
+        <span class="slider" style="width:120px"><span class="fill" style="width:38%"></span><span class="knob" style="left:38%"></span></span>
+        <span class="muted">0 – 200 MB</span>
+      </div>
+
+      <div class="content gridfill">
+        <div class="sec-hd">
+          <span class="ttl">网格视图</span>
+          <span class="muted">12 / 128</span>
+          <span class="spacer"></span>
+          <span class="badge ok">已整理 2</span>
+          <span class="badge draft">草稿 2</span>
+          <span class="badge lock">受保护 3</span>
+        </div>
+
+        <div class="gridwrap">
+          <div class="grid g4 fill">
+
+            <div class="thumb sel">
+              <div class="img"><div class="ph p1"></div></div>
+              <span class="flag-dot"></span>
+              <span class="corner"><span class="checkbox on">✓</span></span>
+              <div class="cap"><span class="fn">海边日落_01.jpg</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p1"></div></div>
+              <div class="cap"><span class="fn">海边日落_02.jpg</span></div>
+            </div>
+
+            <div class="thumb draft">
+              <div class="img"><div class="ph p2"></div></div>
+              <span class="flag-dot"></span>
+              <div class="cap"><span class="fn">海边日落_03.jpg</span><span class="badge draft">草稿</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p3"></div></div>
+              <span class="corner"><span class="check">✓</span></span>
+              <div class="cap"><span class="fn">海边日落_04.jpg</span><span class="badge ok">已整理</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p4"></div></div>
+              <span class="corner"><span class="lockchip"></span></span>
+              <div class="cap"><span class="fn">海边日落_05.jpg</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p5"></div></div>
+              <div class="cap"><span class="fn">海边日落_06.jpg</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p6"></div></div>
+              <span class="corner"><span class="check">✓</span><span class="lockchip"></span></span>
+              <div class="cap"><span class="fn">海边日落_07.jpg</span><span class="badge lock">锁</span></div>
+            </div>
+
+            <div class="thumb draft">
+              <div class="img"><div class="ph p7"></div></div>
+              <span class="flag-dot"></span>
+              <div class="cap"><span class="fn">海边日落_08.jpg</span><span class="badge draft">草稿</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p10"></div></div>
+              <div class="cap"><span class="fn">城市夜景_03.jpg</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p7"></div></div>
+              <span class="corner"><span class="lockchip"></span></span>
+              <div class="cap"><span class="fn">产品白底_01.png</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p8 vid"></div></div>
+              <div class="cap"><span class="fn">宣传片_02.mp4</span><span class="badge neutral">视频</span></div>
+            </div>
+
+            <div class="thumb">
+              <div class="img"><div class="ph p9 d3"></div></div>
+              <div class="cap"><span class="fn">模型资产_03.blend</span><span class="badge neutral">3D</span></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右栏 -->
+    <div class="detail">
+      <div class="detail-sec">
+        <div class="detail-title">预览</div>
+        <div style="height:188px;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--border)">
+          <div class="ph p1"></div>
+        </div>
+        <div class="row between mt3">
+          <span class="badge lock">受保护</span>
+          <span class="badge accent">待提交</span>
+          <span class="muted fs-xs">原图 6000×4000</span>
+        </div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">字段</div>
+        <dl class="fields k2">
+          <dt>文件名</dt><dd>海边日落_01.jpg</dd>
+          <dt>路径</dt><dd class="mono fs-xs">D:/素材/2026/09 旅行/海边日落</dd>
+          <dt>类型</dt><dd>JPEG 图片</dd>
+          <dt>尺寸</dt><dd>6000×4000</dd>
+          <dt>体积</dt><dd>12.4 MB</dd>
+          <dt>拍摄时间</dt><dd>2026-09-28 14:25</dd>
+          <dt>所属分组</dt><dd>旅行</dd>
+          <dt>状态</dt><dd>已受保护</dd>
+        </dl>
+      </div>
+
+      <div class="detail-sec" style="flex:1">
+        <div class="detail-title">待提交变更 <span class="count-pill">1</span></div>
+        <div class="mini-diff">
+          <div class="diff-line">
+            <div class="linerow"><span class="from">IMG_0012.jpg</span><span class="arw">→</span></div>
+            <div class="linerow"><span class="to">海边日落_01.jpg</span><span class="badge accent">改名</span></div>
+          </div>
+        </div>
+        <div class="row mt3" style="gap:var(--s2)">
+          <span class="btn sm">撤销此项</span>
+          <span class="btn sm">查看冲突</span>
+        </div>
+        <div class="detail-empty-note mt3">该变更将在「提交变更」时统一写入磁盘，写入前可随时撤销。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="statusbar">
+    <span>已选 12 项</span>
+    <span class="sep">|</span>
+    <span>待提交 12 项变更（<span style="color:var(--warn);font-weight:600">1 项有问题</span>）</span>
+    <span class="sep">|</span>
+    <span>保护区 210</span>
+    <span class="spacer"></span>
+    <span class="btn sm">↶ 撤销</span>
+    <span class="btn sm off">↷ 重做</span>
+  </div>
+
+</div>
+</body>
+</html>

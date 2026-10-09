@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>鹿铃 · 批量重命名</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* 页面级补充：只引用 tokens.css 的变量（纯结构垫片：列宽 / 间距 / flex），不引入颜色 */
+  /* 本页「四组规则 + 预设区」比 tokens 默认画布高，只在本页把 900 → 1400；tokens.css 保持不动（01/02 仍 900） */
+  /* 1400 的依据是真实 Chrome 探针实测（不是文本估算）：rule-body clientH=1018、contentH=1159（① 545 + ② 291 + ③ 157 + ④ 117），加高 160px 后可用 1178px ≥ 1159px */
+  html, body, .win { height: 1400px; }
+  .win { position: relative; }
+  .body.no-detail { grid-template-columns: 340px 1fr; }
+
+  /* 左侧规则面板 */
+  .rule-panel {
+    background: var(--surface-2); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  }
+  .rule-hd {
+    flex: none; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; gap: var(--s2);
+  }
+  .rule-hd .t { font-weight: 700; font-size: var(--fs-lg); flex: 1; }
+  .rule-body { flex: 1; min-height: 0; padding: 2px var(--s3) var(--s3); overflow: hidden; }
+  .rule-ft { flex: none; padding: var(--s2) var(--s3); border-top: 1px solid var(--border); background: var(--surface); }
+  .rule-ft .btn { width: 100%; justify-content: center; }
+
+  .set-sec { padding: 10px var(--s3); background: var(--surface); }
+  .set-sec .h {
+    font-size: var(--fs-md); font-weight: 700; margin-bottom: 6px;
+    display: flex; align-items: center; gap: var(--s2);
+  }
+  .set-sec .h .n {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    font-size: var(--fs-xs); font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .set-sec + .set-sec { border-top: 1px solid var(--border); }
+  /* 三行以内的小节再收 2px，给新增的预设区让出纵向空间（全程按 1240 画布做余量，实测量见 shots/rename-03-height.txt） */
+  .set-sec.tight-sec { padding-top: 8px; padding-bottom: 8px; }
+  .set-sec.tight-sec .h { margin-bottom: 4px; }
+
+  /* 模板输入框：压到 28px，避免单行大字号把第 1 节顶高 */
+  .rule-tpl { width: 100%; height: 28px; padding: 0 6px; justify-content: flex-start; font-size: var(--fs-sm); }
+
+  /* 预设区（命名模板之内）：340px 左栏很窄，一切按 1 行 24px 的密度排；小字行高收到 14px 省纵向 */
+  .preset-row { margin-top: 5px; }
+  .preset-row .hd { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .preset-label { font-size: var(--fs-xs); color: var(--text-3); }
+  .preset-row .hint, .preset-panel .hint { line-height: 14px; }
+  .chip-add { border-style: dashed; font-family: var(--font); color: var(--text-3); }
+  /* .chips 在 tokens 里是横向不换行的，这里覆盖为自动换行（本页 14 个预设芯片排 3 行）+ 4px 间距 */
+  .chips.wrap { flex-wrap: wrap; margin-top: 0; gap: 4px; }
+
+  .preset-panel {
+    border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-2);
+    margin-top: 6px; overflow: hidden;
+  }
+  .pp-hd {
+    height: 24px; display: flex; align-items: center; gap: 4px; padding: 0 var(--s2);
+    border-bottom: 1px solid var(--border); font-size: var(--fs-xs); font-weight: 700; color: var(--text-2);
+  }
+  .pp-bd { padding: 4px var(--s2) 5px; }
+  /* .pp 参数网格：340px 左栏内两列，标签限 2 字（「起始」「补零」）避免折行 */
+  .pp { display: grid; grid-template-columns: 34px 1fr 34px 1fr; gap: 4px 6px; align-items: center; font-size: var(--fs-xs); color: var(--text-2); }
+  .pp .k { color: var(--text-3); }
+  .preset-list {
+    border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface);
+    max-height: 108px; overflow: hidden; margin-top: 5px;
+  }
+  .preset-item { display: flex; align-items: center; gap: 6px; height: 17px; padding: 0 var(--s2); font-size: var(--fs-xs); color: var(--text-2); }
+  .preset-item + .preset-item { border-top: 1px solid var(--border); }
+  .preset-item .nm { font-family: var(--mono); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset-item .ops { display: inline-flex; gap: 6px; color: var(--text-3); font-size: var(--fs-xs); flex: none; }
+
+  .rowline { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 28px; }
+  .rowline + .rowline { margin-top: 4px; }
+  .rowline .lb { font-size: var(--fs-sm); color: var(--text-2); flex: none; }
+  .rowline .ctl { display: flex; align-items: center; gap: var(--s2); }
+
+  .chips { display: flex; gap: 6px; margin-top: var(--s2); }
+  .chip.solid { background: var(--surface-2); }
+
+  .radio-row { display: flex; align-items: center; gap: var(--s2); min-height: 28px; font-size: var(--fs-sm); color: var(--text-2); }
+  .radio-row.on { color: var(--text); font-weight: 600; }
+  .radio-row .d { color: var(--text-3); font-weight: 400; font-size: var(--fs-xs); }
+
+  /* 右侧预览表（本页扩到 20 行演示行，行高收 2px 以保证 1240 画布下不溢出 .content） */
+  .crumb .sel-count { color: var(--accent); font-weight: 600; }
+  table.tbl th.c-cb, table.tbl td.c-cb { width: 44px; text-align: center; }
+  table.tbl th.c-seq, table.tbl td.c-seq { width: 62px; }
+  table.tbl th.c-old, table.tbl td.c-old { width: 216px; }
+  table.tbl th.c-st, table.tbl td.c-st { width: 152px; }
+  table.tbl td { padding-top: 5px; padding-bottom: 5px; }
+  table.tbl td.c-old, table.tbl td.c-new { font-family: var(--mono); font-size: var(--fs-sm); }
+  table.tbl td.c-new { padding-left: var(--s3); }
+  table.tbl .fn { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.tbl td.c-seq { color: var(--text-3); font-variant-numeric: tabular-nums; }
+  table.tbl td.c-new .add { color: var(--accent); font-weight: 600; }
+  table.tbl td.c-new .del { color: var(--danger); text-decoration: line-through; }
+  table.tbl td.c-new .keep { color: var(--text-2); }
+
+  .cnt { font-size: var(--fs-xs); color: var(--text-3); font-variant-numeric: tabular-nums; }
+  /* 1240 画布下右栏变高：表格面板随行数自然增高，「规则摘要」贴到中栏底部，避免底部留大片空洞 */
+  .content.tight { display: flex; flex-direction: column; }
+  .content.tight > .panel { flex: none; }
+  .content.tight > .panel.summary { margin-top: auto; }
+  .subbar .stat { display: inline-flex; align-items: center; gap: 5px; }
+  .legend { display: inline-flex; align-items: center; gap: var(--s2); }
+  .legend .sw { width: 16px; height: 12px; border-radius: 3px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="win">
+
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <span class="app-name">鹿铃</span>
+    <span>D:/素材/2026</span>
+    <span class="spacer"></span>
+    <span class="win-btns"><span>—</span><span>□</span><span>✕</span></span>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="toolbar">
+    <span class="workspace-tab">工作根 <b>D:/素材/2026</b></span>
+    <span class="badge accent">批量重命名</span>
+    <span class="badge neutral">草稿模式</span>
+    <span class="spacer"></span>
+    <span class="btn sm">载入预设</span>
+    <span class="btn sm">保存为预设</span>
+    <span class="btn sm">重置规则</span>
+  </div>
+
+  <!-- 两栏主体 -->
+  <div class="body no-detail">
+
+    <!-- 左栏：规则面板 -->
+    <div class="rule-panel">
+      <div class="rule-hd">
+        <span class="t">重命名规则</span>
+        <span class="badge neutral">规则组 4</span>
+      </div>
+
+      <div class="rule-body">
+
+        <!-- ① 命名模板 -->
+        <div class="set-sec" style="background:var(--surface)">
+          <div class="h"><span class="n">1</span>命名模板</div>
+          <div class="input mono rule-tpl">tq_{seq}</div>
+
+          <!-- 预设区：13 个内置预设 + 自定义；点选即直接套用（基名 + 自动序号后缀） -->
+          <div class="preset-row">
+            <div class="hd">
+              <span class="preset-label">预设</span>
+              <span class="hint">点一个即套用，序号自动跟在名称后</span>
+            </div>
+            <div class="chips wrap">
+              <span class="chip">date</span>
+              <span class="chip">time</span>
+              <span class="chip">week</span>
+              <span class="chip on" style="background:var(--accent-soft);border-color:var(--accent);color:var(--accent)">tq</span>
+              <span class="chip">tq1</span>
+              <span class="chip">rl</span>
+              <span class="chip">wd</span>
+              <span class="chip">xwd</span>
+              <span class="chip">num</span>
+              <span class="chip">bs</span>
+              <span class="chip">hs</span>
+              <span class="chip">xq</span>
+              <span class="chip">sz</span>
+              <span class="chip chip-add">＋ 自定义预设</span>
+            </div>
+          </div>
+
+          <!-- 新建 / 管理预设：内联面板（静态呈现，不做弹窗）= 预设名 + 参数两列 + 预设库列表 -->
+          <div class="preset-panel">
+            <div class="pp-hd">
+              <span>预设库 · 新建 / 管理</span>
+              <span class="spacer grow"></span>
+              <span class="btn sm">保存预设</span>
+              <span class="btn sm">取消</span>
+            </div>
+            <div class="pp-bd">
+              <div class="pp">
+                <span class="k">预设名</span>
+                <span class="badge accent">tq</span>
+                <span class="k">起始</span>
+                <span class="seg"><span class="on">0</span><span>1</span></span>
+                <span class="k">补零</span>
+                <span class="select" style="height:22px">不补零 <span class="caret">▼</span></span>
+                <span class="k">分隔符</span>
+                <span class="select" style="height:22px">_ <span class="caret">▼</span></span>
+              </div>
+              <div class="preset-list">
+                <div class="preset-item"><span class="nm">date</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">time</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">week</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">tq</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">tq1</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">rl</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">wd</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">xwd</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">num</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">bs</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">hs</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">xq</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">sz</span><span class="badge neutral">内置</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">wl</span><span class="badge on">自定义</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+                <div class="preset-item"><span class="nm">sc</span><span class="badge on">自定义</span><span class="ops"><span>▤</span><span>✕</span></span></div>
+              </div>
+              <!-- 列表 15 条（13 内置 + wl / sc 自定义），静态稿只露出前 6 条，其余由列表自身滚动查看 -->
+              <div class="hint mt2">自定义预设存在本机配置，可随「方案」导出；列表可滚动。</div>
+            </div>
+          </div>
+
+          <div class="chips wrap">
+            <span class="chip">{name}</span>
+            <span class="chip">{ext}</span>
+            <span class="chip">{seq}</span>
+            <span class="chip">{date}</span>
+            <span class="chip">{camera}</span>
+            <span class="chip">{w}</span>
+            <span class="chip">{h}</span>
+            <span class="chip">{group}</span>
+          </div>
+          <!-- 「工程安全命名」保持可用但不抢戏：收成小按钮，跟变量芯片行同一段尾部 -->
+          <div class="rowline mt2">
+            <span class="btn sm">工程安全命名</span>
+            <span class="hint">按安全规则改写模板，不动预设选择</span>
+          </div>
+          <div class="hint">点选变量可插入到光标位置，插入位置会在大括号内高亮显示。</div>
+        </div>
+
+        <!-- ② 序号规则 -->
+        <div class="set-sec" style="background:var(--surface)">
+          <div class="h"><span class="n">2</span>序号规则</div>
+
+          <div class="rowline">
+            <span class="lb">起始序号</span>
+            <span class="ctl"><span class="seg"><span class="on">从 0 开始</span><span>从 1 开始</span></span></span>
+          </div>
+          <div class="hint">默认 0 · 可在设置中改为 1</div>
+          <div class="rowline">
+            <span class="lb">分隔符</span>
+            <span class="ctl"><span class="select" style="width:180px">自动补 _ <span class="caret">▼</span></span></span>
+          </div>
+          <div class="rowline">
+            <span class="lb">补零位数</span>
+            <span class="ctl"><span class="select" style="width:180px">不补零（默认） <span class="caret">▼</span></span></span>
+          </div>
+          <!-- 下拉其余档位（源码可见，静态稿只跑出默认档）：最少 2 位 / 最少 3 位 / 固定 4 位 -->
+          <div class="hint">按素材实际写法：0–9 为一位，10 起自然进位（参考你的锁屏素材命名）</div>
+          <div class="rowline">
+            <span class="lb">作用域</span>
+            <span class="ctl"><span class="select" style="width:180px">当前文件夹 <span class="caret">▼</span></span></span>
+          </div>
+          <div class="rowline">
+            <span class="lb">剥离原名中的序号</span>
+            <span class="ctl"><span class="switch on"></span></span>
+          </div>
+          <div class="hint mt2">若原名以 _数字 结尾（如 夜景_0.jpg），先剥离该序号，再按新规则重新编号。</div>
+        </div>
+
+        <!-- ③ 冲突处理 -->
+        <div class="set-sec tight-sec" style="background:var(--surface)">
+          <div class="h"><span class="n">3</span>冲突处理</div>
+          <div class="radio-row on"><span class="radio on"></span>自动加后缀 _1<span class="d">目标已存在时追加 _1、_2…</span></div>
+          <div class="radio-row"><span class="radio"></span>跳过并记录</div>
+          <div class="radio-row"><span class="radio"></span>中止本批次</div>
+          <div class="hint">超长文件名（超过 255 字符）不会被应用，需手动调整模板。</div>
+        </div>
+
+        <!-- ④ 落盘方式 -->
+        <div class="set-sec tight-sec">
+          <div class="h"><span class="n">4</span>落盘方式</div>
+          <div class="rowline">
+            <span class="lb">保留原始文件</span>
+            <span class="ctl"><span class="switch"></span></span>
+          </div>
+          <div class="rowline">
+            <span class="lb">同步更新元数据</span>
+            <span class="ctl"><span class="switch on"></span></span>
+          </div>
+          <div class="hint">受保护区的 210 个素材默认跳过，不参与本批次改名。</div>
+        </div>
+
+      </div>
+
+      <div class="rule-ft">
+        <span class="btn primary lg">应用到预览</span>
+      </div>
+    </div>
+
+    <!-- 右栏：预览 -->
+    <div class="main">
+      <div class="crumb">
+        <b>批量重命名</b>
+        <span class="sep">·</span>
+        <span>已选 <span class="sel-count">128</span> 个素材</span>
+        <span class="spacer grow"></span>
+        <span>规则：tq_{seq}</span>
+        <span class="badge neutral">预览按预设 tq 展开</span>
+      </div>
+
+      <div class="subbar">
+        <span class="badge accent">128 项</span>
+        <span class="badge ok">正常 126</span>
+        <span class="badge draft">冲突 1</span>
+        <span class="badge conflict">超长 1</span>
+        <span class="spacer grow"></span>
+        <span class="legend"><span class="sw" style="background:var(--accent-soft)"></span>新增片段</span>
+        <span class="legend"><span class="sw" style="background:var(--danger-soft)"></span>被替换片段</span>
+        <span class="seg"><span class="on">预览</span><span>原始</span></span>
+      </div>
+
+      <div class="content tight">
+        <div class="panel">
+          <div class="panel-hd">
+            <span class="ttl">重命名预览</span>
+            <span class="badge neutral">前 30 / 128</span>
+            <span class="spacer grow"></span>
+            <span class="cnt">目标文件夹：D:/素材/2026/09 锁屏</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th class="c-cb">选</th>
+                <th class="c-seq">序号</th>
+                <th class="c-old">原文件名</th>
+                <th class="c-new">新文件名</th>
+                <th class="c-st">状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">0</td>
+                <td class="c-old"><span class="fn">IMG_1234.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">0</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">1</td>
+                <td class="c-old"><span class="fn">IMG_1235.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">1</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">2</td>
+                <td class="c-old"><span class="fn">IMG_1236.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">2</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="rowskip">
+                <td class="c-cb"><span class="checkbox"></span></td>
+                <td class="c-seq">—</td>
+                <td class="c-old"><span class="fn">IMG_1237.jpg</span></td>
+                <td class="c-new"><span class="fn t2">已剔除，不参与编号</span></td>
+                <td class="c-st"><span class="badge neutral">已单独剔除</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">3</td>
+                <td class="c-old"><span class="fn">DSC00012.NEF</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">3</span><span class="keep">.NEF</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">4</td>
+                <td class="c-old"><span class="fn">IMG_4120.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">4</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">5</td>
+                <td class="c-old"><span class="fn">IMG_2018.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">5</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">6</td>
+                <td class="c-old"><span class="fn">IMG_2053.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">6</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="rowwarn">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">7</td>
+                <td class="c-old"><span class="fn">IMG_0012.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">7</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge draft">冲突：目标已存在</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">8</td>
+                <td class="c-old"><span class="fn">IMG_2077.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">8</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">9</td>
+                <td class="c-old"><span class="fn">IMG_2091.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">9</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="rowdanger">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">10</td>
+                <td class="c-old"><span class="fn">VID_20260928_142530_4K_原始素材_未剪辑_备份_最终版.mp4</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">10</span><span class="keep">.mp4</span></span></td>
+                <td class="c-st"><span class="badge conflict">超长</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">11</td>
+                <td class="c-old"><span class="fn">IMG_2104.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">11</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">12</td>
+                <td class="c-old"><span class="fn">IMG_2110.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">12</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">13</td>
+                <td class="c-old"><span class="fn">IMG_2118.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">13</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">14</td>
+                <td class="c-old"><span class="fn">IMG_2126.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">14</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">15</td>
+                <td class="c-old"><span class="fn">IMG_2133.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">15</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">16</td>
+                <td class="c-old"><span class="fn">IMG_2140.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">16</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">17</td>
+                <td class="c-old"><span class="fn">IMG_2147.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">17</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">18</td>
+                <td class="c-old"><span class="fn">IMG_2155.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">18</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">19</td>
+                <td class="c-old"><span class="fn">IMG_2162.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">19</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">20</td>
+                <td class="c-old"><span class="fn">IMG_2170.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">20</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">21</td>
+                <td class="c-old"><span class="fn">IMG_2178.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">21</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">22</td>
+                <td class="c-old"><span class="fn">IMG_2185.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">22</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">23</td>
+                <td class="c-old"><span class="fn">IMG_2193.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">23</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">24</td>
+                <td class="c-old"><span class="fn">IMG_2201.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">24</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">25</td>
+                <td class="c-old"><span class="fn">IMG_2210.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">25</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">26</td>
+                <td class="c-old"><span class="fn">IMG_2218.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">26</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">27</td>
+                <td class="c-old"><span class="fn">IMG_2226.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">27</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr>
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">28</td>
+                <td class="c-old"><span class="fn">IMG_2235.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">28</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+              <tr class="alt">
+                <td class="c-cb"><span class="checkbox on">✓</span></td>
+                <td class="c-seq">29</td>
+                <td class="c-old"><span class="fn">IMG_2244.jpg</span></td>
+                <td class="c-new"><span class="fn"><span class="add">tq</span><span class="keep">_</span><span class="add">29</span><span class="keep">.jpg</span></span></td>
+                <td class="c-st"><span class="badge ok">可应用</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel summary">
+          <div class="grp-hd">
+            <span>本次将应用的规则摘要</span>
+            <span class="cnt">预览基于草稿，磁盘尚未修改</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">
+            <div class="detail-sec" style="border-right:1px solid var(--border);border-bottom:none">
+              <div class="detail-title">模板展开</div>
+              <div class="mono fs-sm">tq_0.jpg · tq_1.jpg … tq_29.jpg</div>
+              <div class="cnt mt2">预设 tq 直接套用，序号自动跟在名称后面</div>
+            </div>
+            <div class="detail-sec" style="border-right:1px solid var(--border);border-bottom:none">
+              <div class="detail-title">序号与补零</div>
+              <div class="fs-sm">不补零 · 从 0 开始 · 分隔符 _</div>
+              <div class="cnt mt2">按素材实际写法：0–9 一位、10 起两位（415 个文件的真实命名）</div>
+            </div>
+            <div class="detail-sec" style="border-bottom:none">
+              <div class="detail-title">预计写入</div>
+              <div class="fs-sm">126 个文件改名 · 1 项冲突待处理</div>
+              <div class="cnt mt2">写入前会生成操作日志，可整体撤销</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="statusbar">
+    <span>预览基于草稿，磁盘尚未修改</span>
+    <span class="sep">|</span>
+    <span>128 项 · 正常 126 · 冲突 1 · 超长 1</span>
+    <span class="spacer"></span>
+    <span class="btn sm">取消</span>
+    <span class="btn primary">加入变更集</span>
+  </div>
+
+</div>
+</body>
+</html>

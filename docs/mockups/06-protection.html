@@ -1,0 +1,242 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="tokens.css">
+<style>
+  .body { grid-template-columns: 240px 1fr 300px; }
+  .warm { --bg: #FBF7F0; --surface: #FFFFFF; --surface-2: #FDFAF4; --surface-3: #F1E9DC;
+          --border: #E7DDCC; --border-strong: #D2C4AC; --text: #2A241C; --text-2: #6B5F4E;
+          --text-3: #9A8C77; --accent: #C2862F; --accent-soft: #FBF0DC; }
+  .grid.g4 { gap: 11px 13px; }
+  .thumb .img { height: 128px; }
+  .thumb .cap { padding: 5px 8px 6px; }
+  .thumb .corner { right: 6px; bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .thumb .lnk { position: absolute; right: 6px; top: 6px; z-index: 2; }
+  .thumb .cbx { position: absolute; left: 6px; top: 6px; z-index: 2; }
+  .thumb .chk { position: absolute; left: 6px; top: 6px; z-index: 2; }
+  /* 已确认标记：放在文件名前做文字标记，避免和图片右上角的锁标挤在同一角 */
+  .cap .ok-mark { color: var(--ok); font-weight: 700; font-size: 10px; flex: none; margin-right: -1px; }
+  .side-foot { margin-top: auto; border-top: 1px solid var(--border); padding: 10px 12px; }
+  .log-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .log-row:last-child { border-bottom: none; }
+  .mini-stat { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini-stat > div { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; }
+  .mini-stat .k { font-size: var(--fs-xs); color: var(--text-3); }
+  .mini-stat .v { font-size: var(--fs-lg); font-weight: 700; font-family: var(--mono); }
+</style></head>
+<body class="warm">
+<div class="win">
+
+  <div class="titlebar">
+    <span class="dots"><i></i><i></i><i></i></span>
+    <span class="app-name">鹿铃</span>
+    <span>— D:\素材库\2026 春季项目</span>
+    <span class="spacer"></span>
+    <span class="badge lock">保护区已启用</span>
+    <span class="win-btns"><span>—</span><span>▢</span><span>✕</span></span>
+  </div>
+
+  <div class="toolbar">
+    <span class="workspace-tab"><b>素材库</b><span class="badge ok">已扫描</span></span>
+    <span class="input search">搜索文件名、扩展名或分组…</span>
+    <span class="btn">扫描目录</span>
+    <span class="btn">重命名预览</span>
+    <span class="grow"></span>
+    <span class="btn-group">
+      <span class="icon-btn on">▦</span>
+      <span class="icon-btn">≡</span>
+    </span>
+    <span class="btn">预览变更</span>
+    <span class="btn primary">提交 0 项变更</span>
+  </div>
+
+  <div class="body">
+
+    <!-- 左栏 -->
+    <div class="sidebar">
+      <div class="side-sec">
+        <div class="side-title">目录<span class="add">＋</span></div>
+        <div class="tree">
+          <div class="tree-row"><span class="tw">▶</span><span class="ic">▣</span><span class="nm">D:\素材库</span><span class="ct">1 284</span></div>
+          <div class="tree-row ind1"><span class="tw">▶</span><span class="ic">▣</span><span class="nm">2026 春季项目</span><span class="ct">642</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">01 产品渲染</span><span class="ct">128</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">02 现场拍摄</span><span class="ct">216</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">03 音视频素材</span><span class="ct">74</span></div>
+          <div class="tree-row ind1 active"><span class="tw">▶</span><span class="ic">▣</span><span class="nm">09 旅行</span><span class="ct">186</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">2026 京都</span><span class="ct">92</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">2026 冲绳</span><span class="ct">94</span></div>
+        </div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">分组<span class="add">＋</span></div>
+        <div class="list-row"><span class="dot c1"></span><span class="nm">产品图</span><span class="ct">86</span></div>
+        <div class="list-row"><span class="dot c2"></span><span class="nm">现场花絮</span><span class="ct">134</span></div>
+        <div class="list-row active"><span class="dot c3"></span><span class="nm">旅行</span><span class="ct">186</span></div>
+        <div class="list-row"><span class="dot c4"></span><span class="nm">宣传片素材</span><span class="ct">52</span></div>
+        <div class="list-row"><span class="dot c5"></span><span class="nm">待交付</span><span class="ct">31</span></div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">智能集合</div>
+        <div class="list-row"><span class="ic t2" style="width:15px">⚠</span><span class="nm">命名冲突</span><span class="badge conflict">3</span></div>
+        <div class="list-row"><span class="ic t2" style="width:15px">◷</span><span class="nm">近 7 天新增</span><span class="ct">142</span></div>
+        <div class="list-row"><span class="ic t2" style="width:15px">▤</span><span class="nm">重复内容</span><span class="ct">18</span></div>
+      </div>
+
+      <div class="side-foot">
+        <div class="side-title" style="margin-bottom:6px">保护区</div>
+        <div class="list-row active"><span class="ic" style="width:15px">✓</span><span class="nm">全部受保护素材</span><span class="badge lock">210</span></div>
+        <div class="hint mt2">受保护素材在批量操作中默认被跳过。</div>
+      </div>
+    </div>
+
+    <!-- 中栏 -->
+    <div class="main">
+      <div class="crumb">
+        <b>保护区</b><span class="sep">·</span><span>210 项</span><span class="sep">·</span>
+        <span>当前筛选：分组「旅行」</span>
+      </div>
+      <div class="subbar">
+        <span class="btn">移出保护区</span>
+        <span class="btn">批量重命名</span>
+        <span class="btn">批量移动</span>
+        <span class="btn">导出清单</span>
+        <span class="grow"></span>
+        <span class="seg"><span class="on">全部</span><span>图片</span><span>视频</span><span>音频</span><span>3D 工程</span><span>文档</span></span>
+        <span class="select" style="height:28px"><span>名称升序</span><span class="caret">▼</span></span>
+      </div>
+      <div class="content tight" style="padding:14px 16px">
+        <div class="grid g4">
+
+          <div class="thumb">
+            <div class="img"><div class="ph p1"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">产品渲染_001.png</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p9 d3"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">模型资产_002.blend</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p2 vid"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">宣传片_003.mp4</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p7 doc"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">说明文档_004.pdf</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p8 aud"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">音效素材_005.wav</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p6"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">渲染图_006.jpg</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p3"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">旅行_山径_007.jpg</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p5"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">旅行_海边_008.jpg</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <!-- 框选态：checkbox.on + lockchip -->
+          <div class="thumb sel">
+            <div class="img"><div class="ph p4"></div><span class="chk checkbox on">✓</span><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">旅行_街景_009.jpg</span><span class="badge accent">已选</span></div>
+          </div>
+
+          <!-- 草稿 + 旗标 + 已确认勾选 -->
+          <div class="thumb draft">
+            <div class="img"><div class="ph p10"></div><span class="flag-dot"></span><span class="lnk lockchip">✓</span><span class="corner"><span class="check">✓</span></span></div>
+            <div class="cap"><span class="ok-mark">✓</span><span class="fn">旅行_夜景_010.jpg</span><span class="badge draft">草稿</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p9 d3"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">场景工程_011.blend</span><span class="badge lock">保护区</span></div>
+          </div>
+
+          <div class="thumb">
+            <div class="img"><div class="ph p2 vid"></div><span class="lnk lockchip">✓</span></div>
+            <div class="cap"><span class="fn">旅行_延时_012.mp4</span><span class="badge lock">保护区</span></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 右栏 -->
+    <div class="detail">
+      <div class="detail-sec">
+        <div class="detail-title">保护区说明</div>
+        <div class="row" style="align-items:flex-start;gap:10px">
+          <span class="badge lock">✓ 已启用</span>
+          <span class="fs-sm t2">受保护素材在批量操作中默认被跳过，可随时移出。</span>
+        </div>
+        <div class="row mt3" style="gap:10px">
+          <span class="switch on"></span>
+          <span class="fs-sm">提交后自动加入保护区</span>
+        </div>
+        <div class="hint mt2">开启后，任何被成功提交的整理操作都会把涉及的素材写入保护区，避免被后续批量规则二次改动。</div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="mini-stat">
+          <div><div class="k">保护区内</div><div class="v">210</div></div>
+          <div><div class="k">本周新增</div><div class="v">12</div></div>
+        </div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">最近整理记录</div>
+        <div class="log-row">
+          <span class="mono fs-xs t2">04-19 15:42</span>
+          <span class="badge neutral mono">#20260419-003</span>
+          <span class="grow"></span>
+          <span class="fs-sm">27 项</span>
+        </div>
+        <div class="log-row">
+          <span class="mono fs-xs t2">04-18 20:10</span>
+          <span class="badge neutral mono">#20260418-002</span>
+          <span class="grow"></span>
+          <span class="fs-sm">14 项</span>
+        </div>
+        <div class="log-row">
+          <span class="mono fs-xs t2">04-17 09:26</span>
+          <span class="badge neutral mono">#20260417-001</span>
+          <span class="grow"></span>
+          <span class="fs-sm">41 项</span>
+        </div>
+        <div class="hint mt3">每条记录都可在「待提交变更」中撤销，撤销不影响真实文件。</div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">保护区规则</div>
+        <dl class="fields">
+          <dt>跳过范围</dt><dd>重命名 / 移动 / 回收站</dd>
+          <dt>例外</dt><dd>手动单条编辑</dd>
+          <dt>同步</dt><dd>随工作区保存</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span>已选 <b>5</b> 项</span><span class="sep">|</span>
+    <span>待提交 <b>0</b> 项变更</span><span class="sep">|</span>
+    <span>保护区 210</span>
+    <span class="spacer"></span>
+    <span class="btn ghost sm">← 撤销</span>
+    <span class="btn ghost sm">→ 重做</span>
+  </div>
+
+</div>
+</body></html>

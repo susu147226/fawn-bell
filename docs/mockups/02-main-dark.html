@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>鹿铃 · 主界面（深色 · 列表视图）</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* 页面级补充：仅引用 tokens.css 变量 */
+  .win { position: relative; }
+
+  .sidebar.compact .side-sec { padding: var(--s2) var(--s3); }
+  .sidebar.compact .side-sec + .side-sec { border-top: 1px solid var(--border); }
+  .sidebar.compact .tree-row,
+  .sidebar.compact .list-row { height: 25px; }
+
+  /* 列表视图：面板撑满中栏，行高等分铺满 */
+  .content.listfill { display: flex; flex-direction: column; padding: var(--s3); }
+  .panel.fill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .panel.fill .tblwrap { flex: 1; min-height: 0; overflow: hidden; }
+  table.tbl.fill { height: 100%; }
+  table.tbl.fill tr { height: auto; }
+  table.tbl.fill td { border-bottom: 1px solid var(--border); }
+
+  table.tbl th.c-cb, table.tbl td.c-cb { width: 40px; padding-right: 0; }
+  table.tbl th.c-th, table.tbl td.c-th { width: 46px; padding-left: var(--s2); padding-right: var(--s2); }
+  table.tbl th.c-name, table.tbl td.c-name { width: 300px; }
+  table.tbl th.c-type, table.tbl td.c-type { width: 86px; }
+  table.tbl th.c-dim, table.tbl td.c-dim { width: 106px; }
+  table.tbl th.c-size, table.tbl td.c-size { width: 88px; }
+  table.tbl th.c-time, table.tbl td.c-time { width: 146px; }
+  table.tbl td.c-time { color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .thswatch { position: relative; width: 34px; height: 24px; border-radius: 5px; border: 1px solid var(--border); overflow: hidden; }
+  table.tbl tr.rowlock td { background: var(--lock-soft); }
+  .fn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 296px; }
+
+  /* 左栏变更集 */
+  .side-sec.flush { padding: 0; }
+  .side-sec.flush .side-title { padding: var(--s3) var(--s3) var(--s2); margin-bottom: 0; }
+  .side-sec.flush .diff-line { padding: 6px var(--s3); }
+  .side-sec.flush .diff-line .from,
+  .side-sec.flush .diff-line .to { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-sec.flush .diff-line .to { text-align: right; }
+
+  /* 右栏摘要 */
+  .statbox {
+    border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2);
+    padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2);
+  }
+  .statline { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--fs-sm); color: var(--text-2); }
+  .statline b { font-size: var(--fs-lg); color: var(--text); font-variant-numeric: tabular-nums; }
+  .statline b.warnv { color: var(--warn); }
+  .actionpair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+  .actionpair .btn { justify-content: center; }
+  .bignum { display: flex; align-items: baseline; gap: var(--s2); }
+  .bignum b { font-size: var(--fs-2xl); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kinds { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); color: var(--text-2); }
+  .kinds .k { display: flex; align-items: center; gap: var(--s2); }
+  .kinds .k .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+  .kinds .k .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .kinds .k .n { width: 30px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-3); font-size: var(--fs-xs); }
+  .note {
+    display: flex; gap: 6px; align-items: flex-start; padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+    background: var(--lock-soft); color: var(--text-2); font-size: var(--fs-xs); border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body class="theme-dark">
+<div class="win">
+
+  <div class="titlebar">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <span class="app-name">鹿铃</span>
+    <span>D:/素材/2026</span>
+    <span class="spacer"></span>
+    <span class="win-btns"><span>—</span><span>□</span><span>✕</span></span>
+  </div>
+
+  <div class="toolbar">
+    <span class="workspace-tab">工作根 <b>D:/素材/2026</b></span>
+    <span class="input search">搜索文件名、扩展名、标签…</span>
+    <span class="spacer"></span>
+    <div class="btn-group">
+      <span class="icon-btn" title="文件夹视图">▣</span>
+      <span class="icon-btn" title="网格视图">▦</span>
+      <span class="icon-btn on" title="列表视图">☰</span>
+      <span class="icon-btn" title="详情视图">▤</span>
+    </div>
+    <span class="select">按修改时间 <span class="caret">▼</span></span>
+    <span class="select">深色 <span class="caret">▼</span></span>
+    <span class="btn primary">提交变更 <span class="count-pill">27</span></span>
+  </div>
+
+  <div class="body">
+
+    <!-- 左栏 -->
+    <div class="sidebar compact">
+      <div class="side-sec">
+        <div class="side-title">目录 <span class="add">＋</span></div>
+        <div class="tree">
+          <div class="tree-row"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">素材</span><span class="ct">1 842</span></div>
+          <div class="tree-row ind1"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">2026</span><span class="ct">1 240</span></div>
+          <div class="tree-row ind2"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">09 旅行</span><span class="ct">128</span></div>
+          <div class="tree-row ind3"><span class="tw"></span><span class="ic">▪</span><span class="nm">海边日落</span><span class="ct">46</span></div>
+          <div class="tree-row ind3"><span class="tw"></span><span class="ic">▪</span><span class="nm">城市夜景</span><span class="ct">38</span></div>
+          <div class="tree-row ind2"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">10 商业拍摄</span><span class="ct">302</span></div>
+          <div class="tree-row ind1"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">项目文件</span><span class="ct">410</span></div>
+        </div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">分组 <span class="add">＋</span></div>
+        <div class="list-row active"><span class="dot c1"></span><span class="nm">旅行</span><span class="ct">128</span></div>
+        <div class="list-row"><span class="dot c2"></span><span class="nm">客户交付</span><span class="ct">64</span></div>
+        <div class="list-row"><span class="dot c3"></span><span class="nm">待筛选</span><span class="ct">27</span></div>
+        <div class="list-row"><span class="lockchip"></span><span class="nm">保护区</span><span class="badge lock">锁定</span><span class="ct">210</span></div>
+      </div>
+
+      <div class="side-sec flush">
+        <div class="side-title">变更集 <span class="badge accent">27</span></div>
+        <div class="diff-line">
+          <span class="from">IMG_0012.jpg</span><span class="arw">→</span><span class="to">海边日落_01.jpg</span>
+        </div>
+        <div class="diff-line conflict">
+          <span class="arw">⚠</span><span class="from">IMG_0013.jpg</span><span class="arw">→</span><span class="to">海边日落_01.jpg</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">IMG_0018.jpg</span><span class="arw">→</span><span class="to">城市夜景_03.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 中栏：列表视图 -->
+    <div class="main">
+      <div class="crumb">
+        <span class="sep">D:</span><span class="sep">›</span>
+        <span>素材</span><span class="sep">›</span>
+        <span>2026</span><span class="sep">›</span>
+        <b>09 旅行</b>
+        <span class="spacer grow"></span>
+        <span>128 个素材</span>
+      </div>
+
+      <div class="subbar">
+        <span class="badge accent">全部 128</span>
+        <span class="badge neutral">图片 96</span>
+        <span class="badge neutral">视频 18</span>
+        <span class="badge neutral">音频 6</span>
+        <span class="badge neutral">3D 工程 5</span>
+        <span class="badge neutral">文档 3</span>
+        <span class="spacer grow"></span>
+        <span class="muted">列表视图</span>
+      </div>
+
+      <div class="content listfill">
+        <div class="panel fill">
+          <div class="panel-hd">
+            <span class="ttl">09 旅行 · 列表</span>
+            <span class="badge neutral">12 / 128</span>
+            <span class="spacer grow"></span>
+            <span class="badge ok">已整理 5</span>
+            <span class="badge draft">草稿 2</span>
+            <span class="badge lock">受保护 3</span>
+            <span class="badge conflict">冲突 1</span>
+          </div>
+
+          <div class="tblwrap">
+            <table class="tbl fill">
+              <thead>
+                <tr>
+                  <th class="c-cb">选</th>
+                  <th class="c-th">预览</th>
+                  <th class="c-name">名称</th>
+                  <th class="c-type">类型</th>
+                  <th class="c-dim">尺寸</th>
+                  <th class="c-size">体积</th>
+                  <th class="c-time">修改时间</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="c-cb"><span class="checkbox on">✓</span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p1"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_01.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">12.4 MB</td>
+                  <td class="c-time">2026-09-28 14:25</td>
+                  <td><span class="badge accent">待提交</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p1"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_02.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">11.8 MB</td>
+                  <td class="c-time">2026-09-28 14:26</td>
+                  <td><span class="badge neutral">未整理</span></td>
+                </tr>
+                <tr class="rowwarn">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p2"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_03.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">13.1 MB</td>
+                  <td class="c-time">2026-09-28 14:31</td>
+                  <td><span class="badge draft">草稿</span></td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p3"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_04.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">10.9 MB</td>
+                  <td class="c-time">2026-09-28 14:33</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+                <tr class="alt rowlock">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p4"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_05.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">12.2 MB</td>
+                  <td class="c-time">2026-09-28 14:35</td>
+                  <td><span class="badge lock">受保护</span></td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p5"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_06.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">9.7 MB</td>
+                  <td class="c-time">2026-09-28 14:38</td>
+                  <td><span class="badge neutral">未整理</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p6"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_07.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">14.6 MB</td>
+                  <td class="c-time">2026-09-28 14:41</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+                <tr class="rowdanger">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p7"></div></div></td>
+                  <td class="c-name mono"><span class="fn">海边日落_08.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">12.9 MB</td>
+                  <td class="c-time">2026-09-28 14:44</td>
+                  <td><span class="badge conflict">冲突：目标已存在</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p10"></div></div></td>
+                  <td class="c-name mono"><span class="fn">城市夜景_03.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">4000×6000</td>
+                  <td class="c-size">8.3 MB</td>
+                  <td class="c-time">2026-09-30 21:12</td>
+                  <td><span class="badge neutral">未整理</span></td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p7"></div></div></td>
+                  <td class="c-name mono"><span class="fn">产品白底_01.png</span></td>
+                  <td class="c-type">PNG</td>
+                  <td class="c-dim">3000×3000</td>
+                  <td class="c-size">6.1 MB</td>
+                  <td class="c-time">2026-10-02 09:05</td>
+                  <td><span class="badge lock">受保护</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p8"></div></div></td>
+                  <td class="c-name mono"><span class="fn">宣传片_02.mp4</span></td>
+                  <td class="c-type">MP4 视频</td>
+                  <td class="c-dim">3840×2160</td>
+                  <td class="c-size">486 MB</td>
+                  <td class="c-time">2026-10-03 16:20</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p9"></div></div></td>
+                  <td class="c-name mono"><span class="fn">模型资产_03.blend</span></td>
+                  <td class="c-type">BLEND</td>
+                  <td class="c-dim">—</td>
+                  <td class="c-size">72 MB</td>
+                  <td class="c-time">2026-10-04 11:40</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右栏：变更集摘要 -->
+    <div class="detail">
+      <div class="detail-sec">
+        <div class="detail-title">变更集摘要</div>
+        <div class="bignum"><b>27</b><span class="t2">项待提交变更</span></div>
+        <div class="muted fs-xs mt2">基于当前草稿，磁盘尚未修改</div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">统计</div>
+        <div class="statbox">
+          <div class="statline"><span>涉及素材</span><b>24</b></div>
+          <div class="statline"><span>改名</span><b>18</b></div>
+          <div class="statline"><span>移动 / 归档</span><b>6</b></div>
+          <div class="statline"><span>分组调整</span><b>3</b></div>
+          <div class="statline"><span>受保护区跳过</span><b>210</b></div>
+          <div class="statline"><span>冲突</span><b class="warnv">1</b></div>
+        </div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">批量操作</div>
+        <div class="actionpair">
+          <span class="btn primary">全部提交</span>
+          <span class="btn">全部放弃</span>
+        </div>
+        <div class="note mt3">
+          <span>⚠</span>
+          <span>有 1 项冲突未解决，需先处理才能整体提交。</span>
+        </div>
+      </div>
+
+      <div class="detail-sec" style="flex:1">
+        <div class="detail-title">变更类型分布</div>
+        <div class="kinds">
+          <div class="k"><span style="width:52px">改名</span><span class="bar"><i style="width:100%"></i></span><span class="n">18</span></div>
+          <div class="k"><span style="width:52px">归档</span><span class="bar"><i style="width:34%"></i></span><span class="n">6</span></div>
+          <div class="k"><span style="width:52px">分组</span><span class="bar"><i style="width:17%"></i></span><span class="n">3</span></div>
+        </div>
+        <div class="muted fs-xs mt3">提交后将写入操作日志，可从「撤销」回滚本批次。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="statusbar">
+    <span>已选 8 项</span>
+    <span class="sep">|</span>
+    <span>待提交 27 项变更（<span style="color:var(--warn);font-weight:600">1 项有问题</span>）</span>
+    <span class="sep">|</span>
+    <span>保护区 210</span>
+    <span class="spacer"></span>
+    <span class="btn sm">↶ 撤销</span>
+    <span class="btn sm off">↷ 重做</span>
+  </div>
+
+</div>
+</body>
+</html>

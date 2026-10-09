@@ -1,0 +1,13 @@
+# 统一换行：仓库内一律 LF，检出时不随平台改写（本项目仅 Windows，但保持一致避免无谓 diff）
+* text=auto eol=lf
+
+# 二进制资产：不做换行转换与文本 diff
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary

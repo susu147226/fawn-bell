@@ -1,0 +1,263 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="tokens.css">
+<style>
+  .settings-wrap { grid-template-columns: 220px 1fr 276px; }
+  .set-body { display: flex; flex-direction: column; }
+  .set-sec { margin-bottom: 8px; padding: 10px 14px; }
+  .set-sec .h { margin-bottom: 8px; font-size: var(--fs-sm); font-weight: 700; }
+  .set-scroll { flex: 1; min-height: 0; }
+  .set-actions { flex: none; display: flex; align-items: center; gap: 8px;
+                 padding: 10px 20px; background: var(--surface); border-top: 1px solid var(--border); }
+  .spec-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .spec-row .lb { width: 92px; flex: none; font-size: var(--fs-sm); color: var(--text-2); }
+  .spec-row .vl { width: 52px; flex: none; text-align: right; font-family: var(--mono); font-size: var(--fs-xs); color: var(--text-2); }
+  .spec-row .slider { flex: 1; }
+  .swatch .c { height: 40px; }
+  .swatch .n { margin-top: 5px; }
+  .swatch.on .c { border: 2px solid var(--accent); }
+  .hue { cursor: default; }
+  .set-sec .card-opt { padding: 8px 12px; }
+  .bg-row { display: flex; gap: 14px; align-items: flex-start; }
+  .bg-prev { width: 96px; height: 64px; flex: none; border-radius: var(--r-sm); border: 1px solid var(--border);
+             background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface-3) 45%, var(--surface-2) 100%); position: relative; overflow: hidden; }
+  .bg-prev i { position: absolute; border-radius: 50%; background: var(--border); opacity: .55; display: block; }
+  .bg-prev i.a { width: 46px; height: 46px; left: -12px; top: -10px; }
+  .bg-prev i.b { width: 34px; height: 34px; right: -8px; bottom: -8px; }
+  .bg-prev i.c { width: 60px; height: 1px; border-radius: 0; left: 12px; top: 40px; }
+  /* 微缩主界面：用一套浅暖色字面值，保证在任何主题下都读得懂三栏结构 */
+  .preview-frame {
+    --mw-chrome:    #EDE7DC;
+    --mw-chrome-bd: #DDD4C6;
+    --mw-panel:     #FCFAF6;
+    --mw-line:      #B9AF9D;
+    --mw-line-soft: #E2DCCF;
+    --mw-chip:      #D8CDB8;
+    --mw-bar:       #C9BDA6;
+    background: #FFFFFF;
+  }
+  .mini { grid-template-columns: 26px 1fr 48px; height: 152px; background: #FFFFFF; }
+  .mini-bar {
+    height: 20px; background: var(--mw-chrome); border-bottom: 1px solid var(--mw-chrome-bd);
+    display: flex; align-items: center; gap: 4px; padding: 0 6px;
+  }
+  .mini-bar .mtitle { font-size: 9px; font-weight: 700; color: #3E3931; letter-spacing: .3px; }
+  .mini-bar .sp { flex: 1; }
+  .mini-bar i { display: block; width: 14px; height: 5px; border-radius: 3px; background: #D5CBB9; }
+  .mini-bar i.ac { background: var(--accent); }
+  .mini .a { background: var(--mw-panel); border-right: 1px solid var(--mw-chrome-bd); padding: 5px 3px; }
+  .mini .a i { display: block; height: 6px; border-radius: 2px; background: var(--mw-line); margin-bottom: 4px; }
+  .mini .a i.a1 { width: 100%; background: var(--mw-bar); }
+  .mini .a i.a2 { width: 74%; margin-left: 4px; background: var(--mw-line-soft); }
+  .mini .a i.a3 { width: 92%; background: var(--mw-bar); }
+  .mini .a i.a4 { width: 62%; margin-left: 4px; background: var(--mw-line-soft); }
+  .mini .a i.a5 { width: 84%; background: var(--mw-bar); }
+  .mini .a i.a6 { width: 100%; background: var(--accent); opacity: .4; }
+  .mini .b { padding: 6px 7px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px 8px; margin-top: 0; }
+  .mini-grid i { display: block; height: 31px; border-radius: 3px; background: var(--mw-chip); border: 1px solid var(--mw-bar); }
+  .mini-grid i.f2 { background: var(--mw-line-soft); border-color: var(--mw-line); }
+  .mini-grid i.f3 { background: var(--mw-line); border-color: var(--mw-bar); opacity: .7; }
+  .mini-grid i.a  { background: var(--accent-soft); border-color: var(--accent); }
+  .mini .c { background: var(--mw-panel); border-left: 1px solid var(--mw-chrome-bd); padding: 6px 4px; }
+  .mini .c .ch { display: block; height: 7px; border-radius: 2px; background: var(--mw-line); margin-bottom: 6px; }
+  .mini .c .r { display: block; height: 5px; border-radius: 2px; background: var(--mw-line-soft); margin-bottom: 5px; }
+  .mini .c .r.s { width: 70%; }
+  .mini .c .sw { display: block; height: 32px; border-radius: 3px; background: var(--mw-chip); border: 1px solid var(--mw-bar); margin-top: 7px; }
+  .sec-tbl { width: 100%; font-size: var(--fs-xs); color: var(--text-2); border-collapse: collapse; }
+  .sec-tbl td { padding: 3px 0; }
+</style></head>
+<body>
+<div class="win">
+
+  <div class="titlebar">
+    <span class="dots"><i></i><i></i><i></i></span>
+    <span class="app-name">鹿铃</span>
+    <span>— 设置</span>
+    <span class="spacer"></span>
+    <span class="win-btns"><span>—</span><span>▢</span><span>✕</span></span>
+  </div>
+
+  <div class="body no-side">
+    <div class="settings-wrap">
+
+      <!-- 左：设置导航 -->
+      <div class="set-nav">
+        <div class="set-item">通用</div>
+        <div class="set-item">扫描与索引</div>
+        <div class="set-item">命名规则</div>
+        <div class="set-item on">外观</div>
+        <div class="set-item">阈值</div>
+        <div class="set-item">快捷键</div>
+        <div class="set-item">关于</div>
+        <div class="hint mt4" style="padding:0 12px">外观设置仅影响本机，可通过「另存为主题方案」分享给同事。</div>
+      </div>
+
+      <!-- 中：设置内容 -->
+      <div class="set-body">
+        <div class="set-scroll">
+
+          <div class="set-sec">
+            <div class="h">主题模式</div>
+            <div class="grid g4" style="gap:10px">
+              <div class="card-opt"><span class="radio" style="margin-top:2px"></span><div><div class="t">浅色</div><div class="d">全天候明亮界面</div></div></div>
+              <div class="card-opt"><span class="radio" style="margin-top:2px"></span><div><div class="t">深色</div><div class="d">夜间与暗房环境</div></div></div>
+              <div class="card-opt on"><span class="radio on" style="margin-top:2px"></span><div><div class="t">跟随系统 <span style="color:var(--accent)">✓</span></div><div class="d">随 Windows 主题切换</div></div></div>
+              <div class="card-opt"><span class="radio" style="margin-top:2px"></span><div><div class="t">按时间自动</div><div class="d">日间浅色 / 夜间深色</div></div></div>
+            </div>
+          </div>
+
+          <div class="set-sec">
+            <div class="h">预设主题</div>
+            <div class="swatches">
+              <div class="swatch"><div class="c" style="background:linear-gradient(140deg,#FFFFFF,#F4F6F9 55%,#DDE3EA)"></div><div class="n">中性灰</div></div>
+              <div class="swatch on"><div class="c" style="background:linear-gradient(140deg,#FFF9F0,#F6EEDF 55%,#E4D6BE)"></div><div class="n">暖米</div></div>
+              <div class="swatch"><div class="c" style="background:linear-gradient(140deg,#232935,#171B23 55%,#0F1218)"></div><div class="n">深空</div></div>
+              <div class="swatch"><div class="c" style="background:linear-gradient(140deg,#FBF8F1,#F1EADD 55%,#DCD2BE)"></div><div class="n">纸感</div></div>
+              <div class="swatch"><div class="c" style="background:linear-gradient(140deg,#E8F6F8,#CFE9EE 55%,#A9D6DE)"></div><div class="n">青蓝</div></div>
+              <div class="swatch"><div class="c" style="background:linear-gradient(140deg,#FFFFFF,#000000)"></div><div class="n">高对比</div></div>
+            </div>
+          </div>
+
+          <div class="set-sec">
+            <div class="h">强调色</div>
+            <div class="row" style="gap:12px">
+              <div class="hues">
+                <span class="hue on" style="background:var(--accent)"></span>
+                <span class="hue" style="background:#14B8A6"></span>
+                <span class="hue" style="background:#16A34A"></span>
+                <span class="hue" style="background:#F59E0B"></span>
+                <span class="hue" style="background:#E5484D"></span>
+                <span class="hue" style="background:#B07CC6"></span>
+                <span class="hue" style="background:#6C8CA8"></span>
+                <span class="hue" style="background:#1B1F26"></span>
+              </div>
+              <span class="colorbox" style="background:var(--accent)"></span>
+              <span class="mono fs-sm">#3B82F6</span>
+              <span class="hint">用于选中态、主按钮与焦点框</span>
+            </div>
+          </div>
+
+          <div class="set-sec">
+            <div class="h">背景图</div>
+            <div class="bg-row">
+              <div class="bg-prev"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+              <div class="grow">
+                <div class="spec-row" style="margin-top:0">
+                  <span class="lb">不透明度</span>
+                  <span class="slider"><span class="fill" style="width:35%"></span><span class="knob" style="left:35%"></span></span>
+                  <span class="vl">35%</span>
+                </div>
+                <div class="spec-row">
+                  <span class="lb">模糊</span>
+                  <span class="slider"><span class="fill" style="width:22%"></span><span class="knob" style="left:22%"></span></span>
+                  <span class="vl">4px</span>
+                </div>
+                <div class="spec-row">
+                  <span class="lb">平铺方式</span>
+                  <span class="row" style="gap:12px">
+                    <span class="switch on"></span><span class="fs-sm t2">平铺</span>
+                    <span class="switch"></span><span class="fs-sm t2">等比填充</span>
+                  </span>
+                  <span class="grow"></span>
+                  <span class="btn">选择本地图片</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-sec">
+            <div class="h">文字与密度</div>
+            <div class="spec-row" style="margin-top:0">
+              <span class="lb">界面字体</span>
+              <span class="select" style="width:280px"><span>系统默认（微软雅黑）</span><span class="caret">▼</span></span>
+              <span class="hint">中英文混排时自动回退</span>
+            </div>
+            <div class="spec-row">
+              <span class="lb">字号缩放</span>
+              <span class="slider"><span class="fill" style="width:55%"></span><span class="knob" style="left:55%"></span></span>
+              <span class="vl">110%</span>
+            </div>
+            <div class="spec-row">
+              <span class="lb">信息密度</span>
+              <span class="seg"><span>紧凑</span><span class="on">舒适</span><span>宽松</span></span>
+              <span class="hint">调整列表行高与卡片间距</span>
+            </div>
+            <div class="spec-row">
+              <span class="lb">圆角</span>
+              <span class="slider"><span class="fill" style="width:45%"></span><span class="knob" style="left:45%"></span></span>
+              <span class="vl">10px</span>
+            </div>
+            <div class="spec-row">
+              <span class="lb">图标大小</span>
+              <span class="slider"><span class="fill" style="width:60%"></span><span class="knob" style="left:60%"></span></span>
+              <span class="vl">16px</span>
+            </div>
+          </div>
+
+          <div class="set-sec" style="margin-bottom:0">
+            <div class="h">状态标记色</div>
+            <div class="tagrow"><span>草稿标记</span><span class="sw" style="background:var(--warn-soft);border-color:var(--warn)"></span><span class="fs-xs">未提交的改名与移动，列表中以斜体呈现</span></div>
+            <div class="tagrow"><span>保护区</span><span class="sw" style="background:var(--lock-soft);border-color:var(--lock)"></span><span class="fs-xs">受保护素材，批量操作默认跳过</span></div>
+            <div class="tagrow"><span>已整理</span><span class="sw" style="background:var(--ok-soft);border-color:var(--ok)"></span><span class="fs-xs">已按命名规则归档完成的条目</span></div>
+            <div class="tagrow" style="margin-bottom:0"><span>冲突</span><span class="sw" style="background:var(--danger-soft);border-color:var(--danger)"></span><span class="fs-xs">目标已存在或命名重复，需要人工确认</span></div>
+          </div>
+
+        </div>
+        <div class="set-actions">
+          <span class="btn">恢复默认</span>
+          <span class="grow"></span>
+          <span class="hint">修改将在点击「应用」后写入本机配置</span>
+          <span class="btn">另存为主题方案</span>
+          <span class="btn primary">应用</span>
+        </div>
+      </div>
+
+      <!-- 右：实时预览 -->
+      <div class="set-body" style="padding:16px;background:var(--surface-2);border-left:1px solid var(--border)">
+        <div class="h" style="font-size:var(--fs-sm);font-weight:700;margin-bottom:10px">实时预览</div>
+        <div class="preview-frame">
+          <div class="mini-bar">
+            <span class="mtitle">鹿铃</span>
+            <span class="sp"></span>
+            <i class="ac"></i><i></i><i></i>
+          </div>
+          <div class="mini">
+            <div class="a">
+              <i class="a1"></i><i class="a2"></i><i class="a3"></i><i class="a4"></i><i class="a5"></i><i class="a6"></i>
+            </div>
+            <div class="b">
+              <div class="mini-grid">
+                <i></i><i class="f2"></i><i></i><i class="f3"></i>
+                <i class="f2"></i><i class="a"></i><i></i><i class="f2"></i>
+              </div>
+            </div>
+            <div class="c">
+              <span class="ch"></span>
+              <span class="r"></span><span class="r s"></span><span class="r"></span>
+              <span class="sw"></span>
+            </div>
+          </div>
+        </div>
+        <div class="hint mt3">预览随设置实时更新</div>
+
+        <div class="h mt4" style="font-size:var(--fs-sm);font-weight:700;margin-bottom:8px">当前取值</div>
+        <table class="sec-tbl">
+          <tr><td>主题模式</td><td class="mono" style="text-align:right">跟随系统</td></tr>
+          <tr><td>预设主题</td><td class="mono" style="text-align:right">暖米</td></tr>
+          <tr><td>强调色</td><td class="mono" style="text-align:right">#3B82F6</td></tr>
+          <tr><td>背景不透明度</td><td class="mono" style="text-align:right">35%</td></tr>
+          <tr><td>背景模糊</td><td class="mono" style="text-align:right">4px</td></tr>
+          <tr><td>字号缩放</td><td class="mono" style="text-align:right">110%</td></tr>
+          <tr><td>信息密度</td><td class="mono" style="text-align:right">舒适</td></tr>
+          <tr><td>圆角</td><td class="mono" style="text-align:right">10px</td></tr>
+          <tr><td>图标大小</td><td class="mono" style="text-align:right">16px</td></tr>
+        </table>
+
+        <div class="hint mt4">预设主题只改变底色与文字对比，不会覆盖你单独设置的强调色与状态标记色。</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</body></html>

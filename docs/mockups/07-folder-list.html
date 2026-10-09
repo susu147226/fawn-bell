@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>鹿铃 · 文件夹视图 · 混排列表（默认视图）</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* 页面级补充：只引用 tokens.css 的变量与组件类，不引入新色值 */
+  .win { position: relative; }
+  .sidebar.compact .side-sec { padding: var(--s2) var(--s3); }
+  .sidebar.compact .side-sec + .side-sec { border-top: 1px solid var(--border); }
+  .sidebar.compact .tree-row,
+  .sidebar.compact .list-row { height: 25px; }
+
+  /* 混排列表：文件夹薄面板 + 文件薄面板，整体不滚动 */
+  .content.stackfill { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3) var(--s4) var(--s3); overflow: hidden; }
+  .panel.thin { display: flex; flex-direction: column; }
+  .panel-hd .grp { font-weight: 600; color: var(--text); }
+  .panel-hd .grp .ct { color: var(--text-3); font-weight: 400; font-size: var(--fs-xs); }
+  table.tbl td { padding: 6px var(--s3); }
+  table.tbl th.c-fname, table.tbl td.c-fname { width: 286px; }
+  table.tbl td.c-fname .fn { max-width: 246px; }
+  /* 列宽沿用 02 稿既有约定（02 在页内定义同名类，此处为 07 复现同构列表） */
+  table.tbl th.c-cb, table.tbl td.c-cb { width: 40px; padding-right: 0; }
+  table.tbl th.c-th, table.tbl td.c-th { width: 46px; padding-left: var(--s2); padding-right: var(--s2); }
+  table.tbl th.c-name, table.tbl td.c-name { width: 230px; }
+  table.tbl th.c-type, table.tbl td.c-type { width: 86px; }
+  table.tbl th.c-dim, table.tbl td.c-dim { width: 106px; }
+  table.tbl th.c-size, table.tbl td.c-size { width: 88px; }
+  table.tbl th.c-time, table.tbl td.c-time { width: 146px; color: var(--text-2); }
+  table.tbl tr.rowlock td { background: var(--lock-soft); }
+  table.tbl td.c-time { font-variant-numeric: tabular-nums; }
+  .fn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; max-width: 296px; }
+  .thswatch { position: relative; width: 34px; height: 24px; border-radius: 5px; border: 1px solid var(--border); overflow: hidden; }
+  table.tbl tr.rowdrop td { border-bottom: none; border-top: 1px solid var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+  table.tbl tr.rowdrop + tr td { border-top: 1px solid var(--accent); }
+  .fiic { display: inline-block; width: 15px; text-align: center; color: var(--accent); }
+  .flnote { padding: 5px var(--s3); display: flex; align-items: center; gap: 7px; background: var(--surface-2); font-size: var(--fs-xs); color: var(--text-3); }
+  /* 右栏：收紧分段间距，保证危险区完整落在面板内（不裁切） */
+  .detail-sec { padding: var(--s3) var(--s4); }
+  .detail-title { margin-bottom: var(--s2); }
+  .detail .fields { gap: 6px var(--s3); }
+  .detail .row.mt2 { margin-top: var(--s1); }
+  .detail .mini-diff .diff-line { padding: 5px var(--s3); }
+  .detail .note { padding: 6px var(--s3); }
+  .detail .btn.sm { height: 22px; }
+  /* 右栏面板：沿用 01/02 稿既有页面级组件（07 未继承它们的样式块） */
+  .actionpair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+  .actionpair .btn { justify-content: center; }
+  .note {
+    display: flex; gap: 6px; align-items: flex-start; padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+    background: var(--lock-soft); color: var(--text-2); font-size: var(--fs-xs); border: 1px solid var(--border);
+  }
+  .mini-diff { border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; background: var(--surface); }
+  .mini-diff .diff-line { padding: 7px var(--s3); flex-direction: column; align-items: stretch; gap: 4px; }
+  .mini-diff .diff-line:last-child { border-bottom: none; }
+  .mini-diff .linerow { display: flex; align-items: center; gap: 6px; }
+  .mini-diff .from { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-diff .to { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="win">
+
+  <div class="titlebar">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <span class="app-name">鹿铃</span>
+    <span>— D:\素材库\2026 春季项目</span>
+    <span class="spacer"></span>
+    <span class="badge accent">文件夹视图</span>
+    <span class="win-btns"><span>—</span><span>□</span><span>✕</span></span>
+  </div>
+
+  <div class="toolbar">
+    <span class="workspace-tab">工作根 <b>D:\素材库\2026 春季项目</b></span>
+    <span class="input search">搜索文件名、文件夹名、扩展名…</span>
+    <span class="spacer"></span>
+    <div class="btn-group">
+      <span class="icon-btn on" title="文件夹视图">▣</span>
+      <span class="icon-btn" title="网格视图">▦</span>
+      <span class="icon-btn" title="列表视图">☰</span>
+      <span class="icon-btn" title="详情视图">▤</span>
+    </div>
+    <span class="select">按名称 <span class="caret">▼</span></span>
+    <span class="select">浅色 <span class="caret">▼</span></span>
+    <span class="btn primary">提交变更 <span class="count-pill">12</span></span>
+  </div>
+
+  <div class="body">
+
+    <!-- 左栏：增强目录树 -->
+    <div class="sidebar compact">
+      <div class="side-sec">
+        <div class="side-title">目录 <span class="add">＋</span></div>
+        <div class="tree">
+          <div class="tree-row"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">素材库</span><span class="done">待整理 46</span></div>
+          <div class="tree-row ind1"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">2026 春季项目</span><span class="done">待整理 128</span></div>
+          <div class="tree-row ind2"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">01 产品渲染</span><span class="done">0</span></div>
+          <div class="tree-row ind2"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">03 音视频素材</span><span class="done">12</span></div>
+          <div class="tree-row ind2"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">09 旅行</span><span class="done">12</span></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">海边日落</span><span class="done">40/46</span></div>
+          <div class="mini-prog"><i style="width:87%"></i></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">城市夜景</span><span class="done">38/38</span></div>
+          <div class="mini-prog"><i style="width:100%"></i></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">商业拍摄</span><span class="done">12/22</span></div>
+          <div class="mini-prog"><i style="width:55%"></i></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">2026 冲绳</span><span class="lockchip"></span><span class="done">12/12</span></div>
+          <div class="mini-prog"><i style="width:100%"></i></div>
+        </div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">分组 <span class="add">＋</span></div>
+        <div class="list-row"><span class="dot c1"></span><span class="nm">旅行</span><span class="ct">128</span></div>
+        <div class="list-row"><span class="dot c2"></span><span class="nm">客户交付</span><span class="ct">64</span></div>
+        <div class="list-row"><span class="dot c3"></span><span class="nm">待筛选</span><span class="ct">27</span></div>
+      </div>
+
+      <div class="side-sec" style="margin-top:auto">
+        <div class="list-row"><span class="lockchip"></span><span class="nm">保护区</span><span class="badge lock">锁定</span><span class="ct">210</span></div>
+      </div>
+    </div>
+
+    <!-- 中栏：文件夹视图 · 混排列表 -->
+    <div class="main">
+      <div class="crumb">
+        <span class="sep">D:\</span><span class="sep">›</span>
+        <span>素材库</span><span class="sep">›</span>
+        <span>2026 春季项目</span><span class="sep">›</span>
+        <b>09 旅行</b>
+        <span class="spacer grow"></span>
+        <span>128 个素材</span>
+      </div>
+
+      <div class="subbar">
+        <span class="btn">新建文件夹</span>
+        <span class="btn">移到…</span>
+        <span class="btn">批量重命名</span>
+        <span class="btn sm">全选</span>
+        <span class="spacer grow"></span>
+        <span class="select" style="height:28px">显示：全部 <span class="caret">▾</span></span>
+        <span class="select" style="height:28px">整理进度 <span class="caret">▾</span></span>
+      </div>
+
+      <div class="content stackfill">
+
+        <div class="panel thin">
+          <div class="panel-hd">
+            <span class="grp">文件夹 · 5</span>
+            <span class="badge neutral">已整理 40/46</span>
+            <span class="spacer grow"></span>
+            <span class="badge draft">草稿 2</span>
+            <span class="badge ok">已整理 1</span>
+            <span class="badge lock">受保护 1</span>
+          </div>
+          <div class="tblwrap fixed">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th class="c-cb">选</th>
+                  <th class="c-arw"></th>
+                  <th class="c-dot"></th>
+                  <th class="c-name">名称</th>
+                  <th class="c-type">类型</th>
+                  <th class="c-items">项数 / 大小</th>
+                  <th class="c-prog">整理进度</th>
+                  <th class="c-time">修改时间</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-arw"><span class="fl" style="color:var(--text-3);font-size:11px">▸</span></td>
+                  <td class="c-dot"><span class="fiic">▣</span></td>
+                  <td class="c-name"><span class="fn">海边日落</span></td>
+                  <td class="c-type">文件夹</td>
+                  <td class="c-items">46 项 · 2.4 GB</td>
+                  <td class="c-prog">40 / 46（87%）</td>
+                  <td class="c-time">2026-09-28 14:25</td>
+                  <td><span class="badge draft">草稿 2</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-arw"><span class="fl" style="color:var(--text-3);font-size:11px">▸</span></td>
+                  <td class="c-dot"><span class="fiic">▣</span></td>
+                  <td class="c-name"><span class="fn">城市夜景</span></td>
+                  <td class="c-type">文件夹</td>
+                  <td class="c-items">38 项 · 1.8 GB</td>
+                  <td class="c-prog">38 / 38（100%）</td>
+                  <td class="c-time">2026-09-27 09:12</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+                <tr class="rowdrop">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-arw"><span class="fl" style="color:var(--accent);font-size:11px">▸</span></td>
+                  <td class="c-dot"><span class="fiic">▣</span></td>
+                  <td class="c-name"><span class="fn">商业拍摄</span></td>
+                  <td class="c-type">文件夹</td>
+                  <td class="c-items">22 项 · 3.1 GB</td>
+                  <td class="c-prog">12 / 22（55%）</td>
+                  <td class="c-time">2026-09-26 18:40</td>
+                  <td>
+                    <span class="row" style="gap:var(--s2)"><span class="badge accent">待提交 3</span><span class="dhint">松开即移动到此处</span></span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-arw"><span class="fl" style="color:var(--text-3);font-size:11px">▸</span></td>
+                  <td class="c-dot"><span class="fiic">▣</span></td>
+                  <td class="c-name"><span class="fn">2026 冲绳</span></td>
+                  <td class="c-type">文件夹</td>
+                  <td class="c-items">12 项 · 640 MB</td>
+                  <td class="c-prog">12 / 12（100%）</td>
+                  <td class="c-time">2026-08-30 11:05</td>
+                  <td><span class="badge lock">受保护</span></td>
+                </tr>
+                <tr class="rowdraft">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-arw"><span class="fl" style="color:var(--text-3);font-size:11px">▸</span></td>
+                  <td class="c-dot"><span class="fiic">▣</span></td>
+                  <td class="c-name"><span class="fn draftname">新建文件夹<span class="caret-line"></span></span></td>
+                  <td class="c-type">文件夹</td>
+                  <td class="c-items">0 项 · —</td>
+                  <td class="c-prog"><span class="muted">未开始</span></td>
+                  <td class="c-time">—</td>
+                  <td><span class="badge draft">草稿 · 待命名</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="flnote"><span>▸</span><span>展开文件夹行可在原位预览其内容，不会改变当前路径。</span></div>
+          </div>
+        </div>
+
+        <div class="panel thin">
+          <div class="panel-hd">
+            <span class="grp">文件 · 123 <span class="ct">（仅显示前 8）</span></span>
+            <span class="spacer grow"></span>
+            <span class="badge conflict">冲突 1</span>
+            <span class="badge neutral">未勾选 1</span>
+          </div>
+          <div class="tblwrap fixed">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th class="c-cb">选</th>
+                  <th class="c-th">预览</th>
+                  <th class="c-fname">名称</th>
+                  <th class="c-type">类型</th>
+                  <th class="c-dim">尺寸</th>
+                  <th class="c-size">体积</th>
+                  <th class="c-time">修改时间</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="c-cb"><span class="checkbox on">✓</span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p1"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">IMG_1204.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">12.4 MB</td>
+                  <td class="c-time">2026-09-28 14:25</td>
+                  <td><span class="badge draft">草稿</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox on">✓</span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p2"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">IMG_1208.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">11.2 MB</td>
+                  <td class="c-time">2026-09-28 14:31</td>
+                  <td><span class="badge accent">待提交</span></td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p3"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">IMG_1215.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">13.6 MB</td>
+                  <td class="c-time">2026-09-28 14:38</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+                <tr class="alt">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p4"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">IMG_1222.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">10.8 MB</td>
+                  <td class="c-time">2026-09-28 14:44</td>
+                  <td><span class="badge neutral">未整理</span></td>
+                </tr>
+                <tr class="rowdanger">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p7"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">IMG_1230.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">12.9 MB</td>
+                  <td class="c-time">2026-09-28 14:52</td>
+                  <td><span class="badge conflict">冲突：目标已存在</span></td>
+                </tr>
+                <tr class="rowskip">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p5"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">IMG_1237.jpg</span></td>
+                  <td class="c-type">JPEG</td>
+                  <td class="c-dim">6000×4000</td>
+                  <td class="c-size">9.4 MB</td>
+                  <td class="c-time">2026-09-28 15:01</td>
+                  <td><span class="badge neutral">未勾选 · 跳过</span></td>
+                </tr>
+                <tr class="alt rowlock">
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p6"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">产品白底_01.png</span></td>
+                  <td class="c-type">PNG</td>
+                  <td class="c-dim">3000×3000</td>
+                  <td class="c-size">6.1 MB</td>
+                  <td class="c-time">2026-10-02 09:05</td>
+                  <td><span class="badge lock">受保护</span></td>
+                </tr>
+                <tr>
+                  <td class="c-cb"><span class="checkbox"></span></td>
+                  <td class="c-th"><div class="thswatch"><div class="ph p9 d3"></div></div></td>
+                  <td class="c-fname mono"><span class="fn">场景工程_011.blend</span></td>
+                  <td class="c-type">BLEND</td>
+                  <td class="c-dim">—</td>
+                  <td class="c-size">72 MB</td>
+                  <td class="c-time">2026-10-04 11:40</td>
+                  <td><span class="badge ok">已整理</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="flnote"><span class="badge neutral">123</span><span>其余 115 个文件可在原地滚动查看，或切到「列表」视图。</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 右栏：选中文件夹 -->
+    <div class="detail">
+      <div class="detail-sec">
+        <div class="detail-title">文件夹</div>
+        <div class="row" style="gap:var(--s2);align-items:baseline">
+          <span class="fs-lg bold">商业拍摄</span>
+          <span class="badge accent">待提交 3</span>
+        </div>
+        <div class="mono fs-xs muted mt2" style="word-break:break-all">D:\素材库\2026 春季项目\09 旅行\商业拍摄</div>
+      </div>
+
+      <div class="detail-sec">
+        <dl class="fields">
+          <dt>包含</dt><dd>22 项（图片 18 / 视频 3 / 文档 1）</dd>
+          <dt>总大小</dt><dd>3.1 GB</dd>
+          <dt>修改时间</dt><dd>2026-09-28 14:25</dd>
+          <dt>受保护</dt><dd>0 项</dd>
+          <dt>整理进度</dt><dd>
+            <span class="cell-prog"><span class="bar"><i style="width:55%"></i></span><span class="pct">12 / 22（55%）</span></span>
+          </dd>
+        </dl>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">待提交变更（3）</div>
+        <div class="mini-diff">
+          <div class="diff-line">
+            <div class="linerow"><span class="badge accent">改名</span><span class="to">重命名 2 项</span></div>
+          </div>
+          <div class="diff-line">
+            <div class="linerow"><span class="badge accent">移动</span><span class="to">移动 1 项</span></div>
+            <div class="linerow"><span class="from">IMG_1231.jpg → 本文件夹</span></div>
+          </div>
+        </div>
+        <div class="row mt2"><span class="btn sm">撤销此项</span><span class="muted fs-xs">撤销只影响变更集</span></div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">文件夹操作</div>
+        <div class="actionpair">
+          <span class="btn">重命名</span>
+          <span class="btn">移动到…</span>
+          <span class="btn">复制路径</span>
+          <span class="btn">在资源管理器中打开</span>
+        </div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">整理建议</div>
+        <div class="note">
+          <span>⚠</span>
+          <span>本文件夹有 10 项未按命名规则整理，可先生成预览再决定是否应用。</span>
+        </div>
+        <div class="row mt2"><span class="btn sm">应用到预览</span><span class="muted fs-xs">不会立即改动磁盘</span></div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="dangerbox">
+          <div class="t">▮ 移入回收站（含 22 项）</div>
+          <div class="hint mt2">先进变更集；删除仅移到回收站，可恢复。</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="statusbar">
+    <span>已选 3 项（1 个文件夹 · 2 个文件）</span>
+    <span class="sep">|</span>
+    <span>待提交 12 项变更（其中 2 项指向文件夹）</span>
+    <span class="sep">|</span>
+    <span>保护区 210</span>
+    <span class="spacer"></span>
+    <span class="btn sm">↶ 撤销</span>
+    <span class="btn sm off">↷ 重做</span>
+  </div>
+
+</div>
+</body>
+</html>

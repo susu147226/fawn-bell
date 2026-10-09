@@ -1,0 +1,316 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="tokens.css">
+<style>
+  .win { position: relative; }
+  .grid.g4 { gap: 10px 14px; }
+  .thumb .img { height: 150px; }
+  .modal-bd { flex-direction: column; }
+  .drawer-rows { display: flex; flex-direction: column; }
+  .drawer-bd .grp-hd { padding: 6px var(--s4); }
+  .drawer-bd .diff-line { padding: 4px var(--s4); gap: 7px; }
+  .drawer-bd .diff-line.note { padding: 8px var(--s4) 10px 36px; }
+  .drawer-bd .diff-line.more { padding: 3px var(--s4) 6px 36px; color: var(--text-3); }
+  .drawer-bd .diff-line .from,
+  .drawer-bd .diff-line .to { font-size: 10px; }
+  .drawer-bd .diff-line.ellip .from { max-width: 106px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drawer-bd .diff-line.ellip .to { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .undo-x { width: 17px; height: 17px; flex: none; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; color: var(--text-3); font-size: 10px; border: 1px solid var(--border); background: var(--surface); }
+  .drawer-foot { flex: none; border-top: 1px solid var(--border); background: var(--surface-2); padding: 9px 16px;
+                 font-size: var(--fs-xs); color: var(--text-3); }
+</style></head>
+<body>
+<div class="win">
+
+  <!-- ============ 底层主界面 ============ -->
+  <div class="titlebar">
+    <span class="dots"><i></i><i></i><i></i></span>
+    <span class="app-name">鹿铃</span>
+    <span>— D:\素材库\2026 春季项目</span>
+    <span class="spacer"></span>
+    <span class="win-btns"><span>—</span><span>▢</span><span>✕</span></span>
+  </div>
+
+  <div class="toolbar">
+    <span class="workspace-tab"><b>素材库</b><span class="badge neutral">已扫描</span></span>
+    <span class="input search">搜索文件名、扩展名或分组…</span>
+    <span class="btn">扫描目录</span>
+    <span class="btn">命名规则</span>
+    <span class="spacer grow"></span>
+    <span class="btn-group">
+      <span class="icon-btn on">▦</span>
+      <span class="icon-btn">≡</span>
+    </span>
+    <span class="btn">预览变更</span>
+    <span class="btn primary">提交 27 项变更</span>
+  </div>
+
+  <div class="body">
+    <div class="sidebar">
+      <div class="side-sec">
+        <div class="side-title">目录<span class="add">＋</span></div>
+        <div class="tree">
+          <div class="tree-row"><span class="tw">▶</span><span class="ic">▣</span><span class="nm">D:\素材库</span><span class="ct">1 284</span></div>
+          <div class="tree-row ind1"><span class="tw">▶</span><span class="ic">▣</span><span class="nm">2026 春季项目</span><span class="ct">642</span></div>
+          <div class="tree-row ind2 active"><span class="tw"></span><span class="ic">▣</span><span class="nm">01 产品渲染</span><span class="ct">128</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">02 现场拍摄</span><span class="ct">216</span></div>
+          <div class="tree-row ind2"><span class="tw"></span><span class="ic">▣</span><span class="nm">03 音视频素材</span><span class="ct">74</span></div>
+          <div class="tree-row ind1"><span class="tw">▶</span><span class="ic">▣</span><span class="nm">2025 归档</span><span class="ct">512</span></div>
+          <div class="tree-row ind1"><span class="tw"></span><span class="ic">▣</span><span class="nm">待整理收件箱</span><span class="ct">130</span></div>
+        </div>
+      </div>
+      <div class="side-sec">
+        <div class="side-title">分组</div>
+        <div class="list-row"><span class="dot c1"></span><span class="nm">产品图</span><span class="ct">86</span></div>
+        <div class="list-row"><span class="dot c2"></span><span class="nm">现场花絮</span><span class="ct">134</span></div>
+        <div class="list-row"><span class="dot c4"></span><span class="nm">宣传片素材</span><span class="ct">52</span></div>
+      </div>
+      <div class="side-sec">
+        <div class="side-title">待处理</div>
+        <div class="list-row active"><span class="dot draft"></span><span class="nm">待提交变更</span><span class="badge draft">27</span></div>
+        <div class="list-row"><span class="dot gray"></span><span class="nm">命名冲突</span><span class="badge conflict">3</span></div>
+        <div class="list-row"><span class="dot gray"></span><span class="nm">保护区</span><span class="badge lock">210</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="crumb"><b>01 产品渲染</b><span class="sep">·</span><span>128 项素材</span><span class="sep">·</span><span>按修改时间倒序</span></div>
+      <div class="subbar">
+        <span class="input search" style="width:240px">在结果中筛选…</span>
+        <span class="seg"><span class="on">全部</span><span>图片</span><span>视频</span><span>文档</span></span>
+        <span class="grow"></span>
+        <span class="hint">27 项变更待提交</span>
+        <span class="badge draft">草稿</span>
+      </div>
+      <div class="content">
+        <div class="grid g4">
+          <div class="thumb">
+            <div class="img"><div class="ph p1"></div><div class="corner"><span class="lockchip">✓</span></div></div>
+            <div class="cap"><span class="fn">产品渲染_001.png</span><span class="badge ok">已整理</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p2"></div><div class="corner"><span class="lockchip">✓</span></div></div>
+            <div class="cap"><span class="fn">产品渲染_002.png</span><span class="badge ok">已整理</span></div>
+          </div>
+          <div class="thumb draft">
+            <div class="img"><div class="ph p3"></div><span class="flag-dot"></span><div class="corner"><span class="lockchip">✓</span></div></div>
+            <div class="cap"><span class="fn">产品渲染_003 副本.png</span><span class="badge draft">草稿</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p5"></div><div class="corner"><span class="lockchip">✓</span></div></div>
+            <div class="cap"><span class="fn">产品渲染_004.png</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p7"></div><div class="corner"><span class="lockchip">✓</span></div></div>
+            <div class="cap"><span class="fn">产品渲染_005.png</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p6"></div></div>
+            <div class="cap"><span class="fn">现场拍摄_018.jpg</span><span class="badge neutral">新导入</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p10"></div></div>
+            <div class="cap"><span class="fn">现场拍摄_019.jpg</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p9"></div></div>
+            <div class="cap"><span class="fn">概念草图_007.png</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p4"></div></div>
+            <div class="cap"><span class="fn">材质贴图_011.png</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p8"></div></div>
+            <div class="cap"><span class="fn">材质贴图_012.png</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p2"></div></div>
+            <div class="cap"><span class="fn">宣传片_003.mp4</span><span class="badge neutral">视频</span></div>
+          </div>
+          <div class="thumb">
+            <div class="img"><div class="ph p5"></div></div>
+            <div class="cap"><span class="fn">产品说明_004.pdf</span><span class="badge neutral">文档</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail">
+      <div class="detail-sec">
+        <div class="detail-title">当前操作</div>
+        <dl class="fields">
+          <dt>批次</dt><dd class="mono">#20260419-003</dd>
+          <dt>范围</dt><dd>01 产品渲染（128 项）</dd>
+          <dt>规则</dt><dd>{name}_{seq}（三位）· 序号在名称之后</dd>
+          <dt>状态</dt><dd><span class="badge draft">待提交</span></dd>
+        </dl>
+      </div>
+      <div class="detail-sec">
+        <div class="detail-title">变更构成</div>
+        <div class="row between"><span class="t2 fs-sm">重命名</span><span class="mono">18 项</span></div>
+        <div class="row between mt2"><span class="t2 fs-sm">移动</span><span class="mono">6 项</span></div>
+        <div class="row between mt2"><span class="t2 fs-sm">新建文件夹</span><span class="mono">2 项</span></div>
+        <div class="row between mt2"><span class="t2 fs-sm">移入回收站</span><span class="mono">1 项</span></div>
+      </div>
+      <div class="detail-sec">
+        <div class="detail-title">风险提示</div>
+        <div class="row" style="align-items:flex-start">
+          <span class="badge conflict">冲突 3</span>
+          <span class="fs-sm t2">目标路径下已存在同名文件，提交前需逐条确认。</span>
+        </div>
+        <div class="hint mt3">所有变更仅记录在本地草稿中，真实文件目前未被修改。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span>已扫描 1 284 项</span><span class="sep">|</span>
+    <span>待提交 <b>27</b> 项变更</span><span class="sep">|</span>
+    <span>草稿保存于 15:42</span>
+    <span class="spacer"></span>
+    <span>撤销 12 步</span><span class="sep">|</span><span>重做 0 步</span>
+  </div>
+
+  <!-- ============ 遮罩 + 抽屉 + 弹窗 ============ -->
+  <div class="scrim"></div>
+
+  <div class="drawer">
+    <div class="drawer-hd">
+      <span class="t">待提交变更</span>
+      <span class="count-pill">27</span>
+      <span class="icon-btn">⌕</span>
+      <span class="icon-btn">✕</span>
+    </div>
+    <div class="drawer-bd">
+      <div class="grp-hd"><span>重命名 18 项</span><span>全部撤销</span></div>
+      <div class="drawer-rows">
+        <div class="diff-line">
+          <span class="from">产品渲染_1.png</span><span class="arw">→</span><span class="to">产品渲染_001.png</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">产品渲染_2.png</span><span class="arw">→</span><span class="to">产品渲染_002.png</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line conflict">
+          <span class="badge conflict">⚠</span>
+          <span class="from">未命名-3.png</span><span class="arw">→</span><span class="to">产品渲染_003.png</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line note" style="color:var(--warn)">
+          <span class="fs-xs">目标已存在：01 产品渲染\产品渲染_003.png</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">IMG_0431.jpg</span><span class="arw">→</span><span class="to">现场拍摄_018.jpg</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">IMG_0432.jpg</span><span class="arw">→</span><span class="to">现场拍摄_019.jpg</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">DJI_0087.MP4</span><span class="arw">→</span><span class="to">现场拍摄_020.mp4</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">录音 2026-03-14 10.22.07.m4a</span><span class="arw">→</span><span class="to">采访录音_021.m4a</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">产品渲染_99.png</span><span class="arw">→</span><span class="to">产品渲染_099.png</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line ellip">
+          <span class="from">最终版_最终确认_2026春季项目产品渲染合集_带水印_压缩后.png</span><span class="arw">→</span><span class="to">产品渲染合集_026.png</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line more">
+          <span class="fs-xs">…其余 5 项同上规则（渲染_101 ~ 渲染_105）</span>
+        </div>
+      </div>
+
+      <div class="grp-hd"><span>移动 6 项</span><span>全部撤销</span></div>
+      <div class="drawer-rows">
+        <div class="diff-line">
+          <span class="from">根目录\宣传片_003.mp4</span><span class="arw">→</span><span class="to">03 音视频素材\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">根目录\产品说明_004.pdf</span><span class="arw">→</span><span class="to">04 交付文档\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">待整理\音效素材_005.wav</span><span class="arw">→</span><span class="to">03 音视频素材\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">待整理\模型资产_002.blend</span><span class="arw">→</span><span class="to">05 3D 工程\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">01 产品渲染\旧版备份\</span><span class="arw">→</span><span class="to">98 历史版本\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="from">根目录\客户反馈汇总.xlsx</span><span class="arw">→</span><span class="to">04 交付文档\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+      </div>
+
+      <div class="grp-hd"><span>新建文件夹 2 项</span><span>全部撤销</span></div>
+      <div class="drawer-rows">
+        <div class="diff-line">
+          <span class="add">＋</span><span class="to">2026 春季项目\04 交付文档\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+        <div class="diff-line">
+          <span class="add">＋</span><span class="to">2026 春季项目\05 废弃素材\</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+      </div>
+
+      <div class="grp-hd" style="color:var(--danger)"><span>移入回收站 1 项</span><span>全部撤销</span></div>
+      <div class="drawer-rows">
+        <div class="diff-line">
+          <span class="del">产品渲染_003 副本.png</span><span class="arw">→</span><span class="to">回收站</span>
+          <span class="grow"></span><span class="undo-x">✕</span>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">共 27 项变更 · 均为本地草稿 · 真实文件尚未改动</div>
+  </div>
+
+  <div class="modal" style="width:560px">
+    <div class="modal-hd">
+      <div class="t">有 27 项变更尚未提交</div>
+      <div class="s">关闭前请选择如何处理。真实文件目前未被修改。</div>
+    </div>
+    <div class="modal-bd">
+      <div class="card-opt">
+        <span class="radio" style="margin-top:3px"></span>
+        <div class="grow">
+          <div class="t">提交并关闭</div>
+          <div class="d">先执行完整预览与确认，成功后再退出。</div>
+        </div>
+      </div>
+      <div class="card-opt">
+        <span class="radio" style="margin-top:3px"></span>
+        <div class="grow">
+          <div class="t">保存草稿并关闭</div>
+          <div class="d">变更保留到本地，下次启动可继续。</div>
+        </div>
+      </div>
+      <div class="card-opt danger">
+        <span class="radio" style="margin-top:3px"></span>
+        <div class="grow">
+          <div class="t">放弃变更并关闭</div>
+          <div class="d">清空 27 项变更，真实文件不受影响。</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">请显式选择一个选项 · 按 Esc 不会关闭本窗口</div>
+  </div>
+
+</div>
+</body></html>

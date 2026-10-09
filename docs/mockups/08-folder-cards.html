@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>鹿铃 · 文件夹视图 · 卡片墙</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* 页面级补充：只引用 tokens.css 的变量与组件类，不引入新色值 */
+  .win { position: relative; }
+  .sidebar.compact .side-sec { padding: var(--s2) var(--s3); }
+  .sidebar.compact .side-sec + .side-sec { border-top: 1px solid var(--border); }
+  .sidebar.compact .tree-row,
+  .sidebar.compact .list-row { height: 25px; }
+
+  .subbar.views { gap: var(--s2); }
+  .subbar.views .views-txt { letter-spacing: .01em; }
+  .content.cardsfill { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s2) var(--s4) var(--s3); overflow: hidden; }
+  .sec-hd.flat { height: 28px; border-bottom: none; background: transparent; padding: 0; }
+  .cards-section { display: flex; flex-direction: column; min-height: 0; }
+  .cards-section.files { flex: 1; }
+  .foldergrid.wall { grid-template-columns: repeat(4, 1fr); gap: var(--s3); }
+  .fcard .top .qi { position: relative; overflow: hidden; }
+  /* 文件卡：说明条只放文字，圆徽标一律待在缩略图内（避免遮挡说明条文字） */
+  .thumb .cap { gap: 6px; }
+  .thumb .cap .fn { min-width: 0; }
+  .thumb .cap .badge { flex: none; }
+  .fcard .ft .meta .bar { height: 4px; }
+  .thumb .flag-mini { position: absolute; left: 6px; top: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px rgba(255,255,255,.9); z-index: 2; }
+  .badge.xs { height: 17px; padding: 0 6px; font-size: 10px; }
+  .statline.total { border-top: 1px solid var(--border); padding-top: var(--s2); }
+  /* 右栏面板复用 02 稿既有页面级组件（08 未直接继承其样式块） */
+  .actionpair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+  .actionpair .btn { justify-content: center; }
+  .statbox {
+    border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2);
+    padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2);
+  }
+  .note {
+    display: flex; gap: 6px; align-items: flex-start; padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+    background: var(--lock-soft); color: var(--text-2); font-size: var(--fs-xs); border: 1px solid var(--border);
+  }
+  .kinds { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); color: var(--text-2); }
+  .kinds .k { display: flex; align-items: center; gap: var(--s2); }
+  .kinds .k .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+  .kinds .k .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .kinds .k .n { width: 30px; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-3); font-size: var(--fs-xs); }
+  /* 右栏：收紧分段间距，保证最后一段完整落在面板内（不裁切） */
+  .detail-sec { padding: var(--s3) var(--s4); }
+  .detail-title { margin-bottom: var(--s2); }
+  .detail .row.mt2 { margin-top: var(--s1); }
+  .detail .note { padding: 6px var(--s3); }
+  .detail .statbox { padding: var(--s2) var(--s3); gap: 5px; }
+  .detail .actionpair { gap: 6px; }
+</style>
+</head>
+<body>
+<div class="win">
+
+  <div class="titlebar">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <span class="app-name">鹿铃</span>
+    <span>— D:\素材库\2026 春季项目</span>
+    <span class="spacer"></span>
+    <span class="badge accent">文件夹视图 · 卡片</span>
+    <span class="win-btns"><span>—</span><span>□</span><span>✕</span></span>
+  </div>
+
+  <div class="toolbar">
+    <span class="workspace-tab">工作根 <b>D:\素材库\2026 春季项目</b></span>
+    <span class="input search">搜索文件名、文件夹名、扩展名…</span>
+    <span class="spacer"></span>
+    <div class="btn-group">
+      <span class="icon-btn on" title="文件夹视图">▣</span>
+      <span class="icon-btn" title="网格视图">▦</span>
+      <span class="icon-btn" title="列表视图">☰</span>
+      <span class="icon-btn" title="详情视图">▤</span>
+    </div>
+    <span class="select">按名称 <span class="caret">▼</span></span>
+    <span class="select">浅色 <span class="caret">▼</span></span>
+    <span class="btn primary">提交变更 <span class="count-pill">12</span></span>
+  </div>
+
+  <div class="body">
+
+    <!-- 左栏 -->
+    <div class="sidebar compact">
+      <div class="side-sec">
+        <div class="side-title">目录 <span class="add">＋</span></div>
+        <div class="tree">
+          <div class="tree-row"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">素材库</span><span class="done">待整理 46</span></div>
+          <div class="tree-row ind1"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">2026 春季项目</span><span class="done">待整理 128</span></div>
+          <div class="tree-row ind2"><span class="tw">▾</span><span class="ic">▣</span><span class="nm">09 旅行</span><span class="done">12</span></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">海边日落</span><span class="done">40/46</span></div>
+          <div class="mini-prog"><i style="width:87%"></i></div>
+          <div class="tree-row ind3 active"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">商业拍摄</span><span class="done">12/22</span></div>
+          <div class="mini-prog"><i style="width:55%"></i></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">2026 冲绳</span><span class="lockchip"></span><span class="done">12/12</span></div>
+          <div class="mini-prog"><i style="width:100%"></i></div>
+          <div class="tree-row ind3"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">新建文件夹</span><span class="done">0</span></div>
+          <div class="tree-row ind2"><span class="tw">▸</span><span class="ic">▣</span><span class="nm">01 产品渲染</span><span class="done">0</span></div>
+        </div>
+      </div>
+
+      <div class="side-sec">
+        <div class="side-title">分组 <span class="add">＋</span></div>
+        <div class="list-row"><span class="dot c1"></span><span class="nm">旅行</span><span class="ct">128</span></div>
+        <div class="list-row"><span class="dot c2"></span><span class="nm">客户交付</span><span class="ct">64</span></div>
+        <div class="list-row"><span class="dot c3"></span><span class="nm">待筛选</span><span class="ct">27</span></div>
+      </div>
+
+      <div class="side-sec" style="margin-top:auto">
+        <div class="list-row"><span class="lockchip"></span><span class="nm">保护区</span><span class="badge lock">锁定</span><span class="ct">210</span></div>
+      </div>
+    </div>
+
+    <!-- 中栏：文件夹视图 · 卡片墙 -->
+    <div class="main">
+      <div class="crumb">
+        <span class="sep">D:\</span><span class="sep">›</span>
+        <span>素材库</span><span class="sep">›</span>
+        <span>2026 春季项目</span><span class="sep">›</span>
+        <b>09 旅行</b>
+        <span class="spacer grow"></span>
+        <span>128 个素材</span>
+      </div>
+
+      <div class="subbar views">
+        <span class="views-txt">
+          <span class="seg">
+            <span class="on">文件夹</span><span>网格</span><span>列表</span><span>详情</span>
+          </span>
+        </span>
+        <span class="seg">
+          <span>列表</span><span class="on">卡片</span>
+        </span>
+        <span class="spacer grow"></span>
+        <span class="btn sm">新建文件夹</span>
+        <span class="btn sm">批量重命名</span>
+        <span class="select" style="height:28px">显示：全部 <span class="caret">▾</span></span>
+      </div>
+
+      <div class="content cardsfill">
+
+        <div class="cards-section">
+          <div class="sec-hd flat">
+            <span class="ttl">文件夹 · 4</span>
+            <span class="muted fs-xs">共 118 项 · 已整理 76%</span>
+            <span class="spacer"></span>
+            <span class="badge draft">草稿 2</span>
+            <span class="badge ok">已整理 1</span>
+            <span class="badge lock">受保护 1</span>
+          </div>
+
+          <div class="foldergrid wall">
+
+            <div class="fcard sel">
+              <div class="top">
+                <span class="ic">▣</span>
+                <span class="n"><span class="badge neutral xs">46 项</span></span>
+                <div class="qi"><div class="ph p1"></div></div>
+                <div class="qi"><div class="ph p10"></div></div>
+                <div class="qi"><div class="ph p5"></div></div>
+                <div class="qi"><div class="ph p3"></div></div>
+              </div>
+              <div class="ft">
+                <div class="nm"><span class="dot draft"></span><span class="fn">海边日落</span></div>
+                <div class="meta"><span>87%</span><span class="bar"><i style="width:87%"></i></span></div>
+                <div class="meta"><span class="badge draft">草稿 2</span><span class="spacer grow"></span><span>2.4 GB</span></div>
+              </div>
+            </div>
+
+            <div class="fcard dragover">
+              <div class="top">
+                <span class="ic">▣</span>
+                <span class="n"><span class="badge accent xs">22 项</span></span>
+                <div class="qi"><div class="ph p2"></div></div>
+                <div class="qi"><div class="ph p6"></div></div>
+                <div class="qi"><div class="ph p7"></div></div>
+                <div class="qi"><div class="ph p9"></div></div>
+                <span class="droplbl">＋ 移动到此处</span>
+              </div>
+              <div class="ft">
+                <div class="nm"><span class="fn">商业拍摄</span></div>
+                <div class="meta"><span>55%</span><span class="bar"><i style="width:55%"></i></span></div>
+                <div class="meta"><span class="badge accent">待提交 3</span><span class="spacer grow"></span><span>3.1 GB</span></div>
+              </div>
+            </div>
+
+            <div class="fcard">
+              <div class="top">
+                <span class="ic">▣</span>
+                <span class="n"><span class="badge lock xs">12 项</span></span>
+                <div class="qi"><div class="ph p8"></div></div>
+                <div class="qi"><div class="ph p4"></div></div>
+                <div class="qi"><div class="ph p6"></div></div>
+                <div class="qi"><div class="ph p1"></div></div>
+              </div>
+              <div class="ft">
+                <div class="nm"><span class="lockchip"></span><span class="fn">2026 冲绳</span></div>
+                <div class="meta"><span>100%</span><span class="bar"><i class="done" style="width:100%"></i></span></div>
+                <div class="meta"><span class="badge lock">受保护</span><span class="spacer grow"></span><span>640 MB</span></div>
+              </div>
+            </div>
+
+            <div class="fcard draft">
+              <div class="top">
+                <span class="ic">▣</span>
+                <span class="n"><span class="badge draft xs">0 项</span></span>
+                <div class="qi"><div class="ph p7"></div></div>
+                <div class="qi"><div class="ph p7"></div></div>
+                <div class="qi"><div class="ph p7"></div></div>
+                <div class="qi"><div class="ph p7"></div></div>
+              </div>
+              <div class="ft">
+                <div class="nm"><span class="dot draft"></span><span class="fn draftname">新建文件夹<span class="caret-line"></span></span></div>
+                <div class="meta"><span class="muted">未开始整理</span></div>
+                <div class="meta"><span class="badge draft">草稿 · 待命名</span></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="cards-section files">
+          <div class="sec-hd flat">
+            <span class="ttl">文件 · 12</span>
+            <span class="muted fs-xs">当前路径下未归入文件夹的素材</span>
+            <span class="spacer"></span>
+            <span class="badge draft">草稿 3</span>
+            <span class="badge ok">已整理 4</span>
+            <span class="badge lock">受保护 2</span>
+          </div>
+
+                    <div class="fillegrid">
+
+            <div class="thumb tall sel">
+              <div class="img"><div class="ph p1"></div><span class="flag-mini"></span></div>
+              <div class="cap"><span class="checkbox on">✓</span><span class="fn">IMG_1204.jpg</span><span class="badge draft xs">草稿</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p3"></div><span class="corner"><span class="check">✓</span></span></div>
+              <div class="cap"><span class="fn">IMG_1215.jpg</span><span class="badge ok xs">已整理</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p8 vid"></div><span class="corner"><span class="check">✓</span></span></div>
+              <div class="cap"><span class="fn">宣传片_02.mp4</span><span class="badge neutral xs">视频</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p6"></div><span class="corner"><span class="lockchip"></span></span></div>
+              <div class="cap"><span class="fn">产品白底_01.png</span><span class="badge lock xs">受保护</span></div>
+            </div>
+
+            <div class="thumb tall draft">
+              <div class="img"><div class="ph p5"></div><span class="flag-mini"></span></div>
+              <div class="cap"><span class="fn">IMG_1237.jpg</span><span class="badge draft xs">草稿</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p2"></div></div>
+              <div class="cap"><span class="fn">IMG_1222.jpg</span><span class="badge neutral xs">未整理</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p10"></div></div>
+              <div class="cap"><span class="fn">城市夜景_03.jpg</span><span class="badge neutral xs">未整理</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p9 d3"></div><span class="corner"><span class="check">✓</span></span></div>
+              <div class="cap"><span class="fn">模型资产_03.blend</span><span class="badge neutral xs">3D</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p4"></div><span class="corner"><span class="lockchip"></span></span></div>
+              <div class="cap"><span class="fn">旅行_街景_009.jpg</span><span class="badge lock xs">受保护</span></div>
+            </div>
+
+            <div class="thumb tall draft">
+              <div class="img"><div class="ph p7 doc"></div><span class="flag-mini"></span></div>
+              <div class="cap"><span class="fn">说明文档_004.pdf</span><span class="badge draft xs">草稿</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p1"></div><span class="corner"><span class="check">✓</span></span></div>
+              <div class="cap"><span class="fn">海边日落_04.jpg</span><span class="badge ok xs">已整理</span></div>
+            </div>
+
+            <div class="thumb tall">
+              <div class="img"><div class="ph p6"></div><span class="corner"><span class="check">✓</span></span></div>
+              <div class="cap"><span class="fn">渲染图_006.jpg</span><span class="badge ok xs">已整理</span></div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 右栏：多选两个文件夹 · 批量操作 -->
+    <div class="detail">
+      <div class="detail-sec">
+        <div class="detail-title">批量操作</div>
+        <div class="row" style="gap:var(--s2);align-items:baseline">
+          <span class="fs-lg bold">已选 2 个文件夹</span>
+          <span class="badge accent">68 项素材</span>
+        </div>
+        <div class="mono fs-xs muted mt2">商业拍摄 · 2026 冲绳</div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="actionpair">
+          <span class="btn">重命名规则…</span>
+          <span class="btn">移动到…</span>
+          <span class="btn">加入分组</span>
+          <span class="btn">加入保护区</span>
+        </div>
+        <div class="row mt2"><span class="btn">导出清单</span><span class="muted fs-xs">生成 CSV / TXT</span></div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">统计</div>
+        <div class="statbox">
+          <div class="statline"><span>改名</span><b>18</b></div>
+          <div class="statline"><span>归档</span><b>6</b></div>
+          <div class="statline"><span>分组</span><b>3</b></div>
+          <div class="statline total"><span>涉及素材</span><b>24</b></div>
+        </div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="note">
+          <span>⚠</span>
+          <span>选中的 2 个文件夹含 1 项受保护素材，批量操作会默认跳过。</span>
+        </div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">变更类型分布</div>
+        <div class="kinds">
+          <div class="k"><span style="width:52px">改名</span><span class="bar"><i style="width:100%"></i></span><span class="n">18</span></div>
+          <div class="k"><span style="width:52px">归档</span><span class="bar"><i style="width:34%"></i></span><span class="n">6</span></div>
+          <div class="k"><span style="width:52px">分组</span><span class="bar"><i style="width:17%"></i></span><span class="n">3</span></div>
+        </div>
+        <div class="hint mt3">条形为占比示意；以上操作均先进入变更集，提交前不会改动磁盘。</div>
+      </div>
+
+      <div class="detail-sec">
+        <div class="detail-title">整理建议</div>
+        <div class="hint" data-sec="suggest">选中的文件夹里有 3 项未按命名规则整理，可先生成预览再决定是否应用。</div>
+        <div class="row mt3" data-sec="suggest">
+          <span class="btn">应用到预览</span>
+          <span class="muted fs-xs">不会立即改动磁盘</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="statusbar">
+    <span>已选 2 个文件夹（68 项素材）</span>
+    <span class="sep">|</span>
+    <span>待提交 12 项变更（其中 2 项指向文件夹）</span>
+    <span class="sep">|</span>
+    <span>保护区 210</span>
+    <span class="spacer"></span>
+    <span class="btn sm">↶ 撤销</span>
+    <span class="btn sm off">↷ 重做</span>
+  </div>
+
+</div>
+</body>
+</html>
