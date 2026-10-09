@@ -1,0 +1,99 @@
+/*
+ * 鹿铃 · 设计令牌（唯一真源）
+ * =====================================================================
+ * 执行版 §9.1「主题令牌」是本文件里这批变量名的唯一权威定义；
+ * §12.4 落地约束② 要求：令牌是全局唯一真源，**组件层禁止写死色值 / 圆角 / 间距 / 时长**，
+ * 且不得引入语义重复的第二套变量名。
+ *
+ * 因此本文件是仓库里唯一允许出现色值字面量（#RRGGBB、rgb()、hsl()）的样式文件；
+ * scripts/check-tokens.mjs 会在构建前对 src/ 全量静态检查，命中即报错。
+ *
+ * 命名与稿件 docs/mockups/tokens.css 的对应关系（P0 已按 §9.1 一次性收敛，见文档 §9.1）：
+ *   --surface-2 / --surface-3 → --surface-alt（§9.1 只有一个表面变体）
+ *   --text / --text-2 / --text-3 → --text-primary / --text-secondary / --text-muted
+ *   --ok / --warn → --success / --warning
+ *   --accent-hover → --accent-hover（不变）      --dur → --motion-duration
+ *   --r-sm/md/lg → --radius-sm/md/lg             --s1..s6 → --spacing-1..6
+ *   --fs-xs/sm/md/lg/xl/2xl → --font-size-1..6（字号阶梯按 §8.2 的 12/13/14/16/20/24）
+ * 稿件里的半透明 soft 变体（--accent-soft、--ok-soft…）一律不再单列变量，
+ * 需要时用 color-mix(in srgb, var(--x) N%, var(--surface)) 现算（§12.4② 禁第二套变量名）。
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ── 颜色（§9.1 第一组） ───────────────────────────────────────── */
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-alt: #fafbfc;
+  --border: #dde3ea;
+  --text-primary: #1b1f26;
+  --text-secondary: #59616d;
+  --text-muted: #8a929e;
+  --accent: #3b82f6;
+  --accent-hover: #2f6fe0;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #e5484d;
+  --info: #2f6fe0;
+  /* 三种标记色（草稿 / 保护区 / 已整理）——P2/P4 起由用户可改（§9.2 标记色） */
+  --draft-mark: #f59e0b;
+  --protected-mark: #6b7280;
+  --organized-mark: #16a34a;
+
+  /* ── 尺寸（§9.1 第二组） ───────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+  --spacing-6: 32px;
+  --row-height: 28px;
+  --thumb-size: 96px;
+  --icon-size: 16px;
+  --font-size-1: 12px;
+  --font-size-2: 13px;
+  --font-size-3: 14px;
+  --font-size-4: 16px;
+  --font-size-5: 20px;
+  --font-size-6: 24px;
+
+  /* ── 其他（§9.1 第三组） ───────────────────────────────────────── */
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-2: 0 4px 12px rgba(16, 24, 40, 0.1);
+  --shadow-3: 0 12px 32px rgba(16, 24, 40, 0.18);
+  --motion-duration: 160ms;
+  --font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', system-ui,
+    sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  --density: 1;
+}
+
+/* 深色不是浅色反相，语义色重新取色（§8.2、§9.3） */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f1218;
+  --surface: #171b23;
+  --surface-alt: #1c212b;
+  --border: #2a313d;
+  --text-primary: #e8ecf2;
+  --text-secondary: #a5aebd;
+  --text-muted: #77808f;
+  --accent: #3dd6d0;
+  --accent-hover: #55e3dd;
+  --success: #35c46b;
+  --warning: #f0a93b;
+  --danger: #f16a6e;
+  --info: #5aa9ff;
+  --draft-mark: #f0a93b;
+  --protected-mark: #8b94a3;
+  --organized-mark: #35c46b;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+}

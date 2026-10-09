@@ -1,0 +1,76 @@
+/*
+ * 鹿铃 · 基础层（重置与全局排版）
+ * =====================================================================
+ * §12.4 落地约束③：框架重置样式不得改变原生控件表现——本文件只做最小重置，
+ * 表单控件保持系统原生外观（P0 的界面里只有搜索框与按钮，都是自绘样式 + 原生语义标签）。
+ * 本文件不得出现色值字面量，一律走 tokens.css 的令牌。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size-2);
+  line-height: 1.5;
+  /* 桌面应用：禁止整页选中与页面级滚动，滚动只发生在窗格内 */
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* 细滚动条，跟随主题 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--radius-sm);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+  background-clip: content-box;
+}

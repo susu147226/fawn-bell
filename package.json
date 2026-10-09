@@ -1,0 +1,32 @@
+{
+  "name": "luling",
+  "private": true,
+  "version": "0.1.0",
+  "description": "鹿铃（luling）——就地整理素材的命名 / 位置 / 分组工具",
+  "author": "云舒眠眠",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/check-tokens.mjs --src && tsc && vite build && node scripts/check-tokens.mjs --dist",
+    "build:web": "tsc && vite build",
+    "preview": "vite preview",
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:licenses": "node scripts/license-audit.mjs",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.14.13",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
+    "lucide-react": "^1.53.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  }
+}
