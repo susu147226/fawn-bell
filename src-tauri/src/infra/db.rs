@@ -911,6 +911,206 @@ pub fn reorder_presets(conn: &Connection, ids: &[i64]) -> Result<(), String> {
     Ok(())
 }
 
+/* ── 保护区（§7.6 / §13.2 protections） ───────────────────────────── */
+
+/// 保护区条目（横切安全属性，独立于分组）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProtectionRow {
+    pub asset_id: i64,
+    pub added_by: String,
+    pub added_at: i64,
+    pub reason: Option<String>,
+}
+
+/// 批量加入保护区（`added_by` 记 auto / manual，便于面板展示「加入方式」）。
+pub fn protect_assets(
+    conn: &Connection,
+    asset_ids: &[i64],
+    added_by: &str,
+    reason: Option<&str>,
+) -> Result<usize, String> {
+    let now = now_ms();
+    let mut n = 0usize;
+    for id in asset_ids {
+        let changed = conn
+            .execute(
+                "INSERT INTO protections(asset_id, added_by, added_at, reason) VALUES(?1, ?2, ?3, ?4)
+                 ON CONFLICT(asset_id) DO NOTHING",
+                params![id, added_by, now, reason],
+            )
+            .map_err(|e| e.to_string())?;
+        n += changed;
+    }
+    Ok(n)
+}
+
+/// 批量移出保护区（单条 / 多选 / 全部移出都走它）。
+pub fn unprotect_assets(conn: &Connection, asset_ids: &[i64]) -> Result<usize, String> {
+    let mut n = 0usize;
+    for id in asset_ids {
+        n += conn
+            .execute("DELETE FROM protections WHERE asset_id = ?1", params![id])
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(n)
+}
+
+pub fn unprotect_all(conn: &Connection) -> Result<usize, String> {
+    conn.execute("DELETE FROM protections", [])
+        .map_err(|e| e.to_string())
+}
+
+pub fn protections_all(conn: &Connection) -> Result<Vec<ProtectionRow>, String> {
+    let mut stmt = conn
+        .prepare("SELECT asset_id, COALESCE(added_by,'manual'), COALESCE(added_at,0), reason FROM protections ORDER BY added_at DESC, asset_id")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(ProtectionRow {
+                asset_id: row.get(0)?,
+                added_by: row.get(1)?,
+                added_at: row.get(2)?,
+                reason: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+pub fn protected_count(conn: &Connection) -> Result<i64, String> {
+    conn.query_row("SELECT COUNT(*) FROM protections", [], |r| r.get(0))
+        .map_err(|e| e.to_string())
+}
+
+/// 「保护区当周新增 N 项」（§7.6 统计口径：按 `protections.added_at` 落在本周的条目计数）。
+pub fn protected_week_new(conn: &Connection, now: i64) -> Result<i64, String> {
+    // 以「最近 7 天」为周窗口（本地口径，避免依赖用户区域设置的首日）
+    let since = now - 7 * 24 * 60 * 60 * 1000;
+    conn.query_row(
+        "SELECT COUNT(*) FROM protections WHERE added_at >= ?1",
+        params![since],
+        |r| r.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
+/* ── 分组（§7.5 / §13.2 groups / asset_group） ────────────────────── */
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupRow {
+    pub id: i64,
+    pub name: String,
+    /// static / smart
+    pub kind: String,
+    pub rule_json: Option<String>,
+    pub color: Option<String>,
+    pub sort_order: i64,
+    pub member_count: i64,
+}
+
+pub fn groups_all(conn: &Connection) -> Result<Vec<GroupRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT g.id, g.name, g.kind, g.rule_json, g.color, COALESCE(g.sort_order, 0),
+                    (SELECT COUNT(*) FROM asset_group m WHERE m.group_id = g.id)
+             FROM groups g ORDER BY g.kind, COALESCE(g.sort_order, 0), g.id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(GroupRow {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                kind: row.get(2)?,
+                rule_json: row.get(3)?,
+                color: row.get(4)?,
+                sort_order: row.get(5)?,
+                member_count: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+pub fn create_group(conn: &Connection, name: &str, kind: &str, rule_json: Option<&str>) -> Result<i64, String> {
+    if name.trim().is_empty() {
+        return Err("分组名不能为空".to_string());
+    }
+    let next: i64 = conn
+        .query_row("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM groups", [], |r| r.get(0))
+        .unwrap_or(1);
+    conn.execute(
+        "INSERT INTO groups(name, kind, rule_json, sort_order) VALUES(?1, ?2, ?3, ?4)",
+        params![name.trim(), kind, rule_json, next],
+    )
+    .map_err(|e| {
+        if e.to_string().contains("UNIQUE") {
+            format!("已经有叫「{}」的分组了", name.trim())
+        } else {
+            e.to_string()
+        }
+    })?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn rename_group(conn: &Connection, id: i64, name: &str) -> Result<(), String> {
+    if name.trim().is_empty() {
+        return Err("分组名不能为空".to_string());
+    }
+    conn.execute("UPDATE groups SET name = ?2 WHERE id = ?1", params![id, name.trim()])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 删除分组：只删分组与成员关系，**不碰素材、也不碰保护区**（§7.6 保护区不随分组变动丢失）。
+pub fn delete_group(conn: &Connection, id: i64) -> Result<(), String> {
+    conn.execute("DELETE FROM asset_group WHERE group_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM groups WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub fn add_group_members(conn: &Connection, group_id: i64, asset_ids: &[i64]) -> Result<usize, String> {
+    let mut n = 0usize;
+    for id in asset_ids {
+        n += conn
+            .execute(
+                "INSERT INTO asset_group(asset_id, group_id) VALUES(?1, ?2) ON CONFLICT DO NOTHING",
+                params![id, group_id],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(n)
+}
+
+pub fn remove_group_members(conn: &Connection, group_id: i64, asset_ids: &[i64]) -> Result<usize, String> {
+    let mut n = 0usize;
+    for id in asset_ids {
+        n += conn
+            .execute(
+                "DELETE FROM asset_group WHERE group_id = ?1 AND asset_id = ?2",
+                params![group_id, id],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(n)
+}
+
+/// 内置智能集合的规则串（§7.5：保存一条规则，每次打开动态求值）。
+pub const SMART_DUPLICATES: &str = r#"{"kind":"duplicates"}"#;
+pub const SMART_NEW_30D: &str = r#"{"kind":"newerThanDays","days":30}"#;
+pub const SMART_UNTAGGED: &str = r#"{"kind":"untagged"}"#;
+pub const SMART_BIG_50MB: &str = r#"{"kind":"sizeGreaterThan","bytes":52428800}"#;
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {

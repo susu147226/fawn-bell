@@ -2,6 +2,7 @@
 
 pub mod dedupe;
 pub mod drafts;
+pub mod groups;
 pub mod index;
 pub mod library;
 pub mod metadata;
