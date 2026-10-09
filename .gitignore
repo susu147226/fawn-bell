@@ -34,3 +34,8 @@ docs/mockups/shots/*.ps1
 
 # ── 图标目录：下划线开头的均为选型 / 校样文件 ──────────
 assets/icon/png/_*
+
+# ── 本机环境适配（内容与本机目录结构绑定，不入库）──────
+# 见 README「开发与构建」：某些沙箱目录（如 DSH 工作区）会限制其中的 exe 写系统目录，
+# 需要把 cargo 的 target-dir 指到项目外；这一步逐机配置，不能写死进仓库。
+/src-tauri/.cargo/config.toml

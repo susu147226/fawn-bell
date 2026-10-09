@@ -86,6 +86,8 @@ pnpm install
 >
 > 另：若 node_modules 是用别的 pnpm 大版本装的，pnpm 会提示「The modules directory … will be removed and reinstalled from scratch」，在终端里答 Yes 即可（它只是重建 `node_modules/`，不动源码与锁文件）。
 
+> **如果 `pnpm tauri dev` 报 `Failed to setup app: 拒绝访问。(os error 5)`**：这不是鹿铃的缺陷。实测本机 `D:\desktop\dsh workspace\`（DSH 沙箱工作区）**里面的任何可执行文件都不能在 `%LOCALAPPDATA%` 下建目录**——同一个 `luling.exe` 复制到工作区外立刻正常启动。Tauri 起窗口第一步就要在 `%LOCALAPPDATA%\com.yunshumianmian.luling` 建 WebView2 数据目录，于是被打回。解法：把 cargo 的构建产物放到项目外，本机已用 `src-tauri/.cargo/config.toml` 的 `[build] target-dir = "../../../../../luling-target"`（相对路径以该配置文件所在目录为基准）指到 `D:\luling-target`，`pnpm tauri dev` 会自己找到那里的 exe。该文件与本机目录结构绑定，**不入库**（见 `.gitignore`）。正式安装版装在 `C:\Program Files\鹿铃`，不受此限制。
+
 | 命令 | 作用 |
 | --- | --- |
 | `pnpm dev` | 只起前端 Vite 开发服务器（浏览器里看界面，无 Rust 后端） |
