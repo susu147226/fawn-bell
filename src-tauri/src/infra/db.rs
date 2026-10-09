@@ -798,6 +798,119 @@ pub fn ref_count(conn: &Connection, name: &str) -> Result<i64, String> {
     .map_err(|e| e.to_string())
 }
 
+/* ── 命名模板预设（§7.3.2 / §13.3 name_presets） ───────────────────── */
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PresetRow {
+    pub id: i64,
+    pub base_name: String,
+    pub label: Option<String>,
+    pub template: String,
+    pub is_builtin: bool,
+    pub sort_order: i64,
+}
+
+pub fn load_presets(conn: &Connection) -> Result<Vec<PresetRow>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, base_name, label, template, is_builtin, COALESCE(sort_order,0) FROM name_presets ORDER BY is_builtin DESC, sort_order, id")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(PresetRow {
+                id: row.get(0)?,
+                base_name: row.get(1)?,
+                label: row.get(2)?,
+                template: row.get(3)?,
+                is_builtin: row.get::<_, i64>(4)? != 0,
+                sort_order: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
+/// 首次运行时把 13 个内置预设写进库（幂等；内置条目不可删除，§7.3.2）。
+pub fn seed_builtin_presets(conn: &Connection, bases: &[&str]) -> Result<usize, String> {
+    let mut n = 0usize;
+    for (i, base) in bases.iter().enumerate() {
+        let template = format!("{base}_{{seq}}");
+        let changed = conn
+            .execute(
+                "INSERT INTO name_presets(base_name, label, template, is_builtin, sort_order, created_at)
+                 SELECT ?1, ?1, ?2, 1, ?3, ?4
+                 WHERE NOT EXISTS (SELECT 1 FROM name_presets WHERE base_name = ?1 AND is_builtin = 1)",
+                params![base, template, i as i64, now_ms()],
+            )
+            .map_err(|e| e.to_string())?;
+        n += changed;
+    }
+    Ok(n)
+}
+
+pub fn upsert_preset(
+    conn: &Connection,
+    id: Option<i64>,
+    base_name: &str,
+    label: Option<&str>,
+    template: &str,
+) -> Result<i64, String> {
+    match id {
+        Some(id) => {
+            conn.execute(
+                "UPDATE name_presets SET base_name = ?2, label = ?3, template = ?4 WHERE id = ?1",
+                params![id, base_name, label, template],
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(id)
+        }
+        None => {
+            let next: i64 = conn
+                .query_row(
+                    "SELECT COALESCE(MAX(sort_order), 0) + 1 FROM name_presets",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap_or(1);
+            conn.execute(
+                "INSERT INTO name_presets(base_name, label, template, is_builtin, sort_order, created_at)
+                 VALUES(?1, ?2, ?3, 0, ?4, ?5)",
+                params![base_name, label, template, next, now_ms()],
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(conn.last_insert_rowid())
+        }
+    }
+}
+
+/// 删除预设；**内置条目拒绝删除**（§7.3.2）。
+pub fn delete_preset(conn: &Connection, id: i64) -> Result<(), String> {
+    let builtin: i64 = conn
+        .query_row("SELECT is_builtin FROM name_presets WHERE id = ?1", params![id], |r| r.get(0))
+        .map_err(|_| "预设不存在".to_string())?;
+    if builtin != 0 {
+        return Err("内置预设不可删除（可复制为自定义预设后修改）".to_string());
+    }
+    conn.execute("DELETE FROM name_presets WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 按给定顺序重排（只写库，不碰磁盘）。
+pub fn reorder_presets(conn: &Connection, ids: &[i64]) -> Result<(), String> {
+    for (i, id) in ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE name_presets SET sort_order = ?2 WHERE id = ?1",
+            params![id, i as i64],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {

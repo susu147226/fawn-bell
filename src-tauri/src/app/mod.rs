@@ -5,4 +5,5 @@ pub mod drafts;
 pub mod index;
 pub mod library;
 pub mod metadata;
+pub mod naming;
 pub mod scan;
