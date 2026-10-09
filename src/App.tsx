@@ -468,17 +468,52 @@ export default function App() {
           }
         />
       ) : (
-        <AssetList
-          rows={rows}
-          selection={selected}
-          activeId={activeId}
-          drafts={draftMap}
-          onSelect={onSelect}
-          onOpenDir={onNavigate}
-          onToggleExpand={onToggleExpand}
-          onMoveActive={onMoveActive}
-          onToggleActive={onToggleActive}
-        />
+        <>
+          {/* 设计稿中栏：视图行 + 状态 chips（草稿用变更集真值，其余按阶段标注） */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-2)',
+              padding: 'var(--spacing-1) var(--spacing-3)',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <span className="tbd">文件夹视图 · 共 {formatCount(rows.length)} 项</span>
+            <span className="grow" />
+            <span className="badge" title="草稿态条目（取自变更集真值）">
+              草稿 {formatCount(draftList?.count ?? 0)}
+            </span>
+            <span className="badge" title="已整理：P6 接入后由已整理表提供">
+              已整理 <span className="tag-soon">P6</span>
+            </span>
+            <span className="badge" title="受保护：P4 接入">
+              受保护 <span className="tag-soon">P4</span>
+            </span>
+          </div>
+          <div className="seg" role="group" aria-label="筛选" style={{ margin: 'var(--spacing-1) var(--spacing-3)' }}>
+            <button className="seg-item on" type="button" disabled>
+              全部 {formatCount(rows.length)}
+            </button>
+            <button className="seg-item" type="button" disabled title="按类型筛选（P5 接入）">
+              类型筛选<span className="tag-soon">P5</span>
+            </button>
+            <button className="seg-item" type="button" disabled title="按大小区间筛选（P5 接入）">
+              大小范围<span className="tag-soon">P5</span>
+            </button>
+          </div>
+          <AssetList
+            rows={rows}
+            selection={selected}
+            activeId={activeId}
+            drafts={draftMap}
+            onSelect={onSelect}
+            onOpenDir={onNavigate}
+            onToggleExpand={onToggleExpand}
+            onMoveActive={onMoveActive}
+            onToggleActive={onToggleActive}
+          />
+        </>
       );
   } else if (scanId !== null) {
     mainBody = (
