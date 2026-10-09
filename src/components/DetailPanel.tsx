@@ -13,6 +13,7 @@ import { absolutePath, dirDisplayName, subDirsOf, type ScanIndex } from '../lib/
 import { formatBytes, formatCount, formatDateTime, formatDuration } from '../lib/format';
 import { KindIcon } from '../lib/icons';
 import { api, errorText } from '../lib/ipc';
+import NamingPanel from './NamingPanel';
 import { DedupePanel, DraftsPanel, RelocateWizard, type NoticePayload } from './Panels';
 import {
   KINDS,
@@ -24,8 +25,8 @@ import {
   type ScanSummary,
 } from '../lib/types';
 
-/** 右栏可切换的 P1/P2 工具面板。 */
-export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts';
+/** 右栏可切换的工具面板。 */
+export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts' | 'naming';
 
 /** Shell 属性键 → 中文标签（§6.4）。 */
 const PROP_LABEL: Record<string, string> = {
@@ -496,6 +497,9 @@ function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
     <div className="detail-sec">
       <div className="detail-title">工具</div>
       <div className="empty-actions" style={{ flexWrap: 'wrap' }}>
+        <button className="btn" type="button" onClick={() => onPanel('naming')}>
+          命名规则…
+        </button>
         <button className="btn" type="button" onClick={() => onPanel('drafts')}>
           变更集…
         </button>
@@ -526,6 +530,8 @@ export default function DetailPanel({
     body = <DedupePanel onClose={() => onPanel('none')} />;
   } else if (panel === 'drafts') {
     body = <DraftsPanel onClose={() => onPanel('none')} />;
+  } else if (panel === 'naming') {
+    body = <NamingPanel onClose={() => onPanel('none')} />;
   } else if (panel === 'relocate') {
     body = (
       <RelocateWizard root={summary?.root ?? null} onClose={() => onPanel('none')} onNotice={onNotice} />

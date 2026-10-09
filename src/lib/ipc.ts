@@ -13,12 +13,16 @@ import type {
   DraftList,
   DraftOp,
   LibraryInfo,
+  Preset,
+  PresetApply,
   Projection,
   RelocatePlan,
+  Rendered,
   ScanDone,
   ScanProgress,
   ScanResult,
   ScanSnapshot,
+  SeqRule,
 } from './types';
 
 export const api = {
@@ -57,6 +61,19 @@ export const api = {
   draftRedo: () => invoke<DraftList>('draft_redo'),
   draftClear: () => invoke<DraftList>('draft_clear'),
   draftProject: (paths: string[]) => invoke<Projection[]>('draft_project', { paths }),
+
+  /* ── 命名引擎（§7.3）：预设与实时预览；只写库目录，不碰素材树 ── */
+  presetList: () => invoke<Preset[]>('preset_list'),
+  presetSave: (id: number | null, baseName: string, label: string | null, template: string) =>
+    invoke<number>('preset_save', { id, baseName, label, template }),
+  presetDelete: (id: number) => invoke<void>('preset_delete', { id }),
+  presetReorder: (ids: number[]) => invoke<void>('preset_reorder', { ids }),
+  presetExport: () => invoke<string>('preset_export'),
+  presetImport: (json: string) => invoke<number>('preset_import', { json }),
+  presetApply: (id: number, ext: string, start: number, rule: SeqRule) =>
+    invoke<PresetApply>('preset_apply', { id, ext, start, rule }),
+  namingPreview: (template: string, rule: SeqRule, stem: string, ext: string) =>
+    invoke<Rendered[]>('naming_preview', { template, rule, stem, ext }),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

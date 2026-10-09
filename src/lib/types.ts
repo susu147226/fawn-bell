@@ -274,3 +274,50 @@ export interface Projection {
   drafted: boolean;
   removed: boolean;
 }
+
+/* ── 命名引擎（§7.3） ─────────────────────────────────────────────── */
+
+/** 补零档位（§7.3.3）：不补零（默认）/ 最少 2 位 / 最少 3 位 / 固定 N 位。 */
+export type PadMode = 'noPad' | 'min2' | 'min3' | { fixed: number };
+export type SeqSep = 'autoUnderscore' | 'dash' | 'space' | 'none';
+export type SeqScope = 'currentFolder' | 'currentGroup' | 'selectedSet';
+export type StripRule = 'none' | 'trailingDigits' | 'trailingUnderscoreDigits' | 'regex';
+
+export interface SeqRule {
+  start: number;
+  sep: SeqSep;
+  pad: PadMode;
+  scope: SeqScope;
+  strip: StripRule;
+}
+
+/** 必须与核心域 `SeqRule::default()` 对齐：起始 0、不补零、自动 `_`、剥离尾随 `_数字`。 */
+export const DEFAULT_SEQ_RULE: SeqRule = {
+  start: 0,
+  sep: 'autoUnderscore',
+  pad: 'noPad',
+  scope: 'currentFolder',
+  strip: 'trailingUnderscoreDigits',
+};
+
+/** 命名预设（§7.3.2）：内置 13 个不可删，自定义可增删改排。 */
+export interface Preset {
+  id: number;
+  baseName: string;
+  label: string | null;
+  template: string;
+  isBuiltin: boolean;
+  sortOrder: number;
+}
+
+/** 预设套用结果：模板 + **立刻**给出的前三项预览。 */
+export interface PresetApply {
+  template: string;
+  preview: string[];
+}
+
+/** 模板渲染结果（notes 里是必须让用户看见的提醒，如固定档超限、截断提示）。 */
+export interface Rendered {
+  name: string;
+  notes: string[];
+}
