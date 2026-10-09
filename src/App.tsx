@@ -438,6 +438,21 @@ export default function App() {
       .then(() => closeWindow());
   }, [closeWindow]);
 
+  /** 状态条上的撤销/重做按钮：与 Ctrl+Z / Ctrl+Y 走同一条链路（只动草稿，不碰磁盘）。 */
+  const undoDraft = useCallback(() => {
+    void api
+      .draftUndo()
+      .then(setDraftList)
+      .catch((e) => setNotice({ kind: 'error', title: '撤销失败', lines: [errorText(e)] }));
+  }, []);
+
+  const redoDraft = useCallback(() => {
+    void api
+      .draftRedo()
+      .then(setDraftList)
+      .catch((e) => setNotice({ kind: 'error', title: '重做失败', lines: [errorText(e)] }));
+  }, []);
+
   let mainBody: ReactNode;
   if (index && summary) {
     mainBody =
@@ -576,7 +591,16 @@ export default function App() {
         )}
       </div>
 
-      <StatusBar selectedCount={selected.size} summary={summary} scanning={scanId !== null} />
+      <StatusBar
+        selectedCount={selected.size}
+        summary={summary}
+        scanning={scanId !== null}
+        draftCount={draftList?.count ?? 0}
+        draftProblems={draftList?.problems ?? 0}
+        canRedo={(draftList?.redo ?? 0) > 0}
+        onUndo={undoDraft}
+        onRedo={redoDraft}
+      />
 
       {closeAsk ? (
         <CloseDialog

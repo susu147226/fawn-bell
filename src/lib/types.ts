@@ -264,6 +264,8 @@ export interface DraftList {
   drafts: Draft[];
   count: number;
   problems: number;
+  /** 重做栈里还有几条（状态条的重做按钮据此启用）。 */
+  redo: number;
 }
 
 /** 投影结果（§7.2：真实状态 + 草稿 → 界面显示的样子）。 */

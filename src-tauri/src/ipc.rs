@@ -405,6 +405,8 @@ pub struct DraftListDto {
     pub drafts: Vec<crate::domain::drafts::Draft>,
     pub count: usize,
     pub problems: usize,
+    /// 重做栈里还有几条（状态条按钮启用条件）。
+    pub redo: usize,
 }
 
 fn draft_dto(state: &crate::app::drafts::DraftState) -> Result<DraftListDto, String> {
@@ -412,6 +414,7 @@ fn draft_dto(state: &crate::app::drafts::DraftState) -> Result<DraftListDto, Str
         drafts: state.snapshot()?,
         count: state.len()?,
         problems: state.problems()?,
+        redo: state.redo_len()?,
     })
 }
 

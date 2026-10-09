@@ -57,6 +57,12 @@ impl DraftState {
         Ok(h.set.problems())
     }
 
+    /// 重做栈里还有几条（状态条的重做按钮据此启用/禁用）。
+    pub fn redo_len(&self) -> Result<usize, String> {
+        let h = self.0.lock().map_err(|_| "草稿状态已损坏，请重启鹿铃。".to_string())?;
+        Ok(h.set.redo_len())
+    }
+
     pub fn add(&self, conn: &Connection, draft: Draft) -> Result<Draft, String> {
         let mut h = self.0.lock().map_err(|_| "草稿状态已损坏，请重启鹿铃。".to_string())?;
         if !h.loaded {
