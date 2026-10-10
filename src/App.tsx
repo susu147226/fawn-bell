@@ -187,6 +187,7 @@ export default function App() {
   useEffect(() => {
     const pProgress = onScanProgress((p) => setProgress(p));
     const pDone = onScanDone((d) => {
+      if (d.summary?.root) setRoot(d.summary.root);
       void handleDone(d);
     });
     return () => {
