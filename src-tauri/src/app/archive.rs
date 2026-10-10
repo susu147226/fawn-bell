@@ -197,11 +197,13 @@ pub fn build_plan(req: &ArchiveRequest, sources: &[ArchiveSource]) -> ArchivePla
             item_notes.push(w);
         }
 
-        // 工程包联动（§7.4）：命中工程文件时，伴随文件与同名依赖目录默认一起移动
+        // 工程包联动（§7.4）：命中工程文件时，伴随文件与同名依赖目录默认一起移动。
+        // 注意用**磁盘上的源文件名**判定——模板改了名之后（`场景_0.blend`）再去找 `场景.blend1` 就找不到了。
         let src_dir = dir_of(&s.abs);
+        let src_name = name_of(&s.abs);
         let empty: Vec<String> = Vec::new();
-        let companions = if archive::is_project_file(&file_name) {
-            archive::project_companions(&file_name, req.siblings.get(&src_dir).unwrap_or(&empty))
+        let companions = if archive::is_project_file(&src_name) {
+            archive::project_companions(&src_name, req.siblings.get(&src_dir).unwrap_or(&empty))
         } else {
             empty
         };

@@ -25,6 +25,7 @@ const HELP: &str = "\
   luling relocate <旧素材根> <新素材根> [选项]
   luling migrate <目标库目录> [选项]
   luling plan [选项]
+  luling archive [选项]
 
 选项：
   --json                以 JSON 输出
@@ -118,6 +119,10 @@ pub fn run(args: &[String]) -> i32 {
     // 命名引擎也要能独立驱动（§12.2 强制项 ⑤）
     if args.first().map(|s| s.as_str()) == Some("plan") {
         return run_plan(&args[1..]);
+    }
+    // 归档计划也要能独立驱动（§12.2 强制项 ⑤）
+    if args.first().map(|s| s.as_str()) == Some("archive") {
+        return run_archive(&args[1..]);
     }
 
     let mut json = false;
@@ -638,6 +643,328 @@ fn run_plan(args: &[String]) -> i32 {
         "\n说明：本命令只读，不创建/修改/删除素材树里的任何文件；真实改名在提交阶段执行（本次计划里 {} 条会先改临时名再改目标名）。\n",
         step1.len()
     ));
+
+    if json {
+        match serde_json::to_string_pretty(&plan) {
+            Ok(s) => {
+                if let Some(f) = &out_file {
+                    if let Err(e) = write_out(f, true, &s) {
+                        err_text(&format!("写文件失败：{e}"));
+                        return 1;
+                    }
+                } else {
+                    out_text(&s);
+                }
+            }
+            Err(e) => {
+                err_text(&format!("序列化失败：{e}"));
+                return 1;
+            }
+        }
+    } else if let Some(f) = &out_file {
+        if let Err(e) = write_out(f, false, &body) {
+            err_text(&format!("写文件失败：{e}"));
+            return 1;
+        }
+    } else {
+        out_text(&body);
+    }
+    0
+}
+
+/// `luling archive`（§12.2 强制项 ⑤）：归档计划预览，**只读**——只算目标路径与冲突结论，不搬任何文件。
+fn run_archive(args: &[String]) -> i32 {
+    use crate::app::archive::{build_plan, ArchiveRequest, ArchiveSource, TargetFacts};
+    use crate::domain::archive::ConflictPolicy;
+    use crate::domain::naming::SeqRule;
+    use std::collections::HashMap;
+
+    let mut json = false;
+    let mut out_file: Option<PathBuf> = None;
+    let mut root_arg: Option<String> = None;
+    let mut folder = String::new();
+    let mut target = String::new();
+    let mut dir_template = "{kind}/{yyyy}/{mm}".to_string();
+    let mut name_template = "{name}_{seq}".to_string();
+    let mut policy = ConflictPolicy::Suffix;
+    let mut clean_empty_dirs = false;
+    let mut limit: Option<usize> = None;
+
+    let mut i = 0usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--root" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => root_arg = Some(v.clone()),
+                    None => {
+                        err_text("错误：--root 需要一个素材根路径。");
+                        return 1;
+                    }
+                }
+            }
+            "--folder" => {
+                i += 1;
+                folder = args.get(i).cloned().unwrap_or_default();
+            }
+            "--target" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => target = v.clone(),
+                    None => {
+                        err_text("错误：--target 需要一个目标根目录。");
+                        return 1;
+                    }
+                }
+            }
+            "--dir-template" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    dir_template = v.clone();
+                }
+            }
+            "--template" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    name_template = v.clone();
+                }
+            }
+            "--policy" => {
+                i += 1;
+                policy = match args.get(i).map(|s| s.as_str()) {
+                    Some("suffix") => ConflictPolicy::Suffix,
+                    Some("skip") => ConflictPolicy::Skip,
+                    Some("abort") => ConflictPolicy::AbortBatch,
+                    _ => {
+                        err_text("错误：--policy 只支持 suffix / skip / abort。");
+                        return 1;
+                    }
+                };
+            }
+            "--clean-empty-dirs" => clean_empty_dirs = true,
+            "--limit" => {
+                i += 1;
+                limit = args.get(i).and_then(|v| v.parse::<usize>().ok());
+            }
+            "--json" => json = true,
+            "--out" => {
+                i += 1;
+                match args.get(i) {
+                    Some(v) => out_file = Some(PathBuf::from(v)),
+                    None => {
+                        err_text("错误：--out 需要一个文件路径。");
+                        return 1;
+                    }
+                }
+            }
+            "-h" | "--help" => {
+                out_text(HELP);
+                return 0;
+            }
+            other => {
+                err_text(&format!("错误：未知参数 `{other}`。用 --help 查看用法。"));
+                return 1;
+            }
+        }
+        i += 1;
+    }
+    if target.trim().is_empty() {
+        err_text("错误：必须给 --target <目标根目录>。");
+        return 1;
+    }
+
+    let layout = crate::infra::library::layout();
+    let conn = match crate::infra::db::open_library(&layout) {
+        Ok(c) => c,
+        Err(e) => {
+            err_text(&format!("打不开索引库：{e}"));
+            return 1;
+        }
+    };
+    let roots = crate::infra::db::scan_roots_all(&conn).unwrap_or_default();
+    let root = match root_arg.or_else(|| roots.first().cloned()) {
+        Some(r) => r,
+        None => {
+            err_text("还没有扫描过任何素材根：先跑 `luling scan <文件夹>`。");
+            return 1;
+        }
+    };
+    let volume = crate::infra::volume::volume_id(std::path::Path::new(&root));
+    let mp = crate::infra::volume::mount_point(std::path::Path::new(&root))
+        .map(|p| p.to_string_lossy().trim_end_matches('\\').to_string())
+        .unwrap_or_default();
+    let root_rel_prefix = format!(
+        "{}\\",
+        crate::infra::volume::rel_path_from_volume(std::path::Path::new(&root)).trim_matches('\\')
+    );
+    let rows = match crate::infra::db::assets_of_volume(&conn, &volume) {
+        Ok(r) => r,
+        Err(e) => {
+            err_text(&format!("读取索引失败：{e}"));
+            return 1;
+        }
+    };
+    let prefix = folder.trim().replace('/', "\\").to_lowercase();
+
+    let mut sources: Vec<ArchiveSource> = Vec::new();
+    let mut siblings: HashMap<String, Vec<String>> = HashMap::new();
+    let mut referrers: HashMap<String, Vec<String>> = HashMap::new();
+    for r in &rows {
+        let rel_norm = r.rel_path.replace('/', "\\");
+        if !rel_norm.to_lowercase().starts_with(&root_rel_prefix.to_lowercase()) {
+            continue;
+        }
+        let rest = &rel_norm[root_rel_prefix.len()..];
+        let rest_lower = rest.to_lowercase();
+        let in_folder = if prefix.is_empty() {
+            !rest_lower.contains('\\')
+        } else {
+            rest_lower.starts_with(&format!("{prefix}\\"))
+        };
+        if !in_folder {
+            continue;
+        }
+        let abs = format!("{mp}\\{rel_norm}");
+        let dir = match abs.rfind('\\') {
+            Some(i) => abs[..i].to_string(),
+            None => mp.clone(),
+        };
+        if !siblings.contains_key(&dir) {
+            let mut names = Vec::new();
+            if let Ok(rd) = std::fs::read_dir(&dir) {
+                for e in rd.flatten() {
+                    names.push(e.file_name().to_string_lossy().to_string());
+                }
+            }
+            siblings.insert(dir.clone(), names);
+        }
+        if let Ok(list) = crate::infra::db::refs_for(&conn, &r.name.to_lowercase()) {
+            if !list.is_empty() {
+                referrers.insert(
+                    r.name.to_lowercase(),
+                    list.into_iter().map(|(p, _)| p).collect::<Vec<String>>(),
+                );
+            }
+        }
+        let (stem, ext) = match r.name.rsplit_once('.') {
+            Some((s, e)) => (s.to_string(), e.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        // `{kind}` 需要类别名；索引里没取这一列，这里按扩展名给一个稳定口径（与界面分类同义）
+        let kind = match ext.to_ascii_lowercase().as_str() {
+            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "tif" | "tiff" | "heic" | "avif" => "image",
+            "mp4" | "mov" | "mkv" | "avi" | "webm" | "wmv" | "flv" => "video",
+            "mp3" | "wav" | "flac" | "aac" | "m4a" | "ogg" => "audio",
+            "blend" | "blend1" | "blend2" | "max" | "ma" | "mb" | "c4d" | "ztl" | "fbx" | "obj"
+            | "stl" | "3ds" => "3d",
+            "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "txt" | "md" | "csv" => "doc",
+            "zip" | "7z" | "rar" | "tar" | "gz" => "archive",
+            _ => "other",
+        }
+        .to_string();
+        sources.push(ArchiveSource {
+            asset_id: r.id,
+            volume_id: r.volume_id.clone(),
+            abs,
+            stem,
+            ext,
+            group: None,
+            parent: None,
+            kind,
+            capture_time: None,
+            mtime: r.mtime,
+            ctime: 0,
+            size: r.size,
+            excluded: false,
+        });
+    }
+    if sources.is_empty() {
+        err_text(&format!("`{root}\\{folder}` 里没有被索引到的素材（先扫描该文件夹）。"));
+        return 1;
+    }
+
+    let target_volume = crate::infra::volume::volume_id(std::path::Path::new(&target));
+    let rule = SeqRule::default();
+    // 第一遍：先算出每条的目标路径（冲突结论要等目标盘的事实查回来才能定）
+    let empty_targets: TargetFacts = HashMap::new();
+    let req1 = ArchiveRequest {
+        target_root: &target,
+        target_volume: &target_volume,
+        dir_template: &dir_template,
+        name_template: &name_template,
+        rule: &rule,
+        policy,
+        clean_empty_dirs,
+        targets: &empty_targets,
+        siblings: &siblings,
+        referrers: &referrers,
+    };
+    let pass1 = build_plan(&req1, &sources);
+
+    // 第二遍：只读 stat 目标盘，把「存在 + 体积 + 修改时间」查进来
+    let mut targets: TargetFacts = HashMap::new();
+    for it in &pass1.items {
+        if it.excluded || it.dst.is_empty() {
+            continue;
+        }
+        if let Ok(md) = std::fs::metadata(&it.dst) {
+            let size = md.len() as i64;
+            let mtime = md
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            targets.insert(it.dst.replace('/', "\\").to_lowercase(), (size, mtime));
+        }
+    }
+    let req2 = ArchiveRequest {
+        targets: &targets,
+        ..req1
+    };
+    let plan = build_plan(&req2, &sources);
+
+    let mut body = String::new();
+    body.push_str(&format!("归档计划（目录模板 {dir_template} · 命名模板 {name_template}）\n"));
+    body.push_str(&format!(
+        "  素材根 {} · 文件夹 {} · 目标根 {} · 参与 {} 项\n",
+        root,
+        if folder.trim().is_empty() { "（根）" } else { folder.trim() },
+        target,
+        plan.items.iter().filter(|i| !i.excluded).count()
+    ));
+    body.push_str(&format!(
+        "  冲突策略 {:?} · 空目录清理 {} · 计划里 {} 条\n",
+        plan.policy,
+        if clean_empty_dirs { "开启" } else { "关闭（默认）" },
+        plan.items.len()
+    ));
+    for n in &plan.notes {
+        body.push_str(&format!("  · {n}\n"));
+    }
+    if !plan.empty_dirs.is_empty() {
+        body.push_str("  归档后会变空的源目录（清理默认关闭）：\n");
+        for d in plan.empty_dirs.iter().take(10) {
+            body.push_str(&format!("    {d}\n"));
+        }
+    }
+    body.push_str("  预览（旧路径 → 新路径）：\n");
+    for it in plan.items.iter().take(limit.unwrap_or(20)) {
+        let old = file_name_of(&it.src);
+        if it.excluded {
+            body.push_str(&format!("    {old} → （已剔除）\n"));
+            continue;
+        }
+        let tag = if it.same_volume { "同盘" } else { "跨盘" };
+        body.push_str(&format!("    {old} → {}   [{tag}]", it.dst));
+        if !it.notes.is_empty() {
+            body.push_str(&format!("   // {}", it.notes.join("；")));
+        }
+        body.push('\n');
+    }
+    body.push_str(
+        "\n说明：本命令只读——只算目标路径与冲突结论，不移动/复制/删除任何文件；\n真正的搬运（同盘元数据操作、跨盘「复制 → 校验体积与修改时间 → 删除源 → 写 journal」）属 P6 提交执行。\n",
+    );
 
     if json {
         match serde_json::to_string_pretty(&plan) {
