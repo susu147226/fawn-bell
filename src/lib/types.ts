@@ -361,3 +361,33 @@ export interface SkippedProtected {
   addedAt: number;
   reason: string | null;
 }
+
+/* ── 归档与位置整理（§7.4） ───────────────────────────────────────── */
+
+export type ConflictPolicy = 'suffix' | 'skip' | 'abortBatch';
+/** 冲突判定结论：free 直接落位 / duplicateSkip 视为重复跳过 / conflict 按策略处理。 */
+export type ConflictVerdict = 'free' | 'duplicateSkip' | 'conflict';
+
+export interface ArchivePlanItem {
+  assetId: number;
+  src: string;
+  dstDir: string;
+  dst: string;
+  /** 同盘 = 元数据操作；跨盘 = 复制 → 校验 → 删源 → 写 journal。 */
+  sameVolume: boolean;
+  verdict: ConflictVerdict;
+  companions: string[];
+  notes: string[];
+  excluded: boolean;
+}
+
+export interface ArchivePlan {
+  items: ArchivePlanItem[];
+  targetRoot: string;
+  dirTemplate: string;
+  nameTemplate: string;
+  policy: ConflictPolicy;
+  cleanEmptyDirs: boolean;
+  emptyDirs: string[];
+  notes: string[];
+}

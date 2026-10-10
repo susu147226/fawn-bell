@@ -15,6 +15,7 @@ import { KindIcon } from '../lib/icons';
 import { api, errorText } from '../lib/ipc';
 import NamingPanel from './NamingPanel';
 import ProtectionPanel from './ProtectionPanel';
+import ArchivePanel from './ArchivePanel';
 import { DedupePanel, DraftsPanel, RelocateWizard, type NoticePayload } from './Panels';
 import {
   KINDS,
@@ -27,7 +28,7 @@ import {
 } from '../lib/types';
 
 /** 右栏可切换的工具面板。 */
-export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts' | 'naming' | 'protection';
+export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts' | 'naming' | 'protection' | 'archive';
 
 /** Shell 属性键 → 中文标签（§6.4）。 */
 const PROP_LABEL: Record<string, string> = {
@@ -507,6 +508,9 @@ function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
         <button className="btn" type="button" onClick={() => onPanel('protection')}>
           保护区…
         </button>
+        <button className="btn" type="button" onClick={() => onPanel('archive')}>
+          归档…
+        </button>
         <button className="btn" type="button" onClick={() => onPanel('drafts')}>
           变更集…
         </button>
@@ -540,6 +544,8 @@ export default function DetailPanel({
     body = <DraftsPanel onClose={() => onPanel('none')} />;
   } else if (panel === 'naming') {
     body = <NamingPanel onClose={() => onPanel('none')} />;
+  } else if (panel === 'archive') {
+    body = <ArchivePanel root={summary?.root ?? null} folder={current} onClose={() => onPanel('none')} />;
   } else if (panel === 'protection') {
     body = <ProtectionPanel onClose={() => onPanel('none')} onChanged={onProtectionChanged} />;
   } else if (panel === 'relocate') {

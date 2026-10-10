@@ -260,6 +260,151 @@ pub fn build_plan(req: &ArchiveRequest, sources: &[ArchiveSource]) -> ArchivePla
     }
 }
 
+/// 类别名（`{kind}`）：与界面分类同义的稳定口径。
+pub fn kind_of(ext: &str) -> String {
+    match ext.to_ascii_lowercase().as_str() {
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "tif" | "tiff" | "heic" | "avif" => "image",
+        "mp4" | "mov" | "mkv" | "avi" | "webm" | "wmv" | "flv" => "video",
+        "mp3" | "wav" | "flac" | "aac" | "m4a" | "ogg" => "audio",
+        "blend" | "blend1" | "blend2" | "max" | "ma" | "mb" | "c4d" | "ztl" | "fbx" | "obj" | "stl" | "3ds" => "3d",
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "txt" | "md" | "csv" => "doc",
+        "zip" | "7z" | "rar" | "tar" | "gz" => "archive",
+        _ => "other",
+    }
+    .to_string()
+}
+
+/// 从索引直接生成归档计划。
+///
+/// **适配器**：只做只读的 `fs::metadata` / `read_dir`（查目标盘事实与源目录清单），**绝不写盘**。
+/// CLI 与界面都走这一条，避免两处各写一遍口径导致行为分叉。
+pub fn plan_from_index(
+    conn: &rusqlite::Connection,
+    root: &str,
+    folder: &str,
+    target_root: &str,
+    dir_template: &str,
+    name_template: &str,
+    policy: ConflictPolicy,
+    clean_empty_dirs: bool,
+) -> Result<ArchivePlan, String> {
+    use crate::infra::{db, volume};
+
+    let volume_id = volume::volume_id(std::path::Path::new(root));
+    let mp = volume::mount_point(std::path::Path::new(root))
+        .map(|p| p.to_string_lossy().trim_end_matches('\\').to_string())
+        .unwrap_or_default();
+    let root_rel_prefix = format!(
+        "{}\\",
+        volume::rel_path_from_volume(std::path::Path::new(root)).trim_matches('\\')
+    );
+    let rows = db::assets_of_volume(conn, &volume_id)?;
+    let prefix = folder.trim().replace('/', "\\").to_lowercase();
+
+    let mut sources: Vec<ArchiveSource> = Vec::new();
+    let mut siblings: HashMap<String, Vec<String>> = HashMap::new();
+    let mut referrers: HashMap<String, Vec<String>> = HashMap::new();
+
+    for r in &rows {
+        let rel_norm = r.rel_path.replace('/', "\\");
+        if !rel_norm.to_lowercase().starts_with(&root_rel_prefix.to_lowercase()) {
+            continue;
+        }
+        let rest = &rel_norm[root_rel_prefix.len()..];
+        let rest_lower = rest.to_lowercase();
+        let in_folder = if prefix.is_empty() {
+            !rest_lower.contains('\\')
+        } else {
+            rest_lower.starts_with(&format!("{prefix}\\"))
+        };
+        if !in_folder {
+            continue;
+        }
+        let abs = format!("{mp}\\{rel_norm}");
+        let dir = dir_of(&abs);
+        if !siblings.contains_key(&dir) {
+            let mut names = Vec::new();
+            if let Ok(rd) = std::fs::read_dir(&dir) {
+                for e in rd.flatten() {
+                    names.push(e.file_name().to_string_lossy().to_string());
+                }
+            }
+            siblings.insert(dir.clone(), names);
+        }
+        if let Ok(list) = db::refs_for(conn, &r.name.to_lowercase()) {
+            if !list.is_empty() {
+                referrers.insert(
+                    r.name.to_lowercase(),
+                    list.into_iter().map(|(p, _)| p).collect::<Vec<String>>(),
+                );
+            }
+        }
+        let (stem, ext) = match r.name.rsplit_once('.') {
+            Some((s, e)) => (s.to_string(), e.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let kind = kind_of(&ext);
+        sources.push(ArchiveSource {
+            asset_id: r.id,
+            volume_id: r.volume_id.clone(),
+            abs,
+            stem,
+            ext,
+            group: None,
+            parent: None,
+            kind,
+            capture_time: None,
+            mtime: r.mtime,
+            ctime: 0,
+            size: r.size,
+            excluded: false,
+        });
+    }
+    if sources.is_empty() {
+        return Err(format!("`{root}\\{folder}` 里没有被索引到的素材（先扫描该文件夹）。"));
+    }
+
+    let target_volume = volume::volume_id(std::path::Path::new(target_root));
+    let rule = SeqRule::default();
+    // 第一遍：算目标路径；第二遍：把目标盘的只读事实查进来再定冲突结论
+    let empty: TargetFacts = HashMap::new();
+    let req1 = ArchiveRequest {
+        target_root,
+        target_volume: &target_volume,
+        dir_template,
+        name_template,
+        rule: &rule,
+        policy,
+        clean_empty_dirs,
+        targets: &empty,
+        siblings: &siblings,
+        referrers: &referrers,
+    };
+    let pass1 = build_plan(&req1, &sources);
+
+    let mut targets: TargetFacts = HashMap::new();
+    for it in &pass1.items {
+        if it.excluded || it.dst.is_empty() {
+            continue;
+        }
+        if let Ok(md) = std::fs::metadata(&it.dst) {
+            let size = md.len() as i64;
+            let mtime = md
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            targets.insert(it.dst.replace('/', "\\").to_lowercase(), (size, mtime));
+        }
+    }
+    let req2 = ArchiveRequest {
+        targets: &targets,
+        ..req1
+    };
+    Ok(build_plan(&req2, &sources))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

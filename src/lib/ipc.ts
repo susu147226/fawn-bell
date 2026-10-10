@@ -8,7 +8,9 @@ import { open } from '@tauri-apps/plugin-dialog';
 
 import type {
   AppInfo,
+  ArchivePlan,
   AssetMeta,
+  ConflictPolicy,
   DedupeReport,
   DraftList,
   DraftOp,
@@ -104,6 +106,26 @@ export const api = {
   autoProtectGet: () => invoke<boolean>('auto_protect_get'),
   autoProtectSet: (enabled: boolean) => invoke<void>('auto_protect_set', { enabled }),
   organizedCount: () => invoke<number>('organized_count'),
+
+  /* ── 归档与位置整理（§7.4）：只出计划，不搬文件 ── */
+  archivePlan: (
+    root: string,
+    folder: string,
+    targetRoot: string,
+    dirTemplate: string,
+    nameTemplate: string,
+    policy: ConflictPolicy,
+    cleanEmptyDirs: boolean,
+  ) =>
+    invoke<ArchivePlan>('archive_plan', {
+      root,
+      folder,
+      targetRoot,
+      dirTemplate,
+      nameTemplate,
+      policy,
+      cleanEmptyDirs,
+    }),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

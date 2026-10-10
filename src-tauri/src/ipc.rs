@@ -754,6 +754,36 @@ pub fn organized_count() -> Result<i64, String> {
     crate::infra::db::organized_count(&conn)
 }
 
+/// 归档计划（§7.4）：只读——算目标路径 + 冲突结论，不搬任何文件（执行属 P6）。
+#[tauri::command]
+pub fn archive_plan(
+    root: String,
+    folder: String,
+    target_root: String,
+    dir_template: String,
+    name_template: String,
+    policy: Option<String>,
+    clean_empty_dirs: Option<bool>,
+) -> Result<crate::app::archive::ArchivePlan, String> {
+    use crate::domain::archive::ConflictPolicy;
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let policy = match policy.as_deref() {
+        Some("skip") => ConflictPolicy::Skip,
+        Some("abort") => ConflictPolicy::AbortBatch,
+        _ => ConflictPolicy::Suffix,
+    };
+    crate::app::archive::plan_from_index(
+        &conn,
+        &root,
+        &folder,
+        &target_root,
+        &dir_template,
+        &name_template,
+        policy,
+        clean_empty_dirs.unwrap_or(false),
+    )
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {

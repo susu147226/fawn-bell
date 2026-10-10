@@ -62,6 +62,7 @@ pub fn run() {
             ipc::auto_protect_get,
             ipc::auto_protect_set,
             ipc::organized_count,
+            ipc::archive_plan,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");
