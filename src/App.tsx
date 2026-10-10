@@ -504,27 +504,27 @@ export default function App() {
   }, [root, selected]);
 
   /** 拖拽移动（§7.7）：把中栏拖来的条目落成 move 草稿。 */
-  const [dragRels, setDragRels] = useState<string[] | null>(null);
+  const dragRelsRef = useRef<string[] | null>(null);
 
-  const beginDrag = useCallback(
-    (rels: string[]) => setDragRels(rels.length > 0 ? rels : null),
-    [],
-  );
+  const beginDrag = useCallback((rels: string[]) => {
+    dragRelsRef.current = rels.length > 0 ? rels : null;
+  }, []);
 
   const moveTo = useCallback(
     (targetRel: string) => {
-      const rels = dragRels;
-      setDragRels(null);
-      if (!root || !rels || rels.length === 0) return;
+      const rels = dragRelsRef.current;
+      dragRelsRef.current = null;
+      const base = root ?? summary?.root ?? null;
+      if (!base || !rels || rels.length === 0) return;
       void (async () => {
         let n = 0;
         const problems: string[] = [];
         for (const rel of rels) {
-          const abs = `${root}\\${rel.replace(/\//g, '\\')}`;
+          const abs = `${base}\\${rel.replace(/\//g, '\\')}`;
           const name = rel.split('/').pop() ?? rel;
           const dst = targetRel
-            ? `${root}\\${targetRel.replace(/\//g, '\\')}\\${name}`
-            : `${root}\\${name}`;
+            ? `${base}\\${targetRel.replace(/\//g, '\\')}\\${name}`
+            : `${base}\\${name}`;
           try {
             const l = await api.draftAdd('move', abs, dst);
             if (l.problems > 0) problems.push(name);
@@ -541,13 +541,14 @@ export default function App() {
         setSideToken((v) => v + 1);
       })();
     },
-    [root, dragRels],
+    [root],
   );
 
   const protectSelection = useCallback(() => {
-    if (!root || selected.size === 0) return;
+    const base = root ?? summary?.root ?? null;
+    if (!base || selected.size === 0) return;
     void api
-      .protectionToggle(root, Array.from(selected), true, null)
+      .protectionToggle(base, Array.from(selected), true, null)
       .then((n) => {
         setNotice({
           kind: 'info',
@@ -557,17 +558,18 @@ export default function App() {
         setSideToken((v) => v + 1);
       })
       .catch((e) => setNotice({ kind: 'error', title: '加入保护区失败', lines: [errorText(e)] }));
-  }, [root, selected]);
+  }, [root, summary, selected]);
 
   /**
    * §7.6 快捷键 `Ctrl+Shift+L`：加入保护区；若选中项**都已在保护区里**，则改为移出。
    * 一个键管两个方向，避免用户记两条快捷键。
    */
   const toggleProtection = useCallback(() => {
-    if (!root || selected.size === 0) return;
+    const base = root ?? summary?.root ?? null;
+    if (!base || selected.size === 0) return;
     const rels = Array.from(selected);
     void api
-      .protectionToggle(root, rels, true, null)
+      .protectionToggle(base, rels, true, null)
       .then(async (added) => {
         if (added > 0) {
           setNotice({
@@ -576,7 +578,7 @@ export default function App() {
             lines: ['受保护项在批量操作中会被默认跳过；再按一次 Ctrl+Shift+L 可移出。'],
           });
         } else {
-          const removed = await api.protectionToggle(root, rels, false, null);
+          const removed = await api.protectionToggle(base, rels, false, null);
           setNotice({
             kind: 'info',
             title: `已移出保护区 ${formatCount(removed)} 项`,
@@ -586,7 +588,7 @@ export default function App() {
         setSideToken((v) => v + 1);
       })
       .catch((e) => setNotice({ kind: 'error', title: '保护区操作失败', lines: [errorText(e)] }));
-  }, [root, selected]);
+  }, [root, summary, selected]);
 
   // 快捷键回调用 ref 转发：键盘监听注册在回调定义之前，直接引用会撞上 TDZ
   const toggleRef = useRef<() => void>(() => {});
