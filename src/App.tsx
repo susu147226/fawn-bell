@@ -12,7 +12,7 @@
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { FolderOpen, ScanLine } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import AssetGrid from './components/AssetGrid';
 import AssetList from './components/AssetList';
@@ -329,7 +329,7 @@ export default function App() {
       // §7.6：Ctrl+Shift+L 加入 / 移出保护区
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
         e.preventDefault();
-        toggleProtection();
+        toggleRef.current();
         return;
       }
       // §7.2：撤销 / 重做只在草稿上下文内动，**不触碰磁盘**
@@ -363,7 +363,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [scanId, onCancelScan, toggleProtection]);
+  }, [scanId, onCancelScan]);
 
   /* ── 渲染 ─────────────────────────────────────────────────────── */
 
@@ -506,6 +506,12 @@ export default function App() {
       })
       .catch((e) => setNotice({ kind: 'error', title: '保护区操作失败', lines: [errorText(e)] }));
   }, [root, selected]);
+
+  // 快捷键回调用 ref 转发：键盘监听注册在回调定义之前，直接引用会撞上 TDZ
+  const toggleRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    toggleRef.current = toggleProtection;
+  }, [toggleProtection]);
 
   let mainBody: ReactNode;
   if (index && summary) {
