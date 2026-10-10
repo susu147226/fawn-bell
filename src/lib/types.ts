@@ -350,3 +350,14 @@ export interface ProtectionStats {
   total: number;
   weekNew: number;
 }
+
+/** 「已跳过 N 项（受保护）」明细（§7.6 第 1 点：名称、路径、加入时间与方式）。 */
+export interface SkippedProtected {
+  assetId: number;
+  name: string;
+  relPath: string;
+  volumeId: string;
+  addedBy: string;
+  addedAt: number;
+  reason: string | null;
+}

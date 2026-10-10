@@ -26,6 +26,7 @@ import type {
   ScanResult,
   ScanSnapshot,
   SeqRule,
+  SkippedProtected,
 } from './types';
 
 export const api = {
@@ -97,6 +98,12 @@ export const api = {
   /** 按「素材根 + 相对路径」加入 / 移出保护区（§7.6）。 */
   protectionToggle: (root: string, relPaths: string[], add: boolean, reason?: string | null) =>
     invoke<number>('protection_toggle', { root, relPaths, add, reason: reason ?? null }),
+
+  /* ── 保护区跳过入口与「已整理」标记（§7.6 / §16④） ── */
+  skippedProtectedList: () => invoke<SkippedProtected[]>('skipped_protected_list'),
+  autoProtectGet: () => invoke<boolean>('auto_protect_get'),
+  autoProtectSet: (enabled: boolean) => invoke<void>('auto_protect_set', { enabled }),
+  organizedCount: () => invoke<number>('organized_count'),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

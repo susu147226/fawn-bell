@@ -156,6 +156,38 @@ pub fn stats(conn: &Connection) -> Result<(i64, i64), String> {
     Ok((db::protected_count(conn)?, db::protected_week_new(conn, now_ms())?))
 }
 
+/* ── 提交成功后的「已整理 + 自动加入保护区」（§7.6，默认开启） ────── */
+
+/// 设置项键名（§10「安全」分组）。
+pub const SETTING_AUTO_PROTECT: &str = "safety.autoProtectOrganized";
+
+/// 是否开启「提交成功后自动把已整理素材加入保护区」。**默认开启**，只有显式关掉才返回 false。
+pub fn auto_protect_enabled(conn: &Connection) -> bool {
+    match db::setting_get(conn, SETTING_AUTO_PROTECT) {
+        Some(v) => v != "0" && v.to_lowercase() != "false",
+        None => true,
+    }
+}
+
+/// 提交成功后调用：打「已整理」标记，并在开关开启时自动加入保护区（`added_by='auto'`）。
+///
+/// 真实的提交执行属 P6；这里把**写入口**备好并单独可测，P6 接上去即可。
+/// 返回 `(已整理条数, 自动加入保护区条数)`。
+pub fn after_commit(conn: &Connection, asset_ids: &[i64], batch_id: &str) -> Result<(usize, usize), String> {
+    let organized = db::organized_mark(conn, asset_ids, batch_id)?;
+    let protected = if auto_protect_enabled(conn) {
+        db::protect_assets(conn, asset_ids, "auto", Some("提交成功后自动加入保护区"))?
+    } else {
+        0
+    };
+    Ok((organized, protected))
+}
+
+/// 「已跳过 N 项（受保护）」明细（§7.6 / §16④）。
+pub fn skipped_protected(conn: &Connection) -> Result<Vec<db::SkippedProtectedRow>, String> {
+    db::skipped_protected(conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +322,59 @@ mod tests {
         let (total, week) = stats(&c).unwrap();
         assert_eq!(total, 1);
         assert_eq!(week, 0, "10 天前的条目不算当周新增");
+    }
+
+    #[test]
+    fn 提交成功后打已整理标记并按开关自动加入保护区() {
+        let c = conn("aftercommit");
+        let a = asset(&c, "a.png", 1, 1);
+        let b = asset(&c, "b.png", 1, 1);
+        let (org, prot) = after_commit(&c, &[a, b], "batch-1").unwrap();
+        assert_eq!((org, prot), (2, 2), "默认开启：打标记并自动加入保护区");
+        assert!(db::is_organized(&c, a));
+        assert!(db::is_protected_asset(&c, a));
+
+        // 幂等：再提交一次是累加次数，而不是插重复行
+        let (org2, _) = after_commit(&c, &[a], "batch-2").unwrap();
+        assert_eq!(org2, 1);
+        assert_eq!(db::organized_count(&c).unwrap(), 2, "已整理表按素材去重");
+
+        // 关掉开关：仍然打「已整理」标记，但不再自动加入保护区
+        let c2 = conn("aftercommit2");
+        db::setting_set(&c2, SETTING_AUTO_PROTECT, "0").unwrap();
+        assert!(!auto_protect_enabled(&c2));
+        let x = asset(&c2, "x.png", 1, 1);
+        let (_, prot2) = after_commit(&c2, &[x], "batch-1").unwrap();
+        assert_eq!(prot2, 0, "开关关闭时不应自动加入保护区");
+        assert!(db::is_organized(&c2, x), "但已整理标记照打");
+    }
+
+    #[test]
+    fn 已跳过入口只列受保护且出现在变更集里的条目() {
+        let c = conn("skipped");
+        let a = asset(&c, "a.png", 1, 1);
+        let b = asset(&c, "b.png", 1, 1);
+        protect(&c, &[a, b], "manual", Some("手工加入")).unwrap();
+        // 只有 a 出现在变更集里（先排草稿、后加入保护区的场景，§7.6 提交时校验）
+        db::replace_drafts(
+            &c,
+            &[db::DraftRow {
+                seq: 1,
+                op: "rename".into(),
+                asset_id: Some(a),
+                src: "D:\\素材\\a.png".into(),
+                dst: Some("D:\\素材\\a2.png".into()),
+                check_status: "protected".into(),
+                check_reason: Some("该条目在保护区内，默认不参与操作".into()),
+            }],
+        )
+        .unwrap();
+
+        let rows = skipped_protected(&c).unwrap();
+        assert_eq!(rows.len(), 1, "只列「受保护 + 出现在变更集里」的条目");
+        assert_eq!(rows[0].asset_id, a);
+        assert_eq!(rows[0].name, "a.png");
+        assert_eq!(rows[0].added_by, "manual");
+        assert!(rows[0].added_at > 0);
     }
 }

@@ -9,9 +9,9 @@
 import { useEffect, useState } from 'react';
 import { FolderSearch, ListChecks } from 'lucide-react';
 
-import { formatBytes, formatCount } from '../lib/format';
+import { formatBytes, formatCount, formatDateTime } from '../lib/format';
 import { api, errorText, pickFolder } from '../lib/ipc';
-import type { DedupeReport, DraftList, LibraryInfo, RelocatePlan } from '../lib/types';
+import type { DedupeReport, DraftList, LibraryInfo, RelocatePlan, SkippedProtected } from '../lib/types';
 
 export interface NoticePayload {
   kind: 'info' | 'warn' | 'error';
@@ -181,6 +181,9 @@ export function DraftsPanel({ onClose }: { onClose: () => void }) {
   const [list, setList] = useState<DraftList | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** §7.6 / §16④：「已跳过 N 项（受保护）」明细，可点开逐条查看。 */
+  const [skipped, setSkipped] = useState<SkippedProtected[] | null>(null);
+  const [showSkipped, setShowSkipped] = useState(false);
 
   const act = async (fn: () => Promise<DraftList>) => {
     setBusy(true);
@@ -194,13 +197,46 @@ export function DraftsPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const loadSkipped = async () => {
+    try {
+      setSkipped(await api.skippedProtectedList());
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  };
+
   useEffect(() => {
-    void act(api.draftList);
+    void act(api.draftList).then(() => loadSkipped());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <>
+      {skipped && skipped.length > 0 ? (
+        <div className="detail-sec">
+          <button className="btn" type="button" onClick={() => setShowSkipped((v) => !v)}>
+            已跳过 {formatCount(skipped.length)} 项（受保护）
+          </button>
+          {showSkipped ? (
+            <div style={{ marginTop: 'var(--spacing-2)' }}>
+              {skipped.map((s) => (
+                <div key={s.assetId} style={{ marginBottom: 'var(--spacing-2)' }}>
+                  <div className="kv-key">
+                    {s.name} · {s.addedBy === 'auto' ? '提交成功后自动加入' : '手工加入'} ·{' '}
+                    {formatDateTime(s.addedAt)}
+                  </div>
+                  <div className="kv-val mono">{s.relPath}</div>
+                  {s.reason ? <div className="tbd">{s.reason}</div> : null}
+                </div>
+              ))}
+              <div className="tbd">
+                受保护项在批量操作中被默认跳过（§7.6）；需要时可在右栏「保护区…」里逐条移出。
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="detail-sec">
         <div className="detail-title">变更集（虚拟变更集）</div>
         <div className="kv">

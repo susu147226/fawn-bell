@@ -1131,6 +1131,90 @@ pub fn asset_ids_by_rel(conn: &Connection, volume_id: &str, rel_paths: &[String]
     Ok(out)
 }
 
+/* ── 已整理标记（§7.6：提交成功后写入，用于「已整理态」与撤销审计） ── */
+
+/// 标记「已整理」（幂等累加次数，保留首末批次号）。
+pub fn organized_mark(conn: &Connection, asset_ids: &[i64], batch_id: &str) -> Result<usize, String> {
+    let now = now_ms();
+    let mut n = 0usize;
+    for id in asset_ids {
+        n += conn
+            .execute(
+                "INSERT INTO organized(asset_id, first_batch_id, last_batch_id, organized_at, times)
+                 VALUES(?1, ?2, ?2, ?3, 1)
+                 ON CONFLICT(asset_id) DO UPDATE SET
+                   last_batch_id = ?2,
+                   organized_at = ?3,
+                   times = COALESCE(times, 0) + 1",
+                params![id, batch_id, now],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(n)
+}
+
+pub fn is_organized(conn: &Connection, asset_id: i64) -> bool {
+    conn.query_row(
+        "SELECT 1 FROM organized WHERE asset_id = ?1",
+        params![asset_id],
+        |_| Ok(()),
+    )
+    .optional()
+    .ok()
+    .flatten()
+    .is_some()
+}
+
+pub fn organized_count(conn: &Connection) -> Result<i64, String> {
+    conn.query_row("SELECT COUNT(*) FROM organized", [], |r| r.get(0))
+        .map_err(|e| e.to_string())
+}
+
+/// 「已跳过 N 项（受保护）」入口要的明细（§7.6 / §16④）：名称、路径、加入时间与方式、原因。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkippedProtectedRow {
+    pub asset_id: i64,
+    pub name: String,
+    pub rel_path: String,
+    pub volume_id: String,
+    pub added_by: String,
+    pub added_at: i64,
+    pub reason: Option<String>,
+}
+
+/// 取受保护且出现在变更集里的条目（草稿是按 asset_id 排的，这里把它和保护区、素材表连起来）。
+pub fn skipped_protected(conn: &Connection) -> Result<Vec<SkippedProtectedRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT p.asset_id, COALESCE(a.name,''), COALESCE(a.rel_path,''), COALESCE(a.volume_id,''),
+                    COALESCE(p.added_by,'manual'), COALESCE(p.added_at,0), p.reason
+             FROM protections p
+             LEFT JOIN assets a ON a.id = p.asset_id
+             WHERE p.asset_id IN (SELECT asset_id FROM drafts WHERE asset_id IS NOT NULL)
+             ORDER BY p.added_at DESC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(SkippedProtectedRow {
+                asset_id: row.get(0)?,
+                name: row.get(1)?,
+                rel_path: row.get(2)?,
+                volume_id: row.get(3)?,
+                added_by: row.get(4)?,
+                added_at: row.get(5)?,
+                reason: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| e.to_string())?);
+    }
+    Ok(out)
+}
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {

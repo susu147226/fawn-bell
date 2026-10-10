@@ -58,6 +58,10 @@ pub fn run() {
             ipc::protected_remove_all,
             ipc::protection_stats,
             ipc::protection_toggle,
+            ipc::skipped_protected_list,
+            ipc::auto_protect_get,
+            ipc::auto_protect_set,
+            ipc::organized_count,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");

@@ -722,6 +722,38 @@ pub fn protection_toggle(
     }
 }
 
+/// 「已跳过 N 项（受保护）」明细：受保护且出现在变更集里的条目，
+/// 逐条给出名称、路径、加入时间与方式（§7.6 第 1 点 / §16④）。
+#[tauri::command]
+pub fn skipped_protected_list() -> Result<Vec<crate::infra::db::SkippedProtectedRow>, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::app::groups::skipped_protected(&conn)
+}
+
+/// 「提交成功后自动把已整理素材加入保护区」开关（§10 安全分组，默认开启）。
+#[tauri::command]
+pub fn auto_protect_get() -> Result<bool, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    Ok(crate::app::groups::auto_protect_enabled(&conn))
+}
+
+#[tauri::command]
+pub fn auto_protect_set(enabled: bool) -> Result<(), String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::infra::db::setting_set(
+        &conn,
+        crate::app::groups::SETTING_AUTO_PROTECT,
+        if enabled { "1" } else { "0" },
+    )
+}
+
+/// 已整理条目数（「已整理态 ✓」徽标与排序面板里的真值）。
+#[tauri::command]
+pub fn organized_count() -> Result<i64, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    crate::infra::db::organized_count(&conn)
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {
