@@ -73,6 +73,8 @@ export default function App() {
   const [draftMap, setDraftMap] = useState<Map<string, Projection>>(new Map());
   /** 关闭前询问（§7.2：变更集非空时必须三选项并列）。 */
   const [closeAsk, setCloseAsk] = useState(false);
+  /** 关闭拦截读它，避免把监听器绑在会变的 state 上（改绑后旧监听器会继续拦，导致关不掉）。 */
+  const draftCountRef = useRef(0);
   /** 保护区 / 分组变化后自增，让左栏重新读数（§7.6）。 */
   const [sideToken, setSideToken] = useState(0);
 
@@ -421,7 +423,8 @@ export default function App() {
     let alive = true;
     void getCurrentWindow()
       .onCloseRequested((event) => {
-        if ((draftList?.count ?? 0) > 0) {
+        if (allowClose.current) return; // 已经确认过了，直接放行
+        if (draftCountRef.current > 0) {
           event.preventDefault();
           setCloseAsk(true);
         }
@@ -434,10 +437,18 @@ export default function App() {
       alive = false;
       unlisten?.();
     };
+  }, []);
+
+  useEffect(() => {
+    draftCountRef.current = draftList?.count ?? 0;
   }, [draftList]);
 
+  // 关闭放行标志：用户已经选过「保存草稿并关闭 / 放弃变更并关闭」之后就不要再拦
+  const allowClose = useRef(false);
   const closeWindow = useCallback(() => {
-    void getCurrentWindow().close();
+    allowClose.current = true;
+    // 用户已经确认过了：直接销毁窗口，不再触发一次 close-requested（否则会被自己的监听器拦住）
+    void getCurrentWindow().destroy();
   }, []);
 
   const discardAndClose = useCallback(() => {

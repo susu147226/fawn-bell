@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "主窗口能力集：只开放鹿铃自有命令、「选择文件夹」对话框与「关闭窗口」（§7.2 关闭前询问未提交变更），不开放任何网络与文件系统通配权限（执行版 §11 零网络 / §14① 素材树零写入）",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:default", "core:window:allow-close", "dialog:allow-open"]
+  "permissions": ["core:default", "core:event:default", "core:window:allow-close", "core:window:allow-destroy", "dialog:allow-open"]
 }

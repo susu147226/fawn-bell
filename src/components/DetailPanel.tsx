@@ -527,6 +527,32 @@ function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
   );
 }
 
+/** 右栏顶部的**常驻功能条**：主要功能入口一眼可见，不用往下翻（用户反馈：入口太不显眼）。 */
+function FunctionRail({ panel, onPanel }: { panel: PanelKind; onPanel: (p: PanelKind) => void }) {
+  const ITEMS: Array<{ kind: PanelKind; label: string }> = [
+    { kind: 'naming', label: '命名' },
+    { kind: 'archive', label: '归档' },
+    { kind: 'protection', label: '保护区' },
+    { kind: 'drafts', label: '变更集' },
+    { kind: 'relocate', label: '重定位' },
+    { kind: 'dedupe', label: '去重' },
+  ];
+  return (
+    <div className="rail">
+      {ITEMS.map((it) => (
+        <button
+          key={it.kind}
+          className={panel === it.kind ? 'rail-item on' : 'rail-item'}
+          type="button"
+          onClick={() => onPanel(panel === it.kind ? 'none' : it.kind)}
+        >
+          {it.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function DetailPanel({
   width,
   index,
@@ -584,6 +610,7 @@ export default function DetailPanel({
 
   return (
     <div className="detail" style={{ width }}>
+      <FunctionRail panel={panel} onPanel={onPanel} />
       {body}
       {panel === 'none' ? <ToolsEntry onPanel={onPanel} /> : null}
     </div>
