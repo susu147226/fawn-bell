@@ -12,10 +12,13 @@ import type {
   DedupeReport,
   DraftList,
   DraftOp,
+  Group,
   LibraryInfo,
   Preset,
   PresetApply,
   Projection,
+  Protection,
+  ProtectionStats,
   RelocatePlan,
   Rendered,
   ScanDone,
@@ -74,6 +77,23 @@ export const api = {
     invoke<PresetApply>('preset_apply', { id, ext, start, rule }),
   namingPreview: (template: string, rule: SeqRule, stem: string, ext: string) =>
     invoke<Rendered[]>('naming_preview', { template, rule, stem, ext }),
+
+  /* ── 分组与保护区（§7.5 / §7.6） ── */
+  groupsList: () => invoke<Group[]>('groups_list'),
+  groupCreate: (name: string) => invoke<number>('group_create', { name }),
+  groupRename: (id: number, name: string) => invoke<void>('group_rename', { id, name }),
+  groupDelete: (id: number) => invoke<void>('group_delete', { id }),
+  groupAddMembers: (id: number, assetIds: number[]) =>
+    invoke<number>('group_add_members', { id, assetIds }),
+  groupRemoveMembers: (id: number, assetIds: number[]) =>
+    invoke<number>('group_remove_members', { id, assetIds }),
+  groupMembersEval: (id: number) => invoke<number[]>('group_members_eval', { id }),
+  protectedList: () => invoke<Protection[]>('protected_list'),
+  protectedAdd: (assetIds: number[], reason?: string | null) =>
+    invoke<number>('protected_add', { assetIds, reason: reason ?? null }),
+  protectedRemove: (assetIds: number[]) => invoke<number>('protected_remove', { assetIds }),
+  protectedRemoveAll: () => invoke<number>('protected_remove_all'),
+  protectionStats: () => invoke<ProtectionStats>('protection_stats'),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

@@ -321,3 +321,32 @@ export interface Rendered {
   name: string;
   notes: string[];
 }
+
+/* ── 分组与保护区（§7.5 / §7.6） ─────────────────────────────────── */
+
+/** 分组：`static` 手工挑选，`smart` 保存规则动态求值。 */
+export interface Group {
+  id: number;
+  name: string;
+  kind: string;
+  ruleJson: string | null;
+  color: string | null;
+  sortOrder: number;
+  /** 成员数：静态分组是成员表计数；内置「重复内容」由去重用例物化。 */
+  memberCount: number;
+}
+
+/** 保护区条目：横切安全属性，独立于分组。 */
+export interface Protection {
+  assetId: number;
+  /** auto（提交成功后自动加入）/ manual（手工加入）。 */
+  addedBy: string;
+  addedAt: number;
+  reason: string | null;
+}
+
+/** 保护区统计（§7.6：总数 + 当周新增并列显示）。 */
+export interface ProtectionStats {
+  total: number;
+  weekNew: number;
+}

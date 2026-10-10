@@ -7,10 +7,12 @@
  */
 
 import { ChevronDown, ChevronRight, Folder, FolderOpen, Lock, Palette } from 'lucide-react';
-import { Fragment } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
 import { subDirsOf, type ScanIndex } from '../lib/folders';
 import { formatCount } from '../lib/format';
+import { api, errorText } from '../lib/ipc';
+import type { Group, ProtectionStats } from '../lib/types';
 import { THEME_LABEL, type ThemePref } from '../lib/useTheme';
 
 export interface SidebarProps {
@@ -111,6 +113,49 @@ export default function Sidebar({
   onPick,
   onTheme,
 }: SidebarProps) {
+  // §7.5 / §7.6：分组、智能集合、保护区都读库里的真数据（智能集合动态求值）
+  const [groups, setGroups] = useState<Group[] | null>(null);
+  const [stats, setStats] = useState<ProtectionStats | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  const reload = async () => {
+    try {
+      const [g, s] = await Promise.all([api.groupsList(), api.protectionStats()]);
+      // 智能集合除了「重复内容」（由去重用例物化）之外都要现算，显示真数字
+      const withCounts = await Promise.all(
+        g.map(async (x) =>
+          x.kind === 'smart' && !(x.ruleJson ?? '').includes('duplicates')
+            ? { ...x, memberCount: (await api.groupMembersEval(x.id)).length }
+            : x,
+        ),
+      );
+      setGroups(withCounts);
+      setStats(s);
+      setErr(null);
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  };
+
+  useEffect(() => {
+    void reload();
+  }, []);
+
+  const createGroup = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    try {
+      await api.groupCreate(name);
+      setNewName('');
+      setAdding(false);
+      await reload();
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  };
+
   const rootOpen = expanded.has('');
   const rootHasKids = index ? subDirsOf(index, '').length > 0 : false;
 
@@ -180,32 +225,66 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* 分组 / 智能集合 / 保护区：壳按设计稿摆齐（§8.1 左栏四组），数据属 P4，
-          这里如实标注阶段而不是编数字（§12.4⑨）。 */}
+      {/* §7.5 分组 + 智能集合：读库里的真数据；智能集合每次打开动态求值，
+          「重复内容」用的是去重用例物化进 asset_group 的成员（同源，§16⑰①）。 */}
       <div className="side-sec">
         <div className="side-title">
           <span>分组</span>
-          <button className="btn ghost" type="button" disabled title="新建分组在 P4 接入">
+          <button className="btn ghost" type="button" onClick={() => setAdding((v) => !v)} title="新建分组">
             +
           </button>
         </div>
-        <div className="tbd">
-          暂无分组 <span className="tag-soon">P4</span>
-        </div>
+        {adding ? (
+          <div style={{ display: 'flex', gap: 'var(--spacing-1)' }}>
+            <input
+              type="text"
+              value={newName}
+              placeholder="分组名"
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void createGroup();
+              }}
+              style={{ width: '100%' }}
+            />
+            <button className="btn" type="button" disabled={!newName.trim()} onClick={() => void createGroup()}>
+              建立
+            </button>
+          </div>
+        ) : null}
+        {(groups ?? []).filter((g) => g.kind !== 'smart').length === 0 ? (
+          <div className="tbd">暂无分组（点 + 新建）</div>
+        ) : (
+          (groups ?? [])
+            .filter((g) => g.kind !== 'smart')
+            .map((g) => (
+              <div className="tree-row" key={g.id} title={`${g.name} · ${formatCount(g.memberCount)} 项`}>
+                <span className="tree-name">{g.name}</span>
+                <span className="tree-meta">{formatCount(g.memberCount)}</span>
+              </div>
+            ))
+        )}
       </div>
 
       <div className="side-sec">
         <div className="side-title">
           <span>智能集合</span>
-          <button className="btn ghost" type="button" disabled title="新建智能集合在 P4 接入">
-            +
-          </button>
+          <span className="tag-soon">动态</span>
         </div>
-        <div className="tbd">
-          暂无智能集合 <span className="tag-soon">P4</span>
-        </div>
+        {(groups ?? [])
+          .filter((g) => g.kind === 'smart')
+          .map((g) => (
+            <div
+              className="tree-row"
+              key={g.id}
+              title={`${g.name} · ${formatCount(g.memberCount)} 项（每次打开动态求值）`}
+            >
+              <span className="tree-name">{g.name}</span>
+              <span className="tree-meta">{formatCount(g.memberCount)}</span>
+            </div>
+          ))}
       </div>
 
+      {/* §7.6 保护区：横切安全属性，独立于分组；总条目数与「当周新增」并列显示 */}
       <div className="side-sec">
         <div className="side-title">
           <span>
@@ -214,9 +293,16 @@ export default function Sidebar({
           <span className="tag-soon">锁定</span>
         </div>
         <div className="tbd">
-          默认排除一切操作 <span className="tag-soon">P4</span>
+          共 {formatCount(stats?.total ?? 0)} 项 · 当周新增 {formatCount(stats?.weekNew ?? 0)}
         </div>
+        <div className="tbd">受保护项在批量操作中被默认跳过</div>
       </div>
+
+      {err ? (
+        <div className="side-sec">
+          <span className="tbd">{err}</span>
+        </div>
+      ) : null}
 
       <div className="side-sec">
         <div className="side-title">

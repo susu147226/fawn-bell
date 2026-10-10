@@ -658,7 +658,12 @@ pub fn group_members_eval(id: i64) -> Result<Vec<i64>, String> {
         return crate::infra::db::group_members(&conn, id);
     }
     let rule = g.rule_json.clone().unwrap_or_default();
-    if rule.contains("duplicates") {
+    // 「重复内容」的成员由内容去重用例物化在 asset_group 里（同源）；规则串里没有可识别 kind 的
+    // 历史集合（P1 期间的 `ensure_smart_group` 建过一条）也走物化成员，绝不在这里重算第二套判定。
+    let known_kind = serde_json::from_str::<serde_json::Value>(&rule)
+        .ok()
+        .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(|s| s.to_string()));
+    if rule.contains("duplicates") || known_kind.is_none() {
         return crate::infra::db::group_members(&conn, id);
     }
     crate::app::groups::eval_smart(&conn, &rule, &[])
