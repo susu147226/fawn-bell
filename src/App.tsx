@@ -326,6 +326,12 @@ export default function App() {
         setView('folders');
         return;
       }
+      // §7.6：Ctrl+Shift+L 加入 / 移出保护区
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+        e.preventDefault();
+        toggleProtection();
+        return;
+      }
       // §7.2：撤销 / 重做只在草稿上下文内动，**不触碰磁盘**
       if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
         e.preventDefault();
@@ -357,7 +363,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [scanId, onCancelScan]);
+  }, [scanId, onCancelScan, toggleProtection]);
 
   /* ── 渲染 ─────────────────────────────────────────────────────── */
 
@@ -470,6 +476,35 @@ export default function App() {
         setSideToken((v) => v + 1);
       })
       .catch((e) => setNotice({ kind: 'error', title: '加入保护区失败', lines: [errorText(e)] }));
+  }, [root, selected]);
+
+  /**
+   * §7.6 快捷键 `Ctrl+Shift+L`：加入保护区；若选中项**都已在保护区里**，则改为移出。
+   * 一个键管两个方向，避免用户记两条快捷键。
+   */
+  const toggleProtection = useCallback(() => {
+    if (!root || selected.size === 0) return;
+    const rels = Array.from(selected);
+    void api
+      .protectionToggle(root, rels, true, null)
+      .then(async (added) => {
+        if (added > 0) {
+          setNotice({
+            kind: 'info',
+            title: `已加入保护区 ${formatCount(added)} 项`,
+            lines: ['受保护项在批量操作中会被默认跳过；再按一次 Ctrl+Shift+L 可移出。'],
+          });
+        } else {
+          const removed = await api.protectionToggle(root, rels, false, null);
+          setNotice({
+            kind: 'info',
+            title: `已移出保护区 ${formatCount(removed)} 项`,
+            lines: ['这些素材之后会正常参与批量操作。'],
+          });
+        }
+        setSideToken((v) => v + 1);
+      })
+      .catch((e) => setNotice({ kind: 'error', title: '保护区操作失败', lines: [errorText(e)] }));
   }, [root, selected]);
 
   let mainBody: ReactNode;
