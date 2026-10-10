@@ -1031,3 +1031,44 @@ textarea {
 .tbl-row.body[draggable='true'] {
   cursor: grab;
 }
+
+/* ── 弹性布局（三栏 flex 链）────────────────────────────────────────
+ * 症状：窗口拉宽/最大化后右栏被挤出可视区、内容被裁。根因是三栏各自定宽、
+ * 中栏不肯收缩，总宽一旦超过容器就把最后一栏顶出去。这里把整条链子改成真正的弹性。
+ */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 左栏定宽（可拖拽调宽），右栏定宽但限上限，中栏吃掉剩余空间 */
+.sidebar {
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: auto;
+}
+
+.detail {
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.main,
+.list {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.splitter {
+  flex: 0 0 auto;
+}
