@@ -357,10 +357,19 @@ pub fn format_datetime(ms: i64, fmt: &str) -> String {
         if let Some(r) = rest.strip_prefix("YYYY") {
             out.push_str(&format!("{y:04}"));
             rest = r;
+        } else if let Some(r) = rest.strip_prefix("yyyy") {
+            out.push_str(&format!("{y:04}"));
+            rest = r;
+        } else if let Some(r) = rest.strip_prefix("YY") {
+            out.push_str(&format!("{:02}", y.rem_euclid(100)));
+            rest = r;
         } else if let Some(r) = rest.strip_prefix("MM") {
             out.push_str(&format!("{m:02}"));
             rest = r;
         } else if let Some(r) = rest.strip_prefix("DD") {
+            out.push_str(&format!("{d:02}"));
+            rest = r;
+        } else if let Some(r) = rest.strip_prefix("dd") {
             out.push_str(&format!("{d:02}"));
             rest = r;
         } else if let Some(r) = rest.strip_prefix("HH") {
@@ -460,6 +469,19 @@ fn resolve_placeholder(token: &str, ctx: &NameCtx, rule: &SeqRule) -> (String, O
             .time_ms()
             .map(|ms| format_datetime(ms, arg.as_deref().unwrap_or("YYYYMMDD")))
             .unwrap_or_default(),
+        // §7.4 归档目录模板用的记号：{yyyy} / {yy} / {mm}
+        "yyyy" => ctx
+            .time_ms()
+            .map(|ms| format_datetime(ms, "YYYY"))
+            .unwrap_or_default(),
+        "yy" => ctx
+            .time_ms()
+            .map(|ms| format_datetime(ms, "YY"))
+            .unwrap_or_default(),
+        "mm" => ctx
+            .time_ms()
+            .map(|ms| format_datetime(ms, "MM"))
+            .unwrap_or_default(),
         "time" => ctx
             .time_ms()
             .map(|ms| format_datetime(ms, arg.as_deref().unwrap_or("HHmmss")))
@@ -506,6 +528,11 @@ fn resolve_placeholder(token: &str, ctx: &NameCtx, rule: &SeqRule) -> (String, O
 ///
 /// 三条安全网：① 模板没写 `{ext}` 时自动补扩展名；② 渲染结果为空时回退到原名；③ 超长截断中间。
 pub fn render(template: &str, ctx: &NameCtx, rule: &SeqRule) -> Rendered {
+    render_with(template, ctx, rule, true)
+}
+
+/// 渲染模板；`append_ext = false` 用于**目录模板**（§7.4 归档：目录名不该被补上文件扩展名）。
+pub fn render_with(template: &str, ctx: &NameCtx, rule: &SeqRule, append_ext: bool) -> Rendered {
     let mut notes: Vec<String> = Vec::new();
     let mut out = String::with_capacity(template.len() + 16);
     let mut rest = template;
@@ -540,7 +567,7 @@ pub fn render(template: &str, ctx: &NameCtx, rule: &SeqRule) -> Rendered {
     }
     out.push_str(rest);
 
-    if !has_ext_placeholder && !ctx.ext.is_empty() {
+    if append_ext && !has_ext_placeholder && !ctx.ext.is_empty() {
         out.push('.');
         out.push_str(ctx.ext);
     }
