@@ -73,6 +73,8 @@ export default function App() {
   const [draftMap, setDraftMap] = useState<Map<string, Projection>>(new Map());
   /** 关闭前询问（§7.2：变更集非空时必须三选项并列）。 */
   const [closeAsk, setCloseAsk] = useState(false);
+  /** 保护区 / 分组变化后自增，让左栏重新读数（§7.6）。 */
+  const [sideToken, setSideToken] = useState(0);
 
   const left = useResizable({ storageKey: 'luling.leftWidth', initial: 248, min: 180, max: 420, side: 'left' });
   const right = useResizable({ storageKey: 'luling.rightWidth', initial: 320, min: 240, max: 480, side: 'right' });
@@ -454,6 +456,22 @@ export default function App() {
       .catch((e) => setNotice({ kind: 'error', title: '重做失败', lines: [errorText(e)] }));
   }, []);
 
+  /** §7.6 手工加入保护区：把当前选中的行按相对路径交给后端换成素材 id 再写保护标记。 */
+  const protectSelection = useCallback(() => {
+    if (!root || selected.size === 0) return;
+    void api
+      .protectionToggle(root, Array.from(selected), true, null)
+      .then((n) => {
+        setNotice({
+          kind: 'info',
+          title: `已加入保护区 ${formatCount(n)} 项`,
+          lines: ['受保护项在批量操作中会被默认跳过；可在右栏「保护区…」里逐条移出。'],
+        });
+        setSideToken((v) => v + 1);
+      })
+      .catch((e) => setNotice({ kind: 'error', title: '加入保护区失败', lines: [errorText(e)] }));
+  }, [root, selected]);
+
   let mainBody: ReactNode;
   if (index && summary) {
     mainBody =
@@ -491,6 +509,15 @@ export default function App() {
             <span className="badge" title="受保护：P4 接入">
               受保护 <span className="tag-soon">P4</span>
             </span>
+            <button
+              className="btn"
+              type="button"
+              disabled={selected.size === 0 || !root}
+              title="把当前选中的素材加入保护区（§7.6；批量操作会默认跳过它们）"
+              onClick={protectSelection}
+            >
+              加入保护区
+            </button>
           </div>
           <div className="seg" role="group" aria-label="筛选" style={{ margin: 'var(--spacing-1) var(--spacing-3)' }}>
             <button className="seg-item on" type="button" disabled>
@@ -590,6 +617,7 @@ export default function App() {
               onToggleExpand={onToggleExpand}
               onPick={onPick}
               onTheme={theme.setPref}
+              refreshToken={sideToken}
             />
             <div
               className={left.dragging ? 'splitter dragging' : 'splitter'}

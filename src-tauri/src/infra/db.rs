@@ -1113,6 +1113,24 @@ pub const SMART_NEW_30D: &str = r#"{"kind":"newerThanDays","days":30}"#;
 pub const SMART_UNTAGGED: &str = r#"{"kind":"untagged"}"#;
 pub const SMART_BIG_50MB: &str = r#"{"kind":"sizeGreaterThan","bytes":52428800}"#;
 
+/// 按「卷 + 卷内相对路径」取素材 id。
+///
+/// 界面手里只有相对路径（行 id 就是 relPath），而保护区 / 分组要的是 `assets.id`；
+/// 这条查询就是那座桥。路径按 Windows 语义大小写不敏感比较。
+pub fn asset_ids_by_rel(conn: &Connection, volume_id: &str, rel_paths: &[String]) -> Result<Vec<i64>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id FROM assets WHERE volume_id = ?1 AND rel_path = ?2 COLLATE NOCASE")
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for rel in rel_paths {
+        let r = rel.replace('/', "\\");
+        if let Ok(id) = stmt.query_row(params![volume_id, r], |row| row.get::<_, i64>(0)) {
+            out.push(id);
+        }
+    }
+    Ok(out)
+}
+
 pub fn schema_version(conn: &Connection) -> Option<i64> {
     setting_get(conn, "__schema_version")
         .or_else(|| {

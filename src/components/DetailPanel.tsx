@@ -14,6 +14,7 @@ import { formatBytes, formatCount, formatDateTime, formatDuration } from '../lib
 import { KindIcon } from '../lib/icons';
 import { api, errorText } from '../lib/ipc';
 import NamingPanel from './NamingPanel';
+import ProtectionPanel from './ProtectionPanel';
 import { DedupePanel, DraftsPanel, RelocateWizard, type NoticePayload } from './Panels';
 import {
   KINDS,
@@ -26,7 +27,7 @@ import {
 } from '../lib/types';
 
 /** 右栏可切换的工具面板。 */
-export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts' | 'naming';
+export type PanelKind = 'none' | 'dedupe' | 'relocate' | 'drafts' | 'naming' | 'protection';
 
 /** Shell 属性键 → 中文标签（§6.4）。 */
 const PROP_LABEL: Record<string, string> = {
@@ -159,6 +160,8 @@ export interface DetailPanelProps {
   panel: PanelKind;
   onPanel: (p: PanelKind) => void;
   onNotice: (n: NoticePayload) => void;
+  /** 保护区发生变化（加入 / 移出）时通知外层刷新左栏计数（§7.6）。 */
+  onProtectionChanged?: () => void;
 }
 
 function aggregateKinds(index: ScanIndex, rels: string[]): KindCount[] {
@@ -501,6 +504,9 @@ function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
         <button className="btn" type="button" onClick={() => onPanel('naming')}>
           命名规则…
         </button>
+        <button className="btn" type="button" onClick={() => onPanel('protection')}>
+          保护区…
+        </button>
         <button className="btn" type="button" onClick={() => onPanel('drafts')}>
           变更集…
         </button>
@@ -524,6 +530,7 @@ export default function DetailPanel({
   panel,
   onPanel,
   onNotice,
+  onProtectionChanged,
 }: DetailPanelProps) {
   let body: ReactNode;
 
@@ -533,6 +540,8 @@ export default function DetailPanel({
     body = <DraftsPanel onClose={() => onPanel('none')} />;
   } else if (panel === 'naming') {
     body = <NamingPanel onClose={() => onPanel('none')} />;
+  } else if (panel === 'protection') {
+    body = <ProtectionPanel onClose={() => onPanel('none')} onChanged={onProtectionChanged} />;
   } else if (panel === 'relocate') {
     body = (
       <RelocateWizard root={summary?.root ?? null} onClose={() => onPanel('none')} onNotice={onNotice} />

@@ -701,6 +701,27 @@ pub fn protection_stats() -> Result<ProtectionStatsDto, String> {
     Ok(ProtectionStatsDto { total, week_new })
 }
 
+/// 按「素材根 + 相对路径」加入 / 移出保护区（界面上选中的行就是相对路径，§7.6）。
+#[tauri::command]
+pub fn protection_toggle(
+    root: String,
+    rel_paths: Vec<String>,
+    add: bool,
+    reason: Option<String>,
+) -> Result<usize, String> {
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let volume = crate::infra::volume::volume_id(std::path::Path::new(&root));
+    let ids = crate::infra::db::asset_ids_by_rel(&conn, &volume, &rel_paths)?;
+    if ids.is_empty() {
+        return Err("选中的条目还不在索引里：先对这个文件夹扫描一次。".to_string());
+    }
+    if add {
+        crate::app::groups::protect(&conn, &ids, "manual", reason.as_deref())
+    } else {
+        crate::app::groups::unprotect(&conn, &ids)
+    }
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {

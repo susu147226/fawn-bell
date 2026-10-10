@@ -27,6 +27,8 @@ export interface SidebarProps {
   onToggleExpand: (rel: string) => void;
   onPick: () => void;
   onTheme: (t: ThemePref) => void;
+  /** 外层在保护区 / 分组变化后自增，用来触发左栏重新读数（§7.5 / §7.6）。 */
+  refreshToken?: number;
 }
 
 interface TreeLevelProps {
@@ -112,6 +114,7 @@ export default function Sidebar({
   onToggleExpand,
   onPick,
   onTheme,
+  refreshToken,
 }: SidebarProps) {
   // §7.5 / §7.6：分组、智能集合、保护区都读库里的真数据（智能集合动态求值）
   const [groups, setGroups] = useState<Group[] | null>(null);
@@ -141,7 +144,8 @@ export default function Sidebar({
 
   useEffect(() => {
     void reload();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   const createGroup = async () => {
     const name = newName.trim();

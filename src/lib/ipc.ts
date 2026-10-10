@@ -94,6 +94,9 @@ export const api = {
   protectedRemove: (assetIds: number[]) => invoke<number>('protected_remove', { assetIds }),
   protectedRemoveAll: () => invoke<number>('protected_remove_all'),
   protectionStats: () => invoke<ProtectionStats>('protection_stats'),
+  /** 按「素材根 + 相对路径」加入 / 移出保护区（§7.6）。 */
+  protectionToggle: (root: string, relPaths: string[], add: boolean, reason?: string | null) =>
+    invoke<number>('protection_toggle', { root, relPaths, add, reason: reason ?? null }),
 
   /** 开始一次只读扫描；立即返回 scanId，进度与结束走事件。 */
   scanStart: (root: string, followLinks = false) =>

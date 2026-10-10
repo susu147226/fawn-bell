@@ -57,6 +57,7 @@ pub fn run() {
             ipc::protected_remove,
             ipc::protected_remove_all,
             ipc::protection_stats,
+            ipc::protection_toggle,
         ])
         .run(tauri::generate_context!())
         .expect("鹿铃启动失败");
