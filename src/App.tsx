@@ -174,7 +174,7 @@ export default function App() {
         lines.length > 0
           ? {
               kind: r.summary.truncated || d.indexError ? 'warn' : 'info',
-              title: '扫描完成，有几点需要知道',
+              title: '扫描完成',
               lines,
             }
           : null,
@@ -474,6 +474,35 @@ export default function App() {
   }, []);
 
   /** §7.6 手工加入保护区：把当前选中的行按相对路径交给后端换成素材 id 再写保护标记。 */
+  /** §7.7「移动到…」：挑一个目标文件夹，把选中项落成 move 草稿（不立即动磁盘）。 */
+  const moveSelection = useCallback(() => {
+    if (!root || selected.size === 0) return;
+    void (async () => {
+      const target = await pickFolder();
+      if (!target) return;
+      const rels = Array.from(selected);
+      let ok = 0;
+      const problems: string[] = [];
+      for (const rel of rels) {
+        const abs = `${root}\\${rel.replace(/\//g, '\\')}`;
+        const name = rel.split('/').pop() ?? rel;
+        try {
+          const list = await api.draftAdd('move', abs, `${target}\\${name}`);
+          if (list.problems > 0) problems.push(name);
+          ok += 1;
+        } catch (e) {
+          problems.push(`${name}：${errorText(e)}`);
+        }
+      }
+      setNotice({
+        kind: problems.length > 0 ? 'warn' : 'info',
+        title: `已排入变更集 ${formatCount(ok)} 项（移动到 ${target.split(/[\\/]/).pop()}）`,
+        lines: problems.length > 0 ? [`${formatCount(problems.length)} 项需要处理：${problems.slice(0, 3).join('；')}`] : [],
+      });
+      setSideToken((v) => v + 1);
+    })();
+  }, [root, selected]);
+
   const protectSelection = useCallback(() => {
     if (!root || selected.size === 0) return;
     void api
@@ -562,6 +591,14 @@ export default function App() {
               onClick={protectSelection}
             >
               加入保护区
+            </button>
+            <button
+              className="btn"
+              type="button"
+              disabled={selected.size === 0 || !root}
+              onClick={moveSelection}
+            >
+              移动到…
             </button>
           </div>
           {view === 'grid' ? (

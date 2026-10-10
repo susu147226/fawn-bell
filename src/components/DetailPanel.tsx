@@ -499,33 +499,6 @@ function SummaryFallback({ text }: { text: string }) {
 }
 
 /** 常规详情底部的两个 P1 工具入口（去重集合、重定位向导）。 */
-function ToolsEntry({ onPanel }: { onPanel: (p: PanelKind) => void }) {
-  return (
-    <div className="detail-sec">
-      <div className="detail-title">工具</div>
-      <div className="empty-actions" style={{ flexWrap: 'wrap' }}>
-        <button className="btn" type="button" onClick={() => onPanel('naming')}>
-          命名规则…
-        </button>
-        <button className="btn" type="button" onClick={() => onPanel('protection')}>
-          保护区…
-        </button>
-        <button className="btn" type="button" onClick={() => onPanel('archive')}>
-          归档…
-        </button>
-        <button className="btn" type="button" onClick={() => onPanel('drafts')}>
-          变更集…
-        </button>
-        <button className="btn" type="button" onClick={() => onPanel('dedupe')}>
-          重复内容…
-        </button>
-        <button className="btn" type="button" onClick={() => onPanel('relocate')}>
-          重新定位素材树…
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** 右栏顶部的**常驻功能条**：主要功能入口一眼可见，不用往下翻（用户反馈：入口太不显眼）。 */
 function FunctionRail({ panel, onPanel }: { panel: PanelKind; onPanel: (p: PanelKind) => void }) {
@@ -612,7 +585,6 @@ export default function DetailPanel({
     <div className="detail" style={{ width }}>
       <FunctionRail panel={panel} onPanel={onPanel} />
       {body}
-      {panel === 'none' ? <ToolsEntry onPanel={onPanel} /> : null}
     </div>
   );
 }
