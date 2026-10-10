@@ -13,9 +13,11 @@
 
 import { useEffect, useState } from 'react';
 
+import { formatCount } from '../lib/format';
 import { api, errorText } from '../lib/ipc';
 import {
   DEFAULT_SEQ_RULE,
+  type NamingRow,
   type PadMode,
   type Preset,
   type Rendered,
@@ -45,7 +47,19 @@ const STRIP_LABEL: Record<StripRule, string> = {
   regex: '按正则剥离',
 };
 
-export default function NamingPanel({ onClose }: { onClose: () => void }) {
+export default function NamingPanel({
+  onClose,
+  root,
+  folder,
+  selected,
+  files,
+}: {
+  onClose: () => void;
+  root: string | null;
+  folder: string;
+  selected: string[];
+  files: string[];
+}) {
   const [presets, setPresets] = useState<Preset[] | null>(null);
   const [template, setTemplate] = useState('date_{seq}');
   const [rule, setRule] = useState<SeqRule>(DEFAULT_SEQ_RULE);
@@ -57,6 +71,10 @@ export default function NamingPanel({ onClose }: { onClose: () => void }) {
   const [newBase, setNewBase] = useState('');
   const [io, setIo] = useState('');
   const [ioNote, setIoNote] = useState<string | null>(null);
+  /** 作用对象与逐条预览（§7.3：先让人看清「会动哪些文件」，再决定是否排入变更集）。 */
+  const [rows, setRows] = useState<NamingRow[] | null>(null);
+  const [useSelection, setUseSelection] = useState(true);
+  const [planMsg, setPlanMsg] = useState<string | null>(null);
 
   const loadPresets = async () => {
     try {
@@ -154,8 +172,91 @@ export default function NamingPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const targets = useSelection && selected.length > 0 ? selected : files;
+
+  const buildPlan = async () => {
+    if (!root || targets.length === 0) return;
+    setPlanMsg(null);
+    try {
+      setRows(await api.namingPlan(root, targets, template, rule));
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  };
+
+  /** 一键把预览结果排入变更集：逐条生成 rename 草稿（磁盘此刻仍然不动）。 */
+  const commitToDrafts = async () => {
+    if (!root || !rows) return;
+    setBusy(true);
+    try {
+      let n = 0;
+      for (const r of rows) {
+        if (r.oldName === r.newName) continue;
+        const abs = `${root}\\${r.relPath.replace(/\//g, '\\')}`;
+        const dir = abs.slice(0, abs.length - r.oldName.length);
+        await api.draftAdd('rename', abs, `${dir}${r.newName}`);
+        n += 1;
+      }
+      setPlanMsg(`已排入变更集 ${n} 项：素材列表里这些行会显示为草稿态`);
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
+      <div className="detail-sec">
+        <div className="detail-title">作用对象</div>
+        <div className="kv">
+          <div className="kv-key">范围</div>
+          <div className="kv-val">
+            <label>
+              <input type="radio" name="naming-scope" checked={useSelection} onChange={() => setUseSelection(true)} /> 当前选中（
+              {formatCount(selected.length)} 项）
+            </label>{' '}
+            <label>
+              <input type="radio" name="naming-scope" checked={!useSelection} onChange={() => setUseSelection(false)} /> 当前文件夹（
+              {formatCount(files.length)} 项）
+            </label>
+          </div>
+          <div className="kv-key">文件夹</div>
+          <div className="kv-val mono">{folder || '（素材根）'}</div>
+        </div>
+        <div style={{ marginTop: 'var(--spacing-2)' }}>
+          <button className="btn primary" type="button" disabled={!root || targets.length === 0} onClick={() => void buildPlan()}>
+            预览这 {formatCount(targets.length)} 项的新名字
+          </button>{' '}
+          <button className="btn" type="button" disabled={busy || !rows || rows.length === 0} onClick={() => void commitToDrafts()}>
+            加入变更集
+          </button>{' '}
+          <button className="btn" type="button" onClick={onClose}>
+            返回
+          </button>
+        </div>
+        {planMsg ? <div className="tbd">{planMsg}</div> : null}
+      </div>
+
+      {rows ? (
+        <div className="detail-sec">
+          <div className="detail-title">逐条预览（{formatCount(rows.length)} 项）</div>
+          {rows.map((r) => (
+            <div key={r.relPath} style={{ marginBottom: 'var(--spacing-1)' }}>
+              <span className="mono">{r.oldName}</span>
+              <span className="tbd"> → </span>
+              <span className="mono">{r.newName}</span>
+              {r.oldName === r.newName ? <span className="tbd">（不变）</span> : null}
+              {r.notes.map((n) => (
+                <div className="tbd" key={n}>
+                  {n}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="detail-sec">
         <div className="detail-title">命名规则</div>
         <div className="kv">

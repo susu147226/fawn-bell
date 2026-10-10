@@ -45,6 +45,7 @@ pub fn run() {
             ipc::preset_import,
             ipc::preset_apply,
             ipc::naming_preview,
+            ipc::naming_plan,
             ipc::groups_list,
             ipc::group_create,
             ipc::group_rename,

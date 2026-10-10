@@ -391,3 +391,11 @@ export interface ArchivePlan {
   emptyDirs: string[];
   notes: string[];
 }
+
+/** 命名计划预览的一行（§7.3）：这次会作用在哪些文件上、各自改成什么名字。 */
+export interface NamingRow {
+  relPath: string;
+  oldName: string;
+  newName: string;
+  notes: string[];
+}

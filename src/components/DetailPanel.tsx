@@ -9,7 +9,7 @@
 import { CircleAlert, Cloud, Folder, Info } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
-import { absolutePath, dirDisplayName, subDirsOf, type ScanIndex } from '../lib/folders';
+import { absolutePath, dirDisplayName, filesOf, subDirsOf, type ScanIndex } from '../lib/folders';
 import { formatBytes, formatCount, formatDateTime, formatDuration } from '../lib/format';
 import { KindIcon } from '../lib/icons';
 import { api, errorText } from '../lib/ipc';
@@ -544,7 +544,15 @@ export default function DetailPanel({
   } else if (panel === 'drafts') {
     body = <DraftsPanel onClose={() => onPanel('none')} />;
   } else if (panel === 'naming') {
-    body = <NamingPanel onClose={() => onPanel('none')} />;
+    body = (
+      <NamingPanel
+        onClose={() => onPanel('none')}
+        root={summary?.root ?? null}
+        folder={current}
+        selected={selected}
+        files={index ? filesOf(index, current).map((f) => f.relPath) : []}
+      />
+    );
   } else if (panel === 'archive') {
     body = <ArchivePanel root={summary?.root ?? null} folder={current} onClose={() => onPanel('none')} />;
   } else if (panel === 'protection') {

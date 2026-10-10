@@ -16,6 +16,7 @@ import type {
   DraftOp,
   Group,
   LibraryInfo,
+  NamingRow,
   Preset,
   PresetApply,
   Projection,
@@ -78,6 +79,9 @@ export const api = {
   presetImport: (json: string) => invoke<number>('preset_import', { json }),
   presetApply: (id: number, ext: string, start: number, rule: SeqRule) =>
     invoke<PresetApply>('preset_apply', { id, ext, start, rule }),
+  namingPlan: (root: string, relPaths: string[], template: string, rule: SeqRule) =>
+    invoke<NamingRow[]>('naming_plan', { root, relPaths, template, rule }),
+
   namingPreview: (template: string, rule: SeqRule, stem: string, ext: string) =>
     invoke<Rendered[]>('naming_preview', { template, rule, stem, ext }),
 

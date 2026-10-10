@@ -784,6 +784,79 @@ pub fn archive_plan(
     )
 }
 
+
+/** 命名计划预览（§7.3）：把**指定的这些条目**按模板算成「旧名 → 新名」，只算不写。 */
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NamingRow {
+    pub rel_path: String,
+    pub old_name: String,
+    pub new_name: String,
+    pub notes: Vec<String>,
+}
+
+#[tauri::command]
+pub fn naming_plan(
+    root: String,
+    rel_paths: Vec<String>,
+    template: String,
+    rule: crate::domain::naming::SeqRule,
+) -> Result<Vec<NamingRow>, String> {
+    use std::collections::HashMap;
+
+    let conn = crate::infra::db::open_library(&crate::infra::library::layout())?;
+    let volume = crate::infra::volume::volume_id(std::path::Path::new(&root));
+    let rows = crate::infra::db::assets_of_volume(&conn, &volume)?;
+    let by_rel: HashMap<String, &crate::infra::db::RelocateRow> = rows
+        .iter()
+        .map(|r| (r.rel_path.replace('/', "\\").to_lowercase(), r))
+        .collect();
+
+    // 固定顺序（按卷内相对路径升序）→ 序号可预测，用户看到的编号每次一致
+    let mut wanted: Vec<String> = rel_paths
+        .iter()
+        .map(|p| p.replace('/', "\\").to_lowercase())
+        .collect();
+    wanted.sort();
+
+    let mut out = Vec::new();
+    let mut seq = rule.start;
+    for key in wanted {
+        let Some(r) = by_rel.get(&key) else { continue };
+        let (stem, ext) = match r.name.rsplit_once('.') {
+            Some((s, e)) => (s.to_string(), e.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let stem_clean = crate::domain::naming::strip_original_seq(&stem, rule.strip);
+        let kind = crate::app::archive::kind_of(&ext);
+        let ctx = crate::domain::naming::NameCtx {
+            stem: &stem_clean,
+            ext: &ext,
+            camera: None,
+            width: None,
+            height: None,
+            group: None,
+            parent: None,
+            kind: &kind,
+            hash8: None,
+            capture_time: None,
+            mtime: r.mtime,
+            ctime: 0,
+            seq,
+            counter: None,
+        };
+        let rendered = crate::domain::naming::render(&template, &ctx, &rule);
+        out.push(NamingRow {
+            rel_path: r.rel_path.clone(),
+            old_name: r.name.clone(),
+            new_name: rendered.name,
+            notes: rendered.notes,
+        });
+        seq += 1;
+    }
+    Ok(out)
+}
+
 /// 界面重载后恢复进度显示（P0 用不到也可安全调用）。
 #[tauri::command]
 pub fn scan_snapshot(state: State<'_, ScanState>) -> Result<ScanSnapshot, String> {
