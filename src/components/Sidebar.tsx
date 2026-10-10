@@ -27,12 +27,17 @@ export interface SidebarProps {
   onToggleExpand: (rel: string) => void;
   onPick: () => void;
   onTheme: (t: ThemePref) => void;
+  /** 拖拽落点：把中栏拖来的条目移到这个目录（传里的是素材根内相对路径）。 */
+  onDropMove?: (targetRel: string) => void;
   /** 外层在保护区 / 分组变化后自增，用来触发左栏重新读数（§7.5 / §7.6）。 */
   refreshToken?: number;
 }
 
 interface TreeLevelProps {
   index: ScanIndex;
+  dropRel: string | null;
+  onDropTarget: (rel: string | null) => void;
+  onDropMove?: (targetRel: string) => void;
   rel: string;
   depth: number;
   current: string;
@@ -41,7 +46,18 @@ interface TreeLevelProps {
   onToggleExpand: (rel: string) => void;
 }
 
-function TreeLevel({ index, rel, depth, current, expanded, onNavigate, onToggleExpand }: TreeLevelProps) {
+function TreeLevel({
+  index,
+  rel,
+  depth,
+  current,
+  expanded,
+  onNavigate,
+  onToggleExpand,
+  dropRel,
+  onDropTarget,
+  onDropMove,
+}: TreeLevelProps) {
   const dirs = subDirsOf(index, rel);
   return (
     <>
@@ -52,8 +68,19 @@ function TreeLevel({ index, rel, depth, current, expanded, onNavigate, onToggleE
         return (
           <Fragment key={d.relPath}>
             <div
-              className={active ? 'tree-row active' : 'tree-row'}
-              style={{ paddingLeft: `calc(${depth} * var(--spacing-3) + var(--spacing-1))` }}
+              className={['tree-row', active ? 'active' : '', dropRel === d.relPath ? 'drop-target' : '']
+                .filter(Boolean)
+                .join(' ')}
+              onDragOver={(e) => {
+                e.preventDefault();
+                onDropTarget(d.relPath);
+              }}
+              onDragLeave={() => onDropTarget(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                onDropTarget(null);
+                onDropMove?.(d.relPath);
+              }}
               onClick={() => onNavigate(d.relPath)}
              
             >
@@ -93,6 +120,9 @@ function TreeLevel({ index, rel, depth, current, expanded, onNavigate, onToggleE
                 expanded={expanded}
                 onNavigate={onNavigate}
                 onToggleExpand={onToggleExpand}
+                dropRel={dropRel}
+                onDropTarget={onDropTarget}
+                onDropMove={onDropMove}
               />
             ) : null}
           </Fragment>
@@ -115,7 +145,9 @@ export default function Sidebar({
   onPick,
   onTheme,
   refreshToken,
+  onDropMove,
 }: SidebarProps) {
+  const [dropRel, setDropRel] = useState<string | null>(null);
   // §7.5 / §7.6：分组、智能集合、保护区都读库里的真数据（智能集合动态求值）
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [stats, setStats] = useState<ProtectionStats | null>(null);
@@ -182,7 +214,18 @@ export default function Sidebar({
         {index ? (
           <>
             <div
-              className={current === '' ? 'tree-row active' : 'tree-row'}
+              className={['tree-row', current === '' ? 'active' : '', dropRel === '' ? 'drop-target' : ''].filter(Boolean).join(' ')}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDropRel('');
+              }}
+              onDragLeave={() => setDropRel(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropRel(null);
+                onDropMove?.('');
+              }}
+
               style={{ paddingLeft: 'var(--spacing-1)' }}
               onClick={() => onNavigate('')}
              
@@ -219,6 +262,9 @@ export default function Sidebar({
                 expanded={expanded}
                 onNavigate={onNavigate}
                 onToggleExpand={onToggleExpand}
+                dropRel={dropRel}
+                onDropTarget={setDropRel}
+                onDropMove={onDropMove}
               />
             ) : null}
           </>

@@ -503,6 +503,47 @@ export default function App() {
     })();
   }, [root, selected]);
 
+  /** 拖拽移动（§7.7）：把中栏拖来的条目落成 move 草稿。 */
+  const [dragRels, setDragRels] = useState<string[] | null>(null);
+
+  const beginDrag = useCallback(
+    (rels: string[]) => setDragRels(rels.length > 0 ? rels : null),
+    [],
+  );
+
+  const moveTo = useCallback(
+    (targetRel: string) => {
+      const rels = dragRels;
+      setDragRels(null);
+      if (!root || !rels || rels.length === 0) return;
+      void (async () => {
+        let n = 0;
+        const problems: string[] = [];
+        for (const rel of rels) {
+          const abs = `${root}\\${rel.replace(/\//g, '\\')}`;
+          const name = rel.split('/').pop() ?? rel;
+          const dst = targetRel
+            ? `${root}\\${targetRel.replace(/\//g, '\\')}\\${name}`
+            : `${root}\\${name}`;
+          try {
+            const l = await api.draftAdd('move', abs, dst);
+            if (l.problems > 0) problems.push(name);
+            n += 1;
+          } catch {
+            problems.push(name);
+          }
+        }
+        setNotice({
+          kind: problems.length > 0 ? 'warn' : 'info',
+          title: `已排入变更集 ${formatCount(n)} 项（移动到 ${targetRel || '素材根'}）`,
+          lines: problems.length > 0 ? [`${formatCount(problems.length)} 项需要处理：${problems.slice(0, 3).join('；')}`] : [],
+        });
+        setSideToken((v) => v + 1);
+      })();
+    },
+    [root, dragRels],
+  );
+
   const protectSelection = useCallback(() => {
     if (!root || selected.size === 0) return;
     void api
@@ -609,6 +650,7 @@ export default function App() {
               drafts={draftMap}
               onSelect={onSelect}
               onOpenDir={onNavigate}
+              onDragStartRows={beginDrag}
             />
           ) : (
             <AssetList
@@ -689,6 +731,7 @@ export default function App() {
               onPick={onPick}
               onTheme={theme.setPref}
               refreshToken={sideToken}
+              onDropMove={moveTo}
             />
             <div
               className={left.dragging ? 'splitter dragging' : 'splitter'}

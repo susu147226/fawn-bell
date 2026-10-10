@@ -812,16 +812,25 @@ pub fn naming_plan(
         .map(|r| (r.rel_path.replace('/', "\\").to_lowercase(), r))
         .collect();
 
+    // 界面给的 relPaths 是**相对素材根**的，索引里的 rel_path 是**相对卷根**的 —— 这里补上前缀，
+    // 补不上再按原样试一次（两种口径都容错），否则就会出现「选中的文件一项也匹配不上」。
+    let root_rel_prefix = format!(
+        "{}\\",
+        crate::infra::volume::rel_path_from_volume(std::path::Path::new(&root)).trim_matches('\\')
+    );
+
     // 固定顺序（按卷内相对路径升序）→ 序号可预测，用户看到的编号每次一致
     let mut wanted: Vec<String> = rel_paths
         .iter()
-        .map(|p| p.replace('/', "\\").to_lowercase())
+        .map(|p| p.replace('/', "\\"))
         .collect();
     wanted.sort();
 
     let mut out = Vec::new();
     let mut seq = rule.start;
-    for key in wanted {
+    for rel in wanted {
+        let key = format!("{root_rel_prefix}{rel}").to_lowercase();
+        let key = if by_rel.contains_key(&key) { key } else { rel.to_lowercase() };
         let Some(r) = by_rel.get(&key) else { continue };
         let (stem, ext) = match r.name.rsplit_once('.') {
             Some((s, e)) => (s.to_string(), e.to_string()),

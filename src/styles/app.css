@@ -987,3 +987,47 @@ input[type='radio'] {
   background: var(--surface);
   border-color: var(--accent);
 }
+
+/* ── 弹性布局修正（子项缺 min-width:0 会把容器撑破 / 内容被裁掉） ───── */
+.body > * {
+  min-width: 0;
+}
+
+.detail,
+.detail-sec,
+.kv,
+.kv-val,
+.kv-key {
+  min-width: 0;
+}
+
+.kv-val {
+  overflow-wrap: anywhere;
+}
+
+.rail {
+  row-gap: var(--spacing-1);
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.list-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 拖拽移动：放置目标高亮 */
+.tree-row.drop-target {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  outline: 1px dashed var(--accent);
+  outline-offset: calc(var(--spacing-1) * -1);
+}
+
+.card[draggable='true'],
+.tbl-row.body[draggable='true'] {
+  cursor: grab;
+}

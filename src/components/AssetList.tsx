@@ -29,6 +29,8 @@ export interface AssetListProps {
   onToggleExpand: (relPath: string) => void;
   onMoveActive: (delta: number | 'home' | 'end') => void;
   onToggleActive: () => void;
+  /** 把拖动的行交给外层（内容为素材根内相对路径）。 */
+  onDragStartRows?: (rels: string[]) => void;
 }
 
 /** 行高单一真源：读 tokens.css 的 `--row-height`。 */
@@ -50,6 +52,7 @@ export default function AssetList({
   onToggleExpand,
   onMoveActive,
   onToggleActive,
+  onDragStartRows,
 }: AssetListProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [rowHeight] = useState(readRowHeight);
@@ -169,7 +172,14 @@ export default function AssetList({
                     .join(' ')}
                   style={style}
                   key={row.id}
-                  onClick={(e) => clickRow(row, e)}
+                  draggable
+                onDragStart={(e) => {
+                  const rels = selection.has(row.id) ? Array.from(selection) : [row.id];
+                  onDragStartRows?.(rels.filter((r) => r !== ''));
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', rels.join('\n'));
+                }}
+                onClick={(e) => clickRow(row, e)}
                   onDoubleClick={() => onOpenDir(row.relPath)}
                  
                 >

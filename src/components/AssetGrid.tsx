@@ -25,6 +25,8 @@ export interface AssetGridProps {
   drafts?: Map<string, Projection>;
   onSelect: (id: string, mode: 'single' | 'toggle' | 'range') => void;
   onOpenDir: (relPath: string) => void;
+  /** 把拖动的卡片交给外层。 */
+  onDragStartRows?: (rels: string[]) => void;
 }
 
 /** 缩略图缓存：同一会话内同一路径只取一次（§10：按需取图，不做全量预生成）。 */
@@ -69,6 +71,7 @@ export default function AssetGrid({
   drafts,
   onSelect,
   onOpenDir,
+  onDragStartRows,
 }: AssetGridProps) {
   if (rows.length === 0) {
     return (
@@ -114,6 +117,12 @@ export default function AssetGrid({
               cursor: 'pointer',
             }}
            
+            draggable
+            onDragStart={(e) => {
+              const rels = selection.has(row.id) ? Array.from(selection) : [row.id];
+              onDragStartRows?.(rels.filter((r) => r !== ''));
+              e.dataTransfer.effectAllowed = 'move';
+            }}
             onClick={(e) => onSelect(row.id, e.shiftKey ? 'range' : e.ctrlKey || e.metaKey ? 'toggle' : 'single')}
             onDoubleClick={() => {
               if (isDir) onOpenDir(relPath);
