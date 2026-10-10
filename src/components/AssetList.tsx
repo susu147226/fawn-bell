@@ -172,16 +172,7 @@ export default function AssetList({
                     .join(' ')}
                   style={style}
                   key={row.id}
-                  draggable
-                onDragStart={(e) => {
-                  const rels = selection.has(row.id) ? Array.from(selection) : [row.id];
-                  onDragStartRows?.(rels.filter((r) => r !== ''));
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData('text/plain', rels.join('\n'));
-                }}
-                onClick={(e) => clickRow(row, e)}
-                  onDoubleClick={() => onOpenDir(row.relPath)}
-                 
+                onClick={() => onOpenDir(row.relPath)}
                 >
                   <div className="cell cell-name" style={{ paddingLeft: indent }}>
                     {row.expandable ? (
@@ -249,6 +240,13 @@ export default function AssetList({
                   .join(' ')}
                 style={style}
                 key={row.id}
+                draggable
+                onDragStart={(e) => {
+                  const rels = selection.has(row.id) ? Array.from(selection) : [row.id];
+                  onDragStartRows?.(rels.filter((r) => r !== ''));
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', rels.join('\n'));
+                }}
                 onClick={(e) => clickRow(row, e)}
                
               >
