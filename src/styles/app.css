@@ -878,3 +878,75 @@
   gap: var(--spacing-1);
   color: var(--text-muted);
 }
+
+/* ── 表单控件（§9.1 令牌唯一真源）────────────────────────────────────
+ * 下拉框、输入框、文本域统一外观：同样的高度、圆角、边框与聚焦环。
+ * 所有取值都来自 tokens.css，组件层不写死色值 / 圆角 / 间距 / 时长（§12.4②）。
+ */
+select,
+input[type='text'],
+input[type='number'],
+input[type='search'],
+textarea {
+  appearance: none;
+  font: inherit;
+  font-size: var(--font-size-2);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  height: calc(var(--row-height) + var(--spacing-1));
+  padding: 0 var(--spacing-2);
+  transition: border-color var(--motion-duration), box-shadow var(--motion-duration),
+    background var(--motion-duration);
+}
+
+textarea {
+  height: auto;
+  padding: var(--spacing-2);
+  line-height: 1.5;
+}
+
+/* 下拉：自绘箭头，避免原生控件的系统外观 */
+select {
+  padding-right: var(--spacing-5);
+  background-image: linear-gradient(45deg, var(--text-muted) 50%, transparent 50%),
+    linear-gradient(135deg, transparent 50%, var(--text-muted) 50%);
+  background-position: calc(100% - var(--spacing-3)) 50%, calc(100% - var(--spacing-2)) 50%;
+  background-size: var(--spacing-1) var(--spacing-1), var(--spacing-1) var(--spacing-1);
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+select:hover:not(:disabled),
+input:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, var(--surface));
+}
+
+select:disabled,
+input:disabled,
+textarea:disabled {
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  cursor: default;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: auto;
+  accent-color: var(--accent);
+  width: var(--icon-size);
+  height: var(--icon-size);
+  padding: 0;
+  border: none;
+  background: none;
+}

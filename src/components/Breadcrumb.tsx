@@ -24,7 +24,7 @@ export default function Breadcrumb({ rootName, crumbs, current, onNavigate }: Br
               type="button"
               onClick={() => onNavigate(c.rel)}
               disabled={c.rel === current}
-              title={c.label === '' ? rootName : c.label}
+             
             >
               {c.label === '' ? rootName : c.label}
             </button>

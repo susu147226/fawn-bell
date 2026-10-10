@@ -113,7 +113,7 @@ export default function AssetGrid({
               outline: selected ? '2px solid var(--accent)' : 'none',
               cursor: 'pointer',
             }}
-            title={proj?.drafted ? `${relPath} → ${proj.path}` : relPath}
+           
             onClick={(e) => onSelect(row.id, e.shiftKey ? 'range' : e.ctrlKey || e.metaKey ? 'toggle' : 'single')}
             onDoubleClick={() => {
               if (isDir) onOpenDir(relPath);
@@ -143,7 +143,6 @@ export default function AssetGrid({
                 {proj?.drafted ? (
                   <span
                     aria-hidden
-                    title="草稿态：尚未落盘"
                     style={{
                       display: 'inline-block',
                       width: 'var(--spacing-1)',

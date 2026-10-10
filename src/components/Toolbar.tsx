@@ -41,12 +41,6 @@ export interface ToolbarProps {
 
 const VIEW_ICON = { folders: FolderTree, grid: LayoutGrid, list: List, detail: Table };
 
-const VIEW_HINT: Record<ViewMode, string> = {
-  folders: '文件夹视图（Ctrl+1）',
-  grid: '网格视图',
-  list: '列表视图',
-  detail: '详情视图',
-};
 
 export default function Toolbar({
   version,
@@ -75,7 +69,7 @@ export default function Toolbar({
         className={root ? 'workspace-tab' : 'workspace-tab empty'}
         type="button"
         onClick={onPick}
-        title={root ?? '选择一个素材文件夹开始'}
+       
       >
         <FolderOpen size={14} strokeWidth={1.75} aria-hidden />
         <span className="path">{root ? ellipsizeMiddle(root, 48) : '未选择素材文件夹'}</span>
@@ -93,7 +87,7 @@ export default function Toolbar({
 
       <span className="grow" />
 
-      <label className="search" title="搜索素材">
+      <label className="search">
         <Search size={14} strokeWidth={1.75} aria-hidden />
         <input type="search" placeholder="搜索素材" disabled />
       </label>
@@ -109,7 +103,7 @@ export default function Toolbar({
               type="button"
               onClick={() => onView(v)}
               disabled={!implemented}
-              title={VIEW_HINT[v]}
+             
             >
               <Icon size={13} strokeWidth={1.75} aria-hidden />
             </button>
@@ -118,7 +112,7 @@ export default function Toolbar({
       </div>
 
       {/* 设计稿顶栏右侧顺序：搜索 → 视图 → 排序 → 主题 → 提交变更 → 面板开关 */}
-      <select className="btn" disabled title="排序" defaultValue="name">
+      <select className="btn" disabled defaultValue="name">
         <option value="name">按名称</option>
       </select>
 
@@ -126,7 +120,6 @@ export default function Toolbar({
         className="btn"
         value={theme}
         onChange={(e) => onTheme(e.target.value as ThemePref)}
-        title="主题"
       >
         {(Object.keys(THEME_LABEL) as ThemePref[]).map((t) => (
           <option key={t} value={t}>
@@ -139,11 +132,7 @@ export default function Toolbar({
         className="btn primary"
         type="button"
         disabled
-        title={
-          draftCount > 0
-            ? `提交变更 ${draftCount} 项（提交执行属 P6，尚未实现）`
-            : '暂无待提交变更（提交执行属 P6，尚未实现）'
-        }
+       
       >
         提交变更 <span className="status-num">{formatCount(draftCount)}</span>
       </button>
@@ -151,16 +140,20 @@ export default function Toolbar({
       <button
         className="btn ghost icon"
         type="button"
+        aria-label={leftCollapsed ? '显示左栏' : '收起左栏'}
+        aria-pressed={!leftCollapsed}
         onClick={onToggleLeft}
-        title={leftCollapsed ? '显示左栏' : '收起左栏'}
+       
       >
         <PanelLeft size={14} strokeWidth={1.75} aria-hidden />
       </button>
       <button
         className="btn ghost icon"
         type="button"
+        aria-label={rightCollapsed ? '显示右栏' : '收起右栏'}
+        aria-pressed={!rightCollapsed}
         onClick={onToggleRight}
-        title={rightCollapsed ? '显示右栏' : '收起右栏'}
+       
       >
         <PanelRight size={14} strokeWidth={1.75} aria-hidden />
       </button>

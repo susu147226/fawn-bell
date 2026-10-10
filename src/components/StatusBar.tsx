@@ -40,7 +40,7 @@ export default function StatusBar({
         已选 <span className="status-num">{formatCount(selectedCount)}</span> 项
       </span>
       <span className="status-sep">|</span>
-      <span title="虚拟变更集：草稿只在库目录，提交前真实文件零变化（§7.2）">
+      <span>
         待提交 <span className="status-num">{formatCount(draftCount)}</span> 项变更（
         <span className={draftProblems > 0 ? 'status-num warn-num' : 'status-num'}>
           {formatCount(draftProblems)}
@@ -48,14 +48,13 @@ export default function StatusBar({
         项有问题）
       </span>
       <span className="status-sep">|</span>
-      <span title="保护区">
+      <span>
         保护区 <span className="status-num">0</span> 项
       </span>
       <span className="status-sep">|</span>
       <button
         className="btn ghost icon"
         type="button"
-        title="撤销一条草稿（Ctrl+Z）"
         disabled={draftCount === 0}
         onClick={onUndo}
       >
@@ -64,14 +63,13 @@ export default function StatusBar({
       <button
         className="btn ghost icon"
         type="button"
-        title="重做一条草稿（Ctrl+Y）"
         disabled={!canRedo}
         onClick={onRedo}
       >
         <Redo2 size={14} strokeWidth={1.75} aria-hidden />
       </button>
 
-      <span className="passthrough-slot" title="直通模式">
+      <span className="passthrough-slot">
         直通模式：关闭
       </span>
 
@@ -79,7 +77,7 @@ export default function StatusBar({
       {scanning ? (
         <span>正在扫描…</span>
       ) : summary ? (
-        <span title={summary.root}>
+        <span>
           文件夹 <span className="status-num">{formatCount(summary.dirCount)}</span> · 文件{' '}
           <span className="status-num">{formatCount(summary.fileCount)}</span> ·{' '}
           <span className="status-num">{formatBytes(summary.totalBytes)}</span> · 用时{' '}

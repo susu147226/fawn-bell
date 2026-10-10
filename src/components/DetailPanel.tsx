@@ -212,7 +212,7 @@ function Kv({ k, v, mono = false }: { k: string; v: string; mono?: boolean }) {
   return (
     <>
       <div className="kv-key">{k}</div>
-      <div className={mono ? 'kv-val mono' : 'kv-val'} title={v}>
+      <div className={mono ? 'kv-val mono' : 'kv-val'}>
         {v}
       </div>
     </>

@@ -541,14 +541,13 @@ export default function App() {
           >
             <span className="tbd">共 {formatCount(rows.length)} 项</span>
             <span className="grow" />
-            <span className="badge" title="草稿态条目（取自变更集真值）">
+            <span className="badge">
               草稿 {formatCount(draftList?.count ?? 0)}
             </span>
             <button
               className="btn"
               type="button"
               disabled={selected.size === 0 || !root}
-              title="把当前选中的素材加入保护区（§7.6；批量操作会默认跳过它们）"
               onClick={protectSelection}
             >
               加入保护区

@@ -31,7 +31,7 @@ export default function ScanBanner({ progress, onCancel }: ScanBannerProps) {
       <div className="scan-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
         <div className="scan-fill" style={{ width: `${pct}%` }} />
       </div>
-      <span className="scan-current" title={progress.current}>
+      <span className="scan-current">
         {progress.current}
       </span>
       <button className="btn" type="button" onClick={onCancel}>

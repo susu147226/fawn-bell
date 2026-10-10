@@ -171,7 +171,7 @@ export default function AssetList({
                   key={row.id}
                   onClick={(e) => clickRow(row, e)}
                   onDoubleClick={() => onOpenDir(row.relPath)}
-                  title={d.relPath}
+                 
                 >
                   <div className="cell cell-name" style={{ paddingLeft: indent }}>
                     {row.expandable ? (
@@ -182,7 +182,7 @@ export default function AssetList({
                           e.stopPropagation();
                           onToggleExpand(row.relPath);
                         }}
-                        title={row.expanded ? '收起一层' : '展开一层'}
+                       
                       >
                         {row.expanded ? (
                           <ChevronDown size={13} strokeWidth={2} aria-hidden />
@@ -209,7 +209,7 @@ export default function AssetList({
                   <div className="cell cell-time">{formatTime(d.mtimeMs)}</div>
                   <div className="cell cell-status">
                     {d.cloud ? (
-                      <span className="badge" title="云端占位文件">
+                      <span className="badge">
                         <Cloud size={12} strokeWidth={1.75} aria-hidden />
                         云端
                       </span>
@@ -240,7 +240,7 @@ export default function AssetList({
                 style={style}
                 key={row.id}
                 onClick={(e) => clickRow(row, e)}
-                title={proj?.drafted ? `${f.relPath} → ${proj.path}` : f.relPath}
+               
               >
                 <div className="cell cell-name" style={{ paddingLeft: indent }}>
                   <span className="caret" />
@@ -251,7 +251,7 @@ export default function AssetList({
                   {proj?.drafted ? (
                     <span
                       aria-hidden
-                      title={proj.removed ? '草稿态：已排入回收站，尚未落盘' : '草稿态：尚未落盘'}
+                     
                       style={{
                         display: 'inline-block',
                         width: 'var(--spacing-1)',
@@ -274,12 +274,12 @@ export default function AssetList({
                 <div className="cell cell-time">{formatTime(f.mtimeMs)}</div>
                 <div className="cell cell-status">
                   {proj?.drafted ? (
-                    <span className="badge" title="草稿态：尚未落盘">
+                    <span className="badge">
                       {proj.removed ? '待删除' : '草稿'}
                     </span>
                   ) : null}
                   {f.cloud ? (
-                    <span className="badge" title="云端占位文件">
+                    <span className="badge">
                       <Cloud size={12} strokeWidth={1.75} aria-hidden />
                       云端
                     </span>

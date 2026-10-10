@@ -181,7 +181,6 @@ export default function NamingPanel({ onClose }: { onClose: () => void }) {
               type="button"
               key={p.id}
               disabled={busy}
-              title={`套用为 ${p.template}`}
               onClick={() => void applyPreset(p)}
             >
               {p.baseName}

@@ -55,7 +55,7 @@ function TreeLevel({ index, rel, depth, current, expanded, onNavigate, onToggleE
               className={active ? 'tree-row active' : 'tree-row'}
               style={{ paddingLeft: `calc(${depth} * var(--spacing-3) + var(--spacing-1))` }}
               onClick={() => onNavigate(d.relPath)}
-              title={d.relPath}
+             
             >
               {kids.length > 0 ? (
                 <button
@@ -65,7 +65,7 @@ function TreeLevel({ index, rel, depth, current, expanded, onNavigate, onToggleE
                     e.stopPropagation();
                     onToggleExpand(d.relPath);
                   }}
-                  title={isOpen ? '收起' : '展开'}
+                 
                 >
                   {isOpen ? (
                     <ChevronDown size={13} strokeWidth={2} aria-hidden />
@@ -168,11 +168,11 @@ export default function Sidebar({
       <div className="side-sec">
         <div className="side-title">
           <span>工作根</span>
-          <button className="btn ghost" type="button" onClick={onPick} title="更换素材文件夹">
+          <button className="btn ghost" type="button" onClick={onPick}>
             更换
           </button>
         </div>
-        <div className="workspace-tab" style={{ maxWidth: '100%' }} title={root ?? '尚未选择'}>
+        <div className="workspace-tab" style={{ maxWidth: '100%' }}>
           <FolderOpen size={14} strokeWidth={1.75} aria-hidden />
           <span className="path">{root ? rootName : '尚未选择素材文件夹'}</span>
         </div>
@@ -185,7 +185,7 @@ export default function Sidebar({
               className={current === '' ? 'tree-row active' : 'tree-row'}
               style={{ paddingLeft: 'var(--spacing-1)' }}
               onClick={() => onNavigate('')}
-              title={index.root}
+             
             >
               {rootHasKids ? (
                 <button
@@ -195,7 +195,7 @@ export default function Sidebar({
                     e.stopPropagation();
                     onToggleExpand('');
                   }}
-                  title={rootOpen ? '收起' : '展开'}
+                 
                 >
                   {rootOpen ? (
                     <ChevronDown size={13} strokeWidth={2} aria-hidden />
@@ -232,7 +232,7 @@ export default function Sidebar({
       <div className="side-sec">
         <div className="side-title">
           <span>分组</span>
-          <button className="btn ghost" type="button" onClick={() => setAdding((v) => !v)} title="新建分组">
+          <button className="btn ghost" type="button" onClick={() => setAdding((v) => !v)}>
             +
           </button>
         </div>
@@ -259,7 +259,7 @@ export default function Sidebar({
           (groups ?? [])
             .filter((g) => g.kind !== 'smart')
             .map((g) => (
-              <div className="tree-row" key={g.id} title={`${g.name} · ${formatCount(g.memberCount)} 项`}>
+              <div className="tree-row" key={g.id}>
                 <span className="tree-name">{g.name}</span>
                 <span className="tree-meta">{formatCount(g.memberCount)}</span>
               </div>
@@ -277,7 +277,6 @@ export default function Sidebar({
             <div
               className="tree-row"
               key={g.id}
-              title={`${g.name} · ${formatCount(g.memberCount)} 项（每次打开动态求值）`}
             >
               <span className="tree-name">{g.name}</span>
               <span className="tree-meta">{formatCount(g.memberCount)}</span>

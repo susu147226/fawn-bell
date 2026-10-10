@@ -134,7 +134,7 @@ export function DedupePanel({ onClose }: { onClose: () => void }) {
                     组 {i + 1} · {formatBytes(g.size)} · <span className="mono">{g.hashPartial}</span>
                   </div>
                   {g.members.map((m) => (
-                    <div className="kv-val mono" key={m.assetId} title={m.absPath ?? m.relPath}>
+                    <div className="kv-val mono" key={m.assetId}>
                       {m.keeper ? '【保留】' : '【重复】'}
                       {m.absPath ?? m.relPath}
                     </div>
@@ -278,11 +278,11 @@ export function DraftsPanel({ onClose }: { onClose: () => void }) {
                   #{d.seq} {d.op}
                   {d.check !== 'ok' ? ` · ${CHECK_LABEL[d.check] ?? d.check}` : ''}
                 </div>
-                <div className="kv-val mono" title={d.src}>
+                <div className="kv-val mono">
                   {d.src}
                 </div>
                 {d.dst ? (
-                  <div className="kv-val mono" title={d.dst}>
+                  <div className="kv-val mono">
                     → {d.dst}
                   </div>
                 ) : null}
@@ -458,11 +458,11 @@ export function RelocateWizard({
               {plan.matches.slice(0, 20).map((m) => (
                 <div key={m.assetId} style={{ marginBottom: 'var(--spacing-2)' }}>
                   <div className="kv-key">【{CONFIDENCE_LABEL[m.confidence] ?? m.confidence}】{m.why}</div>
-                  <div className="kv-val mono" title={m.oldRelPath}>
+                  <div className="kv-val mono">
                     {m.oldRelPath}
                   </div>
                   {m.newRelPath ? (
-                    <div className="kv-val mono" title={m.newRelPath}>
+                    <div className="kv-val mono">
                       → {m.newRelPath}
                     </div>
                   ) : null}
