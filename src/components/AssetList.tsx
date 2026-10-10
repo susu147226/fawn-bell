@@ -116,7 +116,7 @@ export default function AssetList({
     <div className="tbl">
       <div className="tbl-row head">
         {HEADERS.map((h) => (
-          <div className="cell" key={h} title={h === '整理进度' ? '整理进度：P2 接入' : undefined}>
+          <div className="cell" key={h}>
             {h}
           </div>
         ))}
@@ -200,7 +200,7 @@ export default function AssetList({
                   <div className="cell cell-items">
                     {formatCount(d.directFiles + d.directDirs)} 项 · {formatBytes(d.totalBytes)}
                   </div>
-                  <div className="cell cell-prog" title="整理进度：P2 接入">
+                  <div className="cell cell-prog">
                     <div className="bar">
                       <i style={{ width: '0%' }} />
                     </div>
@@ -268,7 +268,7 @@ export default function AssetList({
                   {KIND_LABEL[f.kind]}
                 </div>
                 <div className="cell cell-items">{formatBytes(f.size)}</div>
-                <div className="cell cell-prog" title="整理进度：P2 接入">
+                <div className="cell cell-prog">
                   <span className="tbd">—</span>
                 </div>
                 <div className="cell cell-time">{formatTime(f.mtimeMs)}</div>

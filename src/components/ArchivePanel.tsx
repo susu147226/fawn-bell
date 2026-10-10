@@ -110,12 +110,9 @@ export default function ArchivePanel({
           <div className="kv-val">
             <label>
               <input type="checkbox" checked={cleanEmpty} onChange={(e) => setCleanEmpty(e.target.checked)} /> 归档后清理
-              变空的源目录（默认关闭，执行前会列出清单）
+              变空的源目录
             </label>
           </div>
-        </div>
-        <div className="tbd" style={{ marginTop: 'var(--spacing-1)' }}>
-          目录模板支持与命名模板相同的占位符与修饰符：{'{kind} {group} {camera} {yyyy} {mm} {date:yyyy-MM}'}
         </div>
         <div style={{ marginTop: 'var(--spacing-2)' }}>
           <button className="btn primary" type="button" disabled={busy || !root || !target.trim()} onClick={() => void build()}>
@@ -193,10 +190,9 @@ export default function ArchivePanel({
       ) : null}
 
       <div className="detail-sec">
-        <div className="tbd">
-          本面板只生成计划：**真实搬运属 P6 提交执行**（同盘是元数据操作；跨盘走「复制 → 校验体积与修改时间 →
-          删除源 → 写 journal」，中断残留默认保留源、清掉不完整目标）。
-        </div>
+        <button className="btn" type="button" onClick={onClose}>
+          返回
+        </button>
       </div>
     </>
   );

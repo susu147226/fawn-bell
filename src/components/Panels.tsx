@@ -123,7 +123,7 @@ export function DedupePanel({ onClose }: { onClose: () => void }) {
 
           {report.groups.length === 0 ? (
             <div className="detail-sec">
-              <div className="tbd">没有发现内容相同的文件。</div>
+              <div className="tbd">无重复内容</div>
             </div>
           ) : (
             <div className="detail-sec">
@@ -244,8 +244,6 @@ export function DraftsPanel({ onClose }: { onClose: () => void }) {
           <div className="kv-val">
             {formatCount(list?.count ?? 0)} 项 / {formatCount(list?.problems ?? 0)} 项
           </div>
-          <div className="kv-key">磁盘状态</div>
-          <div className="kv-val">草稿只写在库目录，**提交前真实文件零变化**</div>
         </div>
         <div style={{ marginTop: 'var(--spacing-2)' }}>
           <button className="btn" type="button" disabled={busy || !list?.count} onClick={() => void act(api.draftUndo)}>
@@ -294,7 +292,7 @@ export function DraftsPanel({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <div className="detail-sec">
-          <div className="tbd">还没有草稿。在文件详情里用「排入变更集」先排一条重命名试试。</div>
+          <div className="tbd">无草稿</div>
         </div>
       )}
 
@@ -489,7 +487,6 @@ export function RelocateWizard({
             <div className="kv-val mono">{lib.thumbs}</div>
           </div>
           {lib.degraded ? <div className="tbd">{lib.degraded}</div> : null}
-          <div className="tbd">库迁移（搬到别的目录 / 移动硬盘）命令行可用：`luling migrate &lt;目标目录&gt;`。</div>
         </div>
       ) : null}
     </>

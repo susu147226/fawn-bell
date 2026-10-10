@@ -44,8 +44,8 @@ const VIEW_ICON = { folders: FolderTree, grid: LayoutGrid, list: List, detail: T
 const VIEW_HINT: Record<ViewMode, string> = {
   folders: '文件夹视图（Ctrl+1）',
   grid: '网格视图',
-  list: '列表视图（后续阶段接入）',
-  detail: '详情视图（后续阶段接入）',
+  list: '列表视图',
+  detail: '详情视图',
 };
 
 export default function Toolbar({
@@ -93,9 +93,9 @@ export default function Toolbar({
 
       <span className="grow" />
 
-      <label className="search" title="搜索素材（后续阶段接入）">
+      <label className="search" title="搜索素材">
         <Search size={14} strokeWidth={1.75} aria-hidden />
-        <input type="search" placeholder="搜索素材（后续阶段接入）" disabled />
+        <input type="search" placeholder="搜索素材" disabled />
       </label>
 
       <div className="seg" role="group" aria-label="视图">
@@ -118,7 +118,7 @@ export default function Toolbar({
       </div>
 
       {/* 设计稿顶栏右侧顺序：搜索 → 视图 → 排序 → 主题 → 提交变更 → 面板开关 */}
-      <select className="btn" disabled title="排序（P5 接入：按名称 / 大小 / 修改时间 / 类型）" defaultValue="name">
+      <select className="btn" disabled title="排序" defaultValue="name">
         <option value="name">按名称</option>
       </select>
 
@@ -146,7 +146,6 @@ export default function Toolbar({
         }
       >
         提交变更 <span className="status-num">{formatCount(draftCount)}</span>
-        <span className="tag-soon">P6</span>
       </button>
 
       <button

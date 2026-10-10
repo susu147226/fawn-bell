@@ -82,7 +82,7 @@ function FilePreview({ abs, kind }: { abs: string; kind: Kind }) {
 
   if (state === 'loading') return <div className="tbd">正在生成缩略图…</div>;
   if (state === 'none' || !url) {
-    return <div className="tbd">系统没有提供这个文件的缩略图，已降级为类型图标。</div>;
+    return <div className="tbd">无缩略图</div>;
   }
   return (
     <img
@@ -126,7 +126,7 @@ function FileMetaRows({ root, relPath }: { root: string; relPath: string }) {
   }, [root, relPath]);
 
   if (!loaded) return <div className="tbd">正在读取索引…</div>;
-  if (!meta) return <div className="tbd">这个文件还没有进索引（扫描一次就会出现）。</div>;
+  if (!meta) return <div className="tbd">未索引</div>;
 
   const rows: ReactNode[] = [];
   if (meta.width && meta.height) {
@@ -147,7 +147,7 @@ function FileMetaRows({ root, relPath }: { root: string; relPath: string }) {
   return rows.length > 0 ? (
     <div className="kv">{rows}</div>
   ) : (
-    <div className="tbd">索引里没有这个文件的额外元数据（无 EXIF，系统也未提供属性）。</div>
+    <div className="tbd">无额外元数据</div>
   );
 }
 
@@ -188,7 +188,7 @@ function aggregateKinds(index: ScanIndex, rels: string[]): KindCount[] {
 function KindList({ counts }: { counts: KindCount[] }) {
   const total = counts.reduce((s, k) => s + k.count, 0);
   const shown = counts.filter((k) => k.count > 0);
-  if (total === 0) return <div className="tbd">这里没有素材文件。</div>;
+  if (total === 0) return <div className="tbd">无文件</div>;
   const max = Math.max(...shown.map((k) => k.count));
   return (
     <div className="kindlist">
@@ -219,14 +219,17 @@ function Kv({ k, v, mono = false }: { k: string; v: string; mono?: boolean }) {
   );
 }
 
-/** 尚未接入的数据位统一长这样：一个破折号 + 阶段标注，绝不留空白让人以为坏了。 */
-function Todo({ phase, text }: { phase: string; text: string }) {
+/**
+ * 尚未接入的数据位统一长这样：一个破折号，绝不留空白让人以为坏了。
+ *
+ * `phase` 仍在类型里（调用处保留它便于日后对照规格），但**界面不再显示阶段标注**——
+ * 按产品要求，界面里不留提示性语句。
+ */
+function Todo({ text }: { phase?: string; text: string }) {
   return (
     <div className="kv">
       <div className="kv-key">{text}</div>
-      <div className="kv-val tbd">
-        — <span className="tag-soon">{phase}</span>
-      </div>
+      <div className="kv-val tbd">—</div>
     </div>
   );
 }
@@ -235,7 +238,7 @@ function DisabledActions({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="detail-sec">
       <div className="detail-title">
-        {title} <span className="tag-soon">后续阶段</span>
+        {title}
       </div>
       <div className="empty-actions" style={{ flexWrap: 'wrap' }}>
         {items.map((i) => (
@@ -443,15 +446,14 @@ function FileView({
               >
                 加入草稿（重命名）
               </button>
-              <span className="tbd"> 只进变更集，磁盘不动</span>
+              <span className="tbd"></span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="detail-sec">
-        <div className="detail-title">元数据（索引）</div>
-        <FileMetaRows root={root} relPath={file.relPath} />
+        <div className="detail-title">元数据（索引）</div>        <FileMetaRows root={root} relPath={file.relPath} />
       </div>
 
       <DisabledActions title="文件操作" items={['重命名', '移动到…', '复制到…', '整理命名…', '移入保护区']} />

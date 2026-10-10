@@ -48,7 +48,7 @@ export default function StatusBar({
         项有问题）
       </span>
       <span className="status-sep">|</span>
-      <span title="保护区在 P4 接入">
+      <span title="保护区">
         保护区 <span className="status-num">0</span> 项
       </span>
       <span className="status-sep">|</span>
@@ -71,9 +71,8 @@ export default function StatusBar({
         <Redo2 size={14} strokeWidth={1.75} aria-hidden />
       </button>
 
-      <span className="passthrough-slot" title="直通模式（跳过变更集立即生效）属高级/危险设置，P9 接入">
+      <span className="passthrough-slot" title="直通模式">
         直通模式：关闭
-        <span className="tag-soon">P9</span>
       </span>
 
       <span className="status-sep">|</span>

@@ -42,7 +42,7 @@ const STRIP_LABEL: Record<StripRule, string> = {
   none: '不剥离',
   trailingDigits: '剥离尾随数字',
   trailingUnderscoreDigits: '剥离尾随 _数字（默认）',
-  regex: '按正则剥离（P9 配置）',
+  regex: '按正则剥离',
 };
 
 export default function NamingPanel({ onClose }: { onClose: () => void }) {
@@ -169,10 +169,6 @@ export default function NamingPanel({ onClose }: { onClose: () => void }) {
               style={{ width: '100%' }}
             />
           </div>
-        </div>
-        <div className="tbd" style={{ marginTop: 'var(--spacing-1)' }}>
-          占位符：{'{name} {ext} {seq} {date} {time} {camera} {w} {h} {group} {parent} {kind} {hash8} {counter:3}'}
-          ；修饰符：:YYYYMMDD、_lower/_upper/_title/_slug/_trunc:N、{'{name|[回退文本]}'}
         </div>
       </div>
 
@@ -316,7 +312,7 @@ export default function NamingPanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="tbd" style={{ marginTop: 'var(--spacing-1)' }}>
-          {`当前档位：起始 ${rule.start} · ${padLabel(rule.pad)} · 序号固定为后缀（设置里不提供前/后缀）`}
+          {`起始 ${rule.start} · ${padLabel(rule.pad)}`}
         </div>
         <div style={{ marginTop: 'var(--spacing-2)' }}>
           <button className="btn" type="button" onClick={onClose}>
@@ -363,15 +359,12 @@ export default function NamingPanel({ onClose }: { onClose: () => void }) {
           style={{ width: '100%', marginTop: 'var(--spacing-2)' }}
         />
         {ioNote ? <div className="tbd">{ioNote}</div> : null}
-        <div className="tbd">
-          自定义预设只写本机库目录，**不落素材目录**；导出目标由你自己选（软件不会自动写文件）。
-        </div>
       </div>
 
       <div className="detail-sec">
-        <div className="tbd">
-          排计划与真实改名走 §7.2 的草稿 → 预检 → 提交管线：本面板只定规则，不改任何文件。
-        </div>
+        <button className="btn" type="button" onClick={onClose}>
+          返回
+        </button>
       </div>
     </>
   );

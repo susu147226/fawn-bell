@@ -223,9 +223,7 @@ export default function Sidebar({
             ) : null}
           </>
         ) : (
-          <div className="side-sec">
-            <span className="tbd">选择素材文件夹后，这里显示目录树。</span>
-          </div>
+          <div className="side-sec" />
         )}
       </div>
 
@@ -256,7 +254,7 @@ export default function Sidebar({
           </div>
         ) : null}
         {(groups ?? []).filter((g) => g.kind !== 'smart').length === 0 ? (
-          <div className="tbd">暂无分组（点 + 新建）</div>
+          <div className="tbd">暂无分组</div>
         ) : (
           (groups ?? [])
             .filter((g) => g.kind !== 'smart')
@@ -272,7 +270,6 @@ export default function Sidebar({
       <div className="side-sec">
         <div className="side-title">
           <span>智能集合</span>
-          <span className="tag-soon">动态</span>
         </div>
         {(groups ?? [])
           .filter((g) => g.kind === 'smart')
@@ -294,12 +291,10 @@ export default function Sidebar({
           <span>
             <Lock size={12} strokeWidth={1.75} aria-hidden /> 保护区
           </span>
-          <span className="tag-soon">锁定</span>
         </div>
         <div className="tbd">
           共 {formatCount(stats?.total ?? 0)} 项 · 当周新增 {formatCount(stats?.weekNew ?? 0)}
         </div>
-        <div className="tbd">受保护项在批量操作中被默认跳过</div>
       </div>
 
       {err ? (
@@ -325,12 +320,6 @@ export default function Sidebar({
               {THEME_LABEL[t]}
             </button>
           ))}
-        </div>
-        <div className="tbd" style={{ marginTop: 'var(--spacing-2)' }}>
-          强调色 <span className="tag-soon">后续阶段</span>
-        </div>
-        <div className="tbd" style={{ marginTop: 'var(--spacing-1)' }}>
-          密度 <span className="tag-soon">后续阶段</span>
         </div>
       </div>
     </div>

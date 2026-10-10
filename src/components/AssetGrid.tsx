@@ -73,7 +73,7 @@ export default function AssetGrid({
   if (rows.length === 0) {
     return (
       <div className="grid-empty">
-        <span className="tbd">这个文件夹里还没有素材。</span>
+        <span className="tbd">无素材</span>
       </div>
     );
   }

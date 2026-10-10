@@ -84,8 +84,6 @@ export default function ProtectionPanel({
           <div className="kv-val">
             共 {formatCount(stats?.total ?? 0)} 项 · 当周新增 {formatCount(stats?.weekNew ?? 0)}
           </div>
-          <div className="kv-key">默认行为</div>
-          <div className="kv-val">受保护项在批量操作中被**默认跳过**，需要时再逐条移出</div>
         </div>
         <div style={{ marginTop: 'var(--spacing-2)' }}>
           <button className="btn" type="button" disabled={busy || !rows?.length} onClick={() => setConfirmAll(true)}>
@@ -140,9 +138,7 @@ export default function ProtectionPanel({
             </div>
           ))
         ) : (
-          <div className="tbd">
-            还没有受保护条目。已整理的素材在提交成功后会自动加入（§7.6，默认开启）。
-          </div>
+          <div className="tbd">还没有受保护条目</div>
         )}
       </div>
     </>

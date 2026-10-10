@@ -539,16 +539,10 @@ export default function App() {
               borderBottom: '1px solid var(--border)',
             }}
           >
-            <span className="tbd">文件夹视图 · 共 {formatCount(rows.length)} 项</span>
+            <span className="tbd">共 {formatCount(rows.length)} 项</span>
             <span className="grow" />
             <span className="badge" title="草稿态条目（取自变更集真值）">
               草稿 {formatCount(draftList?.count ?? 0)}
-            </span>
-            <span className="badge" title="已整理：P6 接入后由已整理表提供">
-              已整理 <span className="tag-soon">P6</span>
-            </span>
-            <span className="badge" title="受保护：P4 接入">
-              受保护 <span className="tag-soon">P4</span>
             </span>
             <button
               className="btn"
@@ -558,17 +552,6 @@ export default function App() {
               onClick={protectSelection}
             >
               加入保护区
-            </button>
-          </div>
-          <div className="seg" role="group" aria-label="筛选" style={{ margin: 'var(--spacing-1) var(--spacing-3)' }}>
-            <button className="seg-item on" type="button" disabled>
-              全部 {formatCount(rows.length)}
-            </button>
-            <button className="seg-item" type="button" disabled title="按类型筛选（P5 接入）">
-              类型筛选<span className="tag-soon">P5</span>
-            </button>
-            <button className="seg-item" type="button" disabled title="按大小区间筛选（P5 接入）">
-              大小范围<span className="tag-soon">P5</span>
             </button>
           </div>
           {view === 'grid' ? (
