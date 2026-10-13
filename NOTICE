@@ -1,0 +1,43 @@
+鹿铃（luling）——来源、修改与第三方组件声明
+============================================
+
+本产物是「鹿铃（luling）」的源代码，其中包含基于 Pulse 修改而来的代码。
+
+## 一、来源
+
+Pulse v1.0.53
+  项目地址：https://github.com/jimmgreen/pulse
+  许可：Apache License 2.0（全文见本目录 LICENSE）
+
+本仓库以 Pulse v1.0.53 的已发布工作树为基线导入，此后由鹿铃项目继续开发。
+
+## 二、修改声明
+
+按 Apache License 2.0 第 4(b) 条，此处声明本仓库相对上游做过的修改：
+
+- 工程名、命名空间、CMake 目标、可执行文件名、资源名（图标 / 清单 / 版本模板）由 Pulse 改为 Luling；
+- 安装目录、数据目录、程序数据目录、注册表项、Shell 集成项与 AppUserModelID 相应改为 Luling；
+- 三语界面文案中的产品名改为「鹿铃」/「鹿鈴」/「Luling」，机器标识（如 LulingIndex、
+  Luling.Index.exe、C:\ProgramData\Luling）保持 ASCII；
+- 默认更新清单地址与预览增强包下载地址改为本仓库的发布地址；
+- 版本库级别的重新初始化（上游提交历史未进入本仓库，见根目录 README 的说明）。
+
+第 4(b) 条要求的「修改标注」：本次重建对全树做过机械改名，逐文件加注会掩盖真实改动，
+故统一在此声明；此后凡对单个文件做实质修改，在该文件首次修改时于文件头加注一行说明。
+
+## 三、第三方组件
+
+以下组件随本仓库分发，各自遵循其随附的许可证原文（路径相对本目录）：
+
+| 组件 | 位置 | 许可 |
+| --- | --- | --- |
+| SQLite 3.50.4 amalgamation | third_party/sqlite | 公有领域（https://www.sqlite.org/copyright.html） |
+| md4c | third_party/md4c | MIT（LICENSE.md） |
+| ib-pinyin-cpp | third_party/ib-pinyin-cpp | MIT（LICENSE.txt） |
+| LZMA SDK 24.07 | third_party/lzma | 公有领域 |
+| PDFium 及其内置第三方库 | third_party/pdfium | BSD-3-Clause 等，逐项见 third_party/pdfium/licenses（含 freetype、libpng、icu、lcms、libjpeg-turbo、zlib、abseil、libopenjpeg、simdutf 等） |
+| LumaText SDK | third_party/lumatext | MIT（share/LumaText/licenses/LICENSE） |
+| d2d-mica（Mica 材质配方参考） | src/ui/window_material.cpp | MIT，Copyright (C) 2022 Yuhang Zhao |
+
+预览增强包（FFmpeg、图片、RAW、压缩包等）**不随本仓库分发**，由应用在运行时按需下载；
+其名称与许可证文本在应用内「设置 › 快速预览 › 支持的格式」中可见。

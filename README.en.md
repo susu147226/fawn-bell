@@ -114,6 +114,11 @@ The stack is C++20, Win32, Direct2D and DirectComposition. File system, indexing
 
 More: [Automatic updates and releases](docs/automatic-updates.md) · [Windows compatibility](docs/windows-compatibility.md) · [Index storage and migration](docs/index-migration.md)
 
-## License
+## License and credits
 
-Luling source code is licensed under the [Apache License 2.0](LICENSE). Third-party components (such as the LumaText SDK) are covered by their own bundled licenses.
+This repository is **source-available proprietary software**, not an open-source project.
+
+- Code, assets and documentation original to this project: copyright 云舒眠眠, under [LICENSE-luling.md](LICENSE-luling.md) (personal, non-commercial use; commercial use, redistribution, relicensing and removal of attribution are not permitted).
+- This repository contains code derived from [Pulse](https://github.com/jimmgreen/pulse) v1.0.53, licensed under the [Apache License 2.0](LICENSE). Origin, modification notice and the third-party component list are in [NOTICE](NOTICE).
+- Components under `third_party/` (SQLite, md4c, ib-pinyin-cpp, the LZMA SDK, PDFium, the LumaText SDK) are covered by their own bundled licenses, listed in NOTICE.
+- Preview packs are not distributed with this repository; the app downloads them on demand, and their names and licence texts are shown in Settings › Quick Look › Supported formats.

@@ -1,4 +1,4 @@
-# Luling
+# 鹿铃（luling）
 
 **为 Windows 打造的文件管理器，让浏览、搜索和整理文件更顺手。**
 
@@ -114,6 +114,11 @@ pwsh ./scripts/build_release_ci.ps1 -Channel win81 -BuildDir build-ci-win81
 
 更多说明：[自动更新与发布](docs/automatic-updates.md) · [Windows 兼容性](docs/windows-compatibility.md) · [索引存储与迁移](docs/index-migration.md)
 
-## 许可证
+## 许可证与致谢
 
-Luling 源代码以 [Apache License 2.0](LICENSE) 授权。第三方组件（例如 LumaText SDK）遵循各自附带的许可证。
+本仓库是**源码可见的专有软件**，不是开源项目。
+
+- 本项目作者原创的代码、资源与文档：版权归 云舒眠眠，条款见 [LICENSE-luling.md](LICENSE-luling.md)（允许个人非商业获取、编译、运行与本地修改；禁止商业使用、再分发、更换许可证或移除署名）。
+- 本仓库包含基于 [Pulse](https://github.com/jimmgreen/pulse) v1.0.53 的代码，该部分依 [Apache License 2.0](LICENSE) 授权。来源、修改声明与第三方组件清单见 [NOTICE](NOTICE)。
+- `third_party/` 下的组件（SQLite、md4c、ib-pinyin-cpp、LZMA SDK、PDFium、LumaText SDK）各自遵循随附的许可证原文，逐项列于 NOTICE。
+- 预览增强包不随仓库分发，由应用运行时按需下载；其名称与许可证文本在「设置 › 快速预览 › 支持的格式」中可见。
