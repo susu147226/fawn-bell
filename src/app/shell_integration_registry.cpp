@@ -424,7 +424,13 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
             previous.written.push_back(i == 0 ? current[i] : bindings[i].desired);
         }
     }
-    if (valid && !owned && !removed_anchor) return false; // someone edited Luling's command
+    // Turning the takeover off must always be possible. If the command drifted
+    // while we held it (Windows or another program rewrote it), restoring the
+    // recorded original is still exactly what "off" means; refusing here left the
+    // shell taken over with no way back (issue #228).
+    const bool drifted = valid && !owned && !removed_anchor;
+    if (on && drifted) return false; // never adopt a state we did not write
+    const bool force_restore = !on && drifted;
     bool ok = valid;
     bool write_failed = false;
     for (size_t i = bindings.size(); i-- > 0;) {
@@ -436,7 +442,7 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
         }
         Value actual;
         if (!Read(bindings[i].key, bindings[i].name, actual)) { ok = false; write_failed = true; continue; }
-        if (!SameValue(actual, previous.written[i])) continue;
+        if (!SameValue(actual, previous.written[i]) && !(force_restore && previous.before[i].known)) continue;
         if (!previous.before[i].known) {
             // Retaining our empty DelegateExecute after removing our command
             // disables Explorer's inherited handler (#81). Restore any legacy

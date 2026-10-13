@@ -285,6 +285,26 @@ bool TestDefaultFileManager() {
             !SnapshotExists(L"ThisPc"));
     }
     {
+        // The command drifts while we hold the takeover: Windows or another
+        // program rewrites it. Turning it off must still hand the original back
+        // instead of refusing and leaving the shell taken over (issue #228).
+        RegDeleteTreeW(HKEY_CURRENT_USER, kThisPcClsid);
+        constexpr wchar_t kDrifted[] = L"\"C:\\Other\\manager.exe\" \"%1\"";
+        Write(kThisPcCommand, nullptr, kForeign);
+        Write(kThisPcShell, nullptr, L"openfm");
+        AppPrefs prefs;
+        prefs.Load();
+        const bool on = ApplyThisPcOpen(prefs, true) && SnapshotExists(L"ThisPc");
+        Write(kThisPcCommand, nullptr, kDrifted);  // a third party rewrites our command
+        const bool off = ApplyThisPcOpen(prefs, false);
+        AppPrefs off_read;
+        off_read.Load();
+        passed &= Report("default file manager: turning off still restores after the command drifted",
+            on && off && Read(kThisPcCommand, nullptr) == kForeign &&
+            Read(kThisPcShell, nullptr) == L"openfm" && !SnapshotExists(L"ThisPc") &&
+            !off_read.take_over_this_pc);
+    }
+    {
         // Clean machine: on then off leaves no This PC / Win+E keys behind.
         RegDeleteTreeW(HKEY_CURRENT_USER, kThisPcClsid);
         RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\CLSID\\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}");
@@ -362,6 +382,52 @@ bool TestDefaultFileManager() {
     passed &= Report("default file manager: scratch registry is removed",
         !takeover_test::KeyExists(scratch_path.c_str()) &&
         !takeover_test::KeyExists(L"Software\\LulingTest"));
+    return passed;
+}
+
+bool TestTakeoverCancelAfterDrift() {
+    using namespace takeover_test;
+    // Issue #228: a takeover must stay cancellable. The case it guards is a
+    // command that drifted while Luling held it (Windows or another program
+    // rewrote it) — the restore used to refuse, leaving Explorer taken over.
+    //
+    // The drift is a third party rewriting our own key, so there is nothing to
+    // redirect here: this runs against the real per-user association, skips when
+    // the profile already carries one, and removes exactly what it wrote.
+    if (KeyExists(L"Software\\Classes\\Directory\\shell\\open") || KeyExists(L"Software\\Luling")) {
+        std::printf("[SKIP] takeover drift: the folder association is already customized here\n");
+        return true;
+    }
+    bool passed = true;
+    // The module under test writes its own executable path, which here is this
+    // test binary — not luling.exe.
+    wchar_t module[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, module, MAX_PATH);
+    const std::wstring self = module;
+    luling::app::AppPrefs prefs;
+    prefs.Load();
+    const bool on = prefs.ApplyFolderOpen(true) && prefs.open_folders_in_luling;
+    const std::wstring ours = Read(L"Software\\Classes\\Directory\\shell\\open\\command", nullptr);
+    if (!on && ours == L"<absent>") {
+        // This profile refuses the takeover write itself (durable registry
+        // writes denied here), so the drift case cannot be staged.
+        std::printf("[SKIP] takeover drift: this profile refuses the takeover write\n");
+        RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\Directory");
+        RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Luling");
+        return true;
+    }
+    passed &= Report("takeover drift: the takeover writes Luling's folder command",
+        on && !self.empty() && ours.find(self) != std::wstring::npos);
+
+    // A third party rewrites the command while Luling holds it.
+    const bool drifted = Write(L"Software\\Classes\\Directory\\shell\\open\\command", nullptr, kForeign);
+    const bool off = prefs.ApplyFolderOpen(false);
+    const std::wstring after = Read(L"Software\\Classes\\Directory\\shell\\open\\command", nullptr);
+    passed &= Report("takeover drift: cancelling still restores after the command drifted",
+        drifted && off && !prefs.open_folders_in_luling && after != ours && after != kForeign);
+
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\Directory");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Luling");
     return passed;
 }
 
@@ -1869,6 +1935,7 @@ int wmain(int argc, wchar_t** argv) {
     passed &= TestSelectionTokens();
     passed &= TestShellRegistryDebounce();
     passed &= TestDefaultFileManager();
+    passed &= TestTakeoverCancelAfterDrift();
     passed &= TestShellWindowPlan();
     passed &= TestThisPc();
     passed &= Report("menu row height follows list density (28/34/40 -> 30/36/40, clamped)",
