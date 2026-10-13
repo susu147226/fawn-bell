@@ -22,6 +22,12 @@ if(LULING_WIN81_CANDIDATE AND MSVC_VERSION GREATER_EQUAL 1950)
 endif()
 
 add_compile_options(/utf-8 /permissive- /W4 /EHsc)
+# Warnings are defects. Third-party sources are compiled at /W0, so the MSVC
+# command-line warning about that override stays harmless here.
+option(LULING_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
+if(LULING_WARNINGS_AS_ERRORS)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+endif()
 # Expose optional SDK COM interfaces; runtime calls are capability-checked.
 add_compile_definitions(UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0603 WINVER=0x0603 _WIN32_IE=0x0A00 NTDDI_VERSION=NTDDI_WIN10_NI)
 
@@ -1677,3 +1683,10 @@ if(LULING_BUILD_PROGRESS_UI_TESTS)
 endif()
 
 include(cmake/setup.cmake)
+
+# Regression gate. include(CTest) enables BUILD_TESTING and testing itself;
+# cmake/tests.cmake registers the executables the release gate runs.
+include(CTest)
+if(BUILD_TESTING)
+    include(cmake/tests.cmake)
+endif()
