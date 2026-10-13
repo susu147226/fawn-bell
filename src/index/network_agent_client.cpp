@@ -125,31 +125,21 @@ bool NetworkAgentClient::Request(uint32_t type, uint32_t id,
         active_pipe_ = INVALID_HANDLE_VALUE;
         CloseHandle(pipe);
     };
-    // Cancel a silent peer on the owning I/O thread; retain normal handle ownership.
-    struct Deadline {
+    // Cancel a silent peer on the owning I/O thread; the watchdog owns the
+    // duplicated handle from here until the registration is destroyed.
+    struct WatchdogRegistration {
+        NetworkAgentClient* self = nullptr;
         HANDLE thread = nullptr;
-        std::mutex mutex;
-        std::condition_variable_any changed;
-        std::jthread worker;
-        Deadline() {
-            if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
-                                 &thread, 0, FALSE, DUPLICATE_SAME_ACCESS)) return;
-            worker = std::jthread([this](std::stop_token stop) {
-                std::unique_lock lock(mutex);
-                changed.wait_for(lock, stop, std::chrono::seconds(5), [] { return false; });
-                while (!stop.stop_requested()) {
-                    CancelSynchronousIo(thread);
-                    changed.wait_for(lock, stop, std::chrono::milliseconds(10), [] { return false; });
-                }
-            });
+        ~WatchdogRegistration() {
+            if (thread) self->UnregisterWatchdog(thread);
         }
-        ~Deadline() {
-            worker.request_stop();
-            if (worker.joinable()) worker.join();
-            if (thread) CloseHandle(thread);
-        }
-    } deadline;
-    if (!deadline.thread) { close_pipe(); return false; }
+    } watchdog{this};
+    if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
+                         &watchdog.thread, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        close_pipe();
+        return false;
+    }
+    RegisterWatchdog(watchdog.thread);
     const MsgHeader header = agent::MakeHeader(type, id, static_cast<uint32_t>(payload.size()));
     const bool sent = PipeWrite(pipe, reinterpret_cast<const uint8_t*>(&header), sizeof(header)) &&
                       (payload.empty() || PipeWrite(pipe, payload.data(), static_cast<DWORD>(payload.size())));
@@ -161,6 +151,60 @@ bool NetworkAgentClient::Request(uint32_t type, uint32_t id,
     const bool received = ReadFrame(pipe, response_type, response_id, response) && response_id == id;
     close_pipe();
     return received;
+}
+
+void NetworkAgentClient::StartWatchdog() {
+    watchdog_event_ = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    if (!watchdog_event_) return;
+    watchdog_thread_ = std::thread([this] { WatchdogLoop(); });
+}
+
+void NetworkAgentClient::RegisterWatchdog(HANDLE thread) {
+    {
+        std::lock_guard<std::mutex> lock(watchdog_mu_);
+        watchdog_entries_.push_back({thread, GetTickCount64() + 5000});
+    }
+    if (watchdog_event_) SetEvent(watchdog_event_);
+}
+
+void NetworkAgentClient::UnregisterWatchdog(HANDLE thread) {
+    {
+        // The cancel loop runs under the same lock, so the handle is never
+        // closed while CancelSynchronousIo may still be using it.
+        std::lock_guard<std::mutex> lock(watchdog_mu_);
+        for (auto it = watchdog_entries_.begin(); it != watchdog_entries_.end(); ++it) {
+            if (it->thread == thread) {
+                watchdog_entries_.erase(it);
+                break;
+            }
+        }
+    }
+    CloseHandle(thread);
+}
+
+void NetworkAgentClient::WatchdogLoop() {
+    for (;;) {
+        DWORD wait_ms = INFINITE;
+        {
+            std::lock_guard<std::mutex> lock(watchdog_mu_);
+            if (!running_ && watchdog_entries_.empty()) return;
+            if (!watchdog_entries_.empty()) {
+                ULONGLONG earliest = watchdog_entries_.front().cancel_at;
+                for (const auto& entry : watchdog_entries_)
+                    earliest = (std::min)(earliest, entry.cancel_at);
+                const ULONGLONG now = GetTickCount64();
+                wait_ms = earliest <= now ? 0 : static_cast<DWORD>((std::min)(earliest - now, 1000ull));
+            }
+        }
+        if (watchdog_event_) WaitForSingleObject(watchdog_event_, wait_ms);
+        std::lock_guard<std::mutex> lock(watchdog_mu_);
+        const ULONGLONG now = GetTickCount64();
+        for (auto& entry : watchdog_entries_) {
+            if (entry.cancel_at > now) continue;
+            CancelSynchronousIo(entry.thread);
+            entry.cancel_at = now + 10;  // keep cancelling until the request finishes
+        }
+    }
 }
 
 void NetworkAgentClient::Start(HWND notify, UINT status_msg, UINT search_msg) {
@@ -180,6 +224,7 @@ void NetworkAgentClient::Start(HWND notify, UINT status_msg, UINT search_msg) {
         }
     });
     search_thread_ = std::thread([this] { SearchLoop(); });
+    StartWatchdog();
 }
 
 void NetworkAgentClient::Stop() {
@@ -197,6 +242,19 @@ void NetworkAgentClient::Stop() {
     if (search_thread_.joinable()) CancelSynchronousIo(search_thread_.native_handle());
     if (status_thread_.joinable()) status_thread_.join();
     if (search_thread_.joinable()) search_thread_.join();
+    // No request can be in flight now, so the registry can be drained.
+    if (watchdog_event_) SetEvent(watchdog_event_);
+    if (watchdog_thread_.joinable()) watchdog_thread_.join();
+    {
+        std::lock_guard<std::mutex> lock(watchdog_mu_);
+        for (auto& entry : watchdog_entries_)
+            if (entry.thread) CloseHandle(entry.thread);
+        watchdog_entries_.clear();
+    }
+    if (watchdog_event_) {
+        CloseHandle(watchdog_event_);
+        watchdog_event_ = nullptr;
+    }
     std::lock_guard<std::mutex> lock(request_mu_);
     if (agent_process_) {
         CloseHandle(agent_process_);

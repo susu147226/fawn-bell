@@ -38,6 +38,7 @@ set(luling_plain_tests
     luling_link_pill_test
     luling_shell_icons_test
     luling_network_locations_test
+    luling_network_agent_client_test
     luling_archive_integrity_test
     luling_document_completeness_test
     luling_preview_command_test

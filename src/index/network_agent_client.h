@@ -44,6 +44,21 @@ private:
     void RefreshRoots();
     static std::wstring ExePath();
 
+    // One watchdog for the client's lifetime. Each in-flight request registers
+    // the duplicated handle of its own thread; the watchdog cancels a request
+    // whose peer went silent. Doing this with a shared registry keeps every
+    // per-request kernel object out of the request path: the previous design
+    // started a jthread and waited on it with a stop_token timed wait on every
+    // request, which leaked a Timer and a Semaphore per call at the 1 Hz poll.
+    struct WatchdogEntry {
+        HANDLE thread = nullptr;
+        ULONGLONG cancel_at = 0;
+    };
+    void StartWatchdog();
+    void WatchdogLoop();
+    void RegisterWatchdog(HANDLE thread);
+    void UnregisterWatchdog(HANDLE thread);
+
     HWND notify_ = nullptr;
     UINT status_msg_ = 0;
     UINT search_msg_ = 0;
@@ -71,6 +86,10 @@ private:
     HANDLE agent_process_ = nullptr;
     ULONGLONG last_spawn_tick_ = 0;  // guarded by request_mu_
     static constexpr ULONGLONG kRespawnBackoffMs = 5000;
+    HANDLE watchdog_event_ = nullptr;  // auto-reset: wakes the watchdog for a new entry
+    std::mutex watchdog_mu_;
+    std::vector<WatchdogEntry> watchdog_entries_;
+    std::thread watchdog_thread_;
     // Must match the mutex created by RunAgent() in network_agent_main.cpp.
 };
 
