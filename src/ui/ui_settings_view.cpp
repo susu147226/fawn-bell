@@ -557,58 +557,6 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             }
         }
 
-        draw_card(lay.apps_card);
-        {
-            const D2D1_RECT_F& card = lay.apps_card;
-            const float x0 = card.left + 16.0f * scale_;
-            const float inner_w = card.right - card.left - 32.0f * scale_;
-            MakeBrush(dc, theme.text, brText_);
-            DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         luling::l10n::Get(luling::l10n::StringId::AboutMoreApps),
-                         x0, card.top + 12.0f * scale_, inner_w, 24.0f * scale_);
-            MakeBrush(dc, theme.text_secondary, brTextSecondary_);
-            DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         luling::l10n::Get(luling::l10n::StringId::AboutMoreAppsDesc),
-                         x0, card.top + 38.0f * scale_, inner_w, 20.0f * scale_);
-            struct RecommendedApp {
-                const wchar_t* glyph;
-                const wchar_t* name;
-                luling::l10n::StringId description;
-            };
-            static constexpr RecommendedApp kApps[] = {
-                {L"\uE8A5", L"LumenPDF", luling::l10n::StringId::AboutLumenPdfDesc},
-                {L"\uE722", L"LumaShot", luling::l10n::StringId::AboutLumaShotDesc},
-            };
-            IDWriteTextFormat* small_fmt = compositor_->SmallFormat();
-            const auto measure = [&](const std::wstring& t) {
-                return MeasureTextWidth(compositor_->DwriteFactory(), small_fmt, t);
-            };
-            for (int i = 0; i < 2; ++i) {
-                const D2D1_RECT_F& row = lay.apps_row[i];
-                if (!VisibleInContent(row, lay.content)) continue;
-                if (IsHovered(vm, HitTestResult::SettingsAboutAction, 3 + i)) {
-                    MakeBrush(dc, theme.fill_hover, brFillHover_);
-                    FillRoundedRect(dc, brFillHover_.get(), row.left, row.top,
-                                    row.right - row.left, row.bottom - row.top, 4.0f * scale_);
-                }
-                painter_.DrawGlyph(kApps[i].glyph,
-                                   D2D1::RectF(row.left + 8.0f * scale_, row.top,
-                                               row.left + 40.0f * scale_, row.bottom),
-                                   theme.accent);
-                const float tx = row.left + 48.0f * scale_;
-                const float tw = (std::max)(0.0f, row.right - 44.0f * scale_ - tx);
-                DrawTextRect(dc, compositor_->TextFormat(), brText_.get(), kApps[i].name,
-                             tx, row.top + 6.0f * scale_, tw, 22.0f * scale_);
-                DrawTextRect(dc, small_fmt, brTextSecondary_.get(),
-                             FitEndEllipsis(luling::l10n::Get(kApps[i].description), tw, measure),
-                             tx, row.top + 28.0f * scale_, tw, 20.0f * scale_);
-                painter_.DrawGlyph(L"\uE8A7",
-                                   D2D1::RectF(row.right - 36.0f * scale_, row.top,
-                                               row.right - 12.0f * scale_, row.bottom),
-                                   theme.text_secondary);
-            }
-        }
-
         draw_card(lay.diagnostics_card);
         MakeBrush(dc, theme.text, brText_);
         DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),

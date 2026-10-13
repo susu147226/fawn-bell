@@ -968,7 +968,7 @@ struct HitTestResult {
         SettingsNetworkRemove,
         SettingsDiagnosticsAction,
         SettingsUpdateAction,
-        SettingsAboutAction,   // 0 copy info, 1 project page, 2 all releases, 3 LumenPDF, 4 LumaShot
+        SettingsAboutAction,   // 0 copy info, 1 project page, 2 all releases
         SettingsReleaseNote,
         SettingsDupScope,
         SettingsDupDrive,

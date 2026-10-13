@@ -1201,10 +1201,6 @@ BEGIN
  IDS_ARC_FAM_ARCHIVE "壓縮檔"
  IDS_ARC_FAM_PROGRAM "程式"
  IDS_ARC_FAM_OTHER "其他"
- IDS_ABOUT_MORE_APPS "更多開源免費軟體"
- IDS_ABOUT_MORE_APPS_DESC "同一作者開發，完全免費、開源，歡迎試用"
- IDS_ABOUT_LUMENPDF_DESC "輕量、快速的 PDF 閱讀與編輯器：註解、表單、簽名、合併、轉換、列印"
- IDS_ABOUT_LUMASHOT_DESC "截圖與標註、離線 OCR 文字辨識、剪貼簿歷史、GIF 與螢幕錄製"
 END
 
 LANGUAGE 0x04, 0x01

@@ -2288,10 +2288,6 @@ BEGIN
  IDS_ARC_FAM_ARCHIVE "压缩包"
  IDS_ARC_FAM_PROGRAM "程序"
  IDS_ARC_FAM_OTHER "其他"
- IDS_ABOUT_MORE_APPS "更多开源免费软件"
- IDS_ABOUT_MORE_APPS_DESC "同一作者开发，完全免费、开源，欢迎试用"
- IDS_ABOUT_LUMENPDF_DESC "轻量、快速的 PDF 阅读与编辑器：批注、表单、签名、合并、转换、打印"
- IDS_ABOUT_LUMASHOT_DESC "截图与标注、离线 OCR 文字识别、剪贴板历史、GIF 与屏幕录制"
 END
 LANGUAGE 0x09, 0x01
 STRINGTABLE
@@ -2364,10 +2360,6 @@ BEGIN
  IDS_ARC_FAM_ARCHIVE "Archives"
  IDS_ARC_FAM_PROGRAM "Programs"
  IDS_ARC_FAM_OTHER "Other"
- IDS_ABOUT_MORE_APPS "More free open-source apps"
- IDS_ABOUT_MORE_APPS_DESC "By the same author, completely free and open source"
- IDS_ABOUT_LUMENPDF_DESC "Fast, lightweight PDF reader and editor: annotate, fill forms, sign, merge, convert, print"
- IDS_ABOUT_LUMASHOT_DESC "Screenshots and annotation, offline OCR, clipboard history, GIF and screen recording"
 END
 
 LANGUAGE 0x04, 0x02

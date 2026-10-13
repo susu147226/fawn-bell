@@ -635,9 +635,6 @@ int RunSettingsFlowTest(AppState& s,const wchar_t* output) {
         check(TestSettingsFilter(l10n::Get(I::SettingsWallpaper),I::SettingsWallpaper),"settings search finds hidden advanced settings");
         check(TestSettingsFilter(l10n::Get(I::SettingsSearchIndex),I::IndexLocation),"settings search finds page and subsettings");
         check(!TestSettingsFilter(L"no-such-setting-123",I::SettingsTheme),"settings search has empty results");
-        bool apps_text=true;
-        for(I id:{I::AboutMoreApps,I::AboutMoreAppsDesc,I::AboutLumenPdfDesc,I::AboutLumaShotDesc}) apps_text &= !l10n::Get(id).empty();
-        check(apps_text,"recommended apps texts exist in both languages");
     }
     l10n::SetLanguage(L"zh-CN");
     const float original_scale=s.scale;
@@ -699,13 +696,8 @@ int RunSettingsFlowTest(AppState& s,const wchar_t* output) {
                     check(hidden,"collapsed context entries do not receive clicks");
                 }
                 if(page==3) {
-                    bool apps=true;
-                    for(int i=0;i<2;++i) {auto h=hit(layout.apps_row[i]);apps &= h.region==H::SettingsAboutAction && h.index==3+i;}
-                    check(apps,"recommended app rows open their own project pages");
-                    check(layout.apps_card.top>=layout.about_card.bottom && layout.apps_card.bottom<=layout.diagnostics_card.top &&
-                          layout.apps_row[0].top>=layout.apps_card.top && layout.apps_row[0].bottom<=layout.apps_row[1].top &&
-                          layout.apps_row[1].bottom<=layout.apps_card.bottom,
-                          "recommended apps card sits between about and diagnostics without overlap");
+                    check(layout.about_card.bottom<=layout.diagnostics_card.top,
+                          "about card sits above diagnostics without overlap");
                 }
                 if(page==1) {
                     check(layout.index_action[0].bottom==0 && layout.index_volume_rows.empty(),"collapsed maintenance has no invisible hit targets");

@@ -2083,8 +2083,6 @@ struct SettingsLayout {
     std::vector<D2D1_RECT_F> network_rows;
     std::vector<D2D1_RECT_F> network_remove;
     D2D1_RECT_F about_card{};
-    D2D1_RECT_F apps_card{};
-    D2D1_RECT_F apps_row[2]{};  // LumenPDF, LumaShot
     D2D1_RECT_F diagnostics_card{};
     D2D1_RECT_F diagnostics_perf{};
     D2D1_RECT_F diagnostics_action[3]{};
@@ -2417,16 +2415,6 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             }
             l.about_card = D2D1::RectF(card_left, y, card_right, actions_y + 48.0f * scale);
             y = l.about_card.bottom + 12.0f * scale;
-        }
-        {
-            // Recommended apps: title + subtitle, then one full-width link row per app.
-            float ry = y + 64.0f * scale;
-            for (auto& row : l.apps_row) {
-                row = D2D1::RectF(card_left + 8.0f * scale, ry, card_right - 8.0f * scale, ry + 52.0f * scale);
-                ry += 52.0f * scale;
-            }
-            l.apps_card = D2D1::RectF(card_left, y, card_right, ry + 8.0f * scale);
-            y = l.apps_card.bottom + 12.0f * scale;
         }
 
         const bool compact_diagnostics = card_right - card_left < 650.0f * scale;

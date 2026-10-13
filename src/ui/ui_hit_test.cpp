@@ -527,13 +527,6 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         return r;
                     }
                 }
-                for (int i = 0; i < 2; ++i) {
-                    if (ContainsPt(lay.apps_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsAboutAction;
-                        r.index = 3 + i;
-                        return r;
-                    }
-                }
                 for (size_t i = 0; i < lay.release_rows.size(); ++i) {
                     if (ContainsPt(lay.release_rows[i], x, y)) {
                         r.region = HitTestResult::SettingsReleaseNote;

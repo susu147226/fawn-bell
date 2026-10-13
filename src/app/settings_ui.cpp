@@ -221,9 +221,8 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
         if(hit.index==0) {
             if(app::CopyTextToClipboard(s.hwnd,app::AboutRowsText(BuildVm(s,false).settings_about_rows)))
                 s.renderer.NotifyCopied(static_cast<int>(H::SettingsAboutAction),0);
-        } else if(hit.index>=1 && hit.index<=4) {
-            static constexpr const wchar_t* kPages[]={app::kLulingHomepage,app::kLulingReleasesPage,
-                                                      app::kLumenPdfHomepage,app::kLumaShotHomepage};
+        } else if(hit.index>=1 && hit.index<=2) {
+            static constexpr const wchar_t* kPages[]={app::kLulingHomepage,app::kLulingReleasesPage};
             ShellExecuteW(s.hwnd,L"open",kPages[hit.index-1],nullptr,nullptr,SW_SHOWNORMAL);
         }
         break;
