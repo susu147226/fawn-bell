@@ -1,0 +1,656 @@
+#include "edit_host.h"
+#include "../common/windows_compat.h"
+#include "batch_rename_dialog.h"
+#include "FluentTokens.h"
+#include "fluent_components.h"
+#include "typography.h"
+#include "ui_compositor.h"
+#include "window_helpers.h"
+#include "../common/localization.h"
+
+#include <commctrl.h>
+#include <windowsx.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <string>
+
+namespace pulse::ui {
+#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+void BatchRenameShownForTest(HWND hwnd);
+float BatchRenameScaleForTest();
+#endif
+namespace {
+
+constexpr wchar_t kClass[] = L"PulseBatchRenameWindow";
+constexpr float kDlgW = 620.0f;
+constexpr float kDlgH = 588.0f;
+constexpr wchar_t kChipNumbered[] = L"{name} ({n}){ext}";
+constexpr wchar_t kChipPadded[] = L"{name}_{n:3}{ext}";
+constexpr wchar_t kChipExt[] = L"{name}.jpg";
+
+D2D1_RECT_F Rect(float scale, float x, float y, float width, float height) {
+    return pulse::ui::DipRect(scale, x, y, width, height);
+}
+
+std::wstring StatusLabel(app::BatchRenameStatus status) {
+    switch (status) {
+    case app::BatchRenameStatus::Ok: return l10n::Get(l10n::StringId::BatchRenameWillRename);
+    case app::BatchRenameStatus::Unchanged: return l10n::Get(l10n::StringId::Unchanged);
+    case app::BatchRenameStatus::Empty:
+    case app::BatchRenameStatus::Invalid: return l10n::Get(l10n::StringId::InvalidName);
+    case app::BatchRenameStatus::Collision: return l10n::Get(l10n::StringId::NameCollision);
+    }
+    return {};
+}
+
+class BatchRenameWindow {
+public:
+    BatchRenameDialogResult Show(HWND owner, const std::vector<std::wstring>& paths,
+                                 bool dark, D2D1_COLOR_F accent) {
+        owner_ = owner;
+        paths_ = paths;
+        dark_ = dark;
+        accent_ = accent;
+        scale_ = static_cast<float>(pulse::compat::WindowDpi(owner ? owner : GetDesktopWindow())) / 96.0f;
+#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+        scale_ = BatchRenameScaleForTest();
+#endif
+        result_ = {};
+
+        WNDCLASSEXW wc{ sizeof(wc) };
+        wc.hInstance = GetModuleHandleW(nullptr);
+        wc.lpfnWndProc = WndProc;
+        wc.lpszClassName = kClass;
+        wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+        wc.hbrBackground = nullptr;
+        if (!GetClassInfoExW(wc.hInstance, kClass, &wc)) RegisterClassExW(&wc);
+
+        const int width = static_cast<int>(kDlgW * scale_);
+        const int height = static_cast<int>(kDlgH * scale_);
+        hwnd_ = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP, kClass,
+            l10n::Get(l10n::StringId::BatchRename).c_str(),
+            WS_POPUP | WS_THICKFRAME | WS_SYSMENU,
+            CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr,
+            wc.hInstance, this);
+        if (!hwnd_) return result_;
+        pulse::ui::CenterOwnedWindow(hwnd_, owner_, width, height);
+        if (owner_) EnableWindow(owner_, FALSE);
+        ShowWindow(hwnd_, SW_SHOW);
+        LayoutEdits();
+#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+        BatchRenameShownForTest(hwnd_);
+#endif
+        SetForegroundWindow(hwnd_);
+        if (edit_find_) SetFocus(edit_find_);
+
+        MSG message{};
+        while (!done_ && GetMessageW(&message, nullptr, 0, 0) > 0) {
+            const bool edit_msg = EditId(message.hwnd) != 0;
+            if (!edit_msg && IsDialogMessageW(hwnd_, &message)) continue;
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        done_ = true;
+        if (IsWindow(hwnd_)) HideComposedDialog(hwnd_, owner_);
+        DestroyEdits();
+        if (IsWindow(hwnd_)) DestroyWindow(hwnd_);
+        hwnd_ = nullptr;
+        if (owner_) {
+            EnableWindow(owner_, TRUE);
+        }
+        return result_;
+    }
+
+private:
+    static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+        auto* self = reinterpret_cast<BatchRenameWindow*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+        if (message == WM_NCCREATE) {
+            const auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);
+            self = static_cast<BatchRenameWindow*>(create->lpCreateParams);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+            self->hwnd_ = hwnd;
+        }
+        return self ? self->Handle(message, wparam, lparam)
+                    : DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    D2D1_RECT_F CloseRect() const { return Rect(scale_, kDlgW - 46, 0, 46, 36); }
+    D2D1_RECT_F FindField() const { return Rect(scale_, 20, 68, 280, 32); }
+    D2D1_RECT_F ReplaceField() const { return Rect(scale_, 320, 68, 280, 32); }
+    D2D1_RECT_F IncludeExtRect() const { return Rect(scale_, 430, 40, 170, 24); }
+    bool UsesIndex() const { return app::BatchRenamePatternUsesIndex(rule_.pattern); }
+    D2D1_RECT_F PatternField() const {
+        return UsesIndex() ? Rect(scale_, 20, 128, 424, 32)
+                           : Rect(scale_, 20, 128, 580, 32);
+    }
+    D2D1_RECT_F StartField() const { return Rect(scale_, 456, 128, 144, 32); }
+    D2D1_RECT_F ChipRect(int index) const {
+        constexpr float widths[] = {92.0f, 100.0f, 100.0f};
+        float x = 20.0f;
+        for (int i = 0; i < index; ++i) x += widths[i] + 8.0f;
+        return Rect(scale_, x, 168, widths[index], 28);
+    }
+    D2D1_RECT_F CancelRect() const { return Rect(scale_, kDlgW - 196, kDlgH - 48, 80, 32); }
+    D2D1_RECT_F ApplyRect() const { return Rect(scale_, kDlgW - 108, kDlgH - 48, 88, 32); }
+    D2D1_RECT_F PreviewBounds() const {
+        return Rect(scale_, 20, 260, kDlgW - 40, kDlgH - 260 - 56);
+    }
+    D2D1_RECT_F SummaryRect() const {
+        return Rect(scale_, 20, kDlgH - 48, kDlgW - 228, 32);
+    }
+
+    HWND EditAt(int id) const {
+        switch (id) {
+        case 1: return edit_find_;
+        case 2: return edit_replace_;
+        case 3: return edit_pattern_;
+        case 4: return edit_number_;
+        }
+        return nullptr;
+    }
+
+    int EditId(HWND hwnd) const {
+        if (hwnd == edit_find_) return 1;
+        if (hwnd == edit_replace_) return 2;
+        if (hwnd == edit_pattern_) return 3;
+        if (hwnd == edit_number_) return 4;
+        return 0;
+    }
+
+    D2D1_COLOR_F EditForeground() const { return ColorFromRef(EditTextColor(dark_)); }
+
+    D2D1_COLOR_F EditBackground() const { return ColorFromRef(EditBackColor(dark_)); }
+
+    HWND CreateField(int id, const std::wstring& text, bool number = false) {
+        HWND edit = CreateChildEdit(hwnd_, text.c_str(), number ? ES_NUMBER : 0);
+        if (!edit) return nullptr;
+        SetWindowTheme(edit, L"", L"");
+        if (font_) SendMessageW(edit, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
+        SetWindowSubclass(edit, EditProc, static_cast<UINT_PTR>(id),
+                          reinterpret_cast<DWORD_PTR>(this));
+        return edit;
+    }
+
+    void PlaceEdit(HWND hwnd, const D2D1_RECT_F& cell, bool visible) {
+        if (!hwnd || !hwnd_) return;
+        if (!visible) {
+            ShowWindow(hwnd, SW_HIDE);
+            EnableWindow(hwnd, FALSE);
+            return;
+        }
+        POINT pt{ static_cast<int>(std::lround(cell.left + 10.0f * scale_)),
+                  static_cast<int>(std::lround(cell.top)) };
+
+        const int w = std::max(40, static_cast<int>(std::lround(
+            cell.right - cell.left - 20.0f * scale_)));
+        const int cell_h = std::max(18, static_cast<int>(std::lround(cell.bottom - cell.top)));
+        const int line_h = EditLineHeight(hwnd, font_, cell_h);
+        pt.y += std::max(0, (cell_h - line_h) / 2);
+        RECT previous{};
+        GetWindowRect(hwnd, &previous);
+        MapWindowPoints(nullptr, hwnd_, reinterpret_cast<POINT*>(&previous), 2);
+        const bool surface_changed = !IsWindowVisible(hwnd) || previous.left != pt.x ||
+            previous.top != pt.y || previous.right - previous.left != w ||
+            previous.bottom - previous.top != line_h;
+        EnableWindow(hwnd, TRUE);
+        SetWindowPos(hwnd, HWND_TOP, pt.x, pt.y, w, line_h,
+                     SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        if (surface_changed)
+            PresentChildEdit(compositor_, compositor_.TextFormat(),
+                             EditForeground(), EditBackground(), hwnd);
+    }
+
+    void LayoutEdits() {
+        if (done_) return;
+        PlaceEdit(edit_find_, FindField(), true);
+        PlaceEdit(edit_replace_, ReplaceField(), true);
+        PlaceEdit(edit_pattern_, PatternField(), true);
+        PlaceEdit(edit_number_, StartField(), UsesIndex());
+    }
+
+    static LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam,
+                                     UINT_PTR, DWORD_PTR ref) {
+        auto* self = reinterpret_cast<BatchRenameWindow*>(ref);
+        if (!self) return DefSubclassProc(hwnd, msg, wparam, lparam);
+        switch (msg) {
+        case WM_KEYDOWN:
+            if (wparam == VK_ESCAPE) {
+                self->Complete(false);
+                return 0;
+            }
+            if (wparam == VK_RETURN) {
+                self->Complete(true);
+                return 0;
+            }
+            if (wparam == VK_TAB) {
+                const int id = self->EditId(hwnd);
+                const int dir = (GetKeyState(VK_SHIFT) & 0x8000) ? -1 : 1;
+                const int last = self->UsesIndex() ? 4 : 3;
+                int next = id + dir;
+                if (next < 1) next = last;
+                if (next > last) next = 1;
+                if (HWND target = self->EditAt(next)) SetFocus(target);
+                return 0;
+            }
+            break;
+        case WM_CHAR:
+            if (wparam == VK_RETURN || wparam == VK_ESCAPE || wparam == VK_TAB) return 0;
+            break;
+        }
+        // Shared LumaText hosting presents typed text at once and falls back
+        // to the native EDIT when a layered present fails (#41), so a field
+        // never turns invisible or click-through.
+        const bool focus_ring = msg == WM_SETFOCUS || msg == WM_KILLFOCUS ||
+                                msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK;
+        LRESULT result = 0;
+        if (!HandleChildEditMessage(self->compositor_, self->compositor_.TextFormat(),
+                                    self->EditForeground(), self->EditBackground(),
+                                    EditBackBrush(self->edit_brush_), hwnd, msg, wparam, lparam, result)) {
+            result = DefPresentedChildEditProc(self->compositor_, self->compositor_.TextFormat(),
+                                               self->EditForeground(), self->EditBackground(),
+                                               hwnd, msg, wparam, lparam);
+        }
+        if (focus_ring) InvalidateRect(self->hwnd_, nullptr, FALSE);
+        return result;
+    }
+
+    void DestroyEdits() {
+        auto destroy = [](HWND& hwnd) {
+            if (hwnd) {
+                DestroyWindow(hwnd);
+                hwnd = nullptr;
+            }
+        };
+        destroy(edit_find_);
+        destroy(edit_replace_);
+        destroy(edit_pattern_);
+        destroy(edit_number_);
+    }
+
+    std::wstring EditText(HWND hwnd) const {
+        if (!hwnd) return {};
+        const int n = GetWindowTextLengthW(hwnd);
+        std::wstring text(static_cast<size_t>(n), L'\0');
+        if (n > 0) GetWindowTextW(hwnd, text.data(), n + 1);
+        return text;
+    }
+
+    void SyncRuleFromEdits() {
+        rule_.find = EditText(edit_find_);
+        rule_.replace = EditText(edit_replace_);
+        rule_.pattern = EditText(edit_pattern_);
+        rule_.prefix.clear();
+        rule_.suffix.clear();
+        rule_.insert_number = false;
+        const std::wstring number = EditText(edit_number_);
+        rule_.start = number.empty() ? 1 : _wtoi(number.c_str());
+        if (rule_.start < 0) rule_.start = 0;
+        items_ = app::PreviewBatchRename(paths_, rule_);
+        rename_count_ = 0;
+        unchanged_count_ = 0;
+        collision_count_ = 0;
+        for (const auto& item : items_) {
+            if (item.status == app::BatchRenameStatus::Ok) ++rename_count_;
+            else if (item.status == app::BatchRenameStatus::Unchanged) ++unchanged_count_;
+            else if (item.status == app::BatchRenameStatus::Collision) ++collision_count_;
+        }
+        can_apply_ = rename_count_ > 0;
+    }
+
+    void ApplyChip(const wchar_t* pattern) {
+        if (edit_pattern_) SetWindowTextW(edit_pattern_, pattern);
+        SyncRuleFromEdits();
+        LayoutEdits();
+        if (edit_pattern_) SetFocus(edit_pattern_);
+    }
+
+    void Complete(bool accepted) {
+        if (accepted) {
+            SyncRuleFromEdits();
+            if (!can_apply_) return;
+            result_.accepted = true;
+            result_.rule = rule_;
+            result_.items = items_;
+        }
+        done_ = true;
+        if (hwnd_) { HideComposedDialog(hwnd_, owner_); DestroyWindow(hwnd_); }
+    }
+
+    int Hit(float x, float y) const {
+        if (pulse::ui::ContainsRect(CloseRect(), x, y)) return 3;
+        if (pulse::ui::ContainsRect(ApplyRect(), x, y)) return 1;
+        if (pulse::ui::ContainsRect(CancelRect(), x, y)) return 2;
+        if (pulse::ui::ContainsRect(IncludeExtRect(), x, y)) return 4;
+        if (pulse::ui::ContainsRect(ChipRect(0), x, y)) return 5;
+        if (pulse::ui::ContainsRect(ChipRect(1), x, y)) return 6;
+        if (pulse::ui::ContainsRect(ChipRect(2), x, y)) return 7;
+        if (pulse::ui::ContainsRect(FindField(), x, y)) return 10;
+        if (pulse::ui::ContainsRect(ReplaceField(), x, y)) return 11;
+        if (pulse::ui::ContainsRect(PatternField(), x, y)) return 12;
+        if (UsesIndex() && pulse::ui::ContainsRect(StartField(), x, y)) return 13;
+        return 0;
+    }
+
+    void DrawFieldFrame(const D2D1_RECT_F& bounds, HWND edit, int hit_id, bool enabled) {
+        fluent::ControlState state{};
+        state.enabled = enabled;
+        state.focused = enabled && GetFocus() == edit;
+        state.hovered = hover_ == hit_id;
+        painter_.DrawTextFieldFrame(bounds, state, true);
+    }
+
+    void Render() {
+        if (compositor_.NeedsRecovery()) {
+            if (!compositor_.Recover()) return;
+            compositor_.RecreateTextFormats(scale_);
+            painter_.SetCompositor(&compositor_);
+            painter_.SetScale(scale_);
+        }
+        if (!compositor_.Dc()) return;
+        const bool high_contrast = IsHighContrast();
+        const Theme theme = high_contrast ? MakeHighContrastTheme() : MakeTheme(dark_, accent_);
+        pulse::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
+                     scale_);
+
+        painter_.DrawText(l10n::Get(l10n::StringId::BatchRename),
+                          Rect(scale_, 16, 0, 360, 36), compositor_.SmallFormat(), theme.text);
+        fluent::ControlState close_state{};
+        close_state.hovered = hover_ == 3;
+        close_state.pressed = pressed_ == 3;
+        painter_.DrawTitleBarButton(CloseRect(), fluent::TitleBarButtonRole::Close,
+                                    {}, close_state);
+        painter_.FillRoundedRect(Rect(scale_, 0, 36, kDlgW, 1), 0, theme.stroke_divider);
+
+        painter_.DrawText(l10n::Get(l10n::StringId::Find),
+                          Rect(scale_, 20, 48, 280, 20), compositor_.SmallFormat(),
+                          theme.text_secondary);
+        painter_.DrawText(l10n::Get(l10n::StringId::Replace),
+                          Rect(scale_, 320, 48, 100, 20), compositor_.SmallFormat(),
+                          theme.text_secondary);
+        fluent::ControlState include_state{};
+        include_state.hovered = hover_ == 4;
+        include_state.pressed = pressed_ == 4;
+        include_state.checked = rule_.replace_in_extension;
+        painter_.DrawCheckBox(IncludeExtRect(),
+                              l10n::Get(l10n::StringId::BatchRenameIncludeExt),
+                              include_state);
+        DrawFieldFrame(FindField(), edit_find_, 10, true);
+        DrawFieldFrame(ReplaceField(), edit_replace_, 11, true);
+
+        painter_.DrawText(l10n::Get(l10n::StringId::BatchRenamePattern),
+                          Rect(scale_, 20, 108, 280, 20), compositor_.SmallFormat(),
+                          theme.text_secondary);
+        if (UsesIndex()) {
+            painter_.DrawText(l10n::Get(l10n::StringId::BatchRenameStartFrom),
+                              Rect(scale_, 456, 108, 144, 20), compositor_.SmallFormat(),
+                              theme.text_secondary);
+        }
+        DrawFieldFrame(PatternField(), edit_pattern_, 12, true);
+        if (UsesIndex()) DrawFieldFrame(StartField(), edit_number_, 13, true);
+
+        const wchar_t* chip_patterns[] = { kChipNumbered, kChipPadded, kChipExt };
+        const l10n::StringId chip_labels[] = {
+            l10n::StringId::BatchRenameChipNumber,
+            l10n::StringId::BatchRenameChipPadded,
+            l10n::StringId::BatchRenameChipExt,
+        };
+        for (int i = 0; i < 3; ++i) {
+            fluent::ControlState chip_state{};
+            chip_state.hovered = hover_ == 5 + i;
+            chip_state.pressed = pressed_ == 5 + i;
+            chip_state.checked = rule_.pattern == chip_patterns[i];
+            painter_.DrawButton({ ChipRect(i), l10n::Get(chip_labels[i]), {},
+                                  chip_state.checked ? fluent::ButtonKind::Primary
+                                                     : fluent::ButtonKind::Standard,
+                                  chip_state });
+        }
+        painter_.DrawText(l10n::Get(l10n::StringId::BatchRenamePatternHint),
+                          Rect(scale_, 20, 204, kDlgW - 40, 48), compositor_.SmallFormat(),
+                          theme.text_secondary);
+
+        const auto preview = PreviewBounds();
+        painter_.FillRoundedRect(preview, 8.0f * scale_, theme.fill_input);
+        painter_.StrokeRoundedRect(preview, 8.0f * scale_, theme.stroke_card);
+        const float row_h = 22.0f * scale_;
+        const float inner_top = preview.top + 8.0f * scale_;
+        const float inner_bottom = preview.bottom - 8.0f * scale_;
+        const float pad = 12.0f * scale_;
+        const float status_w = 90.0f * scale_;
+        const float arrow_w = 22.0f * scale_;
+        const float names_w = std::max(40.0f, preview.right - preview.left - pad * 2.0f
+                                               - status_w - arrow_w);
+        const float old_right = preview.left + pad + names_w * 0.5f;
+        const float arrow_right = old_right + arrow_w;
+        const float new_right = preview.right - pad - status_w;
+        const int visible = std::max(1, static_cast<int>((inner_bottom - inner_top) / row_h));
+        const int max_scroll = std::max(0, static_cast<int>(items_.size()) - visible);
+        scroll_ = std::clamp(scroll_, 0, max_scroll);
+        for (int i = 0; i < visible; ++i) {
+            const int index = scroll_ + i;
+            if (index >= static_cast<int>(items_.size())) break;
+            const auto& item = items_[static_cast<size_t>(index)];
+            const float y = inner_top + static_cast<float>(i) * row_h;
+            D2D1_COLOR_F color = theme.text;
+            if (item.status != app::BatchRenameStatus::Ok &&
+                item.status != app::BatchRenameStatus::Unchanged)
+                color = theme.danger;
+            else if (item.status == app::BatchRenameStatus::Unchanged)
+                color = theme.text_secondary;
+            painter_.DrawText(item.original_name,
+                              D2D1::RectF(preview.left + pad, y, old_right, y + row_h),
+                              compositor_.SmallFormat(), theme.text_secondary);
+            painter_.DrawText(L"→",
+                              D2D1::RectF(old_right, y, arrow_right, y + row_h),
+                              compositor_.SmallFormat(), theme.text_secondary);
+            painter_.DrawText(item.new_name,
+                              D2D1::RectF(arrow_right, y, new_right, y + row_h),
+                              compositor_.SmallFormat(), color);
+            painter_.DrawText(StatusLabel(item.status),
+                              D2D1::RectF(new_right, y, preview.right - pad, y + row_h),
+                              compositor_.SmallFormat(), color);
+        }
+
+        wchar_t summary[128]{};
+        swprintf_s(summary, l10n::Get(l10n::StringId::BatchRenameSummary).c_str(),
+                   rename_count_, unchanged_count_, collision_count_);
+        painter_.DrawText(summary, SummaryRect(), compositor_.SmallFormat(),
+                          theme.text_secondary);
+
+        fluent::ControlState cancel_state{};
+        cancel_state.hovered = hover_ == 2;
+        cancel_state.pressed = pressed_ == 2;
+        painter_.DrawButton({ CancelRect(), l10n::Get(l10n::StringId::Cancel), {},
+                              fluent::ButtonKind::Transparent, cancel_state });
+
+        const auto apply = ApplyRect();
+        const D2D1_COLOR_F apply_fill = !can_apply_
+            ? theme.fill_input
+            : (hover_ == 1 || pressed_ == 1 ? theme.accent_hover : theme.accent);
+        painter_.FillRoundedRect(apply, theme.radius_control * scale_, apply_fill);
+        painter_.DrawText(l10n::Get(l10n::StringId::Apply), apply, compositor_.SmallFormat(),
+                          can_apply_ ? theme.accent_text : theme.text_secondary,
+                          fluent::HorizontalAlignment::Center);
+
+        pulse::ui::EndSurface(compositor_);
+    }
+
+    LRESULT Handle(UINT message, WPARAM wparam, LPARAM lparam) {
+        switch (message) {
+        case WM_CREATE: {
+            scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
+#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+            scale_ = BatchRenameScaleForTest();
+#endif
+            backdrop_enabled_ = pulse::ui::ApplyBackdrop(hwnd_, dark_);
+            if (!compositor_.Init(hwnd_)) return -1;
+            compositor_.RecreateTextFormats(scale_);
+            painter_.SetCompositor(&compositor_);
+            painter_.SetScale(scale_);
+            font_ = typography::CreateEditFont(scale_);
+            if (edit_brush_) { DeleteObject(edit_brush_); edit_brush_ = nullptr; }
+            edit_brush_ = CreateSolidBrush(dark_ ? RGB(30, 30, 30) : RGB(255, 255, 255));
+            edit_find_ = CreateField(1, {});
+            edit_replace_ = CreateField(2, {});
+            edit_pattern_ = CreateField(3, {});
+            edit_number_ = CreateField(4, L"1", true);
+            SyncRuleFromEdits();
+            return 0;
+        }
+        case WM_NCCALCSIZE:
+            return 0;
+        case WM_NCHITTEST:
+            return pulse::ui::BorderlessHitTest(hwnd_, lparam, 36 * scale_, CloseRect());
+        case WM_SIZE:
+            if (compositor_.Dc()) compositor_.Resize(LOWORD(lparam), HIWORD(lparam));
+            LayoutEdits();
+            InvalidateRect(hwnd_, nullptr, FALSE);
+            return 0;
+        case WM_MOVE:
+            compositor_.UpdateTextRenderingParams(
+                MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST));
+            LayoutEdits();
+            return 0;
+        case WM_CTLCOLOREDIT: {
+            const HDC hdc = reinterpret_cast<HDC>(wparam);
+            SetTextColor(hdc, EditTextColor(dark_));
+            SetBkColor(hdc, EditBackColor(dark_));
+            return reinterpret_cast<LRESULT>(EditBackBrush(edit_brush_));
+        }
+        case WM_COMMAND:
+            if (HIWORD(wparam) == EN_CHANGE) {
+                SyncRuleFromEdits();
+                LayoutEdits();
+                InvalidateRect(hwnd_, nullptr, FALSE);
+            }
+            return 0;
+        case WM_MOUSEWHEEL: {
+            const int delta = GET_WHEEL_DELTA_WPARAM(wparam);
+            if (delta > 0) scroll_ = std::max(0, scroll_ - 3);
+            else scroll_ += 3;
+            InvalidateRect(hwnd_, nullptr, FALSE);
+            return 0;
+        }
+        case WM_MOUSEMOVE: {
+            const int next = Hit(static_cast<float>(GET_X_LPARAM(lparam)),
+                                 static_cast<float>(GET_Y_LPARAM(lparam)));
+            if (next != hover_) { hover_ = next; InvalidateRect(hwnd_, nullptr, FALSE); }
+            TRACKMOUSEEVENT track{ sizeof(track), TME_LEAVE, hwnd_, 0 };
+            TrackMouseEvent(&track);
+            return 0;
+        }
+        case WM_MOUSELEAVE:
+            hover_ = 0;
+            InvalidateRect(hwnd_, nullptr, FALSE);
+            return 0;
+        case WM_LBUTTONDOWN: {
+            const int hit = Hit(static_cast<float>(GET_X_LPARAM(lparam)),
+                                static_cast<float>(GET_Y_LPARAM(lparam)));
+            if (hit >= 10 && hit <= 13) {
+                if (HWND target = EditAt(hit - 9)) SetFocus(target);
+                pressed_ = 0;
+                InvalidateRect(hwnd_, nullptr, FALSE);
+                return 0;
+            }
+            pressed_ = hit;
+            SetCapture(hwnd_);
+            InvalidateRect(hwnd_, nullptr, FALSE);
+            return 0;
+        }
+        case WM_LBUTTONUP: {
+            const int hit = Hit(static_cast<float>(GET_X_LPARAM(lparam)),
+                                static_cast<float>(GET_Y_LPARAM(lparam)));
+            const int pressed = pressed_;
+            pressed_ = 0;
+            ReleaseCapture();
+            if (hit == pressed) {
+                if (hit == 1) Complete(true);
+                else if (hit == 2 || hit == 3) Complete(false);
+                else if (hit == 4) {
+                    rule_.replace_in_extension = !rule_.replace_in_extension;
+                    SyncRuleFromEdits();
+                } else if (hit == 5) ApplyChip(kChipNumbered);
+                else if (hit == 6) ApplyChip(kChipPadded);
+                else if (hit == 7) ApplyChip(kChipExt);
+            }
+            InvalidateRect(hwnd_, nullptr, FALSE);
+            return 0;
+        }
+        case WM_KEYDOWN:
+            if (wparam == VK_ESCAPE) {
+                Complete(false);
+                return 0;
+            }
+            if (wparam == VK_RETURN) {
+                Complete(true);
+                return 0;
+            }
+            break;
+        case WM_CLOSE:
+            Complete(false);
+            return 0;
+        case WM_PAINT: {
+            PAINTSTRUCT paint{};
+            BeginPaint(hwnd_, &paint);
+            Render();
+            EndPaint(hwnd_, &paint);
+            return 0;
+        }
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_DESTROY:
+            DestroyEdits();
+            if (font_) {
+                DeleteObject(font_);
+                font_ = nullptr;
+            }
+            if (edit_brush_) {
+                DeleteObject(edit_brush_);
+                edit_brush_ = nullptr;
+            }
+            compositor_.Shutdown();
+            hwnd_ = nullptr;
+            return 0;
+        }
+        return DefWindowProcW(hwnd_, message, wparam, lparam);
+    }
+
+    HWND hwnd_ = nullptr;
+    HWND owner_ = nullptr;
+    HWND edit_find_ = nullptr;
+    HWND edit_replace_ = nullptr;
+    HWND edit_pattern_ = nullptr;
+    HWND edit_number_ = nullptr;
+    HFONT font_ = nullptr;
+    HBRUSH edit_brush_ = nullptr;
+    Compositor compositor_;
+    fluent::Painter painter_;
+    std::vector<std::wstring> paths_;
+    app::BatchRenameRule rule_;
+    std::vector<app::BatchRenameItem> items_;
+    BatchRenameDialogResult result_;
+    bool dark_ = false;
+    bool backdrop_enabled_ = false;
+    bool done_ = false;
+    bool can_apply_ = false;
+    float scale_ = 1.0f;
+    D2D1_COLOR_F accent_ = HexColor(0x0078D4);
+    int hover_ = 0;
+    int pressed_ = 0;
+    int scroll_ = 0;
+    int rename_count_ = 0;
+    int unchanged_count_ = 0;
+    int collision_count_ = 0;
+};
+
+} // namespace
+
+BatchRenameDialogResult ShowBatchRenameDialog(HWND owner,
+                                              const std::vector<std::wstring>& paths,
+                                              bool dark,
+                                              D2D1_COLOR_F accent) {
+    BatchRenameWindow window;
+    return window.Show(owner, paths, dark, accent);
+}
+
+} // namespace pulse::ui

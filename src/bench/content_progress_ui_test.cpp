@@ -1,0 +1,291 @@
+#include "../app/app_internal.h"
+#include "../app/app_input.h"
+#include "../app/content_results_ui.h"
+#include "../app/app_navigation.h"
+#include "../app/update_status.h"
+#include "../ui/ui_renderer_internal.h"
+#include <filesystem>
+#include <iostream>
+#include <cmath>
+
+int main(int argc, char** argv) {
+    using namespace pulse;
+    CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
+    l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
+    int failures=0;
+    auto check=[&](bool ok,const char* label) {
+        std::cout<<(ok ? "[PASS] ":"[FAIL] ")<<label<<std::endl;
+        if(!ok) ++failures;
+    };
+    auto state=std::make_unique<AppState>(); auto& s=*state;
+    s.isolatedTest=true; s.appPrefs.persist=false; s.searchHistory.persist=false;
+    WNDCLASSW wc{}; wc.hInstance=GetModuleHandleW(nullptr); wc.lpfnWndProc=DefWindowProcW;
+    wc.lpszClassName=L"PulseContentProgressFixture"; RegisterClassW(&wc);
+    s.hwnd=CreateWindowExW(0,wc.lpszClassName,L"",WS_OVERLAPPEDWINDOW,0,0,1100,720,nullptr,nullptr,wc.hInstance,nullptr);
+    if(!s.hwnd || !s.compositor.Init(s.hwnd)) return 2;
+    s.renderer.SetCompositor(&s.compositor);
+    s.window_tabs.EnsureDefault(); s.pane=s.window_tabs.Active()->FocusedPane();
+    auto* tab=ActiveTab(s);
+    tab->current_path=app::MakeSearchPath(L"content:季度预算");
+    tab->view_mode=ui::ViewMode::Details;
+    auto store=std::make_shared<index::ContentResultStore>(nullptr,0);
+    index::ContentHit hit{L"C:\\Fixture\\季度预算.txt",L"季度预算.txt",L"季度预算评审会议记录",120,0,1}; hit.file_id=1;
+    uint64_t generation=8100;
+    auto start=[&] {tab->pending_generation=++generation;tab->search_content_active=true;tab->search_content_stopped=false;tab->content_count_final=false;};
+    auto update=[&](uint64_t scanned,uint64_t total,bool done=false,DWORD error=0,bool truncated=false) {
+        index::ContentSearchUpdate result; result.progress.generation=generation;
+        result.progress.scanned_files=scanned; result.progress.total_files=total;
+        result.progress.done=done; result.progress.error=error; result.progress.truncated=truncated;
+        result.results=store; ApplyContentSearchUpdate(s,std::move(result));
+    };
+    if (argc > 1 && std::string_view(argv[1]) == "--selection-only") {
+        auto a=hit,b=hit,c=hit;
+        a.path=L"C:\\Fixture\\b.txt"; a.name=L"b.txt"; a.file_id=11;
+        b.path=L"C:\\Fixture\\c.txt"; b.name=L"c.txt"; b.file_id=12;
+        c.path=L"C:\\Fixture\\a.txt"; c.name=L"a.txt"; c.file_id=13;
+        start();
+        store->StreamUpsert({a,b},index::ContentResultSort::Name,false); update(2,0);
+        RefreshContentResults(s);
+        index::ContentResultStore::Row row;
+        const auto until=GetTickCount64()+3000;
+        while(!store->Get(0,row) && GetTickCount64()<until) Sleep(1);
+        RefreshContentResults(s); tab->SelectIndices({0,1});
+        check(tab->content_selected_paths.size()==2,"selection records both stable paths before streamed insertion");
+        store->StreamUpsert({c},index::ContentResultSort::Name,false);
+        RefreshContentResults(s);
+        const auto restored=GetTickCount64()+3000;
+        while(tab->SelectedCount()!=2 && GetTickCount64()<restored) { Sleep(1); RefreshContentResults(s); }
+        check(tab->SelectedCount()==2 && tab->IsSelected(1) && tab->IsSelected(2) && !tab->IsSelected(0),
+              "streaming insertion restores multiselection to original files");
+        check(tab->selected_index==1,"streaming insertion preserves keyboard focus identity");
+        bool acted=false, correct=false;
+        DeferContentSelection(s,[&](AppState&) {
+            acted=true;
+            correct=tab->EntryAt(1).full_path==a.path && tab->EntryAt(2).full_path==b.path;
+        });
+        const auto action_due=GetTickCount64()+3000;
+        while(!acted && GetTickCount64()<action_due) { Sleep(1); CompleteContentSelection(s); }
+        check(acted && correct,"deferred operation resolves only original selected file identities");
+        tab->content_results.reset(); tab->search_content_active=false;
+        tab->current_path=app::MakeSearchPath(L"fixture");
+        tab->pending_generation=990; tab->filename_live_generation=990;
+        tab->pending_search_offset=0; tab->search_entries.reset();
+        AppState::PendingIndexSearch pending; pending.query.subscribe=true;
+        pending.query.limit=2048; pending.network_ready=false;
+        s.pendingIndexSearches.emplace(990,std::move(pending));
+        index::SearchResult local; local.total=1;
+        index::Hit local_hit; local_hit.path=a.path; local_hit.name=a.name; local.hits.push_back(local_hit);
+        AcceptIndexProviderResult(s,990,std::move(local),false);
+        check(tab->EntryCount()==1 && !tab->loading,"local filename hits display while network reply is pending");
+        index::SearchResult network; network.error=ERROR_CONNECTION_ABORTED;
+        AcceptIndexProviderResult(s,990,std::move(network),true);
+        check(tab->EntryCount()==1 && !tab->banner_title.empty(),"network failure preserves local hits and displays incomplete status");
+        app::SavedSearch saved; saved.name=L"fixture saved"; saved.query=L"fixture"; saved.root=L"C:\\Fixture";
+        check(s.savedSearches.Add(saved),"saved filename query fixture is in memory only");
+        tab->current_path=L"pulse:saved-search:0";
+        tab->search_total=2200; tab->search_next_offset=2048;
+        tab->search_loading_more=false; tab->search_content_stopped=false; tab->search_awaiting_content=false;
+        tab->loading=false; tab->search_session_id=9911;
+        MaybePrefetchSearchPage(s);
+        const auto page=s.pendingIndexSearches.find(static_cast<uint32_t>(tab->pending_generation));
+        const bool requested=page!=s.pendingIndexSearches.end() && page->second.query.limit>2048 &&
+            page->second.query.path_prefix==saved.root && page->second.query.needle==saved.query;
+        check(requested,"saved filename search requests next window and preserves root and query");
+        if (requested) {
+            const auto id=static_cast<uint32_t>(tab->pending_generation);
+            index::SearchResult next; next.total=2200;
+            for (int i=0;i<2200;++i) { index::Hit item; item.name=L"fixture"+std::to_wstring(i); item.path=saved.root+L"\\"+item.name; next.hits.push_back(std::move(item)); }
+            AcceptIndexProviderResult(s,id,std::move(next),false);
+            check(tab->EntryCount()==2200 && tab->search_next_offset==2200,"saved filename search displays hits beyond initial 2048");
+        }
+        const auto previous_request=tab->pending_generation;
+        RefreshActiveTab(s,RefreshReason::Explicit);
+        const auto refresh=s.pendingIndexSearches.find(static_cast<uint32_t>(tab->pending_generation));
+        check(tab->pending_generation!=previous_request && refresh!=s.pendingIndexSearches.end() &&
+              refresh->second.query.path_prefix==saved.root,
+              "explicit saved-search refresh dispatches a new query for the same root");
+        tab->current_path=L"C:\\Fixture";
+        tab->pending_generation=0; tab->banner_title.clear();
+        app::WorkResult foreign; foreign.path=tab->current_path; foreign.generation=991; foreign.error=true;
+        ApplyWorkerResult(s,foreign);
+        check(tab->banner_title.empty(),"completed pane ignores another pane's same-path failure");
+        tab->pending_generation=992;
+        ApplyWorkerResult(s,foreign);
+        check(tab->pending_generation==992 && tab->banner_title.empty(),"pending pane ignores another request generation");
+        foreign.generation=992; ApplyWorkerResult(s,foreign);
+        check(tab->pending_generation==0 && !tab->banner_title.empty(),"own request failure still completes pane");
+        s.renderer.SetCompositor(nullptr); s.compositor.Shutdown(); DestroyWindow(s.hwnd); s.hwnd=nullptr;
+        CoUninitialize(); return failures ? 1:0;
+    }
+    const bool update_only = argc > 1 && std::string_view(argv[1]) == "--update-only";
+    if (!update_only) {
+    const auto output=std::filesystem::absolute(L"../bench_data/content-progress-ui");
+    std::filesystem::create_directories(output);
+    auto capture=[&](const wchar_t* label, bool hovered=false) {
+        for(float scale : {1.0f,1.5f}) for(int width : {720,1100}) for(bool dark : {false,true}) {
+            s.scale=scale; s.compositor.RecreateTextFormats(scale); s.renderer.SetScale(scale);
+            const auto rect=D2D1::RectF(0,0,width*scale,720*scale);
+            s.compositor.Resize(static_cast<UINT>(rect.right),static_cast<UINT>(rect.bottom));
+            auto vm=app::BuildWindowViewModel(*s.pane,s.sidebar,true,false,dark,&s.places);
+            const auto metrics=ui::MakeStatusBarMetrics(vm,rect,scale,24*scale,s.compositor.DwriteFactory(),s.compositor.SmallFormat());
+            if (hovered) {
+                vm.hover_region=ui::HitTestResult::StatusBarCancelSearch;
+                vm.tooltip_text=l10n::Get(l10n::StringId::ContentCancelSearch);
+                vm.tooltip_x=(metrics.cancel_search.left+metrics.cancel_search.right)/2;
+                vm.tooltip_y=metrics.cancel_search.top;
+            }
+            if(vm.status.query_active) {
+                check(std::abs((metrics.task.left+metrics.cancel_search.right)/2-(rect.left+rect.right)/2)<0.1f,
+                    "search progress and cancel icon are centered together");
+                const float available=metrics.task.right-metrics.task.left-112*scale;
+                check(ui::MeasureTextWidth(s.compositor.DwriteFactory(),s.compositor.SmallFormat(),vm.status.query_text)<=available,
+                    "query label and progress track fit at requested width and DPI");
+                check(metrics.task.right <= metrics.cancel_search.left && metrics.task.right > metrics.task.left &&
+                    metrics.cancel_search.right <= rect.right && metrics.cancel_search.left >= rect.left,
+                    "progress and cancel control do not overlap at requested width and DPI");
+                check(ui::StatusBarHitRegion(vm,rect,(metrics.cancel_search.left+metrics.cancel_search.right)/2,
+                    (metrics.cancel_search.top+metrics.cancel_search.bottom)/2,scale,24*scale,&s.compositor)==ui::HitTestResult::StatusBarCancelSearch,
+                    "cancel control has its own hit target");
+                check(ui::StatusBarHitRegion(vm,rect,metrics.task.left+1,metrics.bar.top+1,scale,24*scale,&s.compositor)==ui::HitTestResult::StatusBar,
+                    "query progress does not trigger unrelated operation panel");
+            }
+            const auto theme=ui::MakeTheme(dark,ui::HexColor(0x0078D4));
+            s.compositor.Dc()->BeginDraw(); s.renderer.Render(vm,rect,theme);
+            check(SUCCEEDED(s.compositor.Dc()->EndDraw()),"actual content renderer completes");
+            if(scale==1.0f) {
+                const auto file=output/(std::wstring(label)+L"-"+std::to_wstring(width)+(dark ? L"-dark.png":L"-light.png"));
+                check(s.compositor.SaveSnapshot(file.c_str()),"content query progress screenshot saved");
+            }
+        }
+    };
+    start(); update(0,0);
+    check(BuildVm(s,false).status.query_active && BuildVm(s,false).status.query_progress<0,"unknown candidate count uses indeterminate progress");
+    check(tab->loading && BuildVm(s,false).status.status_text==L"已匹配 0 个文件","initial empty search exposes active progress and zero matches");
+    capture(L"initial");
+    check(store->Append({hit}),"isolated synthetic result spool created");
+    update(1,0);
+    const auto deadline=GetTickCount64()+5000;
+    index::ContentResultStore::Row row;
+    while(!store->Get(0,row) && GetTickCount64()<deadline) Sleep(2);
+    capture(L"unknown");
+    update(7200,20000);
+    auto vm=BuildVm(s,false);
+    check(vm.status.query_active && std::abs(vm.status.query_progress-.36f)<.001f && tab->content_total_files==20000,
+        "query candidate denominator reaches view model as 36 percent");
+    check(store->Get(0,row) && !tab->loading && vm.status.status_text==L"已匹配 1 个文件","progress updates retain usable list and explicit matched-file count");
+    capture(L"known");
+    capture(L"known-hover",true);
+    l10n::SetLanguage(L"en-US");
+    check(l10n::Get(l10n::StringId::ContentCancelSearch)==L"Cancel search · Esc","English cancel tooltip includes shortcut");
+    capture(L"known-hover-en",true);
+    l10n::SetLanguage(L"zh-CN");
+    update(20000,20000,true);
+    check(!BuildVm(s,false).status.query_active && tab->content_count_final,"completed query hides active progress and finalizes count");
+    capture(L"completed");
+    start(); update(400,20000);
+    s.addressLiveDue=GetTickCount64()+1;
+    const auto cancel_vm=BuildVm(s,false);
+    const auto cancel_rect=D2D1::RectF(0,0,static_cast<float>(s.compositor.Width()),static_cast<float>(s.compositor.Height()));
+    const auto cancel_metrics=ui::MakeStatusBarMetrics(cancel_vm,cancel_rect,s.scale,24*s.scale,
+        s.compositor.DwriteFactory(),s.compositor.SmallFormat());
+    HandleLButtonDown(&s,s.hwnd,WM_LBUTTONDOWN,0,MAKELPARAM(
+        static_cast<int>((cancel_metrics.cancel_search.left+cancel_metrics.cancel_search.right)/2),
+        static_cast<int>((cancel_metrics.cancel_search.top+cancel_metrics.cancel_search.bottom)/2)));
+    check(!BuildVm(s,false).status.query_active && !BuildVm(s,false).status.query_cancellable &&
+        tab->search_content_stopped && !tab->content_count_final,"cancellation stops refresh and hides control without finalizing partial count");
+    capture(L"cancelled");
+    TickAddressSearch(s,GetTickCount64()+2000);
+    check(!s.addressLiveDue && !tab->pending_generation && tab->search_content_stopped,
+        "cancel button clears pending input and timer cannot restart query");
+    update(20000,20000,true);
+    check(tab->search_content_stopped && !tab->content_count_final,
+        "late completed response cannot revive cancelled query");
+    start(); update(400,20000,true,ERROR_READ_FAULT);
+    check(!BuildVm(s,false).status.query_active && !tab->content_count_final && tab->banner_title==l10n::Get(l10n::StringId::SearchIncomplete),
+        "query error hides progress and retains incomplete warning");
+    capture(L"error");
+    start(); update(400,20000,true,0,true);
+    check(!BuildVm(s,false).status.query_active && !tab->content_count_final && tab->banner_title==l10n::Get(l10n::StringId::ResultLimitTitle),
+        "truncated query remains incomplete and hides progress");
+    }
+    // Update integration: use the production BuildVm adapter and renderer, never a network/installer.
+    tab->search_content_active = false;
+    tab->pending_generation = 0;
+    tab->current_path = L"C:\\Fixture";
+    s.shot.active = true;
+    s.shot.update_available = true;
+    s.update_result_ready = true;
+    s.update_result.update_available = true;
+    s.update_result.version = L"1.0.34"; // Fixture only; application version is unchanged.
+    const auto update_output = std::filesystem::absolute(L"../bench_data/update-status-progress-ui");
+    std::filesystem::create_directories(update_output);
+    for (const auto language : {L"zh-CN", L"zh-TW", L"en-US"}) {
+        l10n::SetLanguage(language);
+        for (const auto phase : {L"connecting", L"downloading", L"downloading-unknown", L"verifying", L"waiting", L"launching", L"installing"}) {
+            if (update_only && std::wstring_view(phase) != L"waiting" &&
+                std::wstring_view(phase) != L"launching" && std::wstring_view(phase) != L"installing") continue;
+            s.shot.update_state = phase;
+            for (const bool settings : {false, true}) {
+                tab->current_path = settings ? app::MakeSettingsPath(L"about") : L"C:\\Fixture";
+                for (float scale : {1.0f, 1.5f}) for (int width : {360, 720, 1100}) for (bool dark : {false, true}) {
+                    s.scale = scale;
+                    s.darkMode = dark;
+                    s.compositor.RecreateTextFormats(scale);
+                    s.renderer.SetScale(scale);
+                    const auto rect = D2D1::RectF(0, 0, width * scale, 720 * scale);
+                    s.compositor.Resize(static_cast<UINT>(rect.right), static_cast<UINT>(rect.bottom));
+                    auto update_vm = BuildVm(s, false);
+                    if (settings) update_vm.settings_scroll = (std::max)(0.0f,
+                        s.renderer.SettingsDestinationOffset(update_vm,
+                            static_cast<int>(l10n::StringId::SettingsAutoUpdate), rect.right, rect.bottom) - 180.0f * scale);
+                    check(update_vm.settings_open == settings, "fixture exercises the intended normal or Settings tab");
+                    check(update_vm.status.task_is_update && !update_vm.status.task_text.empty(),
+                        "update snapshot reaches global status bar in both tab types and languages");
+                    const bool determinate = std::wstring_view(phase) == L"downloading";
+                    check(determinate ? update_vm.status.task_progress == 37.0f : update_vm.status.task_progress < 0,
+                        "download uses actual ratio; unknown length and installation stages stay indeterminate");
+                    const auto metrics = ui::MakeStatusBarMetrics(update_vm, rect, scale, 24 * scale,
+                        s.compositor.DwriteFactory(), s.compositor.SmallFormat());
+                    check(metrics.task.left >= rect.left && metrics.task.right <= rect.right &&
+                          metrics.task.right > metrics.task.left &&
+                          std::abs((metrics.task.left + metrics.task.right) / 2 - rect.right / 2) < 0.1f,
+                        "update label and progress group remain centered and bounded at narrow widths and DPI");
+                    check(ui::StatusBarHitRegion(update_vm, rect, (metrics.task.left + metrics.task.right) / 2,
+                        metrics.bar.top + 1, scale, 24 * scale, &s.compositor) == ui::HitTestResult::StatusBar,
+                        "update progress is not a file-operation click target");
+                    const auto theme = ui::MakeTheme(dark, ui::HexColor(0x0078D4));
+                    s.compositor.Dc()->BeginDraw();
+                    s.renderer.Render(update_vm, rect, theme);
+                    check(SUCCEEDED(s.compositor.Dc()->EndDraw()), "actual update status-bar renderer completes");
+                    if (settings && scale == 1.0f && width == 1100 && dark) {
+                        const auto image = update_output / (std::wstring(language) + L"-" + phase + L".png");
+                        check(s.compositor.SaveSnapshot(image.c_str()), "update settings screenshot saved");
+                    }
+                }
+            }
+        }
+    }
+    for (const auto terminal : {L"cancelled", L"failed", L"completed", L""}) {
+        s.shot.update_state = terminal;
+        check(!BuildVm(s, false).status.task_is_update, "terminal/idle update removes status-bar progress");
+    }
+    ui::StatusBarView status;
+    status.task_text = L"File copy";
+    status.task_progress = 64;
+    const app::UpdateProgress download{app::UpdatePhase::Downloading, 3, 8};
+    app::ApplyUpdateStatus(status, download, true);
+    check(!status.task_is_update && status.task_progress == 64 && status.task_text == L"File copy",
+        "active file operation retains status-bar ownership");
+    status.query_active = status.query_cancellable = true;
+    status.query_progress = .36f;
+    app::ApplyUpdateStatus(status, download, false);
+    check(!status.task_is_update && status.query_cancellable && status.query_progress == .36f,
+        "query progress and cancellation retain priority over updates");
+    status.query_active = status.query_cancellable = false;
+    app::ApplyUpdateStatus(status, download, false);
+    check(status.task_is_update && status.task_progress == 37, "update replaces completed operation summary");
+    s.shot.active = false;
+    check(!BuildVm(s, false).status.task_is_update, "fixture cannot leak progress into idle runtime");
+    s.renderer.SetCompositor(nullptr); s.compositor.Shutdown(); DestroyWindow(s.hwnd); s.hwnd=nullptr;
+    CoUninitialize(); return failures ? 1:0;
+}

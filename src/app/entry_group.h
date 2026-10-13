@@ -1,0 +1,135 @@
+#pragma once
+#include "../fs/fs_enum.h"
+#include "../ui/ui_renderer.h"
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace pulse::app {
+
+// "Group by" for real folders (details view). Values are persisted.
+// Location groups by parent folder and only applies to multi-folder views
+// (search results, tag views).
+enum class GroupBy : uint8_t { None = 0, Name = 1, Date = 2, Type = 3, Size = 4, Tag = 5, Location = 6 };
+
+constexpr GroupBy GroupByFromInt(int v) noexcept {
+    return v >= 1 && v <= 6 ? static_cast<GroupBy>(v) : GroupBy::None;
+}
+
+// Parent folder of a virtual-view entry (full_path), without the \\?\ prefix.
+// Empty for plain folder listings.
+std::wstring GroupLocationLabel(const fs::DirEntry& e);
+
+// Tag grouping for one folder: each entry falls in its primary tag's group
+// (first tag in sidebar order); untagged entries come last. Read-only, so
+// the worker and the UI share it.
+struct TagGroupMap {
+    std::unordered_map<std::wstring, int> rank_by_name; // lower-case leaf -> tag index
+    int untagged = 0;                                   // == tag count
+};
+
+// Catalog snapshot published by the UI thread whenever tags change.
+struct TagCatalogSnapshot {
+    struct Tag { std::wstring name; uint32_t rgb = 0; };
+    std::vector<Tag> tags;                              // sidebar order
+    std::vector<std::pair<std::wstring, int>> paths;    // lower-case normalized path, primary tag
+    uint64_t revision = 0;
+};
+void PublishTagCatalog(std::shared_ptr<const TagCatalogSnapshot> snapshot);
+std::shared_ptr<const TagCatalogSnapshot> CurrentTagCatalog();
+std::shared_ptr<const TagGroupMap> TagGroupsForFolder(const std::wstring& folder);
+
+// Local-time day boundaries (FILETIME ticks, UTC) used by the date buckets.
+// Built once per sort / span pass so every comparison sees the same "today".
+struct GroupClock {
+    uint64_t today = 0, yesterday = 0, week = 0, last_week = 0;
+    uint64_t month = 0, last_month = 0, year = 0, tomorrow = 0;
+    // Which time GroupBy::Date buckets for GroupRank/GroupKey: the list's sort
+    // column when it is a date (created / accessed), otherwise modified.
+    // GroupCompare takes the column from its own argument.
+    ui::SortColumn date_column = ui::SortColumn::Mtime;
+    std::shared_ptr<const TagGroupMap> tags;  // GroupBy::Tag only
+};
+GroupClock MakeGroupClock(ui::SortColumn sort_column = ui::SortColumn::Mtime);
+
+// The time GroupBy::Date uses for a list sorted by `sort_column`.
+const FILETIME& GroupDateOf(const fs::DirEntry& e, ui::SortColumn sort_column) noexcept;
+
+// Date ranks: 0 future, 1 today, 2 yesterday, 3 earlier this week, 4 last week,
+// 5 earlier this month, 6 last month, 7 earlier this year, 8 a long time ago.
+// Tag ranks: primary tag index; TagGroupMap::untagged when none.
+// Name ranks: 0 digits, 1 A-H, 2 I-P, 3 Q-Z, 4 other (CJK by pinyin initial).
+// Size ranks: 0 folders, 1 empty, 2 tiny <16K, 3 small <1M, 4 medium <128M,
+//             5 large <1G, 6 huge <4G, 7 gigantic.
+// Type ranks: 0 folders, 1 files (files then split by extension).
+int GroupRank(const fs::DirEntry& e, GroupBy g, const GroupClock& clock);
+
+// <0 when a's group is shown before b's, 0 same group.
+int GroupCompare(const fs::DirEntry& a, const fs::DirEntry& b, GroupBy g,
+                 const GroupClock& clock, ui::SortColumn col, ui::SortDirection dir);
+
+// Stable key for collapse state ("d3", "t:pdf", ...).
+std::wstring GroupKey(const fs::DirEntry& e, GroupBy g, const GroupClock& clock);
+
+// Stable in-place reorder of `entries` (and `parallel`, if the same size) into
+// group order; order inside a group is kept. For views whose order comes from
+// elsewhere (indexed search pages) rather than the sorting worker.
+void StableGroupOrder(std::vector<fs::DirEntry>& entries, std::vector<std::wstring>* parallel,
+                      GroupBy g, ui::SortColumn col, ui::SortDirection dir);
+
+// Active grouping for EntryLess on the current thread. The worker and the
+// notify patcher wrap their sorts in a scope instead of threading the group
+// through every comparator signature. Nestable; restores the previous state.
+struct EntryGrouping {
+    GroupBy by = GroupBy::None;
+    GroupClock clock;
+};
+const EntryGrouping* CurrentEntryGrouping() noexcept;
+
+class ScopedEntryGrouping {
+public:
+    // `folder` resolves tag groups (GroupBy::Tag).
+    explicit ScopedEntryGrouping(int group_by, const std::wstring& folder = {});
+    ~ScopedEntryGrouping();
+    ScopedEntryGrouping(const ScopedEntryGrouping&) = delete;
+    ScopedEntryGrouping& operator=(const ScopedEntryGrouping&) = delete;
+
+private:
+    EntryGrouping state_;
+    const EntryGrouping* previous_ = nullptr;
+};
+
+// Per-folder "group by" memory. Unlike view modes, an explicit None is stored
+// so turning grouping off in Downloads survives the Date default.
+class FolderGroupPrefs {
+public:
+    std::optional<GroupBy> Find(const std::wstring& path) const;
+    bool Set(const std::wstring& path, GroupBy by);
+    // Grouping a view uses: its saved choice, else the "apply to all" default
+    // for real folders, else DefaultGroupFor (Downloads, Recent, recycle bin).
+    GroupBy Resolve(const std::wstring& path) const;
+    // "Apply to all folders" (#75): `by` becomes every real folder's grouping and
+    // per-folder choices go. Virtual views (Recent, search, tags, recycle bin) keep theirs.
+    void ApplyToAll(GroupBy by);
+    std::optional<GroupBy> Default() const { return default_; }
+    void Clear() { groups_.clear(); default_.reset(); }
+    void AppendJson(std::wstring& out) const;
+    void ReadJson(const std::wstring& json);
+
+private:
+    struct PathLess {
+        bool operator()(const std::wstring& a, const std::wstring& b) const;
+    };
+    std::map<std::wstring, GroupBy, PathLess> groups_;
+    std::optional<GroupBy> default_;
+};
+
+// Default when a folder has no saved choice: Date for Downloads, Recent and
+// the recycle bin (deleted date).
+GroupBy DefaultGroupFor(const std::wstring& path);
+
+} // namespace pulse::app

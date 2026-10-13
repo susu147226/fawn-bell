@@ -1,0 +1,89 @@
+# Build trees
+/build/
+/build_*/
+/build-*/
+/out/
+/dist/
+CMakeCache.txt
+CMakeFiles/
+build.ninja
+.ninja_log
+.ninja_deps
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# Binaries and MSVC leftovers
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.lib
+*.dll
+!third_party/pdfium/bin/pdfium.dll
+/third_party/pdfium/*.tgz
+!third_party/lumatext/bin/lumatext.dll
+!third_party/lumatext/lib/lumatext.lib
+*.exp
+*.idb
+*.iobj
+*.ipdb
+*.pch
+*.res
+
+# Logs and crash dumps
+*.log
+*.dmp
+*.timing.txt
+__pycache__/
+*.pyc
+/build_log.txt
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+*.suo
+*.sdf
+Thumbs.db
+Desktop.ini
+
+# Generated ops-test leftovers (~80MB binaries)
+/bench_data/opstest/
+
+# NTFS ADS probe artifact
+/bench_data/ads_probe.txt*
+
+# Local backups and console artifacts
+*.kimi-backup
+*.bak
+CONERR$
+/tools/win81-toolchain/
+/build-win81/
+
+# Local release verification and downloaded build dependencies
+/bench_data/installer-deps/
+/bench_data/*_fix_build.bat
+*.splitbak
+/output/
+/.release-sdk/
+/.release-sdk.zip
+/bench_data/lumatext-sdk/
+
+# Local fixtures, screenshots and internal verification notes
+/bench_data/*
+/docs/index-migration-review.md
+/docs/list-visibility-upgrade-r6.md
+/docs/windows-8.1-candidate.md
+/docs/research/
+/docs/plans/
+/todo.md
+/tools/_split_tus.py
+
+# Local tool state
+/.pnpm-store/
+/.summary.jsonl
+/.c2c.json
+
+# Local promotional video (not part of source releases).
+/docs/video/*.mp4

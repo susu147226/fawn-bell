@@ -1,0 +1,49 @@
+param(
+    [string]$BuildDir = "build",
+    [string]$OutputRoot = "dist\symbols"
+)
+
+$ErrorActionPreference = "Stop"
+$repo = Split-Path -Parent $PSScriptRoot
+$version = (Get-Content -LiteralPath (Join-Path $repo "version.txt") -TotalCount 1).Trim()
+$buildPath = [System.IO.Path]::GetFullPath((Join-Path $repo $BuildDir))
+$buildIdPath = Join-Path $buildPath "pulse_build_id.txt"
+if (-not (Test-Path -LiteralPath $buildIdPath)) {
+    throw "Missing build id: $buildIdPath"
+}
+$buildId = (Get-Content -LiteralPath $buildIdPath -TotalCount 1).Trim()
+$destination = [System.IO.Path]::GetFullPath((Join-Path $repo (Join-Path $OutputRoot (Join-Path $version $buildId))))
+New-Item -ItemType Directory -Path $destination -Force | Out-Null
+
+. "$PSScriptRoot/release_payload.ps1"
+$artifacts = @()
+foreach ($executable in $PulseReleaseExecutables) {
+    $pdb = [IO.Path]::ChangeExtension($executable, '.pdb')
+    & python "$PSScriptRoot/verify_symbol_identity.py" (Join-Path $buildPath $executable) (Join-Path $buildPath $pdb)
+    if ($LASTEXITCODE -ne 0) { throw "Missing or mismatched symbols for $executable; build_release.bat /symbols is required" }
+    $artifacts += @($executable, $pdb)
+}
+$manifest = @()
+foreach ($name in $artifacts) {
+    $source = Join-Path $buildPath $name
+    if (-not (Test-Path -LiteralPath $source)) {
+        throw "Missing symbol artifact: $source"
+    }
+    Copy-Item -LiteralPath $source -Destination $destination -Force
+    $hash = Get-FileHash -LiteralPath $source -Algorithm SHA256
+    $item = Get-Item -LiteralPath $source
+    $manifest += [ordered]@{
+        file = $name
+        bytes = $item.Length
+        sha256 = $hash.Hash.ToLowerInvariant()
+    }
+}
+
+[ordered]@{
+    schema = 1
+    version = $version
+    build_id = $buildId
+    artifacts = $manifest
+} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $destination "manifest.json") -Encoding utf8
+
+Write-Host "Symbols archived to $destination"
