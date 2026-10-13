@@ -1286,7 +1286,11 @@ void Wizard::Activate(int id) {
         case kTglCleanup: if (un_state_ == UnState::Idle) cleanup_ = !cleanup_; break;
         case kUnStart: StartUninstall(); break;
         case kLicense:
-            ShellExecuteW(hwnd_, L"open", L"https://www.apache.org/licenses/LICENSE-2.0", nullptr, nullptr, SW_SHOWNORMAL);
+            // Layered licensing: the product license, which itself points at
+            // NOTICE and the Apache-2.0 LICENSE for the upstream-derived part.
+            ShellExecuteW(hwnd_, L"open",
+                          L"https://github.com/susu147226/fawn-bell/blob/main/LICENSE-luling.md",
+                          nullptr, nullptr, SW_SHOWNORMAL);
             break;
         case kToOptions: Show(Page::Options); break;
         case kBack: case kOptBack: Show(Page::Welcome); break;
