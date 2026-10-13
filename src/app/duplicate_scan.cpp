@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <unordered_map>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 bool SamePath(const std::wstring& left, const std::wstring& right) {
@@ -310,4 +310,4 @@ size_t DuplicateScanSession::ExtraCount() const {
     return count;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

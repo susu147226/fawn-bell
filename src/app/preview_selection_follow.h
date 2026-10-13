@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <utility>
 
-namespace pulse::app {
+namespace luling::app {
 // Keep navigation inside the preview intact until the list selection changes.
 struct PreviewSelectionFollow {
     std::wstring observed;
@@ -16,4 +16,4 @@ struct PreviewSelectionFollow {
         return true;
     }
 };
-} // namespace pulse::app
+} // namespace luling::app

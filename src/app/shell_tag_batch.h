@@ -3,7 +3,7 @@
 #include "places.h"
 #include <functional>
 
-namespace pulse::app::shell_tags {
+namespace luling::app::shell_tags {
 class BatchHandler {
 public:
     using AdsSink = std::function<void(std::vector<TagAdsUpdate>)>;

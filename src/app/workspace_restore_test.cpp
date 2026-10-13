@@ -1,11 +1,11 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "app_navigation.h"
 #include "app_runtime.h"
 #include <filesystem>
 #include <cstdio>
 
 bool RunWorkspaceRestoreTest() {
-    using namespace pulse;
+    using namespace luling;
     namespace fsys = std::filesystem;
     int failures = 0;
     const auto parent = fsys::absolute(L"bench_data").lexically_normal();
@@ -20,8 +20,8 @@ bool RunWorkspaceRestoreTest() {
     };
     check(log != nullptr, "workspace regression log opened");
     wchar_t previous[32768]{};
-    GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", base.c_str());
+    GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", base.c_str());
     std::vector<std::wstring> folders;
     for (const auto name : {L"one", L"two", L"three", L"other"}) {
         fsys::create_directory(base / name); folders.push_back((base / name).wstring());
@@ -67,7 +67,7 @@ bool RunWorkspaceRestoreTest() {
         state->watches.Stop(); state->worker.Stop();
         DestroyWindow(state->hwnd); state->hwnd = nullptr;
     }
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous[0] ? previous : nullptr);
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous[0] ? previous : nullptr);
     std::error_code error;
     if (base.parent_path() == parent && base.filename().wstring().starts_with(L"workspace-restore-"))
         fsys::remove_all(base, error);

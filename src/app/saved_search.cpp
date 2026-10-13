@@ -6,7 +6,7 @@
 #include <windows.h>
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 constexpr size_t kMaximumSavedSearches = 100;
@@ -43,7 +43,7 @@ bool Normalize(SavedSearch& search) {
 
 std::vector<std::wstring> ExtractObjects(const std::wstring& json) {
     std::vector<std::wstring> output;
-    size_t pos = pulse::json::ValuePosition(json, L"searches");
+    size_t pos = luling::json::ValuePosition(json, L"searches");
     if (pos == std::wstring::npos || pos >= json.size() || json[pos] != L'[') return output;
     bool in_string = false;
     int depth = 0;
@@ -73,7 +73,7 @@ std::vector<std::wstring> ExtractObjects(const std::wstring& json) {
 } // namespace
 
 std::wstring SavedSearchStore::DefaultPath() {
-    const std::wstring root = GetPulseDataDir();
+    const std::wstring root = GetLulingDataDir();
     return root.empty() ? L"" : root + L"\\saved_searches.json";
 }
 
@@ -93,15 +93,15 @@ bool SavedSearchStore::LoadFrom(const std::wstring& path) {
         items_.clear();
         return GetLastError() == ERROR_FILE_NOT_FOUND;
     }
-    if (pulse::json::ExtractInt(document, L"schema", 0) != 1) return false;
+    if (luling::json::ExtractInt(document, L"schema", 0) != 1) return false;
     std::vector<SavedSearch> loaded;
     for (const std::wstring& object : ExtractObjects(document)) {
         SavedSearch search;
-        search.name = pulse::json::ExtractString(object, L"name");
-        search.root = pulse::json::ExtractString(object, L"root");
-        search.query = pulse::json::ExtractString(object, L"query");
-        search.recursive = pulse::json::ExtractBool(object, L"recursive", true);
-        if (!ParseMode(pulse::json::ExtractString(object, L"mode"), search.mode) ||
+        search.name = luling::json::ExtractString(object, L"name");
+        search.root = luling::json::ExtractString(object, L"root");
+        search.query = luling::json::ExtractString(object, L"query");
+        search.recursive = luling::json::ExtractBool(object, L"recursive", true);
+        if (!ParseMode(luling::json::ExtractString(object, L"mode"), search.mode) ||
             !Normalize(search)) continue;
         loaded.push_back(std::move(search));
         if (loaded.size() >= kMaximumSavedSearches) break;
@@ -115,9 +115,9 @@ bool SavedSearchStore::SaveTo(const std::wstring& path) const {
     for (size_t i = 0; i < items_.size(); ++i) {
         const auto& search = items_[i];
         std::wstring name, root, query;
-        pulse::json::Escape(search.name, name);
-        pulse::json::Escape(search.root, root);
-        pulse::json::Escape(search.query, query);
+        luling::json::Escape(search.name, name);
+        luling::json::Escape(search.root, root);
+        luling::json::Escape(search.query, query);
         document += i == 0 ? L"\n" : L",\n";
         document += L"    {\"name\":\"" + name + L"\",\"mode\":\"" +
             ModeName(search.mode) + L"\",\"root\":\"" + root +
@@ -144,4 +144,4 @@ bool SavedSearchStore::Remove(size_t index) {
     return true;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

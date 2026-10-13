@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class UpdateError : uint8_t {
     None,
@@ -66,4 +66,4 @@ private:
     std::shared_ptr<State> state_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

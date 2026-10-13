@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "name_highlight_ui_test.h"
 #include "../common/windows_compat.h"
 #include "../ui/ui_renderer.h"
@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <filesystem>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 using namespace ui;
 bool Check(bool value, const char* label) {
@@ -95,12 +95,12 @@ bool RunNameHighlightUiTest() {
     if (fopen_s(&log, "bench_data/name-highlight/results.log", "w") == 0 && log) std::fclose(log);
     bool ok = MatchTests();
     if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return false;
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
     const auto instance = GetModuleHandleW(nullptr);
     WNDCLASSW wc{};
     wc.hInstance = instance;
     wc.lpfnWndProc = DefWindowProcW;
-    wc.lpszClassName = L"PulseNameHighlightUiTest";
+    wc.lpszClassName = L"LulingNameHighlightUiTest";
     RegisterClassW(&wc);
     const auto hwnd = CreateWindowExW(0, wc.lpszClassName, L"Filename match test", WS_OVERLAPPEDWINDOW,
         0, 0, 1440, 1080, nullptr, nullptr, instance, nullptr);

@@ -5,7 +5,7 @@
 #include <vector>
 #include <utility>
 
-namespace pulse::json {
+namespace luling::json {
 
 // Syntax validation before permissive field extractors touch persisted state.
 // Places historically wrote 0xRRGGBB; allow that extension only for that file.
@@ -163,4 +163,4 @@ inline bool ValidConfigObject(std::wstring_view text, bool legacy_hex = false) {
 inline bool ValidConfigArray(std::wstring_view text) {
     return ConfigSyntax(text, false).Array();
 }
-} // namespace pulse::json
+} // namespace luling::json

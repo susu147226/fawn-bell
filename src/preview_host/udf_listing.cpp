@@ -5,7 +5,7 @@
 #include <set>
 #include <utility>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 // ECMA-167, parts 3/10 and 4/14; UDF 2.60 sections 2.2.10 and 2.2.13.
 uint16_t U16(const unsigned char* p) { return static_cast<uint16_t>(p[0] | (p[1] << 8)); }
@@ -326,4 +326,4 @@ bool ReadUdfListing(HANDLE file, uint64_t file_size, UdfListing& out, const UdfL
     if (!complete && !out.entries.empty()) out.incomplete=true;
     return complete || !out.entries.empty();
 }
-} // namespace pulse::preview
+} // namespace luling::preview

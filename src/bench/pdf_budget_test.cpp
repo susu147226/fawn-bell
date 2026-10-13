@@ -47,7 +47,7 @@ int wmain(int argc, wchar_t** argv) {
     { std::ofstream file(path, std::ios::binary); file << pdf; Check(file.good(), "write isolated two-page fixture"); }
     if (argc == 2) {
         Raster rejected;
-        const bool ok = pulse::preview::RasterizePdfFile(argv[1], 256, rejected.pixels,
+        const bool ok = luling::preview::RasterizePdfFile(argv[1], 256, rejected.pixels,
             rejected.width, rejected.height, rejected.stride, rejected.source_width,
             rejected.source_height, &rejected.error, 0, &rejected.pages, true);
         Check(!ok && rejected.error == L"pdf-thumbnail-budget", "complex thumbnail reports budget failure");
@@ -58,7 +58,7 @@ int wmain(int argc, wchar_t** argv) {
     for (UINT page = 0; page < 2; ++page) {
         Raster full, grid;
         auto render = [&](Raster& r, bool thumbnail) {
-            return pulse::preview::RasterizePdfFile(path.wstring(), 256, r.pixels,
+            return luling::preview::RasterizePdfFile(path.wstring(), 256, r.pixels,
                 r.width, r.height, r.stride, r.source_width, r.source_height,
                 &r.error, page, &r.pages, thumbnail);
         };

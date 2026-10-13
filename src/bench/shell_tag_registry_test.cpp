@@ -28,9 +28,9 @@ HANDLE WINAPI TestCreateFile(LPCWSTR path, DWORD access, DWORD share, LPSECURITY
 }
 }
 int main() {
-    using namespace pulse::app;
+    using namespace luling::app;
     namespace fs = std::filesystem;
-    const std::wstring sandbox = L"Software\\PulseTest\\TagRegistry-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
+    const std::wstring sandbox = L"Software\\LulingTest\\TagRegistry-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
     HKEY registry_root = nullptr;
     if (RegCreateKeyExW(HKEY_CURRENT_USER, sandbox.c_str(), 0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &registry_root, nullptr) != ERROR_SUCCESS) return 2;
     if (RegOverridePredefKey(HKEY_CURRENT_USER, registry_root) != ERROR_SUCCESS) { RegCloseKey(registry_root); return 2; }
@@ -44,7 +44,7 @@ int main() {
         return 2;
     }
     const auto icons = (fixture / L"icons").wstring();
-    const std::wstring exe = (fixture / L"pulse.exe").wstring(), title = L"Pulse tags";
+    const std::wstring exe = (fixture / L"luling.exe").wstring(), title = L"Luling tags";
     const std::vector<ColorTag> tags{{L"fixture-id", L"fixture tag", 0x123456, {}}};
     const TagMenuRegistryApi api{Create, Set, Remove, TestCreateFile};
     int failures = 0;
@@ -69,8 +69,8 @@ int main() {
     }
     const std::vector<ColorTag> updated{{L"fixture-id", L"updated tag", 0x456789, {}},
                                         {L"second-id", L"second tag", 0x654321, {}}};
-    const auto updated_exe = (fixture / L"updated pulse.exe").wstring();
-    const std::wstring updated_title = L"Updated Pulse tags";
+    const auto updated_exe = (fixture / L"updated luling.exe").wstring();
+    const std::wstring updated_title = L"Updated Luling tags";
     create_count = set_count = 0;
     check(InstallTagMenu(updated, updated_exe, updated_title, icons, api) &&
           TagMenuMatches(updated, updated_exe, updated_title, icons),
@@ -93,7 +93,7 @@ int main() {
                   "same updated desired repairs every failed COM publication write");
         }
     }
-    const std::wstring directory_root = L"Software\\Classes\\Directory\\shell\\PulseTags";
+    const std::wstring directory_root = L"Software\\Classes\\Directory\\shell\\LulingTags";
     const auto command = directory_root + L"\\shell\\" + shell_tags::VerbName(updated[0].id) + L"\\command";
     check(SHDeleteKeyW(HKEY_CURRENT_USER, command.c_str()) == ERROR_SUCCESS &&
           !TagMenuMatches(updated, updated_exe, updated_title, icons),
@@ -101,7 +101,7 @@ int main() {
     check(InstallTagMenu(updated, updated_exe, updated_title, icons, api) &&
           TagMenuMatches(updated, updated_exe, updated_title, icons), "unchanged desired repairs missing COM command");
     // Registration replaces owned trees, removing obsolete legacy visibility values.
-    for (const auto* root : {L"Software\\Classes\\*\\shell\\PulseTags", directory_root.c_str()}) {
+    for (const auto* root : {L"Software\\Classes\\*\\shell\\LulingTags", directory_root.c_str()}) {
         HKEY key = nullptr;
         check(RegOpenKeyExW(HKEY_CURRENT_USER, root, 0, KEY_SET_VALUE, &key) == ERROR_SUCCESS,
               "open isolated menu root for obsolete-value fixture");
@@ -115,7 +115,7 @@ int main() {
     }
     check(InstallTagMenu(updated, updated_exe, updated_title, icons, api),
           "reapplying desired COM registration removes obsolete root values");
-    for (const auto* root : {L"Software\\Classes\\*\\shell\\PulseTags", directory_root.c_str()}) {
+    for (const auto* root : {L"Software\\Classes\\*\\shell\\LulingTags", directory_root.c_str()}) {
         HKEY key = nullptr;
         check(RegOpenKeyExW(HKEY_CURRENT_USER, root, 0, KEY_QUERY_VALUE, &key) == ERROR_SUCCESS,
               "open repaired isolated root");

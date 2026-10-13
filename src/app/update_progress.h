@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 enum class UpdatePhase { Idle, Connecting, Downloading, Verifying, Ready, WaitingOperations, Launching, Installing };
 struct UpdateProgress {
     UpdatePhase phase = UpdatePhase::Idle;

@@ -71,20 +71,20 @@ bool VerifyMetadata(IWICImagingFactory* factory, const std::filesystem::path& pa
     }
     return true;
 }
-void Probe(pulse_test::Host& host, const std::filesystem::path& path, bool jpeg,
+void Probe(luling_test::Host& host, const std::filesystem::path& path, bool jpeg,
            unsigned orientation, unsigned page, unsigned cap) {
-    pulse_test::Result result;
+    luling_test::Result result;
     const bool received = host.Request(path.wstring(), result, MAXDWORD, cap,
-        pulse::ipc::PreviewRequestKind::Content, 0, page);
+        luling::ipc::PreviewRequestKind::Content, 0, page);
     const bool raster = received && result.response.status == 0 &&
-        result.response.kind == pulse::ipc::PreviewContentKind::Bitmap &&
+        result.response.kind == luling::ipc::PreviewContentKind::Bitmap &&
         result.pixels.size() >= static_cast<size_t>(result.response.stride) * result.response.height &&
         result.response.width && result.response.height;
     Check(raster, "actual host returns bitmap", jpeg, orientation, page, cap);
     if (!raster) return;
     const bool swap = orientation >= 5;
     const UINT sw = swap ? height : width, sh = swap ? width : height;
-    const auto limit = pulse::ipc::ClampPreviewPixelSize(cap, false);
+    const auto limit = luling::ipc::ClampPreviewPixelSize(cap, false);
     const double ratio = (std::min)(1.0, static_cast<double>(limit) / width);
     const UINT expected_w = static_cast<UINT>(sw * ratio + 0.5);
     const UINT expected_h = static_cast<UINT>(sh * ratio + 0.5);
@@ -120,7 +120,7 @@ int wmain() {
     fs::create_directories(parent);
     if (!fs::create_directory(root)) return 2;
     SetEnvironmentVariableW(L"LOCALAPPDATA", root.c_str());
-    pulse_test::Host host;
+    luling_test::Host host;
     if (!host.Start()) return 2;
     for (bool jpeg : {false, true})
         for (unsigned orientation = 0; orientation <= 8; ++orientation) {

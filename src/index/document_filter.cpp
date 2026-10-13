@@ -6,7 +6,7 @@
 #include <wrl/client.h>
 #include <shlwapi.h>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 HRESULT LoadStreamFilter(const std::wstring& path, Microsoft::WRL::ComPtr<IFilter>& filter,
                          Microsoft::WRL::ComPtr<IStream>& stream) {

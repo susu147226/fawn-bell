@@ -12,7 +12,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -134,7 +134,7 @@ std::wstring LayoutTabsToJson(const std::vector<LayoutTabSnapshot>& tabs) {
         out += L",\"marker_rgb\":" + std::to_wstring(tab.marker_rgb);
         out += L",\"title\":\"";
         std::wstring escaped;
-        pulse::json::Escape(tab.title, escaped);
+        luling::json::Escape(tab.title, escaped);
         out += escaped;
         out += L"\",\"layout\":" + std::to_wstring(tab.layout);
         out += L",\"focused\":" + std::to_wstring(tab.focused);
@@ -147,7 +147,7 @@ std::wstring LayoutTabsToJson(const std::vector<LayoutTabSnapshot>& tabs) {
             const PaneFolderSnapshot& pane = tab.panes[p];
             out += L"{\"path\":\"";
             escaped.clear();
-            pulse::json::Escape(pane.path, escaped);
+            luling::json::Escape(pane.path, escaped);
             out += escaped;
             out += L"\",\"view\":\"";
             out += ui::ViewModeName(pane.view);
@@ -175,7 +175,7 @@ std::wstring TabGroupsToJson(const std::vector<GroupSessionSnapshot>& groups) {
         out += L"{\"id\":" + std::to_wstring(grp.id);
         out += L",\"name\":\"";
         std::wstring escaped;
-        pulse::json::Escape(grp.name, escaped);
+        luling::json::Escape(grp.name, escaped);
         out += escaped;
         out += L"\",\"color\":" + std::to_wstring(grp.color_rgb);
         out += L",\"collapsed\":";
@@ -190,7 +190,7 @@ std::wstring TabGroupsToJson(const std::vector<GroupSessionSnapshot>& groups) {
 // (without the outer brackets); returns false on unbalanced input.
 static bool SplitTopLevelObjects(const std::wstring& body,
                                  std::vector<std::wstring>& out) {
-    return pulse::json::ForEachElement(L"[" + body + L"]", [&](const std::wstring& element) {
+    return luling::json::ForEachElement(L"[" + body + L"]", [&](const std::wstring& element) {
         if (!element.empty() && element.front() == L'{') out.push_back(element);
     });
 }
@@ -198,7 +198,7 @@ static bool SplitTopLevelObjects(const std::wstring& body,
 // The body (without brackets) of key's array value.
 static bool ExtractJsonArray(const std::wstring& json, const wchar_t* key,
                              std::wstring& body) {
-    const std::wstring array = pulse::json::ExtractArray(json, key);
+    const std::wstring array = luling::json::ExtractArray(json, key);
     if (array.size() < 2) return false;
     body = array.substr(1, array.size() - 2);
     return true;
@@ -216,11 +216,11 @@ bool ParseTabGroups(const std::wstring& array_json,
         return false;
     for (const std::wstring& gj : objs) {
         GroupSessionSnapshot grp;
-        grp.id = pulse::json::ExtractInt(gj, L"id");
-        grp.name = pulse::json::ExtractString(gj, L"name");
+        grp.id = luling::json::ExtractInt(gj, L"id");
+        grp.name = luling::json::ExtractString(gj, L"name");
         grp.color_rgb = static_cast<uint32_t>(std::max(
-            0, pulse::json::ExtractInt(gj, L"color")));
-        grp.collapsed = pulse::json::ExtractBool(gj, L"collapsed");
+            0, luling::json::ExtractInt(gj, L"color")));
+        grp.collapsed = luling::json::ExtractBool(gj, L"collapsed");
         out.push_back(std::move(grp));
     }
     return true;
@@ -238,17 +238,17 @@ bool ParseLayoutTabs(const std::wstring& array_json,
         return false;
     for (const std::wstring& tabJson : tabObjs) {
         LayoutTabSnapshot tab;
-        tab.pinned = pulse::json::ExtractBool(tabJson, L"pinned");
-        tab.group = pulse::json::ExtractInt(tabJson, L"group");
-        tab.title = pulse::json::ExtractString(tabJson, L"title");
+        tab.pinned = luling::json::ExtractBool(tabJson, L"pinned");
+        tab.group = luling::json::ExtractInt(tabJson, L"group");
+        tab.title = luling::json::ExtractString(tabJson, L"title");
         tab.marker_rgb = static_cast<uint32_t>(std::clamp(
-            pulse::json::ExtractInt(tabJson, L"marker_rgb"), 0, 0xFFFFFF));
-        tab.layout = pulse::json::ExtractInt(tabJson, L"layout");
-        tab.focused = pulse::json::ExtractInt(tabJson, L"focused");
-        tab.target = pulse::json::ExtractInt(tabJson, L"target");
+            luling::json::ExtractInt(tabJson, L"marker_rgb"), 0, 0xFFFFFF));
+        tab.layout = luling::json::ExtractInt(tabJson, L"layout");
+        tab.focused = luling::json::ExtractInt(tabJson, L"focused");
+        tab.target = luling::json::ExtractInt(tabJson, L"target");
         if (tabJson.find(L"\"target\"") == std::wstring::npos) tab.target = -1;
         tab.split_ratios = ParseScaledList(
-            pulse::json::ExtractString(tabJson, L"splitRatios"));
+            luling::json::ExtractString(tabJson, L"splitRatios"));
 
         std::wstring panesBody;
         if (ExtractJsonArray(tabJson, L"panes", panesBody)) {
@@ -256,13 +256,13 @@ bool ParseLayoutTabs(const std::wstring& array_json,
             if (!SplitTopLevelObjects(panesBody, paneObjs)) return false;
             for (const std::wstring& pj : paneObjs) {
                 PaneFolderSnapshot pane;
-                pane.path = pulse::json::ExtractString(pj, L"path");
-                pane.view = ui::ParseViewMode(pulse::json::ExtractString(pj, L"view"));
-                pane.columns = ParseDetailsWidths(pulse::json::ExtractString(pj, L"cols"));
+                pane.path = luling::json::ExtractString(pj, L"path");
+                pane.view = ui::ParseViewMode(luling::json::ExtractString(pj, L"view"));
+                pane.columns = ParseDetailsWidths(luling::json::ExtractString(pj, L"cols"));
                 pane.search_columns = ParseScaled4(
-                    pulse::json::ExtractString(pj, L"searchCols"));
-                pane.column_layout = pulse::json::ExtractBool(pj, L"colLayout");
-                pane.column_widths = ParseDipList(pulse::json::ExtractString(pj, L"colWidths"));
+                    luling::json::ExtractString(pj, L"searchCols"));
+                pane.column_layout = luling::json::ExtractBool(pj, L"colLayout");
+                pane.column_widths = ParseDipList(luling::json::ExtractString(pj, L"colWidths"));
                 tab.panes.push_back(std::move(pane));
             }
         }
@@ -271,10 +271,10 @@ bool ParseLayoutTabs(const std::wstring& array_json,
     return true;
 }
 
-std::wstring GetPulseDataDir() {
-#ifdef PULSE_WITH_SELFTEST
+std::wstring GetLulingDataDir() {
+#ifdef LULING_WITH_SELFTEST
     wchar_t test_dir[32768]{};
-    const DWORD length = GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", test_dir, ARRAYSIZE(test_dir));
+    const DWORD length = GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", test_dir, ARRAYSIZE(test_dir));
     if (length > 0 && length < ARRAYSIZE(test_dir)) {
         CreateDirectoryW(test_dir, nullptr);
         return test_dir;
@@ -282,7 +282,7 @@ std::wstring GetPulseDataDir() {
 #endif
     wchar_t path[MAX_PATH] = {};
     if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, path))) {
-        std::wstring dir = std::wstring(path) + L"\\Pulse";
+        std::wstring dir = std::wstring(path) + L"\\Luling";
         CreateDirectoryW(dir.c_str(), nullptr);
         return dir;
     }
@@ -304,7 +304,7 @@ std::wstring SessionToJson(const SessionSnapshot& snap) {
     f << L"  \"dark\":" << (snap.dark ? L"true" : L"false") << L",\n";
     f << L"  \"path\":\"";
     std::wstring escaped;
-    pulse::json::Escape(snap.active_path, escaped);
+    luling::json::Escape(snap.active_path, escaped);
     f << escaped << L"\",\n";
     f << L"  \"sidebarCollapsed\":" << snap.sidebar_collapsed << L",\n";
     f << L"  \"sidebarHidden\":" << snap.sidebar_hidden << L",\n";
@@ -333,7 +333,7 @@ std::wstring SessionToJson(const SessionSnapshot& snap) {
 }
 
 bool WriteSessionJson(const std::wstring& json) {
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
     return WriteUtf8FileAtomic(dir + L"\\session.json", json);
 }
@@ -343,7 +343,7 @@ bool SaveSession(const SessionSnapshot& snap) {
 }
 
 bool LoadSession(SessionSnapshot& snap) {
-    std::wstring dir = GetPulseDataDir();
+    std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
     std::wstring json;
     if (!ReadUtf8File(dir + L"\\session.json", json) || json.empty()) return false;
@@ -351,21 +351,21 @@ bool LoadSession(SessionSnapshot& snap) {
 }
 
 bool ParseSessionJson(const std::wstring& json, SessionSnapshot& snap) {
-    if (!pulse::json::ValidConfigObject(json)) return false;
-    snap.window_rect.left = pulse::json::ExtractInt(json, L"left");
-    snap.window_rect.top = pulse::json::ExtractInt(json, L"top");
-    snap.window_rect.right = pulse::json::ExtractInt(json, L"right");
-    snap.window_rect.bottom = pulse::json::ExtractInt(json, L"bottom");
-    snap.maximized = pulse::json::ExtractBool(json, L"maximized");
-    snap.dark = pulse::json::ExtractBool(json, L"dark");
-    snap.active_path = pulse::json::ExtractString(json, L"path");
-    snap.sidebar_collapsed = pulse::json::ExtractInt(json, L"sidebarCollapsed");
-    snap.sidebar_hidden = pulse::json::ExtractInt(json, L"sidebarHidden");
+    if (!luling::json::ValidConfigObject(json)) return false;
+    snap.window_rect.left = luling::json::ExtractInt(json, L"left");
+    snap.window_rect.top = luling::json::ExtractInt(json, L"top");
+    snap.window_rect.right = luling::json::ExtractInt(json, L"right");
+    snap.window_rect.bottom = luling::json::ExtractInt(json, L"bottom");
+    snap.maximized = luling::json::ExtractBool(json, L"maximized");
+    snap.dark = luling::json::ExtractBool(json, L"dark");
+    snap.active_path = luling::json::ExtractString(json, L"path");
+    snap.sidebar_collapsed = luling::json::ExtractInt(json, L"sidebarCollapsed");
+    snap.sidebar_hidden = luling::json::ExtractInt(json, L"sidebarHidden");
     // Section order travels as "0,1,2,6,3,4,5"; anything malformed falls back to
     // the default order (NormalizeSidebarOrder rebuilds a full permutation).
     snap.sidebar_order.clear();
     {
-        const std::wstring order_text = pulse::json::ExtractString(json, L"sidebarOrder");
+        const std::wstring order_text = luling::json::ExtractString(json, L"sidebarOrder");
         size_t start = 0;
         while (start < order_text.size()) {
             size_t end = order_text.find(L',', start);
@@ -396,25 +396,25 @@ bool ParseSessionJson(const std::wstring& json, SessionSnapshot& snap) {
     }
     // Bit positions changed in version 7 (the reserved starred bit is gone), so
     // anything older restarts with every built-in link visible.
-    snap.quick_access_hidden = pulse::json::ExtractInt(json, L"version") >= kSessionVersion
-        ? pulse::json::ExtractInt(json, L"quickAccessHidden") : 0;
+    snap.quick_access_hidden = luling::json::ExtractInt(json, L"version") >= kSessionVersion
+        ? luling::json::ExtractInt(json, L"quickAccessHidden") : 0;
     snap.starred_expanded = json.find(L"\"starredExpanded\"") == std::wstring::npos
-        ? true : pulse::json::ExtractBool(json, L"starredExpanded");
-    snap.details_panel = pulse::json::ExtractInt(json, L"detailsPanel") != 0;
-    snap.details_preview_only = pulse::json::ExtractBool(json, L"detailsPreviewOnly", false);
+        ? true : luling::json::ExtractBool(json, L"starredExpanded");
+    snap.details_panel = luling::json::ExtractInt(json, L"detailsPanel") != 0;
+    snap.details_preview_only = luling::json::ExtractBool(json, L"detailsPreviewOnly", false);
     // Missing in sessions written before the switch existed: keep the old
     // always-on behaviour.
     snap.details_preview = json.find(L"\"detailsPreview\"") == std::wstring::npos
-        ? true : pulse::json::ExtractBool(json, L"detailsPreview", true);
-    snap.details_panel_width = pulse::json::ExtractInt(json, L"detailsPanelWidth");
+        ? true : luling::json::ExtractBool(json, L"detailsPreview", true);
+    snap.details_panel_width = luling::json::ExtractInt(json, L"detailsPanelWidth");
     // The stored value is the user's intent; the window caps it while drawing.
     if (snap.details_panel_width < static_cast<int>(ui::kDetailsMinWidthDip) ||
         snap.details_panel_width > static_cast<int>(ui::kPanelWidthMaxDip))
         snap.details_panel_width = 340;
     const std::array<int, 3> columnEdges{
-        pulse::json::ExtractInt(json, L"detailsColumn0"),
-        pulse::json::ExtractInt(json, L"detailsColumn1"),
-        pulse::json::ExtractInt(json, L"detailsColumn2") };
+        luling::json::ExtractInt(json, L"detailsColumn0"),
+        luling::json::ExtractInt(json, L"detailsColumn1"),
+        luling::json::ExtractInt(json, L"detailsColumn2") };
     if (columnEdges[0] > 0 && columnEdges[0] < columnEdges[1] &&
         columnEdges[1] < columnEdges[2] && columnEdges[2] < 10000) {
         for (size_t i = 0; i < columnEdges.size(); ++i)
@@ -423,12 +423,12 @@ bool ParseSessionJson(const std::wstring& json, SessionSnapshot& snap) {
     }
 
     // Both hold nested arrays (each tray batch has its own "items" list).
-    if (const std::wstring tray = pulse::json::ExtractArray(json, L"tray"); !tray.empty())
+    if (const std::wstring tray = luling::json::ExtractArray(json, L"tray"); !tray.empty())
         snap.tray.FromJson(tray);
-    if (std::wstring undo = pulse::json::ExtractArray(json, L"undo"); !undo.empty())
+    if (std::wstring undo = luling::json::ExtractArray(json, L"undo"); !undo.empty())
         snap.undo_json = std::move(undo);
 
-    snap.active_layout_tab = pulse::json::ExtractInt(json, L"activeTab");
+    snap.active_layout_tab = luling::json::ExtractInt(json, L"activeTab");
     snap.tab_groups.clear();
     std::wstring groupsBody;
     if (ExtractJsonArray(json, L"tabGroups", groupsBody)) {
@@ -446,4 +446,4 @@ bool ParseSessionJson(const std::wstring& json, SessionSnapshot& snap) {
     return true;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

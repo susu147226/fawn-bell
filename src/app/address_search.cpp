@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse {
+namespace luling {
 
 bool IsAddressSearchResults(const app::Tab* tab) {
     std::wstring kind;
-    return tab && app::ParsePulsePath(tab->current_path, &kind, nullptr) && kind == L"search";
+    return tab && app::ParseLulingPath(tab->current_path, &kind, nullptr) && kind == L"search";
 }
 
 static std::wstring SearchOrigin(const app::Tab& tab) {
@@ -21,7 +21,7 @@ static std::wstring SearchOrigin(const app::Tab& tab) {
         const auto path = history.top();
         history.pop();
         std::wstring kind;
-        if (!app::ParsePulsePath(path, &kind, nullptr) || kind != L"search") return path;
+        if (!app::ParseLulingPath(path, &kind, nullptr) || kind != L"search") return path;
     }
     return {};
 }
@@ -29,7 +29,7 @@ static std::wstring SearchOrigin(const app::Tab& tab) {
 static void RestoreSearchDraft(app::Tab& tab) {
     if (tab.search_input_path == tab.current_path) return;
     std::wstring rest;
-    app::ParsePulsePath(tab.current_path, nullptr, &rest);
+    app::ParseLulingPath(tab.current_path, nullptr, &rest);
     const auto spec = app::ParseSearchQuery(rest);
     tab.search_input_path = tab.current_path;
     tab.search_input_content = !spec.content.empty();
@@ -278,7 +278,7 @@ void SubmitAddressSearch(AppState& s, bool live) {
     const bool restore_empty_content = tab->search_content_empty;
     tab->search_content_empty = false;
     std::wstring previous_query;
-    if (continuing) app::ParsePulsePath(tab->current_path, nullptr, &previous_query);
+    if (continuing) app::ParseLulingPath(tab->current_path, nullptr, &previous_query);
     auto spec = continuing ? app::ParseSearchQuery(previous_query) : app::AdvancedSearchSpec{};
     if (s.addressSearchContent) {
         const bool was_content_query = !spec.content.empty();
@@ -437,7 +437,7 @@ bool TickAddressSearch(AppState& s, ULONGLONG now) {
         ForEachPane(s, [&](app::Pane& pane) {
             auto* tab = pane.ActiveTab();
             std::wstring kind, rest;
-            if (!tab || !app::ParsePulsePath(tab->current_path, &kind, &rest) ||
+            if (!tab || !app::ParseLulingPath(tab->current_path, &kind, &rest) ||
                 kind != L"search" || !app::SplitSearchQueryText(rest).content.present()) return;
             if (tab->banner_title == l10n::Get(l10n::StringId::ContentIndexPartial) ||
                 tab->banner_title == l10n::Get(l10n::StringId::ContentCoverageHint) ||
@@ -494,4 +494,4 @@ bool TickAddressSearch(AppState& s, ULONGLONG now) {
     return true;
 }
 
-} // namespace pulse
+} // namespace luling

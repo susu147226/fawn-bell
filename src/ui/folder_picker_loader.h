@@ -3,7 +3,7 @@
 #include "folder_picker_model.h"
 #include <memory>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct PickerValidation {
     uint64_t generation = 0;
@@ -33,4 +33,4 @@ private:
 
 PickerListing ReadPickerListing(const std::wstring& path, PickerMode mode, const PickerOptions& options = {});
 
-} // namespace pulse::ui
+} // namespace luling::ui

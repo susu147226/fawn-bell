@@ -4,7 +4,7 @@
 #include <string>
 
 namespace {
-using pulse::app::UncProbeScheduler;
+using luling::app::UncProbeScheduler;
 int failures = 0;
 void Check(bool ok, const char* label) {
     std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << '\n';

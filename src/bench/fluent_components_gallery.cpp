@@ -5,12 +5,12 @@
 
 namespace {
 
-using pulse::ui::Compositor;
-using pulse::ui::HexColor;
-using pulse::ui::MakeHighContrastTheme;
-using pulse::ui::MakeTheme;
-using pulse::ui::Theme;
-using namespace pulse::ui::fluent;
+using luling::ui::Compositor;
+using luling::ui::HexColor;
+using luling::ui::MakeHighContrastTheme;
+using luling::ui::MakeTheme;
+using luling::ui::Theme;
+using namespace luling::ui::fluent;
 
 LRESULT CALLBACK GalleryWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     if (message == WM_DESTROY) {
@@ -66,7 +66,7 @@ bool DrawGallery(Compositor& compositor, bool dark, bool high_contrast,
                             ButtonKind::Transparent, state});
     }
 
-    TextFieldSpec input{Rect(32, 226, 288, 36), L"C:\\Projects\\Pulse", L"Address",
+    TextFieldSpec input{Rect(32, 226, 288, 36), L"C:\\Projects\\Luling", L"Address",
                         L"\xE8B7", L"\xE8BB", State()};
     painter.DrawTextField(input);
     input.bounds = Rect(334, 226, 288, 36);
@@ -216,7 +216,7 @@ bool DrawCompositeGallery(Compositor& compositor, bool dark, bool high_contrast,
                                       : dark ? HexColor(0x181818) : HexColor(0xF3F3F3);
 
     painter.FillRoundedRect(Rect(0, 0, 1000, 44), 0, theme.header_bg);
-    painter.DrawText(L"Pulse", Rect(16, 0, 86, 44), compositor.HeaderFormat(), theme.text);
+    painter.DrawText(L"Luling", Rect(16, 0, 86, 44), compositor.HeaderFormat(), theme.text);
     ControlState selected{};
     selected.selected = true;
     painter.DrawTab({Rect(104, 4, 180, 40), L"Project Alpha", L"\xE8B7", selected, true});
@@ -384,14 +384,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (FAILED(com_result)) {
         return 3;
     }
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
     WNDCLASSW window_class{};
     window_class.hInstance = instance;
     window_class.lpfnWndProc = GalleryWndProc;
-    window_class.lpszClassName = L"PulseFluentGallery";
+    window_class.lpszClassName = L"LulingFluentGallery";
     RegisterClassW(&window_class);
 
-    HWND hwnd = CreateWindowExW(0, window_class.lpszClassName, L"Pulse Fluent Gallery",
+    HWND hwnd = CreateWindowExW(0, window_class.lpszClassName, L"Luling Fluent Gallery",
                                 WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                                 1024, 720, nullptr, nullptr, instance, nullptr);
     if (!hwnd) {

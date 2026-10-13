@@ -9,11 +9,11 @@
 #include <thread>
 #include <utility>
 
-namespace pulse::app::shell_tags {
+namespace luling::app::shell_tags {
 using Microsoft::WRL::ComPtr;
 namespace {
 const CLSID class_id{0xa2d41cf7, 0x62e1, 0x49f4, {0xbc, 0xe9, 0x36, 0x24, 0xd4, 0x4f, 0xb7, 0x79}};
-constexpr wchar_t verb_prefix[] = L"pulse.tag.";
+constexpr wchar_t verb_prefix[] = L"luling.tag.";
 struct ServerState {
     std::mutex mutex;
     bool accepting = true;

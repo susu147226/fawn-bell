@@ -1,8 +1,8 @@
-// protocol.h — Pulse UI process <-> pulse_shell.exe wire protocol (named pipe).
+// protocol.h — Luling UI process <-> luling_shell.exe wire protocol (named pipe).
 //
-// Transport: named pipe `\\.\pipe\pulse_shell_<ui-pid>`, byte mode, blocking I/O.
+// Transport: named pipe `\\.\pipe\luling_shell_<ui-pid>`, byte mode, blocking I/O.
 // The UI process (client) creates the pipe name from its own PID and passes the
-// same PID to pulse_shell.exe as argv[1]; the shell host is the pipe server.
+// same PID to luling_shell.exe as argv[1]; the shell host is the pipe server.
 //
 // Framing: fixed 16-byte header + payload.
 //   struct MsgHeader { u32 magic; u32 type; u32 request_id; u32 payload_size; }
@@ -60,7 +60,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ipc {
+namespace luling::ipc {
 
 constexpr uint32_t kMagic = 0x53504C50; // 'PLPS'
 constexpr size_t kMaxPayload = 16 * 1024 * 1024;
@@ -204,7 +204,7 @@ private:
 };
 
 inline std::wstring PipeNameFor(uint32_t ui_pid) {
-    return L"\\\\.\\pipe\\pulse_shell_" + std::to_wstring(ui_pid);
+    return L"\\\\.\\pipe\\luling_shell_" + std::to_wstring(ui_pid);
 }
 
 // ---------------------------------------------------------------------------
@@ -259,4 +259,4 @@ inline bool PipeWrite(HANDLE pipe, const uint8_t* data, DWORD size) {
     return true;
 }
 
-} // namespace pulse::ipc
+} // namespace luling::ipc

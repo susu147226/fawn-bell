@@ -5,8 +5,8 @@
 #include <filesystem>
 #include <cstdio>
 #include <chrono>
-using namespace pulse::index;
-namespace pulse::index {
+using namespace luling::index;
+namespace luling::index {
 struct ChangeTrackerTestAccess {
     static void Events(ChangeTracker& tracker, const std::wstring& owner, std::vector<ChangeRecord> events) {
         auto& journal = tracker.journals_[owner];
@@ -38,7 +38,7 @@ struct ChangeTrackerTestAccess {
 };
 }
 int wmain(int argc, wchar_t** argv) {
-    const auto root = std::filesystem::temp_directory_path() / (L"pulse-changes-test-" + std::to_wstring(GetCurrentProcessId()));
+    const auto root = std::filesystem::temp_directory_path() / (L"luling-changes-test-" + std::to_wstring(GetCurrentProcessId()));
     std::filesystem::create_directories(root);
     int failures = 0;
     auto check = [&](bool ok, const char* name) { std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", name); failures += !ok; };
@@ -188,7 +188,7 @@ int wmain(int argc, wchar_t** argv) {
         tracker.Summaries(L"scope-gap", {L"C:\\"}, ChangeTracker::Now() + 1).state == ChangeState::Available,
         "gap affects only query windows that overlap its end");
     auto write_legacy = [&](const std::wstring& owner, std::vector<ChangeRecord> records) {
-        pulse::ipc::PayloadWriter writer; writer.PutU32(0x32484350); writer.PutU32(static_cast<uint32_t>(records.size()));
+        luling::ipc::PayloadWriter writer; writer.PutU32(0x32484350); writer.PutU32(static_cast<uint32_t>(records.size()));
         uint64_t id = 1;
         for (const auto& record : records) {
             writer.PutU64(id++); writer.PutU64(record.time); writer.PutU64(record.file_id);

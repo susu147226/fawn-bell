@@ -1,7 +1,7 @@
 #pragma once
 #include <d2d1.h>
 #include <algorithm>
-namespace pulse::ui {
+namespace luling::ui {
 struct PaneEmptyLayout {
     D2D1_RECT_F art{};
     D2D1_RECT_F title{};

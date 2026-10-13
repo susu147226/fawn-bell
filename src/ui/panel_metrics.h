@@ -2,7 +2,7 @@
 #pragma once
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // File Explorer sizes its panes against the window instead of using fixed caps:
 // dragging a splitter stops only once the file list reaches its minimum width, so
@@ -13,7 +13,7 @@ namespace pulse::ui {
 //                                                  window - 144 px - details otherwise
 //   details pane   : 307 px minimum, up to window - panel - 144 px
 // There is no ratio cap and no absolute cap: at a 3000 px window the navigation pane
-// still reaches 2856 px. Pulse reserves a little less than Explorer does so either
+// still reaches 2856 px. Luling reserves a little less than Explorer does so either
 // panel can grow further; the list keeps one readable column instead of a full row.
 inline constexpr float kListMinWidthDip = 112.0f;
 inline constexpr float kSidebarMinWidthDip = 160.0f;
@@ -51,4 +51,4 @@ inline float MaxDetailsWidthDip(float window_dip, float sidebar_dip, bool sideba
     return (std::max)(kDetailsMinWidthDip, window_dip - reserved);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

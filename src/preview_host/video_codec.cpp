@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <iterator>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 std::wstring VideoCodecDisplayName(std::wstring_view value) {
     const auto first = value.find_first_not_of(L" \t\r\n");
@@ -46,4 +46,4 @@ std::wstring VideoCodecDisplayName(std::wstring_view value) {
     return code;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

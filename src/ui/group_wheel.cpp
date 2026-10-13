@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 constexpr float kGwPi = 3.14159265f;
@@ -609,4 +609,4 @@ void GroupWheel::DrawControls(const Theme& theme, float alpha) {
     }
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

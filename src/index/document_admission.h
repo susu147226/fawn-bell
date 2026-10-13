@@ -3,7 +3,7 @@
 #include <functional>
 #include <string>
 
-namespace pulse::index::document {
+namespace luling::index::document {
 inline constexpr unsigned kProcessSlots = 4;
 // The project keeps Win8.1 SDK declarations. Probe the Win10 JOB_LIST
 // attribute at runtime; unsupported systems fail before creating a parser.

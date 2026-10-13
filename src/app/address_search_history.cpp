@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse {
+namespace luling {
 namespace {
 void SaveHistory(AppState& s) {
     if (!s.searchHistory.persist) return;
@@ -68,7 +68,7 @@ std::wstring SmartFilterLabels(const app::AdvancedSearchSpec& spec) {
 
 std::wstring ScopeLabel(const app::SearchHistoryEntry& entry) {
     std::wstring raw;
-    app::ParsePulsePath(entry.path, nullptr, &raw);
+    app::ParseLulingPath(entry.path, nullptr, &raw);
     const auto spec = app::ParseSearchQuery(raw);
     if (spec.location == app::LocationScope::CustomFolder) return spec.custom_folder;
     if (spec.location == app::LocationScope::CurrentFolder) return spec.current_folder;
@@ -78,7 +78,7 @@ std::wstring ScopeLabel(const app::SearchHistoryEntry& entry) {
 
 void RecordSearchHistory(AppState& s, const std::wstring& path) {
     std::wstring kind, raw;
-    if (!app::ParsePulsePath(path, &kind, &raw) || kind != L"search") return;
+    if (!app::ParseLulingPath(path, &kind, &raw) || kind != L"search") return;
     auto query = app::SearchDisplayNeedle(raw);
     if (query.empty()) query = raw;
     if (s.searchHistory.Record(query, path)) SaveHistory(s);
@@ -173,7 +173,7 @@ void ShowAddressSearchHistory(AppState& s) {
                     item.shortcut = scope.substr(slash + 1);
                 if (item.shortcut.size() > 14) item.shortcut = item.shortcut.substr(0, 13) + L"\u2026";
                 std::wstring raw;
-                app::ParsePulsePath(entries[i].path, nullptr, &raw);
+                app::ParseLulingPath(entries[i].path, nullptr, &raw);
                 const auto& mode = l10n::Get(app::SplitSearchQueryText(raw).content.present()
                     ? l10n::StringId::SearchModeContent : l10n::StringId::SearchModeName);
                 item.shortcut += L" · " + mode;
@@ -218,7 +218,7 @@ void ShowAddressSearchHistory(AppState& s) {
         s.menu->SetHoverFirstOnOpen(false);
         s.menu->SetSelectAllOnOpen(false);
         wchar_t debug_path[32768]{};
-        if (s.shot.active && s.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_HISTORY_SHOT", debug_path, ARRAYSIZE(debug_path))) {
+        if (s.shot.active && s.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_HISTORY_SHOT", debug_path, ARRAYSIZE(debug_path))) {
             s.menu->SetTheme(s.darkMode, s.accentColor);
             s.menu->SaveDebugSnapshot(debug_path, items_for(L""));
             break;

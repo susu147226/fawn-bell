@@ -3,12 +3,12 @@
 #include "app_state.h"
 #include "app_internal.h"
 #include "app_runtime.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include "../common/localization.h"
 #include "../common/runtime_log.h"
 #include <cstdio>
 
-namespace pulse {
+namespace luling {
 namespace {
 constexpr ULONGLONG kCheckInterval = 6ull * 60 * 60 * 1000;
 void ShowInstallError(AppState& state) {
@@ -104,13 +104,13 @@ void TickUpdates(AppState& state, unsigned long long now) {
 void NoteRunningVersion(AppState& state) {
     auto& prefs = state.appPrefs;
     if (!prefs.persist || state.shot.active || state.menushot) return;
-    if (prefs.last_seen_version == PULSE_VERSION_STRING) return;
+    if (prefs.last_seen_version == LULING_VERSION_STRING) return;
     // A fresh install has no app.json yet; only upgrades get the toast.
     if (prefs.had_file) {
-        state.whatsNewVersion = PULSE_VERSION_STRING;
+        state.whatsNewVersion = LULING_VERSION_STRING;
         state.whatsNewAt = GetTickCount64() + 2500;
     }
-    prefs.last_seen_version = PULSE_VERSION_STRING;
+    prefs.last_seen_version = LULING_VERSION_STRING;
     prefs.Save();
 }
 

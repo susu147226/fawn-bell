@@ -13,7 +13,7 @@
 
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 enum PickerControl : int {
     kPickNone = 0,
@@ -78,4 +78,4 @@ void DrawPickerChrome(Compositor& compositor, fluent::Painter& painter, const Th
                       const FolderPickerChrome& chrome, const FolderPickerChromeLayout& layout,
                       bool high_contrast);
 
-} // namespace pulse::ui
+} // namespace luling::ui

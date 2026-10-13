@@ -16,12 +16,12 @@
 #include <windows.h>
 #include <sddl.h>
 
-using namespace pulse::index;
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using namespace luling::index;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 
 namespace {
 
@@ -33,8 +33,8 @@ struct Agent {
     std::atomic<ULONGLONG> last_activity{0};
 } g;
 
-// Every live Pulse window polls the agent once per second, so a long quiet
-// period means the Pulse instance(s) that used it are gone (e.g. it was
+// Every live Luling window polls the agent once per second, so a long quiet
+// period means the Luling instance(s) that used it are gone (e.g. it was
 // replaced by an update). Exit instead of lingering as an orphan forever.
 constexpr ULONGLONG kIdleExitMs = 10ull * 60ull * 1000ull;
 
@@ -44,8 +44,8 @@ bool WriteFrame(HANDLE pipe, uint32_t type, uint32_t id,
     MsgHeader header = agent::MakeHeader(type, id, static_cast<uint32_t>(payload.size()));
     const auto deadline = GetTickCount64() + 5000;
     const auto stopped = [] { return !g.running.load(); };
-    const bool ok = pulse::ipc::DeadlinePipeIo(pipe, reinterpret_cast<uint8_t*>(&header), sizeof(header), true, deadline, stopped) &&
-        (payload.empty() || pulse::ipc::DeadlinePipeIo(pipe, const_cast<uint8_t*>(payload.data()),
+    const bool ok = luling::ipc::DeadlinePipeIo(pipe, reinterpret_cast<uint8_t*>(&header), sizeof(header), true, deadline, stopped) &&
+        (payload.empty() || luling::ipc::DeadlinePipeIo(pipe, const_cast<uint8_t*>(payload.data()),
                            static_cast<DWORD>(payload.size()), true, deadline, stopped));
     if (!ok) DisconnectNamedPipe(pipe);
     return ok;
@@ -195,11 +195,11 @@ void ClientLoop(HANDLE pipe, const agent::Identity& owner) {
         MsgHeader header{};
         const auto deadline = GetTickCount64() + 5000;
         const auto stopped = [] { return !g.running.load(); };
-        if (!pulse::ipc::DeadlinePipeIo(pipe, reinterpret_cast<uint8_t*>(&header), sizeof(header), false, deadline, stopped) ||
+        if (!luling::ipc::DeadlinePipeIo(pipe, reinterpret_cast<uint8_t*>(&header), sizeof(header), false, deadline, stopped) ||
             header.magic != agent::kMagic || header.payload_size > 256 * 1024)
             break;
         std::vector<uint8_t> payload(header.payload_size);
-        if (!payload.empty() && !pulse::ipc::DeadlinePipeIo(pipe, payload.data(), header.payload_size, false, deadline, stopped)) break;
+        if (!payload.empty() && !luling::ipc::DeadlinePipeIo(pipe, payload.data(), header.payload_size, false, deadline, stopped)) break;
         if (!agent::AuthorizeClient(pipe, owner)) break;
         PayloadReader reader(payload.data(), payload.size());
         if (header.type >= agent::REQ_CHANGE_LEASE && header.type <= agent::REQ_CHANGE_DETAILS) {
@@ -316,11 +316,11 @@ int RunAgent(const std::wstring& test_token = {}) {
 
 } // namespace
 
-int pulse::index::RunNetworkAgent() {
+int luling::index::RunNetworkAgent() {
     return RunAgent();
 }
 
-int pulse::index::RunNetworkAgentTest(const std::wstring& token) {
+int luling::index::RunNetworkAgentTest(const std::wstring& token) {
     if (token.empty() || token.size() > 64 || !std::all_of(token.begin(), token.end(), [](wchar_t c) {
         return (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'z') ||
                (c >= L'A' && c <= L'Z') || c == L'-' || c == L'_';

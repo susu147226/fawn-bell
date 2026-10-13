@@ -27,7 +27,7 @@
 
 #include "../ipc/preview_protocol.h"
 
-namespace pulse::preview {
+namespace luling::preview {
 
 bool IsJsonExtension(std::wstring_view extension);
 bool IsXmlExtension(std::wstring_view extension);
@@ -37,4 +37,4 @@ bool IsXmlExtension(std::wstring_view extension);
 bool MakeTreeDocument(const std::wstring& path, std::wstring_view extension, std::wstring& payload,
                       uint32_t& bytes_read, bool& truncated, ipc::PreviewTextEncoding& encoding);
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

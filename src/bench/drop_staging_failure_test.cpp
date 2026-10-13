@@ -49,7 +49,7 @@ BOOL WINAPI FaultClose(HANDLE handle) {
 
 int wmain() {
     namespace fs = std::filesystem;
-    using namespace pulse::app;
+    using namespace luling::app;
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok;
@@ -59,7 +59,7 @@ int wmain() {
     const auto root = parent / (L"drop-stage-failure-" + std::to_wstring(GetCurrentProcessId()) +
         L"-" + std::to_wstring(GetTickCount64()));
     if (!fs::create_directory(root)) return 1;
-    const auto temp = root / L"temp", stages = temp / L"PulseDrop";
+    const auto temp = root / L"temp", stages = temp / L"LulingDrop";
     const auto source = temp / L"extract", other = root / L"ordinary.txt";
     fs::create_directories(source / L"deep");
     std::ofstream(source / L"a.txt") << "a";

@@ -7,9 +7,9 @@
 #include <fstream>
 #include <filesystem>
 
-#ifdef PULSE_WITH_SELFTEST
-using namespace pulse;
-void Render(pulse::AppState&);
+#ifdef LULING_WITH_SELFTEST
+using namespace luling;
+void Render(luling::AppState&);
 int RunSearchManagementTest(AppState& s,const wchar_t* output) {
     std::ofstream log{std::filesystem::path(output)};int failures=0;
     auto check=[&](bool ok,const char* label){log<<(ok ? "[PASS] " : "[FAIL] ")<<label<<std::endl;if(!ok)++failures;};
@@ -25,7 +25,7 @@ int RunSearchManagementTest(AppState& s,const wchar_t* output) {
         HWND menu=nullptr;
         EnumThreadWindows(GetCurrentThreadId(),[](HWND window,LPARAM param)->BOOL{
             wchar_t title[64]{};GetWindowTextW(window,title,64);
-            if(IsWindowVisible(window) && wcscmp(title,L"PulseMenu")==0)*reinterpret_cast<HWND*>(param)=window;
+            if(IsWindowVisible(window) && wcscmp(title,L"LulingMenu")==0)*reinterpret_cast<HWND*>(param)=window;
             return TRUE;
         },reinterpret_cast<LPARAM>(&menu));
         if(step++==0 && menu) {
@@ -165,7 +165,7 @@ int RunSearchExitTest(AppState& s, const wchar_t* output) {
         ShowAddressSearch(s);
         SetWindowTextW(s.hwndAddressEdit, L"budget");
     };
-    for (const auto& origin : {folder, std::wstring(L"pulse:home"), std::wstring{}}) {
+    for (const auto& origin : {folder, std::wstring(L"luling:home"), std::wstring{}}) {
         prepare(origin);
         SubmitAddressSearch(s, true);
         check(tab->search_origin_valid && tab->search_origin_path == origin, "first search captures exact origin including virtual and This PC");
@@ -216,16 +216,16 @@ int RunSearchExitTest(AppState& s, const wchar_t* output) {
     SubmitAddressSearch(s, true);
     tab->search_origin_valid = false;
     tab->back_stack = {};
-    tab->back_stack.push(L"pulse:home");
+    tab->back_stack.push(L"luling:home");
     tab->back_stack.push(app::MakeSearchPath(L"older"));
     ExitAddressSearch(s);
-    check(tab->current_path == L"pulse:home", "missing origin falls back across searches to nearest virtual page");
+    check(tab->current_path == L"luling:home", "missing origin falls back across searches to nearest virtual page");
     // A repeated query can occur in multiple history entries with different origins.
     app::Tab history;
     history.current_path = folder;
     const auto same_query = app::MakeSearchPath(L"same");
     history.NavigateTo(same_query);
-    history.NavigateTo(L"pulse:home");
+    history.NavigateTo(L"luling:home");
     history.NavigateTo(same_query);
     history.GoBack();
     history.GoBack();
@@ -233,13 +233,13 @@ int RunSearchExitTest(AppState& s, const wchar_t* output) {
         "back restores source belonging to that search history entry");
     history.GoForward();
     history.GoForward();
-    check(history.search_origin_valid && history.search_origin_path == L"pulse:home",
+    check(history.search_origin_valid && history.search_origin_path == L"luling:home",
         "forward restores a repeated query with its own source");
     app::Tab network;
     network.current_path = L"\\\\server\\share\\folder";
     network.NavigateTo(same_query);
     check(network.search_origin_valid && network.search_origin_path == L"\\\\server\\share\\folder" &&
-        history.search_origin_path == L"pulse:home", "network paths and independent tabs keep distinct origins");
+        history.search_origin_path == L"luling:home", "network paths and independent tabs keep distinct origins");
     prepare(folder);
     SubmitAddressSearch(s, true);
     tab->search_entries = std::make_shared<std::vector<fs::DirEntry>>();
@@ -360,7 +360,7 @@ int RunContentHistoryTest(AppState& s, const wchar_t* output) {
     s.addressLiveDue = s.addressHistoryDue = 0;
     HideAddressEditor(s, false);
     auto* tab = ActiveTab(s); *tab = app::Tab{};
-    tab->current_path = L"pulse:home";
+    tab->current_path = L"luling:home";
     tab->search_input_path = tab->current_path; tab->search_input_text = L"20";
     ShowAddressSearch(s);
     s.addressLiveDue = s.addressHistoryDue = 0;
@@ -374,7 +374,7 @@ int RunContentHistoryTest(AppState& s, const wchar_t* output) {
         HWND menu = nullptr;
         EnumThreadWindows(GetCurrentThreadId(), [](HWND window, LPARAM value)->BOOL {
             wchar_t title[64]{}; GetWindowTextW(window, title, 64);
-            if (IsWindowVisible(window) && wcscmp(title, L"PulseMenu") == 0)
+            if (IsWindowVisible(window) && wcscmp(title, L"LulingMenu") == 0)
                 *reinterpret_cast<HWND*>(value) = window;
             return TRUE;
         }, reinterpret_cast<LPARAM>(&menu));
@@ -456,7 +456,7 @@ int RunContentPagingUiTest(AppState& s,const wchar_t* output) {
     s.addressLiveDue=s.addressHistoryDue=0;HideAddressEditor(s,false);
     auto* tab=ActiveTab(s);*tab=app::Tab{};
     tab->current_path=app::MakeSearchPath(L"content:20");
-    tab->search_origin_valid=true;tab->search_origin_path=L"pulse:home";
+    tab->search_origin_valid=true;tab->search_origin_path=L"luling:home";
     tab->view_mode=ui::ViewMode::Details;tab->pending_generation=900012;tab->search_content_active=true;
     s.appPrefs.row_height=40;s.renderer.SetRowHeightDip(40);
     auto store=std::make_shared<index::ContentResultStore>(s.hwnd,WM_CONTENT_SEARCH);
@@ -538,7 +538,7 @@ int RunContentPagingUiTest(AppState& s,const wchar_t* output) {
     DeferContentSelection(s,[&](AppState&){staleAction=true;});
     ExitAddressSearch(s);pump();
     check(!s.contentSelectionAction && !staleAction,"exit cancels pending selection action without executing it");
-    check(tab->current_path==L"pulse:home" && !tab->content_results,"exit releases result source and restores original location");
+    check(tab->current_path==L"luling:home" && !tab->content_results,"exit releases result source and restores original location");
     log<<"failures="<<failures<<std::endl;return failures ? 1:0;
 }
 
@@ -724,14 +724,14 @@ int RunToolbarLayoutTest(AppState& s, const wchar_t* output) {
 }
 
 int RunSearchFlowTest(AppState& s, const wchar_t* output) {
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TOOLBAR_LAYOUT", nullptr, 0)) return RunToolbarLayoutTest(s, output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_LIVE_SELECTION",nullptr,0)) return RunContentLiveSelectionTest(s,output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_PAGING",nullptr,0)) return RunContentPagingUiTest(s,output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_HISTORY",nullptr,0)) return RunContentHistoryTest(s,output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_COLUMN_ALIGNMENT",nullptr,0)) return RunSearchColumnAlignmentTest(s,output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_EXIT",nullptr,0)) return RunSearchExitTest(s,output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_INTERACTION",nullptr,0)) return RunSearchInteractionTest(s,output);
-    if(GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_MANAGEMENT",nullptr,0)) return RunSearchManagementTest(s,output);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TOOLBAR_LAYOUT", nullptr, 0)) return RunToolbarLayoutTest(s, output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_CONTENT_LIVE_SELECTION",nullptr,0)) return RunContentLiveSelectionTest(s,output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_CONTENT_PAGING",nullptr,0)) return RunContentPagingUiTest(s,output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_CONTENT_HISTORY",nullptr,0)) return RunContentHistoryTest(s,output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_SEARCH_COLUMN_ALIGNMENT",nullptr,0)) return RunSearchColumnAlignmentTest(s,output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_SEARCH_EXIT",nullptr,0)) return RunSearchExitTest(s,output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_SEARCH_INTERACTION",nullptr,0)) return RunSearchInteractionTest(s,output);
+    if(GetEnvironmentVariableW(L"LULING_TEST_SEARCH_MANAGEMENT",nullptr,0)) return RunSearchManagementTest(s,output);
     std::ofstream log{std::filesystem::path(output)};
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
@@ -783,13 +783,13 @@ int RunSearchFlowTest(AppState& s, const wchar_t* output) {
     SwitchAddressSearchMode(s, false);
     SubmitAddressSearch(s, false);
     std::wstring mode_query;
-    app::ParsePulsePath(tab->current_path, nullptr, &mode_query);
+    app::ParseLulingPath(tab->current_path, nullptr, &mode_query);
     check(!app::SplitSearchQueryText(mode_query).content.present() && GetWindowTextLengthW(s.hwndAddressEdit) == 6,
           "name segment retains query and switches immediately");
     SwitchAddressSearchMode(s, true);
     SaveAddressSearchDraft(s); // History dismissal saves the newly selected mode first.
     SubmitAddressSearch(s, false);
-    app::ParsePulsePath(tab->current_path, nullptr, &mode_query);
+    app::ParseLulingPath(tab->current_path, nullptr, &mode_query);
     check(app::SplitSearchQueryText(mode_query).content.present() && app::ParseSearchQuery(mode_query).name.empty(),
           "content switch after draft save does not retain a filename filter");
     s.addressSearchComposing = true;
@@ -799,7 +799,7 @@ int RunSearchFlowTest(AppState& s, const wchar_t* output) {
     check(tab->current_path == composing_path, "mode switch waits for IME composition");
     s.addressSearchComposing = false;
     SubmitAddressSearch(s, false);
-    app::ParsePulsePath(tab->current_path, nullptr, &mode_query);
+    app::ParseLulingPath(tab->current_path, nullptr, &mode_query);
     check(!app::SplitSearchQueryText(mode_query).content.present(), "mode query applies after IME completion");
     auto vm = BuildVm(s, false);
     const float width = static_cast<float>(s.compositor.Width());

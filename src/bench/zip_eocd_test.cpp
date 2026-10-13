@@ -35,7 +35,7 @@ Bytes Zip(const Bytes& comment = {}, bool zip64 = false, bool sfx = false) {
 }
 
 int wmain() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     const auto root = std::filesystem::current_path() / L"bench_data" /
         (L"zip-eocd-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
     std::filesystem::create_directories(root);

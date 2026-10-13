@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "name_highlight_ui_test.h"
 #include "../common/windows_compat.h"
 #include "../ui/ui_renderer_internal.h"
@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FilenameRenderTest {
     static bool Run() {
         const std::filesystem::path root = L"bench_data/filename-render";
@@ -151,7 +151,7 @@ struct FilenameRenderTest {
     }
 };
 }
-namespace pulse::app {
+namespace luling::app {
 bool RunFilenameRenderTest() {
     const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(hr)) return false;

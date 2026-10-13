@@ -2,7 +2,7 @@
 #include "ui_renderer_internal.h"
 #include "address_search_layout.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 D2D1_RECT_F MainRenderer::AddressSearchButtonRect(float w) const {
     const auto field = SearchBarRect(w);
@@ -162,4 +162,4 @@ void MainRenderer::DrawAddressSearchChrome(const WindowViewModel& vm, float w, c
     }
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

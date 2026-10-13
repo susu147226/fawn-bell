@@ -3,7 +3,7 @@
 #include <cmath>
 #include <d2d1.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Screen-pixel geometry shared by drawing, wheel zoom and grab panning.
 struct PreviewViewport {
@@ -49,4 +49,4 @@ struct PreviewViewport {
         else { fit = true; zoom = FitZoom(); x = y = 0; }
     }
 };
-} // namespace pulse::ui
+} // namespace luling::ui

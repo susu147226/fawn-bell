@@ -2,7 +2,7 @@
 #pragma once
 #include "app_runtime.h"
 
-namespace pulse {
+namespace luling {
 constexpr UINT_PTR kTimerUncProbeRetry = 0x554e;
 std::vector<std::wstring> CollectPanePaths(const AppState& s);
 std::vector<ui::ViewMode> CollectPaneViews(const AppState& s);
@@ -107,6 +107,6 @@ void SelectNameInTab(AppState& s, app::Tab& tab, const std::wstring& name);
 float TabFlashAmount(const AppState& s, const app::LayoutTab* key);
 // Publishes the tag catalog for tag grouping; true when it changed.
 bool SyncTagGroups(AppState& s);
-// Advances the pulse; false once it has finished (or none is running).
+// Advances the luling; false once it has finished (or none is running).
 bool TickTabFlash(AppState& s);
-} // namespace pulse
+} // namespace luling

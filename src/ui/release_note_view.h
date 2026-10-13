@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // One embedded release note (docs/releases/<version>.md), pre-split for painting.
 struct ReleaseNoteView {
@@ -13,4 +13,4 @@ struct ReleaseNoteView {
     std::vector<bool> bullets;         // parallel to lines: list item vs. paragraph
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

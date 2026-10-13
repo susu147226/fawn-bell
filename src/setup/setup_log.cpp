@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <mutex>
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 std::mutex g_mutex;
 HANDLE g_file = INVALID_HANDLE_VALUE;
@@ -40,4 +40,4 @@ void Log(const std::wstring& line) {
     WriteFile(g_file, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

@@ -5,7 +5,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-namespace pulse::index {
+namespace luling::index {
 class IndexMemoryProbe;
 std::wstring NormalizeChangePath(std::wstring path);
 bool IsChangeJournalName(std::wstring_view name);

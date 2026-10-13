@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240" fill="none">
   <title>No selection</title>
-  <desc>Layered documents and a pointer in the Pulse empty-state style.</desc>
+  <desc>Layered documents and a pointer in the Luling empty-state style.</desc>
   <defs>
     <linearGradient id="rearPaper" x1="77" y1="61" x2="167" y2="190" gradientUnits="userSpaceOnUse">
       <stop stop-color="#AAB5C7"/>

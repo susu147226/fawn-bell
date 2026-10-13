@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_set>
-namespace pulse::index {
+namespace luling::index {
 namespace {
 constexpr uint64_t kRetention = 7 * 86400;
 constexpr size_t kMaxRecords = 100000;

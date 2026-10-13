@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cwchar>
 
-namespace pulse {
+namespace luling {
 
 namespace {
 
@@ -485,4 +485,4 @@ void ToggleColumnLayout(AppState& s, int pane_index) {
     if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-} // namespace pulse
+} // namespace luling

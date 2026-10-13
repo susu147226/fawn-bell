@@ -7,7 +7,7 @@
 #include <optional>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct SearchHistoryEntry {
     std::wstring query;
@@ -52,4 +52,4 @@ private:
     std::thread thread_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

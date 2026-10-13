@@ -7,7 +7,7 @@
 #include <fstream>
 #include <string>
 
-using namespace pulse;
+using namespace luling;
 
 namespace {
 
@@ -83,7 +83,7 @@ int wmain(int argc, wchar_t** argv) {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
     const std::filesystem::path root = std::filesystem::path(temp) /
-        (L"PulseCrashTest-" + std::to_wstring(GetCurrentProcessId()));
+        (L"LulingCrashTest-" + std::to_wstring(GetCurrentProcessId()));
     const std::filesystem::path crashes = root / L"Diagnostics" / L"Crashes";
     const std::filesystem::path exported = root / L"Export";
     std::error_code error;

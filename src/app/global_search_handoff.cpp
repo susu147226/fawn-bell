@@ -7,7 +7,7 @@
 #include "startup_location.h"
 #include "tray_reveal.h"
 
-namespace pulse {
+namespace luling {
 
 void ContinueGlobalSearchInMain(AppState& s, const GlobalSearchHandoff& request) {
     // Taken here so the tray hook below does not start over a second time.
@@ -29,4 +29,4 @@ void ContinueGlobalSearchInMain(AppState& s, const GlobalSearchHandoff& request)
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-} // namespace pulse
+} // namespace luling

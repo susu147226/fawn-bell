@@ -11,7 +11,7 @@
 #include <sstream>
 #include <windows.h>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 bool EnsureDirectory(const std::wstring& path) {
@@ -123,7 +123,7 @@ std::wstring Win32Error(const wchar_t* operation) {
 
 std::wstring ConfigJson(const IndexConfig& config) {
     std::wstring escaped_path;
-    pulse::json::Escape(config.index_path, escaped_path);
+    luling::json::Escape(config.index_path, escaped_path);
     std::vector<std::wstring> excluded(config.excluded_volume_ids.begin(),
                                        config.excluded_volume_ids.end());
     std::sort(excluded.begin(), excluded.end());
@@ -141,7 +141,7 @@ std::wstring ConfigJson(const IndexConfig& config) {
                        L"\",\n  \"excluded_volume_ids\":[";
     for (size_t i = 0; i < excluded.size(); ++i) {
         std::wstring escaped;
-        pulse::json::Escape(excluded[i], escaped);
+        luling::json::Escape(excluded[i], escaped);
         if (i) out += L",";
         out += L"\n    \"" + escaped + L"\"";
     }
@@ -149,7 +149,7 @@ std::wstring ConfigJson(const IndexConfig& config) {
     out += L"],\n  \"excluded_paths\":[";
     for (size_t i = 0; i < excluded_paths.size(); ++i) {
         std::wstring escaped;
-        pulse::json::Escape(excluded_paths[i], escaped);
+        luling::json::Escape(excluded_paths[i], escaped);
         if (i) out += L",";
         out += L"\n    \"" + escaped + L"\"";
     }
@@ -255,15 +255,15 @@ std::wstring NormalizeVolumeId(std::wstring id) {
 std::wstring MachineDataRoot() {
     std::wstring root = KnownFolder(CSIDL_COMMON_APPDATA);
     if (root.empty()) return {};
-    const std::wstring pulse = root + L"\\Pulse";
-    if (!EnsureMachineDirectory(pulse)) return {};
-    return pulse;
+    const std::wstring luling = root + L"\\Luling";
+    if (!EnsureMachineDirectory(luling)) return {};
+    return luling;
 }
 
 std::wstring MachineIndexRoot() {
-    const std::wstring pulse = MachineDataRoot();
-    if (pulse.empty()) return {};
-    const std::wstring index = pulse + L"\\Index";
+    const std::wstring luling = MachineDataRoot();
+    if (luling.empty()) return {};
+    const std::wstring index = luling + L"\\Index";
     if (!EnsureMachineDirectory(index, false)) return {};
     return index;
 }
@@ -275,9 +275,9 @@ bool ProtectIndexDirectory(const std::wstring& path) {
 std::wstring UserIndexRoot() {
     std::wstring root = KnownFolder(CSIDL_LOCAL_APPDATA);
     if (root.empty()) return {};
-    const std::wstring pulse = root + L"\\Pulse";
-    if (!EnsureDirectory(pulse)) return {};
-    return pulse;
+    const std::wstring luling = root + L"\\Luling";
+    if (!EnsureDirectory(luling)) return {};
+    return luling;
 }
 
 std::wstring MachineConfigPath() {
@@ -290,7 +290,7 @@ bool LoadIndexConfigFrom(const std::wstring& path, const std::wstring& default_i
     IndexConfig loaded;
     loaded.index_path = default_index_path;
     std::wstring json;
-    if (!pulse::ReadUtf8File(path, json)) {
+    if (!luling::ReadUtf8File(path, json)) {
         if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
             const DWORD code = GetLastError();
             if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND) {
@@ -302,20 +302,20 @@ bool LoadIndexConfigFrom(const std::wstring& path, const std::wstring& default_i
         SetError(error, L"无法读取索引配置");
         return false;
     }
-    if (!pulse::json::ValidConfigObject(json)) {
+    if (!luling::json::ValidConfigObject(json)) {
         config.load_failed = true;
         SetError(error, L"索引配置为空或损坏");
         return false;
     }
-    loaded.version = static_cast<uint32_t>((std::max)(1, pulse::json::ExtractInt(json, L"version", 1)));
-    loaded.generation = static_cast<uint64_t>((std::max)(1, pulse::json::ExtractInt(json, L"generation", 1)));
-    loaded.include_fixed_ntfs = pulse::json::ExtractBool(json, L"include_fixed_ntfs", true);
-    loaded.include_removable_ntfs = pulse::json::ExtractBool(json, L"include_removable_ntfs", true);
-    loaded.index_path = pulse::json::ExtractString(json, L"index_path", default_index_path);
+    loaded.version = static_cast<uint32_t>((std::max)(1, luling::json::ExtractInt(json, L"version", 1)));
+    loaded.generation = static_cast<uint64_t>((std::max)(1, luling::json::ExtractInt(json, L"generation", 1)));
+    loaded.include_fixed_ntfs = luling::json::ExtractBool(json, L"include_fixed_ntfs", true);
+    loaded.include_removable_ntfs = luling::json::ExtractBool(json, L"include_removable_ntfs", true);
+    loaded.index_path = luling::json::ExtractString(json, L"index_path", default_index_path);
     if (loaded.index_path.empty()) loaded.index_path = default_index_path;
-    for (auto& id : pulse::json::ExtractStringArray(json, L"excluded_volume_ids"))
+    for (auto& id : luling::json::ExtractStringArray(json, L"excluded_volume_ids"))
         loaded.excluded_volume_ids.insert(NormalizeVolumeId(std::move(id)));
-    for (auto& path_value : pulse::json::ExtractStringArray(json, L"excluded_paths")) {
+    for (auto& path_value : luling::json::ExtractStringArray(json, L"excluded_paths")) {
         std::replace(path_value.begin(), path_value.end(), L'/', L'\\');
         while (path_value.size() > 3 && path_value.back() == L'\\') path_value.pop_back();
         if (!path_value.empty()) loaded.excluded_paths.push_back(std::move(path_value));
@@ -328,11 +328,11 @@ bool LoadIndexConfigFrom(const std::wstring& path, const std::wstring& default_i
               [](const auto& a, const auto& b) {
                   return CompareStringOrdinal(a.c_str(), -1, b.c_str(), -1, TRUE) == CSTR_EQUAL;
               }), loaded.excluded_paths.end());
-    loaded.exclude_system = pulse::json::ExtractBool(json, L"exclude_system", true);
+    loaded.exclude_system = luling::json::ExtractBool(json, L"exclude_system", true);
     loaded.system_groups_saved = json.find(L"\"system_exclusion_groups\"") != std::wstring::npos;
     if (loaded.system_groups_saved) {
         loaded.system_groups.clear();
-        for (auto& group : pulse::json::ExtractStringArray(json, L"system_exclusion_groups"))
+        for (auto& group : luling::json::ExtractStringArray(json, L"system_exclusion_groups"))
             if (IsSystemExclusionGroup(group) &&
                 std::find(loaded.system_groups.begin(), loaded.system_groups.end(), group) ==
                     loaded.system_groups.end())
@@ -366,7 +366,7 @@ bool SaveMachineConfig(const IndexConfig& config, std::wstring* error) {
         SetError(error, L"无法定位 ProgramData 索引目录");
         return false;
     }
-    if (!pulse::WriteUtf8FileAtomic(path, ConfigJson(config))) {
+    if (!luling::WriteUtf8FileAtomic(path, ConfigJson(config))) {
         SetError(error, Win32Error(L"保存索引配置失败"));
         return false;
     }
@@ -498,4 +498,4 @@ std::vector<VolumeInfo> EnumerateLocalVolumes(const IndexConfig& config) {
     return out;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

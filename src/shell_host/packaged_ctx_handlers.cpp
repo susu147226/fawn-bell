@@ -14,7 +14,7 @@
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "xmllite.lib")
 
-namespace pulse::shell {
+namespace luling::shell {
 namespace {
 
 constexpr wchar_t kContextMenuCategory[] = L"windows.fileExplorerContextMenus";
@@ -381,7 +381,7 @@ std::vector<PackagedCtxVerb> PackagedContextMenuVerbs() {
 
 std::vector<std::wstring> PackagedItemTypesFor(bool background, const std::wstring& path) {
     if (background) return { L"directory\\background" };
-    const std::wstring plain = pulse::path::StripExtendedPathPrefix(path);
+    const std::wstring plain = luling::path::StripExtendedPathPrefix(path);
     const DWORD attrs = GetFileAttributesW(plain.c_str());
     if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
         const bool drive = plain.size() <= 3 && plain.size() >= 2 && plain[1] == L':';
@@ -438,4 +438,4 @@ HRESULT CreateExplorerCommandMenu(IExplorerCommand* command, IShellItemArray* it
     return *out ? S_OK : E_OUTOFMEMORY;
 }
 
-} // namespace pulse::shell
+} // namespace luling::shell

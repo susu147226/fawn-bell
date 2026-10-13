@@ -17,7 +17,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -362,7 +362,7 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
     wchar_t countLabel[24]{};
     const int trayCount = TrayTotalCount(vm);
     if (trayCount > 0) swprintf_s(countLabel,
-        pulse::l10n::Get(pulse::l10n::StringId::ItemsCountFormat).c_str(), trayCount);
+        luling::l10n::Get(luling::l10n::StringId::ItemsCountFormat).c_str(), trayCount);
 
     for (const auto& slot : slots) {
         if (slot.kind == SidebarSlot::Header) {
@@ -405,15 +405,15 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
         if (slot.kind == SidebarSlot::TrayPanel) {
             fluent::StagingTrayPanelSpec tray;
             tray.bounds = slot.rc;
-            tray.title = pulse::l10n::Get(pulse::l10n::StringId::StagingTray);
+            tray.title = luling::l10n::Get(luling::l10n::StringId::StagingTray);
             // The empty state (dashed outline + hint) is drawn by DrawTrayDeck.
             // Do not assign a conditional std::wstring temporary to a
             // std::wstring_view: the view would dangle before DrawText runs.
             tray.count_label = countLabel;
             if (vm.tray_deck.total_count != 0) {
-                tray.action_text = pulse::l10n::Get(vm.tray_deck.release_move
-                    ? pulse::l10n::StringId::TrayReleaseMove
-                    : pulse::l10n::StringId::TrayReleaseCopy);
+                tray.action_text = luling::l10n::Get(vm.tray_deck.release_move
+                    ? luling::l10n::StringId::TrayReleaseMove
+                    : luling::l10n::StringId::TrayReleaseCopy);
             }
             tray.action_hovered =
                 vm.hover_region == static_cast<int>(HitTestResult::TrayRelease);
@@ -423,10 +423,10 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
             painter_.DrawStagingTrayPanel(tray);
             DrawTrayDeck(vm, TrayDeckArea(slot.rc, vm.tray_deck, scale_), theme);
             if (TrayStaleRowH(vm.tray_deck, scale_) > 0.0f && vm.tray_deck.live_count > 0) {
-                // Items moved or deleted outside Pulse: amber notice + Find / Remove.
+                // Items moved or deleted outside Luling: amber notice + Find / Remove.
                 const D2D1_RECT_F row = TrayStaleRowRect(slot.rc, vm.tray_deck, scale_);
                 const D2D1_RECT_F find = TrayStaleButtonRect(slot.rc, vm.tray_deck, scale_, 0);
-                std::wstring note = pulse::l10n::Get(pulse::l10n::StringId::TrayStaleFormat);
+                std::wstring note = luling::l10n::Get(luling::l10n::StringId::TrayStaleFormat);
                 const size_t at = note.find(L"{n}");
                 if (at != std::wstring::npos)
                     note.replace(at, 3, std::to_wstring(vm.tray_deck.stale_count));
@@ -446,8 +446,8 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
                     D2D1_COLOR_F fill = theme.fill_hover;
                     fill.a *= hot ? 1.0f : 0.55f;
                     painter_.FillRoundedRect(rc, 6.0f * scale_, fill);
-                    painter_.DrawText(pulse::l10n::Get(b == 0 ? pulse::l10n::StringId::TrayStaleFind
-                                                            : pulse::l10n::StringId::TrayStaleRemove),
+                    painter_.DrawText(luling::l10n::Get(b == 0 ? luling::l10n::StringId::TrayStaleFind
+                                                            : luling::l10n::StringId::TrayStaleRemove),
                                       rc, compositor_->SmallFormat(),
                                       hot ? theme.text : theme.text_secondary,
                                       fluent::HorizontalAlignment::Center);
@@ -596,7 +596,7 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
             fluent::SidebarItemSpec row;
             row.bounds = slot.rc;
             row.text = item.label;
-            if (item.path == L"pulse:recycle") row.detail = item.detail;
+            if (item.path == L"luling:recycle") row.detail = item.detail;
             row.glyph = item.icon_glyph;
             row.badge_text = item.badge;
             row.badge_color = item.badge_color;
@@ -770,11 +770,11 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
                 const float mid = (box.top + box.bottom) * 0.5f;
                 D2D1_COLOR_F t1 = theme.text_secondary; t1.a *= a;
                 D2D1_COLOR_F t2 = theme.text_secondary; t2.a *= 0.75f * a;
-                painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::StagingTrayEmpty),
+                painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::StagingTrayEmpty),
                     D2D1::RectF(box.left + 8.0f * scale_, mid - 20.0f * scale_,
                                 box.right - 8.0f * scale_, mid),
                     compositor_->TextFormat(), t1, fluent::HorizontalAlignment::Center);
-                painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::StagingTrayHelper),
+                painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::StagingTrayHelper),
                     D2D1::RectF(box.left + 8.0f * scale_, mid + 1.0f * scale_,
                                 box.right - 8.0f * scale_, mid + 19.0f * scale_),
                     compositor_->SmallFormat(), t2, fluent::HorizontalAlignment::Center);
@@ -797,8 +797,8 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
     const D2D1_COLOR_F nameColor = vm.dark ? rgba(0xEEF3F9, 1.0f) : rgba(0x1B1F24, 1.0f);
     const D2D1_COLOR_F subColor = vm.dark ? rgba(0x9FB0C4, 1.0f) : rgba(0x5B6675, 1.0f);
     const D2D1_COLOR_F folderColor = vm.dark ? rgba(0x71829A, 1.0f) : rgba(0x8A95A3, 1.0f);
-    const std::wstring moveLabel = pulse::l10n::Get(pulse::l10n::StringId::TrayIntentMove);
-    const std::wstring copyLabel = pulse::l10n::Get(pulse::l10n::StringId::TrayIntentCopy);
+    const std::wstring moveLabel = luling::l10n::Get(luling::l10n::StringId::TrayIntentMove);
+    const std::wstring copyLabel = luling::l10n::Get(luling::l10n::StringId::TrayIntentCopy);
 
     auto draw_card = [&](const TrayCardView& card, bool is_top) {
         const TrayCardPose pose = TrayCardPoseOf(g, card, deck.spread);
@@ -903,7 +903,7 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
         ty += lineName;
         std::wstring sub;
         if (!card.is_dir && card.size > 0)
-            sub = pulse::format::ByteSize(card.size, true) + L" \xB7 ";
+            sub = luling::format::ByteSize(card.size, true) + L" \xB7 ";
         sub += FormatListType(card.name, card.is_dir);
         DrawTextEndEllipsis(dc, factory, subFmt, color(subColor), sub, tx, ty, tw, lineSub);
         ty += lineSub;
@@ -952,12 +952,12 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
             return FitEndEllipsis(t, std::max(0.0f, rc.right - rc.left),
                 [&](const std::wstring& x) { return MeasureTextWidth(factory, f, x); });
         };
-        using TrayStr = pulse::l10n::StringId;
+        using TrayStr = luling::l10n::StringId;
         const TrayStr labels[4] = {TrayStr::TrayCmpLocation, TrayStr::TrayCmpModified, TrayStr::TrayCmpSize,
                                TrayStr::TrayCmpContent};
         for (int row = 1; row <= 4; ++row) {
             const D2D1_RECT_F rc = TrayCompareCell(cg, row, -1);
-            painter_.DrawText(fit(pulse::l10n::Get(labels[row - 1]), rc, subFmt), rc, subFmt,
+            painter_.DrawText(fit(luling::l10n::Get(labels[row - 1]), rc, subFmt), rc, subFmt,
                               folderColor);
         }
         const std::wstring newer = L" \x2191"; // later mtime (2 s tolerance)
@@ -980,7 +980,7 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
         D2D1_COLOR_F ccol = subColor;
         switch (cv.content) {
         case 0: {
-            ctext = pulse::l10n::Get(TrayStr::TrayCmpCheck);
+            ctext = luling::l10n::Get(TrayStr::TrayCmpCheck);
             ccol = theme.accent;
             if (vm.hover_region == static_cast<int>(HitTestResult::TrayCompare) &&
                 vm.hover_control_index == 1) {
@@ -988,23 +988,23 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
             }
             break;
         }
-        case 1: ctext = pulse::l10n::Get(TrayStr::TrayCmpChecking); break;
-        case 2: ctext = pulse::l10n::Get(TrayStr::TrayCmpSame); ccol = theme.accent; break;
+        case 1: ctext = luling::l10n::Get(TrayStr::TrayCmpChecking); break;
+        case 2: ctext = luling::l10n::Get(TrayStr::TrayCmpSame); ccol = theme.accent; break;
         case 3: {
             if (cv.text == 1) {
-                ctext = pulse::l10n::Get(TrayStr::TrayCmpViewDiff);
+                ctext = luling::l10n::Get(TrayStr::TrayCmpViewDiff);
                 ccol = theme.accent;
                 if (vm.hover_region == static_cast<int>(HitTestResult::TrayCompare) &&
                     vm.hover_control_index == 2)
                     painter_.FillRoundedRect(crc, 6.0f * scale_, theme.fill_hover);
             } else {
-                ctext = pulse::l10n::Get(cv.text == 0 ? TrayStr::TrayCmpBinary
+                ctext = luling::l10n::Get(cv.text == 0 ? TrayStr::TrayCmpBinary
                                                       : TrayStr::TrayCmpDifferent);
                 ccol = theme.danger;
             }
             break;
         }
-        default: ctext = pulse::l10n::Get(TrayStr::TrayCmpFailed); break;
+        default: ctext = luling::l10n::Get(TrayStr::TrayCmpFailed); break;
         }
         D2D1_RECT_F ctr = crc;
         ctr.left += 4.0f * scale_;
@@ -1075,14 +1075,14 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
                               theme.text_secondary, fluent::HorizontalAlignment::Center);
         }
         wchar_t footer[96]{};
-        const std::wstring size_text = pulse::format::ByteSize(deck.total_size, true);
+        const std::wstring size_text = luling::format::ByteSize(deck.total_size, true);
         if (deck.batch_count > 1)
             swprintf_s(footer,
-                pulse::l10n::Get(pulse::l10n::StringId::TotalSizeBatchesFormat).c_str(),
+                luling::l10n::Get(luling::l10n::StringId::TotalSizeBatchesFormat).c_str(),
                 size_text.c_str(), deck.batch_count);
         else
             swprintf_s(footer,
-                pulse::l10n::Get(pulse::l10n::StringId::TotalSizeFormat).c_str(),
+                luling::l10n::Get(luling::l10n::StringId::TotalSizeFormat).c_str(),
                 size_text.c_str());
         std::wstring totals = f.pager ? std::wstring(L"\xB7 ") + footer : std::wstring(footer);
         if (factory) {
@@ -1109,7 +1109,7 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
             } else if (cmp_hot) {
                 painter_.FillRoundedRect(f.compare, cr, theme.fill_hover);
             }
-            painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::TrayCompare), f.compare,
+            painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::TrayCompare), f.compare,
                               compositor_->SmallFormat(),
                               deck.comparing || cmp_hot ? theme.accent : theme.text_secondary,
                               fluent::HorizontalAlignment::Center);
@@ -1125,7 +1125,7 @@ void MainRenderer::DrawTrayDeck(const WindowViewModel& vm, const D2D1_RECT_F& pa
             hot_fill.a *= 0.12f;
             painter_.FillRoundedRect(clear_rc, clear_r, hot_fill);
         }
-        painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::ClearAll), clear_rc,
+        painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::ClearAll), clear_rc,
                           compositor_->SmallFormat(), theme.danger,
                           fluent::HorizontalAlignment::Center);
     }
@@ -1147,4 +1147,4 @@ bool MainRenderer::SidebarScrollbarGeometry(const WindowViewModel& vm, float win
     return max_scroll > 0.0f && thumb.bottom > thumb.top;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

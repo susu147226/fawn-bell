@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 enum : unsigned {
     kDocBold = 1, kDocItalic = 2, kDocCode = 4, kDocStrike = 8, kDocLink = 16, kDocImage = 32,
@@ -68,7 +68,7 @@ private:
     std::vector<Run> runs_;
 };
 
-// Pictures from inside documents, written once under %TEMP%\Pulse\QuickLook
+// Pictures from inside documents, written once under %TEMP%\Luling\QuickLook
 // (content-hashed names; files older than a day are pruned) so the reader can
 // draw them through the thumbnail cache like any local picture.
 class PreviewImageCache {
@@ -121,4 +121,4 @@ std::wstring DecodeDocumentText(const std::vector<unsigned char>& bytes);
 std::wstring ResolvePartName(std::wstring_view base_dir, std::wstring_view href);
 std::string ToUtf8(std::wstring_view s);
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

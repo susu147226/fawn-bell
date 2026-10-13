@@ -1,12 +1,12 @@
-// index_host.cpp — Pulse.Index.exe: index + query server (helper or service).
+// index_host.cpp — Luling.Index.exe: index + query server (helper or service).
 //
 // UI (asInvoker) never hosts Engine::Start. This process owns MFT/USN or the
-// user-folder walk, serves named-pipe PulseIndex, and writes pulse-index.bin.
+// user-folder walk, serves named-pipe LulingIndex, and writes luling-index.bin.
 //
-//   Pulse.Index.exe              session helper (asInvoker, profile walk)
-//   Pulse.Index.exe --service    SCM (SYSTEM → MFT+USN full disk)
-//   Pulse.Index.exe --install    UAC once; creates AUTO_START service
-//   Pulse.Index.exe --uninstall  removes the service
+//   Luling.Index.exe              session helper (asInvoker, profile walk)
+//   Luling.Index.exe --service    SCM (SYSTEM → MFT+USN full disk)
+//   Luling.Index.exe --install    UAC once; creates AUTO_START service
+//   Luling.Index.exe --uninstall  removes the service
 #include "index_protocol.h"
 #include "../ipc/deadline_pipe.h"
 #include "index_directory_security.h"
@@ -42,12 +42,12 @@
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "shlwapi.lib")
 
-using namespace pulse::index;
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using namespace luling::index;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 
 namespace {
 
@@ -131,7 +131,7 @@ struct Host {
     ULONGLONG idle_since = 0;
     bool ever_client = false;
     bool test_mode = false;
-    bool caller_filter_test = false;  // PULSE_INDEX_TEST_CALLER_FILTER=1 with --test-host
+    bool caller_filter_test = false;  // LULING_INDEX_TEST_CALLER_FILTER=1 with --test-host
     std::wstring pipe_name = kPipeName;
     std::wstring mutex_name = kMutexName;
 } g;
@@ -185,7 +185,7 @@ void SetSvc(DWORD state, DWORD win32 = NO_ERROR) {
 SECURITY_ATTRIBUTES* PipeSa() {
     // The caller-filter test uses the service DACL so other callers can connect.
     if(!g.as_service && !g.caller_filter_test) {
-        static pulse::CurrentUserSecurityAttributes owner;
+        static luling::CurrentUserSecurityAttributes owner;
         return owner.get();
     }
     static SECURITY_ATTRIBUTES sa{ sizeof(SECURITY_ATTRIBUTES) };
@@ -202,7 +202,7 @@ SECURITY_ATTRIBUTES* PipeSa() {
 }
 
 bool ClientIo(Client& client, HANDLE pipe, uint8_t* bytes, DWORD size, bool write, ULONGLONG deadline = 0) {
-    return pulse::ipc::DeadlinePipeIo(pipe, bytes, size, write, deadline, [&] {
+    return luling::ipc::DeadlinePipeIo(pipe, bytes, size, write, deadline, [&] {
         return !g.running || !client.alive || (g.stop && WaitForSingleObject(g.stop, 0) == WAIT_OBJECT_0);
     });
 }
@@ -868,7 +868,7 @@ HWND CreateMsgWindow() {
     WNDCLASSEXW wc{ sizeof(wc) };
     wc.lpfnWndProc = HostWndProc;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseIndexHost";
+    wc.lpszClassName = L"LulingIndexHost";
     RegisterClassExW(&wc);
     return CreateWindowExW(0, wc.lpszClassName, L"", 0, 0, 0, 0, 0,
                            HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
@@ -881,7 +881,7 @@ int RunHost(bool as_service, bool test_mode = false,
     g.test_mode = test_mode;
     wchar_t caller_filter[4]{};
     g.caller_filter_test = test_mode &&
-        GetEnvironmentVariableW(L"PULSE_INDEX_TEST_CALLER_FILTER", caller_filter, 4) == 1 &&
+        GetEnvironmentVariableW(L"LULING_INDEX_TEST_CALLER_FILTER", caller_filter, 4) == 1 &&
         caller_filter[0] == L'1';
     g.pipe_name = std::move(pipe_name);
     g.mutex_name = std::move(mutex_name);
@@ -918,7 +918,7 @@ int RunHost(bool as_service, bool test_mode = false,
             return static_cast<int>(kIndexDirectoryNotPrivate);
         }
         SetActiveIndexDirectory(config.index_path);
-        const std::wstring probe = config.index_path + L"\\.pulse-write-check-" +
+        const std::wstring probe = config.index_path + L"\\.luling-write-check-" +
             std::to_wstring(GetCurrentProcessId());
         HANDLE check = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
             FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
@@ -956,10 +956,10 @@ int RunHost(bool as_service, bool test_mode = false,
     if (!fixture_root.empty()) {
         g.engine.StartFixture(g.hwnd, WM_ENGINE_NOTIFY, std::move(fixture_root));
     } else if (g.test_mode) {
-        g.engine.AddForTest(L"C:\\PulseIndexStress\\.codex", L".codex", true);
+        g.engine.AddForTest(L"C:\\LulingIndexStress\\.codex", L".codex", true);
         for (uint32_t i = 0; i < 50000; ++i) {
             const std::wstring name = L"stress-item-" + std::to_wstring(i) + L".txt";
-            g.engine.AddForTest(L"C:\\PulseIndexStress\\" + name, name, false,
+            g.engine.AddForTest(L"C:\\LulingIndexStress\\" + name, name, false,
                                 i * 17ull, i);
         }
     } else {
@@ -1070,7 +1070,7 @@ int InstallService() {
                                      SERVICE_START | SERVICE_QUERY_STATUS |
                                          SERVICE_CHANGE_CONFIG);
         if (!svc && GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST) {
-            svc = CreateServiceW(scm, kServiceName, L"Pulse Index",
+            svc = CreateServiceW(scm, kServiceName, L"Luling Index",
                                  SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
                                  SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
                                  bin.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr);
@@ -1085,11 +1085,11 @@ int InstallService() {
 
         if (!ChangeServiceConfigW(svc, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
                                   SERVICE_ERROR_NORMAL, bin.c_str(), nullptr, nullptr,
-                                  nullptr, nullptr, nullptr, L"Pulse Index")) {
+                                  nullptr, nullptr, nullptr, L"Luling Index")) {
             last_err = GetLastError();
         } else {
             SERVICE_DESCRIPTIONW desc{};
-            wchar_t text[] = L"Pulse file-name index (MFT + USN). UI talks to this over a named pipe.";
+            wchar_t text[] = L"Luling file-name index (MFT + USN). UI talks to this over a named pipe.";
             desc.lpDescription = text;
             ChangeServiceConfig2W(svc, SERVICE_CONFIG_DESCRIPTION, &desc);
             last_err = EnsureServiceRunning(
@@ -1142,7 +1142,7 @@ bool ReloadService() {
 int ConfigureCommand(const std::vector<std::wstring>& args) {
     if (!IsElevated()) return ERROR_ELEVATION_REQUIRED;
     struct ConfigurationLock {
-        HANDLE handle = CreateMutexW(nullptr, FALSE, L"Global\\PulseIndexConfiguration");
+        HANDLE handle = CreateMutexW(nullptr, FALSE, L"Global\\LulingIndexConfiguration");
         bool locked = false;
         ~ConfigurationLock() {
             if (locked) ReleaseMutex(handle);
@@ -1184,13 +1184,13 @@ int ConfigureCommand(const std::vector<std::wstring>& args) {
 int ExportDiagnosticsCommand(const std::vector<std::wstring>& args) {
     if (args.size() != 3) return ERROR_INVALID_PARAMETER;
     if (!IsElevated()) return ERROR_ELEVATION_REQUIRED;
-    pulse::diagnostics::ExportOptions options;
+    luling::diagnostics::ExportOptions options;
     options.source_root = MachineDataRoot();
     options.destination = args[2];
     options.include_dumps = true;
     options.require_empty_destination = true;
     std::wstring error;
-    return pulse::diagnostics::Export(options, &error) ? 0 : ERROR_WRITE_FAULT;
+    return luling::diagnostics::Export(options, &error) ? 0 : ERROR_WRITE_FAULT;
 }
 
 int UninstallService() {
@@ -1242,11 +1242,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (argv) LocalFree(argv);
 
     const bool service_mode = a1 == L"--service";
-    const auto role = service_mode ? pulse::crash::ProcessRole::IndexService
-        : a1 == L"--network-agent" ? pulse::crash::ProcessRole::NetworkAgent
-        : a1 == L"--content-agent" ? pulse::crash::ProcessRole::ContentAgent
-        : pulse::crash::ProcessRole::IndexHelper;
-    pulse::crash::Initialize({role, service_mode, {}});
+    const auto role = service_mode ? luling::crash::ProcessRole::IndexService
+        : a1 == L"--network-agent" ? luling::crash::ProcessRole::NetworkAgent
+        : a1 == L"--content-agent" ? luling::crash::ProcessRole::ContentAgent
+        : luling::crash::ProcessRole::IndexHelper;
+    luling::crash::Initialize({role, service_mode, {}});
 
     if (a1 == L"--install") return InstallService();
     if (a1 == L"--uninstall") return UninstallService();
@@ -1278,8 +1278,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         if (!valid) return ERROR_INVALID_PARAMETER;
         if (args.size() >= 5) SetActiveIndexDirectory(args[4]);
         return RunHost(false, true,
-            L"\\\\.\\pipe\\PulseIndex.Test." + token,
-            L"Local\\Pulse.Index.Test." + token, args.size() >= 5 ? args[3] : std::wstring{});
+            L"\\\\.\\pipe\\LulingIndex.Test." + token,
+            L"Local\\Luling.Index.Test." + token, args.size() >= 5 ? args[3] : std::wstring{});
     }
     return RunHost(false);
 }

@@ -3,8 +3,8 @@
 #include "../index/change_tracking_client.cpp"
 #include <cstdio>
 int main(int argc, char**) {
-    using namespace pulse;
-    using namespace pulse::index;
+    using namespace luling;
+    using namespace luling::index;
     if (argc > 1) {
         HANDLE pipe = INVALID_HANDLE_VALUE;
         bool leased = false;
@@ -35,7 +35,7 @@ int main(int argc, char**) {
                 leased = exchange(REQ_IDX_CHANGE_LEASE, lease.data()); renew = GetTickCount64() + 10000;
             }
             ipc::PayloadWriter request; request.PutU64(0); request.PutU32(6);
-            for (const auto* path : {L"C:\\", L"C:\\Users", L"C:\\Users\\SS", L"C:\\Users\\SS\\Desktop", L"C:\\Users\\SS\\Desktop\\pulse", L"C:\\Program Files"}) request.PutString(path);
+            for (const auto* path : {L"C:\\", L"C:\\Users", L"C:\\Users\\SS", L"C:\\Users\\SS\\Desktop", L"C:\\Users\\SS\\Desktop\\luling", L"C:\\Program Files"}) request.PutString(path);
             if (leased && exchange(REQ_IDX_CHANGE_SUMMARIES, request.data())) {
                 ChangeResponse decoded; const bool ok = Decode(response, false, decoded);
                 std::printf("decode=%d global=%u rows=%zu", ok, static_cast<uint32_t>(decoded.state), decoded.summaries.size());
@@ -79,7 +79,7 @@ int main(int argc, char**) {
           result.records.size() == 1 && result.records[0].kind == ChangeKind::MovedOut &&
           result.records[0].source == ChangeSource::InitialMtime, "detail cursor and source");
     wchar_t name[128]{};
-    swprintf_s(name, L"\\\\.\\pipe\\PulseTrackingTest-%lu", GetCurrentProcessId());
+    swprintf_s(name, L"\\\\.\\pipe\\LulingTrackingTest-%lu", GetCurrentProcessId());
     HANDLE server = CreateNamedPipeW(name, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE, 1, 4096, 4096, 0, nullptr);
     HANDLE client = CreateFileW(name, GENERIC_READ | GENERIC_WRITE, 0, nullptr,

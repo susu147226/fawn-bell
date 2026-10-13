@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class SavedSearchMode { Name, Content, Duplicates };
 
@@ -32,4 +32,4 @@ private:
     std::vector<SavedSearch> items_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

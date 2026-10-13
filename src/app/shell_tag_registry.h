@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-namespace pulse::app {
+namespace luling::app {
 struct TagMenuRegistryApi {
     decltype(&RegCreateKeyExW) create_key = ::RegCreateKeyExW;
     decltype(&RegSetValueExW) set_value = ::RegSetValueExW;

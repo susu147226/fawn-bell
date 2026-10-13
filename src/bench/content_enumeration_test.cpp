@@ -7,7 +7,7 @@
 #include <map>
 #include <mutex>
 
-using namespace pulse::index;
+using namespace luling::index;
 namespace {
 std::mutex listing_mutex;
 struct Listing { std::wstring directory, last; };
@@ -27,7 +27,7 @@ std::wstring Key(std::wstring path) {
     return ContentScopeKey(std::move(path));
 }
 }
-namespace pulse::index::content_listing {
+namespace luling::index::content_listing {
 HANDLE First(const std::wstring& query, WIN32_FIND_DATAW& data, DWORD flags) {
     const auto dir = Key(query.substr(0, query.size() - 2));
     if (empty_error && dir == empty_directory) { SetLastError(empty_error); return INVALID_HANDLE_VALUE; }
@@ -102,13 +102,13 @@ int wmain() {
             bool ok = false;
             if (task) {
                 ContentIndexConfig config;
-                for (const auto& root : request.roots) config.roots.push_back({root, pulse::text::Encoding::Auto});
+                for (const auto& root : request.roots) config.roots.push_back({root, luling::text::Encoding::Auto});
                 ContentTaskCache cache;
                 cache.version = [](const auto&) { return L"fixture-version"; };
                 cache.excluded = [](const auto&) { return false; };
                 cache.fresh = [](const auto&, uint64_t, uint64_t, const auto&) { return false; };
                 ok = RunContentTaskSupplement(config, request, cancelled, cache, {}, 0, callback,
-                    [](const auto&, uint64_t, std::wstring& body, uint64_t& bytes, DWORD*, pulse::text::Encoding, const auto&) {
+                    [](const auto&, uint64_t, std::wstring& body, uint64_t& bytes, DWORD*, luling::text::Encoding, const auto&) {
                         body = L"enumeration_marker"; bytes = 18; return true;
                     });
             } else ok = RunContentSearch(request, cancelled, callback);

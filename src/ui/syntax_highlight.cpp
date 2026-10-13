@@ -4,7 +4,7 @@
 #include <initializer_list>
 #include <iterator>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 enum class Family {
@@ -651,4 +651,4 @@ std::vector<SyntaxSpan> HighlightSyntax(std::wstring_view extension, std::wstrin
     return lx.Take();
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

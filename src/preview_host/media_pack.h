@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Video containers the media pack is offered for (lower case, with the dot).
 bool IsMediaPackVideoExtension(std::wstring_view extension);
@@ -62,4 +62,4 @@ std::wstring QuoteArgument(const std::wstring& argument);
 // ffprobe "key=value" output -> display rows.
 std::vector<PreviewPropertyValue> ParseProbeRows(std::string_view output);
 
-} // namespace pulse::preview
+} // namespace luling::preview

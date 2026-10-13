@@ -37,7 +37,7 @@ void operator delete[](void* p) noexcept { Release(p); }
 void operator delete(void* p, size_t) noexcept { Release(p); }
 void operator delete[](void* p, size_t) noexcept { Release(p); }
 
-namespace pulse::index {
+namespace luling::index {
 struct ChangeTrackerTestAccess {
     static void Set(ChangeTracker& tracker, const std::vector<ChangeRecord>& records, uint64_t now) {
         auto& j = tracker.journals_[L"memory-test"];
@@ -48,7 +48,7 @@ struct ChangeTrackerTestAccess {
     static bool SaveOnly(ChangeTracker& tracker) { return tracker.Save(L"memory-test", JournalOf(tracker)); }
 };
 }
-using namespace pulse::index;
+using namespace luling::index;
 namespace {
 using Summaries = std::unordered_map<std::wstring, ChangeSummary>;
 // Pre-optimization reference: keep separate alias logic so the fast path is checked.
@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
         ChangeTracker tracker;
         { auto records = Fixture(now, mode == "--summary-no-id"); ChangeTrackerTestAccess::Set(tracker, records, now); }
         if (mode == "--save" || mode == "--flush") {
-            const auto root = std::filesystem::temp_directory_path() / (L"pulse-memory-bench-" + std::to_wstring(GetCurrentProcessId()));
+            const auto root = std::filesystem::temp_directory_path() / (L"luling-memory-bench-" + std::to_wstring(GetCurrentProcessId()));
             std::filesystem::create_directory(root); tracker.Open(root.wstring());
             { Metric m; if (mode == "--flush") { tracker.Flush(); m.Print("flush"); }
               else { const bool ok = ChangeTrackerTestAccess::SaveOnly(tracker); m.Print("save"); check(ok, "save succeeds"); } }
@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
         check(!writer.Flush(), "failed stream remains failed on later writes");
     }
     // Check persistence bytes, including a record larger than the writer buffer.
-    const auto root = std::filesystem::temp_directory_path() / (L"pulse-memory-check-" + std::to_wstring(GetCurrentProcessId()));
+    const auto root = std::filesystem::temp_directory_path() / (L"luling-memory-check-" + std::to_wstring(GetCurrentProcessId()));
     std::filesystem::create_directory(root);
     {
         ChangeTracker tracker; tracker.Open(root.wstring());
@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
         ChangeTrackerTestAccess::Set(tracker, {a, b}, now);
         check(ChangeTrackerTestAccess::SaveOnly(tracker), "stream persistence accepts long UTF-16 records");
         const auto& j = ChangeTrackerTestAccess::JournalOf(tracker);
-        pulse::ipc::PayloadWriter w; w.PutU32(0x33484350); w.PutU32(static_cast<uint32_t>(j.records.size()));
+        luling::ipc::PayloadWriter w; w.PutU32(0x33484350); w.PutU32(static_cast<uint32_t>(j.records.size()));
         w.PutU64(j.tracking_since); w.PutU64(j.paused_at); w.PutU64(j.gap_end); w.PutU64(j.gap_until); w.PutU32(j.active ? 1u : 0u);
         for (const auto& e : j.records) {
             w.PutU64(e.id); w.PutU64(e.time); w.PutU64(e.file_id); w.PutU32(static_cast<uint32_t>(e.kind));

@@ -9,7 +9,7 @@
 #include <cstdio>
 #include <algorithm>
 using Microsoft::WRL::ComPtr;
-namespace pulse::ui {
+namespace luling::ui {
 struct TableViewTestAccess {
     static const auto& Tabs(const TableView& view) { return view.tab_rects_; }
     static auto Previous(const TableView& view) { return view.previous_sheet_; }
@@ -83,7 +83,7 @@ struct Canvas {
 };
 void Markdown(Canvas& c, float scale, bool dark) {
     const auto rect = D2D1::RectF(0, 0, 600 * scale, 300 * scale);
-    const auto theme = pulse::ui::MakeTheme(dark, pulse::ui::HexColor(0x0078d4));
+    const auto theme = luling::ui::MakeTheme(dark, luling::ui::HexColor(0x0078d4));
     for (int columns : {2, 8, 16, 64}) {
         std::wstring source, separator, body;
         for (int i = 0; i < columns; ++i) {
@@ -93,8 +93,8 @@ void Markdown(Canvas& c, float scale, bool dark) {
         }
         source += L"|\n" + separator + L"|\n" + body + L"|\n";
         std::wstring payload;
-        Check(pulse::preview::MakeMarkdownDocument(source, payload), "parse real Markdown table");
-        pulse::ui::MarkdownView view;
+        Check(luling::preview::MakeMarkdownDocument(source, payload), "parse real Markdown table");
+        luling::ui::MarkdownView view;
         Check(view.SetPayload(payload, L""), "load Markdown payload");
         auto draw = [&] { c.Begin(dark); view.Draw(c.dc.Get(), c.factory.Get(), rect, theme, dark, scale, nullptr, 1, 0, 0, {}); c.End(); };
         draw();
@@ -133,8 +133,8 @@ void Markdown(Canvas& c, float scale, bool dark) {
     }
     const std::wstring source = L"emoji \U0001F600 \U00020000 e\u0301 العربية $x^2$ end";
     std::wstring payload;
-    pulse::preview::MakeMarkdownDocument(source, payload);
-    pulse::ui::MarkdownView view;
+    luling::preview::MakeMarkdownDocument(source, payload);
+    luling::ui::MarkdownView view;
     view.SetPayload(payload, L"");
     c.Begin(dark); view.Draw(c.dc.Get(), c.factory.Get(), rect, theme, dark, scale, nullptr, 1, 0, 0, {}); c.End();
     bool valid = true, after_emoji = false;
@@ -153,9 +153,9 @@ void Markdown(Canvas& c, float scale, bool dark) {
     Check(valid && after_emoji, "real prose trailing hits preserve supplementary characters");
 }
 void SheetTabs(Canvas& c, float scale, bool dark) {
-    using pulse::ui::TableViewTestAccess;
-    pulse::ui::TableView view;
-    const auto theme = pulse::ui::MakeTheme(dark, pulse::ui::HexColor(0x0078d4));
+    using luling::ui::TableViewTestAccess;
+    luling::ui::TableView view;
+    const auto theme = luling::ui::MakeTheme(dark, luling::ui::HexColor(0x0078d4));
     const auto payload = [](unsigned selected) {
         return std::wstring(L"PULSETBL\t1\n") +
             (selected == 0 ? L"S\txlsx\tDates\t1\t1\t0\t\t0\nR\tDATE-CONTENT\n" :
@@ -207,12 +207,12 @@ void SheetTabs(Canvas& c, float scale, bool dark) {
 }
 void Headers(Canvas& c, float scale, bool dark) {
     const auto rect = D2D1::RectF(0, 0, 600 * scale, 300 * scale);
-    const auto theme = pulse::ui::MakeTheme(dark, pulse::ui::HexColor(0x0078d4));
+    const auto theme = luling::ui::MakeTheme(dark, luling::ui::HexColor(0x0078d4));
     for (bool body : {false, true}) {
-        pulse::ui::TableView view;
+        luling::ui::TableView view;
         Check(view.SetPayload(L"PULSETBL\t1\nS\tcsv\tCSV\t2\t" + std::wstring(body ? L"2" : L"1") +
             L"\t0\t\t1\nR\tNeedle\tOther\n" + (body ? L"R\tNeedle\t2\n" : L"")), "load CSV header fixture");
-        auto draw = [&](const std::vector<pulse::ui::TableView::Highlight>& matches) {
+        auto draw = [&](const std::vector<luling::ui::TableView::Highlight>& matches) {
             c.Begin(dark);
             view.Draw(c.dc.Get(), c.factory.Get(), rect, theme, dark, scale, D2D1::ColorF(dark ? 0x17191c : 0xffffff), matches);
             c.End(); return c.Pixels();
@@ -226,7 +226,7 @@ void Headers(Canvas& c, float scale, bool dark) {
             (L"m16-header-" + std::to_wstring(static_cast<int>(scale * 100)) + (body ? L"-body" : L"-empty") +
              (dark ? L"-dark.png" : L"-light.png"))), "save fixed-header screenshot");
     }
-    pulse::ui::TableView wide;
+    luling::ui::TableView wide;
     std::wstring payload = L"PULSETBL\t1\nS\tcsv\tCSV\t16\t1\t0\t\t1\nR";
     for (int i = 0; i < 16; ++i) payload += i == 15 ? L"\tNeedle" : L"\tOther";
     payload += L"\n";
@@ -235,7 +235,7 @@ void Headers(Canvas& c, float scale, bool dark) {
         c.Begin(dark);
         const auto offset = static_cast<uint32_t>(wide.PlainText().find(L"Needle"));
         wide.Draw(c.dc.Get(), c.factory.Get(), rect, theme, dark, scale, D2D1::ColorF(0xffffff),
-            mark ? std::vector<pulse::ui::TableView::Highlight>{{offset, 6, true}} : std::vector<pulse::ui::TableView::Highlight>{});
+            mark ? std::vector<luling::ui::TableView::Highlight>{{offset, 6, true}} : std::vector<luling::ui::TableView::Highlight>{});
         c.End(); return c.Pixels();
     };
     draw(false);

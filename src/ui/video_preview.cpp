@@ -25,10 +25,10 @@
 
 #pragma comment(lib, "mfuuid.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 using Microsoft::WRL::ComPtr;
 namespace {
-constexpr wchar_t kVideoClass[] = L"Pulse.VideoPreview";
+constexpr wchar_t kVideoClass[] = L"Luling.VideoPreview";
 constexpr UINT kRetireVideo = WM_APP + 87;
 
 struct Event {
@@ -405,7 +405,7 @@ void VideoPreview::Run(std::shared_ptr<Shared> state, std::wstring path) {
     if (FAILED(com)) { fail(com); return; }
     if (!IsAudio(path) && !state->stop.load()) {
         CodecInfo codec;
-        if (MissingVideoDecoder(pulse::path::StripExtendedPathPrefix(path), codec)) {
+        if (MissingVideoDecoder(luling::path::StripExtendedPathPrefix(path), codec)) {
             std::lock_guard lock(state->mutex);
             state->snapshot.missing_decoder = true;
             state->snapshot.codec = codec.short_name;
@@ -436,7 +436,7 @@ void VideoPreview::Run(std::shared_ptr<Shared> state, std::wstring path) {
         hr = create(nullptr, FALSE, MFP_OPTION_FREE_THREADED_CALLBACK,
             events.Get(), state->child, &player);
         // MFPlay resolves a URL and rejects filesystem extended-length prefixes.
-        const std::wstring media_path = pulse::path::StripExtendedPathPrefix(path);
+        const std::wstring media_path = luling::path::StripExtendedPathPrefix(path);
         if (SUCCEEDED(hr)) hr = player->CreateMediaItemFromURL(media_path.c_str(), FALSE, 0, nullptr);
     }
     if (FAILED(hr)) fail(hr);
@@ -614,7 +614,7 @@ void VideoPreview::Run(std::shared_ptr<Shared> state, std::wstring path) {
 bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::wstring& path,
                              const std::wstring& ffmpeg_exe) {
     FfmpegMediaInfo info;
-    const std::wstring media_path = pulse::path::StripExtendedPathPrefix(path);
+    const std::wstring media_path = luling::path::StripExtendedPathPrefix(path);
     if (state->stop.load() || !ProbeFfmpegMedia(ffmpeg_exe, media_path, info, &state->stop) || state->stop.load()) return false;
     const bool audio_file = IsAudio(path);
     if (audio_file ? !info.audio : !info.video) return false;
@@ -781,4 +781,4 @@ bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::ws
     }
     return true;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

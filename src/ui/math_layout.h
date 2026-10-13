@@ -6,7 +6,7 @@
 #include <vector>
 #include <wrl/client.h>
 
-namespace pulse::ui::math {
+namespace luling::ui::math {
 struct FormulaGlyph {
     Microsoft::WRL::ComPtr<IDWriteTextLayout> layout;
     float x = 0, y = 0;
@@ -26,4 +26,4 @@ struct FormulaLayout {
 bool BuildMathLayout(IDWriteFactory2 *factory, IDWriteFontFace *face, const FontMathMetrics &metrics,
                      const MathNode &root, float font_size, bool display, FormulaLayout &result,
                      float window_scale = 1.0f);
-} // namespace pulse::ui::math
+} // namespace luling::ui::math

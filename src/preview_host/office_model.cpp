@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -564,4 +564,4 @@ bool ReadXlsxModel(const std::wstring& path, int rows, int cols, SheetModel& mod
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

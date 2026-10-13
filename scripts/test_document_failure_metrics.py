@@ -8,11 +8,11 @@ import time
 
 root = Path(__file__).resolve().parent.parent
 base = root / 'bench_data/pdf-input-comparison'
-bench = base / 'failures/pulse_pdf_bench.exe'
+bench = base / 'failures/luling_pdf_bench.exe'
 checks = []
 results = []
 for mode in ['exit', 'body', 'header', 'hang']:
-    env = dict(os.environ, PULSE_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), PULSE_DOCUMENT_FAILURE_FIXTURE=mode)
+    env = dict(os.environ, LULING_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), LULING_DOCUMENT_FAILURE_FIXTURE=mode)
     args = [str(bench), 'pdfium', str(base / 'synthetic.pdf'), '']
     if mode == 'hang':
         args.append('100')

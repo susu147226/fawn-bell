@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <set>
 
-namespace pulse::ui {
+namespace luling::ui {
 AdvancedSearchDialogResult TestAdvancedSearchQuery(app::AdvancedSearchSpec spec, int field,
                                                   const std::wstring& value);
 // The query fixture never invokes a folder picker or accesses folders.
@@ -17,7 +17,7 @@ struct File { const wchar_t* name; uint64_t size; WORD year; };
 const File files[] = {{L"alpha-keep.txt",21,2020}, {L"alpha-draft.txt",31,2020},
     {L"beta-keep.txt",41,2020}, {L"beta-old.txt",51,2019}, {L"中文报告.txt",61,2020}};
 std::set<std::wstring> Results(const std::wstring& raw) {
-    const auto query = pulse::index::ParseQuery(raw);
+    const auto query = luling::index::ParseQuery(raw);
     std::set<std::wstring> out;
     for (const auto& file : files) {
         SYSTEMTIME date{}; date.wYear = file.year; date.wMonth = 6; date.wDay = 15;
@@ -28,10 +28,10 @@ std::set<std::wstring> Results(const std::wstring& raw) {
             for (const auto& term : group) {
                 const auto length = static_cast<uint32_t>(wcslen(file.name));
                 match = match && !term.folder &&
-                    pulse::index::MatchName(file.name, length, term) != term.name_not &&
-                    pulse::index::MatchExt(file.name, length, term) != term.ext_not &&
-                    pulse::index::MatchSize(file.size, term) != term.size_not &&
-                    pulse::index::MatchDate(modified, term) != term.date_not;
+                    luling::index::MatchName(file.name, length, term) != term.name_not &&
+                    luling::index::MatchExt(file.name, length, term) != term.ext_not &&
+                    luling::index::MatchSize(file.size, term) != term.size_not &&
+                    luling::index::MatchDate(modified, term) != term.date_not;
             }
             if (match) { out.insert(file.name); break; }
         }
@@ -41,7 +41,7 @@ std::set<std::wstring> Results(const std::wstring& raw) {
 }
 int main() {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     int failures = 0;
     const auto check = [&](bool pass, const char* name) {
         printf("[%s] %s\n", pass ? "PASS" : "FAIL", name); failures += !pass;
@@ -50,9 +50,9 @@ int main() {
     const std::set<std::wstring> expected{L"alpha-keep.txt", L"beta-keep.txt"};
     check(Results(raw) == expected, "native query fixture has exact two-file result set");
     for (int field = 0; field <= 3; ++field) {
-        auto spec = pulse::app::ParseSearchQuery(raw, L"C:\\private-memory-fixture");
+        auto spec = luling::app::ParseSearchQuery(raw, L"C:\\private-memory-fixture");
         const auto value = field == 1 ? L"alpha beta" : field == 2 ? L"txt" : L"old";
-        const auto result = pulse::ui::TestAdvancedSearchQuery(spec, field, value);
+        const auto result = luling::ui::TestAdvancedSearchQuery(spec, field, value);
         check(result.accepted, "real hidden advanced dialog creates editors and accepts through WM_COMMAND");
         if (field == 0) {
             check(result.query == raw, "unedited real form preserves native query byte for byte");
@@ -69,7 +69,7 @@ int main() {
     }
     for (const auto* query : {L"alpha !draft ext:txt dm:2020 | beta !old ext:txt dm:2020",
                               L"content:hello !content:noise ext:txt alpha !draft"}) {
-        const auto result = pulse::ui::TestAdvancedSearchQuery(pulse::app::ParseSearchQuery(query, L"C:\\private-memory-fixture"), 0, L"");
+        const auto result = luling::ui::TestAdvancedSearchQuery(luling::app::ParseSearchQuery(query, L"C:\\private-memory-fixture"), 0, L"");
         check(result.accepted && result.query == query, "untouched custom extensions and hidden exclusions survive actual editor initialization");
     }
     CoUninitialize();

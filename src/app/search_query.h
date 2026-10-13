@@ -7,7 +7,7 @@
 #include <string_view>
 #include <memory>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class NameMatchHow : uint8_t { Contains, StartsWith, Exact };
 enum class LocationScope : uint8_t { Indexed, CurrentFolder, CustomFolder };
@@ -76,4 +76,4 @@ int SearchEmptyActions(std::wstring_view raw, SearchEmptyAction out[3]);
 // The query `raw` rewritten by `action`.
 std::wstring ApplySearchEmptyAction(std::wstring_view raw, SearchEmptyAction action);
 
-} // namespace pulse::app
+} // namespace luling::app

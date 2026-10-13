@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <cwchar>
 
-namespace pulse::app {
+namespace luling::app {
 
 std::wstring StartupCommandLine(const std::wstring& exe) {
     if (exe.empty()) return {};
@@ -27,4 +27,4 @@ bool StartsHiddenInTray(bool startup_launch, bool start_in_tray) noexcept {
     return startup_launch && start_in_tray;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

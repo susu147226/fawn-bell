@@ -7,7 +7,7 @@
 #include <mutex>
 #include <thread>
 
-namespace pulse {
+namespace luling {
 // UI refreshes enqueue fixed metadata only. A bounded background sink owns disk IO.
 class SearchRefreshLog {
 public:
@@ -54,10 +54,10 @@ private:
     void Run() noexcept {
         std::wstring path;
         try {
-            auto directory = Environment(L"PULSE_CONTENT_TIMING_DIR");
+            auto directory = Environment(L"LULING_CONTENT_TIMING_DIR");
             if (directory.empty()) {
                 directory = Environment(L"LOCALAPPDATA");
-                if (!directory.empty()) directory += L"\\Pulse\\logs";
+                if (!directory.empty()) directory += L"\\Luling\\logs";
             }
             if (!directory.empty()) {
                 std::error_code error;
@@ -109,4 +109,4 @@ inline void LogSearchRefresh(RefreshReason reason, bool retained, uint64_t sessi
         sink.Push(record);
     } catch (...) {}
 }
-} // namespace pulse
+} // namespace luling

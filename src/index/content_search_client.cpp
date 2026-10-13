@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <chrono>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 std::wstring NewToken() {
@@ -143,11 +143,11 @@ std::wstring ContentSearchClient::ExePath() {
     std::wstring path(32768, L'\0');
     const DWORD length = GetModuleFileNameW(nullptr, path.data(),
                                             static_cast<DWORD>(path.size()));
-    if (!length || length >= path.size()) return L"Pulse.Index.exe";
+    if (!length || length >= path.size()) return L"Luling.Index.exe";
     path.resize(length);
     const size_t slash = path.find_last_of(L"\\/");
-    return slash == std::wstring::npos ? L"Pulse.Index.exe"
-        : path.substr(0, slash + 1) + L"Pulse.Index.exe";
+    return slash == std::wstring::npos ? L"Luling.Index.exe"
+        : path.substr(0, slash + 1) + L"Luling.Index.exe";
 }
 
 void ContentSearchClient::Start(HWND notify, UINT update_message, bool persistent, bool read_only) {
@@ -491,4 +491,4 @@ void ContentSearchClient::Run(ContentSearchRequest request, const std::shared_pt
         }
     }
 }
-} // namespace pulse::index
+} // namespace luling::index

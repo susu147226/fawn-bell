@@ -45,12 +45,12 @@ void Reset() { enabled = false; events = writes = flushes = crash_at = fail_flus
 #undef RegFlushKey
 
 namespace {
-using namespace pulse::app;
-const std::wstring old_exe = L"C:\\Private fixture\\pulse.exe", new_exe = L"D:\\Private fixture\\pulse.exe";
+using namespace luling::app;
+const std::wstring old_exe = L"C:\\Private fixture\\luling.exe", new_exe = L"D:\\Private fixture\\luling.exe";
 const std::wstring shell = L"Software\\Classes\\Directory\\shell";
 const std::wstring command = shell + L"\\open\\command";
-const std::wstring backup = L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\Directory";
-const std::wstring prefix = L"Software\\PulseTest\\IntegrationRecovery-";
+const std::wstring backup = L"Software\\Luling\\ShellIntegration\\Backups\\v1\\Directory";
+const std::wstring prefix = L"Software\\LulingTest\\IntegrationRecovery-";
 int failures = 0;
 void Check(bool ok, const char* label) {
     std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -175,7 +175,7 @@ int wmain(int argc, wchar_t** argv) {
                 const auto result = Child(hive, nonce, L"repair", 0);
                 Check((result == 0 || result == 1) && LegacyGone() && !HasLegacyShellIntegrationResidue(),
                       "restart completes legacy deletion or recognizes already completed repair");
-                Check(At(L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\LegacyOrphanRepair", L"Snapshot").exists,
+                Check(At(L"Software\\Luling\\ShellIntegration\\Backups\\v1\\LegacyOrphanRepair", L"Snapshot").exists,
                       "legacy original proof remains after recovery");
             }
         }

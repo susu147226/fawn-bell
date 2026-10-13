@@ -1,6 +1,6 @@
 #include "pane_layout.h"
 #include <algorithm>
-namespace pulse::app {
+namespace luling::app {
 float ClampSplitRatio(float ratio, const D2D1_RECT_F& bounds, SplitOrientation orientation,
                       float gap) {
     const float g = std::max(0.0f, gap);

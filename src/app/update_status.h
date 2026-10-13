@@ -4,7 +4,7 @@
 #include "../ui/ui_renderer.h"
 #include <cwchar>
 
-namespace pulse::app {
+namespace luling::app {
 inline std::wstring UpdateProgressText(const UpdateProgress& progress) {
     using l10n::StringId;
     switch (progress.phase) {

@@ -21,7 +21,7 @@
 #include <cwctype>
 #include <utility>
 
-namespace pulse::app {
+namespace luling::app {
 
 std::wstring NavigationReturnChildName(const std::wstring& from_path,
                                        const std::wstring& destination_path) {
@@ -52,7 +52,7 @@ std::wstring NavigationReturnChildName(const std::wstring& from_path,
 namespace {
 bool IsSearchPath(const std::wstring& path) {
     std::wstring kind;
-    return ParsePulsePath(path, &kind, nullptr) && kind == L"search";
+    return ParseLulingPath(path, &kind, nullptr) && kind == L"search";
 }
 
 std::optional<std::wstring> CurrentSearchOrigin(const Tab& tab) {
@@ -151,7 +151,7 @@ bool Tab::EntryVisible(int index) const {
 
 bool Tab::AllowsAttributes(DWORD attrs) const {
     // Recycle Bin lists payloads whose hidden attributes belong to Windows.
-    if (current_path.starts_with(L"pulse:recycle")) return true;
+    if (current_path.starts_with(L"luling:recycle")) return true;
     if ((attrs & FILE_ATTRIBUTE_HIDDEN) == 0) return true; // system-only entries stay visible
     if (!show_hidden_files) return false;
     if ((attrs & FILE_ATTRIBUTE_SYSTEM) != 0) return show_protected_os_files;
@@ -793,7 +793,7 @@ static std::wstring FindGitRootImpl(std::wstring path) {
     if (path.starts_with(L"\\\\?\\UNC\\")) path = L"\\\\" + path.substr(8);
     else if (path.starts_with(L"\\\\?\\")) path = path.substr(4);
     for (int i = 0; i < 12 && !path.empty(); ++i) {
-        if (pulse::path::Exists(path + L"\\.git")) return path;
+        if (luling::path::Exists(path + L"\\.git")) return path;
         std::wstring parent = ParentDir(path);
         if (parent.empty() || parent == path) break;
         path = std::move(parent);
@@ -808,7 +808,7 @@ std::wstring FindGitRoot(const std::wstring& path) {
 std::wstring TabTitle(const std::wstring& path) {
     if (path.empty()) return l10n::Get(l10n::StringId::ThisPc);
     std::wstring kind, rest;
-    if (ParsePulsePath(path, &kind, &rest)) {
+    if (ParseLulingPath(path, &kind, &rest)) {
         if (kind == L"settings") return l10n::Get(l10n::StringId::Settings);
         if (kind == L"starred") return l10n::Get(l10n::StringId::StarredItems);
         if (kind == L"recent") return l10n::Get(l10n::StringId::Recent);
@@ -828,7 +828,7 @@ static std::wstring DisplayPath(const std::wstring& path) {
     if (path.empty()) return l10n::Get(l10n::StringId::ThisPc);
     // Keep the UNC prefix. Dropping it turns \\server\share into a relative
     // path; breadcrumb clicks then resolve against the process CWD.
-    return pulse::path::FriendlyPathText(path);
+    return luling::path::FriendlyPathText(path);
 }
 
 // ---------------------------------------------------------------------------
@@ -1046,7 +1046,7 @@ void StagingTray::ToJson(std::wstring& out) const {
         out += L",\"items\":[";
         for (size_t j = 0; j < b.items.size(); ++j) {
             out += L"\"";
-            pulse::json::Escape(b.items[j].path, out);
+            luling::json::Escape(b.items[j].path, out);
             out += L"\"";
             if (j + 1 < b.items.size()) out += L",";
         }
@@ -1058,18 +1058,18 @@ void StagingTray::ToJson(std::wstring& out) const {
 }
 
 bool StagingTray::FromJson(const std::wstring& in) {
-    if (!pulse::json::ValidConfigArray(in)) return false;
+    if (!luling::json::ValidConfigArray(in)) return false;
     std::vector<TrayBatch> parsed;
     const size_t open = in.find(L'[');
     if (open == std::wstring::npos) return false;
-    const size_t close = pulse::json::MatchingClose(in, open);
+    const size_t close = luling::json::MatchingClose(in, open);
     if (close == std::wstring::npos) return false;
-    const bool ok = pulse::json::ForEachElement(in.substr(open, close - open + 1), [&](const std::wstring& block) {
+    const bool ok = luling::json::ForEachElement(in.substr(open, close - open + 1), [&](const std::wstring& block) {
         if (block.empty() || block.front() != L'{') return;
         TrayBatch batch;
         batch.id = next_id_++;
-        batch.move_intent = pulse::json::ExtractBool(block, L"move");
-        for (const std::wstring& path : pulse::json::ExtractStringArray(block, L"items")) {
+        batch.move_intent = luling::json::ExtractBool(block, L"move");
+        for (const std::wstring& path : luling::json::ExtractStringArray(block, L"items")) {
             TrayItem it;
             it.id = next_id_++;
             it.path = fs::NormalizePath(path);
@@ -1230,8 +1230,8 @@ void RefreshSidebarDriveCapacity(std::vector<SidebarEntry>& drives) {
             continue;
         const uint64_t total = total_bytes.QuadPart;
         const uint64_t free = std::min(free_bytes.QuadPart, total_bytes.QuadPart);
-        entry.detail = pulse::format::ByteSize(free, false, pulse::format::ByteSizeStyle::Compact)
-            + L" / " + pulse::format::ByteSize(total, false, pulse::format::ByteSizeStyle::Compact);
+        entry.detail = luling::format::ByteSize(free, false, luling::format::ByteSizeStyle::Compact)
+            + L" / " + luling::format::ByteSize(total, false, luling::format::ByteSizeStyle::Compact);
         if (total > 0) {
             entry.used_ratio = static_cast<float>(static_cast<double>(total - free) / static_cast<double>(total));
             entry.danger = static_cast<double>(free) / static_cast<double>(total) < 0.10;
@@ -1282,8 +1282,8 @@ SidebarModel BuildSidebarModel(const fs::RecycleBinInfo* recycle) {
     // Isolated test instances only: a fixture folder stands in for a OneDrive
     // account so the row menu (#80) can be exercised without a signed-in client.
     wchar_t fake[MAX_PATH]{};
-    if (m.cloud.empty() && GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) > 0) {
-        const DWORD n = GetEnvironmentVariableW(L"PULSE_TEST_ONEDRIVE", fake, MAX_PATH);
+    if (m.cloud.empty() && GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) > 0) {
+        const DWORD n = GetEnvironmentVariableW(L"LULING_TEST_ONEDRIVE", fake, MAX_PATH);
         if (n > 0 && n < MAX_PATH) {
             SidebarEntry onedrive;
             onedrive.glyph = L"\xE753";
@@ -1305,7 +1305,7 @@ SidebarModel BuildSidebarModel(const fs::RecycleBinInfo* recycle) {
         wchar_t occupancy[96]{};
         swprintf_s(occupancy, l10n::Get(l10n::StringId::RecycleOccupancyFormat).c_str(),
                    std::to_wstring(recycle->items).c_str(),
-                   pulse::format::ByteSize(recycle->bytes).c_str());
+                   luling::format::ByteSize(recycle->bytes).c_str());
         recycle_bin.detail = occupancy;
     }
     m.quick_access.push_back(std::move(recycle_bin));
@@ -1360,7 +1360,7 @@ static std::wstring SelectionText(const Tab& tab) {
         const auto& e = tab.EntryAt(tab.selected_index);
         wchar_t buf[256];
         swprintf_s(buf, l10n::Get(l10n::StringId::SelectedOneFormat).c_str(), e.name.c_str(),
-                   pulse::format::ByteSize(e.size, true).c_str());
+                   luling::format::ByteSize(e.size, true).c_str());
         return buf;
     }
     wchar_t buf[64];
@@ -1372,7 +1372,7 @@ static std::wstring SelectionText(const Tab& tab) {
     tab.SelectionSizeSummary(&bytes, &files, nullptr);
     // Like Explorer: folder sizes are unknown here, so show the files' total.
     if (files <= 0) return buf;
-    return std::wstring(buf) + L"  \u00B7  " + pulse::format::ByteSize(bytes, true);
+    return std::wstring(buf) + L"  \u00B7  " + luling::format::ByteSize(bytes, true);
 }
 
 static ui::SidebarGroup ConvertGroup(const std::wstring& header, const std::vector<SidebarEntry>& src,
@@ -1553,7 +1553,7 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     out.can_go_back = tab->CanGoBack();
     out.can_go_forward = tab->CanGoForward();
     std::wstring virtual_kind;
-    ParsePulsePath(tab->current_path, &virtual_kind, nullptr);
+    ParseLulingPath(tab->current_path, &virtual_kind, nullptr);
     out.can_go_up = virtual_kind == L"recycle"
         ? true
         : (fs::IsVirtualPath(tab->current_path) ? tab->CanGoBack() : !tab->current_path.empty());
@@ -1568,7 +1568,7 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     out.is_query_search = virtual_kind == L"search";
     if (out.is_query_search) {
         std::wstring rest;
-        ParsePulsePath(tab->current_path, nullptr, &rest);
+        ParseLulingPath(tab->current_path, nullptr, &rest);
         out.search_query = rest;
         out.is_content_search = SplitSearchQueryText(rest).content.present();
         out.network_live_action = !out.is_content_search && !tab->network_live_root.empty() &&
@@ -1589,7 +1589,7 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
             l10n::Get(l10n::StringId::SearchCrumbFormat).c_str(), needle.c_str());
         crumb.resize(written > 0 ? static_cast<size_t>(written) : 0);
         out.search_crumb = crumb.empty() ? l10n::Get(l10n::StringId::Search) : crumb;
-        // Keep pulse:search:... so the address bar is one segment, not C:\ splits.
+        // Keep luling:search:... so the address bar is one segment, not C:\ splits.
         out.path = tab->current_path;
     }
     out.content_results = tab->content_results;
@@ -2112,4 +2112,4 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
     return vm;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

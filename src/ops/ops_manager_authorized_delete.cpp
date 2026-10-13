@@ -6,7 +6,7 @@
 #include "../common/runtime_log.h"
 #include <sherrors.h>
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 bool PermissionFailure(HRESULT hr) {
     return hr == E_ACCESSDENIED || hr == HRESULT_FROM_WIN32(ERROR_PRIVILEGE_NOT_HELD) ||

@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <atomic>
 #include <climits>
-using namespace pulse::ops;
+using namespace luling::ops;
 namespace {
 int failures = 0;
 void Check(bool ok, const char* label) { std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; }
@@ -28,7 +28,7 @@ bool Exact(const std::filesystem::path& path) {
 }
 int main(int argc, char** argv) {
     setvbuf(stdout, nullptr, _IONBF, 0);
-    pulse::l10n::SetLanguage(L"zh-CN");  // assertions compare Simplified error text
+    luling::l10n::SetLanguage(L"zh-CN");  // assertions compare Simplified error text
     const auto root = std::filesystem::absolute(std::filesystem::path(L"bench_data") /
         (L"rename-ops-" + std::to_wstring(GetCurrentProcessId())));
     std::filesystem::create_directories(root / L"child");
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
         std::printf("\n");
         Check(received && create_status.phase == OpPhase::Completed &&
             Exact(root / L"shell-created.txt"), "normal shell CreateNewFile receives Done");
-        Check(pulse::ipc::ShellClient::Instance().Ping(), "normal shell ping submitted on proven connection");
+        Check(luling::ipc::ShellClient::Instance().Ping(), "normal shell ping submitted on proven connection");
         const auto after_ping = roundtrip.Status().completed_ops;
         create.sources = {(root / L"shell-after-ping.txt").wstring()};
         roundtrip.Submit(create);
@@ -96,15 +96,15 @@ int main(int argc, char** argv) {
     Check(Exact(root / L"report.txt"), "case-only filename changes on disk");
     undo(); Check(Exact(root / L"Report.txt"), "case-only undo restores exact spelling");
     make(L"Report-two.txt");
-    pulse::app::BatchRenameRule rule;
+    luling::app::BatchRenameRule rule;
     rule.find = L"Report"; rule.replace = L"report";
-    const auto preview = pulse::app::PreviewBatchRename(
+    const auto preview = luling::app::PreviewBatchRename(
         {(root / L"Report.txt").wstring(), (root / L"Report-two.txt").wstring()}, rule);
-    Check(preview.size() == 2 && preview[0].status == pulse::app::BatchRenameStatus::Ok &&
-        preview[1].status == pulse::app::BatchRenameStatus::Ok, "case-only batch preview enables both items");
+    Check(preview.size() == 2 && preview[0].status == luling::app::BatchRenameStatus::Ok &&
+        preview[1].status == luling::app::BatchRenameStatus::Ok, "case-only batch preview enables both items");
     OpRequest case_batch; case_batch.type = OpType::BatchRename;
     for (const auto& item : preview) {
-        if (item.status == pulse::app::BatchRenameStatus::Ok) {
+        if (item.status == luling::app::BatchRenameStatus::Ok) {
             case_batch.sources.push_back(item.source_path);
             case_batch.new_names.push_back(item.new_name);
         }
@@ -116,18 +116,18 @@ int main(int argc, char** argv) {
     if (ops.Status().completed_ops > case_before) undo();
     Check(Exact(root / L"Report.txt") && Exact(root / L"Report-two.txt"), "batch undo restores both spellings");
     rule = {};
-    Check(pulse::app::PreviewBatchRename({(root / L"Report.txt").wstring()}, rule)[0].status ==
-        pulse::app::BatchRenameStatus::Unchanged, "exactly identical preview stays unchanged");
+    Check(luling::app::PreviewBatchRename({(root / L"Report.txt").wstring()}, rule)[0].status ==
+        luling::app::BatchRenameStatus::Unchanged, "exactly identical preview stays unchanged");
     for (const auto reserved : {L"CON.txt", L"LPT1", L"COM\u00b9.log", L"NUL .txt"}) {
         rule.pattern = reserved;
-        Check(pulse::app::PreviewBatchRename({(root / L"Report.txt").wstring()}, rule)[0].status ==
-            pulse::app::BatchRenameStatus::Invalid, "reserved device names rejected in preview");
+        Check(luling::app::PreviewBatchRename({(root / L"Report.txt").wstring()}, rule)[0].status ==
+            luling::app::BatchRenameStatus::Invalid, "reserved device names rejected in preview");
     }
     rule.pattern = L"{n:4294967296}";
-    Check(pulse::app::ApplyBatchRenameRule(L"a.txt", 0, rule) == L"000000001",
+    Check(luling::app::ApplyBatchRenameRule(L"a.txt", 0, rule) == L"000000001",
         "large numeric width saturates without wrapping");
     rule.pattern = L"{n}"; rule.start = INT_MAX;
-    Check(pulse::app::ApplyBatchRenameRule(L"a.txt", 1, rule) == L"2147483648",
+    Check(luling::app::ApplyBatchRenameRule(L"a.txt", 1, rule) == L"2147483648",
         "batch numbering remains positive across 32-bit boundary");
     make(L"ordinary.txt"); rename(L"ordinary.txt", L"changed.txt");
     Check(Exact(root / L"changed.txt") && !std::filesystem::exists(root / L"ordinary.txt"), "ordinary file rename");

@@ -5,7 +5,7 @@
 #include <iterator>
 #include <string_view>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 inline bool IsOneOf(std::wstring_view extension,
                     std::initializer_list<std::wstring_view> values) {
@@ -179,4 +179,4 @@ inline bool IsNativeExtension(std::wstring_view extension) {
     return false;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

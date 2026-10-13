@@ -3,7 +3,7 @@
 #include "app_model.h"
 #include <optional>
 
-namespace pulse::app {
+namespace luling::app {
 
 inline bool IsTabShortcut(UINT key, bool ctrl, bool shift, bool alt) {
     (void)shift;
@@ -35,4 +35,4 @@ inline std::optional<size_t> TabShortcutTarget(const WindowTabs& tabs, bool shif
     return visible.front();
 }
 
-} // namespace pulse::app
+} // namespace luling::app

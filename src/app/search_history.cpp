@@ -6,13 +6,13 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 constexpr size_t kCapacity = 50;
 constexpr size_t kMaxQuery = 4096;
 constexpr size_t kMaxPath = 32768;
 constexpr size_t kMaxFileBytes = 8 * 1024 * 1024;
-constexpr std::wstring_view kSearchPrefix = L"pulse:search:";
+constexpr std::wstring_view kSearchPrefix = L"luling:search:";
 
 std::wstring Trim(const std::wstring& text) {
     const auto first = std::find_if_not(text.begin(), text.end(), iswspace);
@@ -159,13 +159,13 @@ bool SearchHistory::SaveToFile(const std::wstring& file) const {
 
 bool SearchHistory::Load() {
     if (!persist) return false;
-    const auto dir = GetPulseDataDir();
+    const auto dir = GetLulingDataDir();
     return !dir.empty() && LoadFromFile(dir + L"\\search_history.json");
 }
 
 bool SearchHistory::Save() const {
     if (!persist) return false;
-    const auto dir = GetPulseDataDir();
+    const auto dir = GetLulingDataDir();
     return !dir.empty() && SaveToFile(dir + L"\\search_history.json");
 }
 
@@ -219,4 +219,4 @@ void SearchHistoryWriter::Run() {
         wake_.notify_all();
     }
 }
-} // namespace pulse::app
+} // namespace luling::app

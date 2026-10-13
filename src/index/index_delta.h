@@ -1,6 +1,6 @@
 // index_delta.h — Append-only per-volume USN delta log.
 //
-// The mmap base (pulse-index.bin) is rewritten only on merge. Everyday
+// The mmap base (luling-index.bin) is rewritten only on merge. Everyday
 // create/rename/delete/attr patches append here so CatchUp never copies the
 // full store or rebuilds sort arrays.
 #pragma once
@@ -11,7 +11,7 @@
 #include <vector>
 #include <windows.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 inline constexpr uint32_t kDeltaVer = 2;
 
@@ -81,4 +81,4 @@ std::wstring DeltaFilePath(wchar_t letter);
 // id so a reassigned drive letter can never alias another volume's log.
 std::wstring DeltaFilePathForVolume(const std::wstring& volume_id);
 
-} // namespace pulse::index
+} // namespace luling::index

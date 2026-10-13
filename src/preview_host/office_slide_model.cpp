@@ -13,7 +13,7 @@
 #include <string_view>
 #include <utility>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -487,4 +487,4 @@ bool ReadSlideModel(const std::wstring& path, SlideModel& model, std::wstring* e
     }
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

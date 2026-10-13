@@ -20,7 +20,7 @@
 #include <unistd.h>
 #endif
 
-namespace pulse::preview {
+namespace luling::preview {
 
 namespace {
 
@@ -221,7 +221,7 @@ bool PreviewImageCache::Ready() {
     std::error_code ec;
     std::filesystem::path dir = std::filesystem::temp_directory_path(ec);
     if (ec) return false;
-    dir /= L"Pulse";
+    dir /= L"Luling";
     dir /= L"QuickLook";
     std::filesystem::create_directories(dir, ec);
     if (!std::filesystem::is_directory(dir, ec)) return false;
@@ -256,13 +256,13 @@ std::wstring PreviewImageCache::Store(const std::vector<unsigned char>& bytes, s
         std::filesystem::path partial;
         FILE* f = OpenImagePartial(file, partial);
         if (!f) return {};
-#ifdef PULSE_PREVIEW_IMAGE_CACHE_RACE_TEST
+#ifdef LULING_PREVIEW_IMAGE_CACHE_RACE_TEST
         PreviewImageCacheTestStage(1);
 #endif
         const bool ok = fwrite(bytes.data(), 1, bytes.size(), f) == bytes.size();
         const bool closed = fclose(f) == 0;
         if (!ok || !closed) { std::filesystem::remove(partial, ec); return {}; }
-#ifdef PULSE_PREVIEW_IMAGE_CACHE_RACE_TEST
+#ifdef LULING_PREVIEW_IMAGE_CACHE_RACE_TEST
         PreviewImageCacheTestStage(2);
 #endif
         std::filesystem::rename(partial, file, ec);
@@ -571,4 +571,4 @@ void XmlPull::SkipElement() {
     }
 }
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

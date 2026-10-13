@@ -20,9 +20,9 @@ void Arm(unsigned stage) {
 }
 void Release() { SetEvent(released); }
 }
-namespace pulse::app {
+namespace luling::app {
 std::wstring fixture;
-std::wstring GetPulseDataDir() { return fixture; }
+std::wstring GetLulingDataDir() { return fixture; }
 void PlacesSaveTestStage(unsigned stage) {
     if (stage == 3 && watch_dirty) SetEvent(dirty_entered);
     unsigned expected = stage;
@@ -41,7 +41,7 @@ struct PlacesSaveTestAccess {
 };
 }
 int wmain() {
-    using namespace pulse::app;
+    using namespace luling::app;
     namespace fs = std::filesystem;
     const auto parent = fs::absolute(L"bench_data").lexically_normal();
     const auto base = parent / (L"places-save-order-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));

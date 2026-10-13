@@ -1,7 +1,7 @@
 #include "index_engine.h"
 #include <algorithm>
 
-namespace pulse::index {
+namespace luling::index {
 
 bool Engine::ShouldSkipName(std::wstring_view name) {
     return name == L"." || name == L".." ||
@@ -62,4 +62,4 @@ void Engine::RefreshSubtreeVisibilityLocked(int32_t root, DeltaLog* delta) {
     }
 }
 
-} // namespace pulse::index
+} // namespace luling::index

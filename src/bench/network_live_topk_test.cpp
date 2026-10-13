@@ -6,7 +6,7 @@
 
 namespace {
 constexpr uint32_t kFixtureCount = 100001;
-const std::wstring root_path = L"\\\\pulse-test.invalid\\topk";
+const std::wstring root_path = L"\\\\luling-test.invalid\\topk";
 uint32_t current = 0;
 int handles_open = 0;
 bool unexpected_path = false;
@@ -26,7 +26,7 @@ void Fill(WIN32_FIND_DATAW& data) {
 }
 HANDLE WINAPI TopkFindFirst(LPCWSTR path, FINDEX_INFO_LEVELS, LPVOID data,
                             FINDEX_SEARCH_OPS, LPVOID, DWORD) {
-    if (std::wstring(path) != L"\\\\?\\UNC\\pulse-test.invalid\\topk\\*") {
+    if (std::wstring(path) != L"\\\\?\\UNC\\luling-test.invalid\\topk\\*") {
         unexpected_path = true;
         SetLastError(ERROR_BAD_NETPATH);
         return INVALID_HANDLE_VALUE;
@@ -56,7 +56,7 @@ BOOL WINAPI TopkFindClose(HANDLE handle) {
 #undef FindFirstFileExW
 
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     int failures = 0;
     const auto check = [&](bool ok, const char* name) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n';

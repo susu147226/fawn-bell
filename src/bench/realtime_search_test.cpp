@@ -6,10 +6,10 @@
 #include <algorithm>
 
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse;
+    using namespace luling;
     const std::wstring filter = argc == 2 ? argv[1] : L"all";
     if (argc > 2 || (filter != L"all" && filter != L"content" && filter != L"filename" && filter != L"dedup")) {
-        std::cerr << "Usage: pulse_realtime_search_test.exe [all|content|filename|dedup]" << std::endl;
+        std::cerr << "Usage: luling_realtime_search_test.exe [all|content|filename|dedup]" << std::endl;
         return 2;
     }
     const auto base = std::filesystem::absolute(std::filesystem::path(L"../bench_data") /
@@ -24,14 +24,14 @@ int wmain(int argc, wchar_t** argv) {
         std::cerr << "[FAIL] isolate profile error=" << GetLastError() << std::endl;
         return 1;
     }
-    SetEnvironmentVariableW(L"PULSE_SEARCH_TRACE", (base / L"trace.csv").c_str());
+    SetEnvironmentVariableW(L"LULING_SEARCH_TRACE", (base / L"trace.csv").c_str());
     const auto token = std::to_wstring(GetCurrentProcessId());
-    const auto pipe_name = L"\\\\.\\pipe\\PulseIndex.Test." + token;
-    if (!SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", pipe_name.c_str())) {
+    const auto pipe_name = L"\\\\.\\pipe\\LulingIndex.Test." + token;
+    if (!SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", pipe_name.c_str())) {
         std::cerr << "[FAIL] set isolated feed pipe error=" << GetLastError() << std::endl;
         return 1;
     }
-    const auto exe = std::filesystem::absolute(L"Pulse.Index.exe");
+    const auto exe = std::filesystem::absolute(L"Luling.Index.exe");
     std::wstring command = L"\"" + exe.wstring() + L"\" --test-host " + token + L" \"" + root.wstring() + L"\" \"" + filename_cache.wstring() + L"\"";
     STARTUPINFOW startup{sizeof(startup)}; PROCESS_INFORMATION host{};
     std::wcout << L"[INFO] stage=launch exe=" << exe << L" root=" << root
@@ -97,7 +97,7 @@ int wmain(int argc, wchar_t** argv) {
     diagnose(connected ? "host-ready" : "host-connect-failed");
     std::ofstream report(base / L"latency.csv"); report << "operation,iteration,milliseconds,success\n";
     wchar_t baseline[8]{};
-    const bool record_only = GetEnvironmentVariableW(L"PULSE_REALTIME_BASELINE", baseline, 8) != 0;
+    const bool record_only = GetEnvironmentVariableW(L"LULING_REALTIME_BASELINE", baseline, 8) != 0;
     const int repeats = record_only ? 10 : 100;
     auto summarize = [&](std::vector<ULONGLONG> values, const char* label, ULONGLONG target) {
         if (values.empty()) { check(false, label); return; }
@@ -135,13 +135,13 @@ int wmain(int argc, wchar_t** argv) {
     if (connected && (filter == L"all" || filter == L"dedup")) {
         const auto dir = root / L"dedup";
         std::filesystem::create_directories(dir);
-        const std::wstring needle = L"pulsededup";
+        const std::wstring needle = L"lulingsedup";
         tab.current_path = app::MakeSearchPath(needle);
         tab.ClearSelection();
         RequestSearchPage(s, tab, needle, true);
         check(wait([&] { return !tab.loading && !tab.pending_generation; }, 10000), "dedup: subscription returns initial page");
-        const auto a = dir / L"pulsededup-a.txt", b = dir / L"pulsededup-b.txt";
-        const auto c = dir / L"pulsededup-c.txt", d = dir / L"pulsededup-d.txt";
+        const auto a = dir / L"lulingsedup-a.txt", b = dir / L"lulingsedup-b.txt";
+        const auto c = dir / L"lulingsedup-c.txt", d = dir / L"lulingsedup-d.txt";
         auto write = [](const std::filesystem::path& path) { std::ofstream out(path); out << 1; return out.good(); };
         auto selected = [&](const std::filesystem::path& path) {
             for (size_t i = 0; i < tab.EntryCount(); ++i)

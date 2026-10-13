@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <tlhelp32.h>
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 struct ProcessEntry {
@@ -29,7 +29,7 @@ std::wstring ProcessPath(DWORD pid) {
 // Processes named `image` running from `dirs`. Returns false when the
 // snapshot failed: a failed query is not evidence that nothing runs.
 // `unknown_inside`: whether a process whose image path cannot be read counts
-// as ours. True only where it blocks setup (pulse.exe), never where it would
+// as ours. True only where it blocks setup (luling.exe), never where it would
 // end a process: an unelevated test cannot read the SYSTEM index service.
 bool FindProcesses(const wchar_t* image, const std::vector<std::wstring>& dirs, std::vector<ProcessEntry>& out,
                    bool unknown_inside) {
@@ -55,23 +55,23 @@ bool EndProcess(DWORD pid) {
     return gone;
 }
 
-// Pulse <= 1.0.48 predates the handshake: send what sign-out sends, where
+// Luling <= 1.0.48 predates the handshake: send what sign-out sends, where
 // those versions save their session, then end the process.
-bool EndLegacyPulse(HWND window, DWORD pid) {
+bool EndLegacyLuling(HWND window, DWORD pid) {
     DWORD_PTR reply = 0;
     SendMessageTimeoutW(window, WM_QUERYENDSESSION, 0, ENDSESSION_CLOSEAPP, SMTO_ABORTIFHUNG, 10000, &reply);
     SendMessageTimeoutW(window, WM_ENDSESSION, 1, ENDSESSION_CLOSEAPP, SMTO_ABORTIFHUNG, 10000, &reply);
     const bool ok = EndProcess(pid);
-    Log(L"Closed Pulse without update handshake (pid " + std::to_wstring(pid) + L"): " + std::to_wstring(ok));
+    Log(L"Closed Luling without update handshake (pid " + std::to_wstring(pid) + L"): " + std::to_wstring(ok));
     return ok;
 }
 
-CloseState ClosePulseWindows(const std::vector<std::wstring>& dirs, bool unattended) {
-    const UINT msg = RegisterWindowMessageW(L"Pulse.PrepareUpdateShutdown.v1");
+CloseState CloseLulingWindows(const std::vector<std::wstring>& dirs, bool unattended) {
+    const UINT msg = RegisterWindowMessageW(L"Luling.PrepareUpdateShutdown.v1");
     if (!msg) return CloseState::Failed;
     HWND window = nullptr;
     for (int i = 0; i < 64; ++i) {
-        window = FindWindowExW(nullptr, window, L"PulseMainWindow", nullptr);
+        window = FindWindowExW(nullptr, window, L"LulingMainWindow", nullptr);
         if (!window) return CloseState::Done;
         DWORD pid = 0;
         GetWindowThreadProcessId(window, &pid);
@@ -82,27 +82,27 @@ CloseState ClosePulseWindows(const std::vector<std::wstring>& dirs, bool unatten
         if (reply == 3) return CloseState::Failed;  // session persistence failed; keep files
         if (reply != 1) {
             if (unattended) return CloseState::Failed;
-            if (!EndLegacyPulse(window, pid)) return CloseState::Failed;
+            if (!EndLegacyLuling(window, pid)) return CloseState::Failed;
         }
         window = nullptr;  // the window list changed; scan again
     }
     return CloseState::Failed;
 }
 
-// Waits for windowless pulse.exe instances; interactive setups end leftovers
+// Waits for windowless luling.exe instances; interactive setups end leftovers
 // after ~10 s. A failed process query keeps setup blocked.
-bool WaitForPulseProcesses(const std::vector<std::wstring>& dirs, bool unattended) {
+bool WaitForLulingProcesses(const std::vector<std::wstring>& dirs, bool unattended) {
     std::vector<ProcessEntry> list;
     for (int i = 1; i <= 42; ++i) {
-        if (!FindProcesses(L"pulse.exe", dirs, list, true)) {
-            Log(L"Could not query remaining Pulse processes");
+        if (!FindProcesses(L"luling.exe", dirs, list, true)) {
+            Log(L"Could not query remaining Luling processes");
             return false;
         }
         if (list.empty()) return true;
         if (i == 41 && !unattended)
             for (const auto& p : list) {
                 if (p.path.empty()) continue;
-                Log(L"Ending leftover Pulse process " + std::to_wstring(p.pid));
+                Log(L"Ending leftover Luling process " + std::to_wstring(p.pid));
                 EndProcess(p.pid);
             }
         if (i < 41) Sleep(250);
@@ -110,25 +110,25 @@ bool WaitForPulseProcesses(const std::vector<std::wstring>& dirs, bool unattende
     return false;
 }
 
-CloseState ClosePulseInstances(const std::vector<std::wstring>& dirs, int busy_seconds, bool unattended) {
+CloseState CloseLulingInstances(const std::vector<std::wstring>& dirs, int busy_seconds, bool unattended) {
     CloseState state = CloseState::Failed;
     for (int i = 0; i <= busy_seconds; ++i) {
-        state = ClosePulseWindows(dirs, unattended);
+        state = CloseLulingWindows(dirs, unattended);
         if (state != CloseState::Busy) break;
         if (i < busy_seconds) Sleep(1000);
     }
-    if (state == CloseState::Done && !WaitForPulseProcesses(dirs, unattended)) state = CloseState::Failed;
+    if (state == CloseState::Done && !WaitForLulingProcesses(dirs, unattended)) state = CloseState::Failed;
     return state;
 }
 
 }  // namespace
 
-CloseState ClosePulseForUpdate(const std::vector<std::wstring>& dirs, bool unattended_update) {
+CloseState CloseLulingForUpdate(const std::vector<std::wstring>& dirs, bool unattended_update) {
     std::wstring joined;
     for (const auto& d : dirs) joined += (joined.empty() ? L"" : L"|") + d;
-    Log(L"Closing Pulse running from: " + joined);
+    Log(L"Closing Luling running from: " + joined);
     for (;;) {
-        const CloseState state = ClosePulseInstances(dirs, 10, unattended_update);
+        const CloseState state = CloseLulingInstances(dirs, 10, unattended_update);
         // Operations may take hours: an unattended update keeps asking for an
         // orderly exit instead of killing active work (same as the Inno script).
         if (unattended_update && state == CloseState::Busy) { Sleep(1000); continue; }
@@ -146,15 +146,15 @@ bool WaitUntilImageGone(const wchar_t* image, const std::vector<std::wstring>& d
     }
 }
 
-void StopPulseHosts(const std::vector<std::wstring>& dirs, bool touch_service) {
+void StopLulingHosts(const std::vector<std::wstring>& dirs, bool touch_service) {
     if (touch_service) {
         const auto r = StopService(kServiceName, 15000);
-        Log(L"Stop PulseIndex service: " + std::to_wstring(r));
+        Log(L"Stop LulingIndex service: " + std::to_wstring(r));
     }
     // Scoped to the install directories (the Inno script used taskkill /IM,
     // which also ended hosts of portable copies that do not lock our files).
     std::vector<ProcessEntry> list;
-    for (const wchar_t* image : {L"Pulse.Index.exe", L"Pulse.Preview.exe", L"pulse_shell.exe"}) {
+    for (const wchar_t* image : {L"Luling.Index.exe", L"Luling.Preview.exe", L"luling_shell.exe"}) {
         if (!FindProcesses(image, dirs, list, false)) continue;
         for (const auto& p : list) {
             const bool ok = EndProcess(p.pid);
@@ -163,4 +163,4 @@ void StopPulseHosts(const std::vector<std::wstring>& dirs, bool touch_service) {
     }
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

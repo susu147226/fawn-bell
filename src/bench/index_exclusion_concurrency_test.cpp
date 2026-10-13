@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <future>
 
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static void Seed(Engine& engine) {
         std::unique_lock lock(engine.mutex_);
@@ -34,7 +34,7 @@ struct EngineTestAccess {
 };
 }
 
-using namespace pulse::index;
+using namespace luling::index;
 using namespace std::chrono_literals;
 
 static std::vector<std::wstring> Paths(const FileFeedPage& page) {

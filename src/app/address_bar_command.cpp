@@ -3,7 +3,7 @@
 #include <shlobj.h>
 #include <cwctype>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 bool IsSpace(wchar_t c) {
@@ -125,7 +125,7 @@ AddressShortcut ResolveAddressShortcut(std::wstring_view text) {
     if (EqualsNoCase(name, L"RecycleBinFolder") ||
         EqualsNoCase(name, L"::{645FF040-5081-101B-9F08-00AA002F954E}")) {
         result.resolved = rest.empty();
-        result.path = rest.empty() ? std::wstring(L"pulse:recycle") : work;
+        result.path = rest.empty() ? std::wstring(L"luling:recycle") : work;
         return result;
     }
     const std::wstring folder = name.empty() ? std::wstring() : ShellFolderPath(head);
@@ -154,4 +154,4 @@ const wchar_t* AddressBarProgramExe(AddressBarProgram program) {
     return nullptr;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

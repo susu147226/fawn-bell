@@ -43,7 +43,7 @@ int wmain(int argc, wchar_t** argv) {
     }
     HANDLE main_thread = nullptr;
     if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &main_thread, 0, FALSE, DUPLICATE_SAME_ACCESS)) return 2;
-    pulse_test::Host host;
+    luling_test::Host host;
     bool started = false;
     int exit_code = 0;
     for (const auto& file : files) {
@@ -75,9 +75,9 @@ int wmain(int argc, wchar_t** argv) {
                 }
             }
         });
-        pulse_test::Result result;
+        luling_test::Result result;
         const bool ok = host.Request(file.wstring(), result, MAXDWORD, full ? 1024u : 256u,
-            pulse::ipc::PreviewRequestKind::Content, full ? 0u : pulse::ipc::kPreviewRequestFlagGrid);
+            luling::ipc::PreviewRequestKind::Content, full ? 0u : luling::ipc::kPreviewRequestFlagGrid);
         { std::lock_guard lock(mutex); done = true; }
         wake.notify_one(); monitor.join();
         const auto end = Memory(process);

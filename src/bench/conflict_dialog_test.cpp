@@ -27,7 +27,7 @@ void Check(bool ok, const char* what) {
     ok ? ++g_passed : ++g_failed;
 }
 
-HWND Dialog() { return FindWindowW(L"PulseFileConflictWindow", nullptr); }
+HWND Dialog() { return FindWindowW(L"LulingFileConflictWindow", nullptr); }
 
 HWND g_found_tip = nullptr;
 BOOL CALLBACK FindTip(HWND hwnd, LPARAM owner) {
@@ -46,7 +46,7 @@ HWND Tooltip(HWND dialog) {
     return g_found_tip;
 }
 
-float Scale(HWND hwnd) { return static_cast<float>(pulse::compat::WindowDpi(hwnd)) / 96.0f; }
+float Scale(HWND hwnd) { return static_cast<float>(luling::compat::WindowDpi(hwnd)) / 96.0f; }
 
 POINT At(HWND hwnd, float x, float y) {
     const float scale = Scale(hwnd);
@@ -170,18 +170,18 @@ void CALLBACK Step(HWND, UINT, UINT_PTR timer, DWORD) {
 } // namespace
 
 int wmain(int argc, wchar_t** argv) {
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     Gdiplus::GdiplusStartupInput gdiplus_input;
     ULONG_PTR gdiplus = 0;
     Gdiplus::GdiplusStartup(&gdiplus, &gdiplus_input, nullptr);
     if (argc > 1) g_shot = argv[1];
 
-    g_source = L"C:\\Users\\Example\\AppData\\Local\\Temp\\PulseDrop\\4242-1-90210\\7zE44D7D628"
+    g_source = L"C:\\Users\\Example\\AppData\\Local\\Temp\\LulingDrop\\4242-1-90210\\7zE44D7D628"
                L"\\Tools\\Diagnostics\\Release\\x64\\SFM.dll";
     g_destination = L"D:\\Projects\\Archive\\Third Party\\Long Folder Name For Wrapping\\Release"
                     L"\\x64\\SFM.dll";
-    pulse::ops::ConflictItemInfo conflict;
+    luling::ops::ConflictItemInfo conflict;
     conflict.source = g_source;
     conflict.destination = g_destination;
     conflict.source_size = 412160;
@@ -193,14 +193,14 @@ int wmain(int argc, wchar_t** argv) {
     WNDCLASSW owner_class{};
     owner_class.lpfnWndProc = DefWindowProcW;
     owner_class.hInstance = GetModuleHandleW(nullptr);
-    owner_class.lpszClassName = L"PulseConflictDialogTestOwner";
+    owner_class.lpszClassName = L"LulingConflictDialogTestOwner";
     RegisterClassW(&owner_class);
     HWND owner = CreateWindowExW(0, owner_class.lpszClassName, L"owner", WS_OVERLAPPEDWINDOW,
                                  80, 80, 900, 700, nullptr, nullptr, owner_class.hInstance, nullptr);
 
     SetTimer(nullptr, 0, 250, Step);
-    const auto result = pulse::ui::ShowFileConflictDialog(owner, conflict, false, D2D1_COLOR_F{ 0.0f, 0.47f, 0.83f, 1.0f });
-    Check(result.choice == pulse::ops::ConflictChoice::Cancel, "Escape cancels the dialog");
+    const auto result = luling::ui::ShowFileConflictDialog(owner, conflict, false, D2D1_COLOR_F{ 0.0f, 0.47f, 0.83f, 1.0f });
+    Check(result.choice == luling::ops::ConflictChoice::Cancel, "Escape cancels the dialog");
     DestroyWindow(owner);
     Gdiplus::GdiplusShutdown(gdiplus);
     std::printf("%d passed, %d failed\n", g_passed, g_failed);

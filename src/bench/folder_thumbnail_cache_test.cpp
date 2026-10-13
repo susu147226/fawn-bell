@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FolderThumbnailCacheTestAccess {
     static int Live(const wchar_t* folder) {
         wchar_t full[32768]{};
@@ -272,6 +272,6 @@ struct FolderThumbnailCacheTestAccess {
 }
 int wmain(int argc, wchar_t** argv) {
     if (argc == 3 && std::wstring_view(argv[1]) == L"--live")
-        return pulse::ui::FolderThumbnailCacheTestAccess::Live(argv[2]);
-    return pulse::ui::FolderThumbnailCacheTestAccess::Run();
+        return luling::ui::FolderThumbnailCacheTestAccess::Live(argv[2]);
+    return luling::ui::FolderThumbnailCacheTestAccess::Run();
 }

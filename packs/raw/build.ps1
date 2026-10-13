@@ -21,12 +21,12 @@ if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
 }
 cmake --fresh -G Ninja -S $here -B "$Work\cmake" -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$prefix" "-DCMAKE_TOOLCHAIN_FILE=$VcpkgRoot\scripts\buildsystems\vcpkg.cmake" "-DVCPKG_INSTALLED_DIR=$Work\installed" "-DVCPKG_TARGET_TRIPLET=$triplet" -DVCPKG_MANIFEST_INSTALL=OFF
 if ($LASTEXITCODE) { throw 'configure failed' }
-cmake --build "$Work\cmake" --target pulse-rawpack
+cmake --build "$Work\cmake" --target luling-rawpack
 if ($LASTEXITCODE) { throw 'build failed' }
 # Stage to a new/reusable directory without deleting any user supplied path.
 $pack = Join-Path $Work 'pack'
 New-Item -ItemType Directory -Force $pack | Out-Null
-Copy-Item "$Work\cmake\pulse-rawpack.exe" $pack -Force
+Copy-Item "$Work\cmake\luling-rawpack.exe" $pack -Force
 Copy-Item "$prefix\bin\raw_r.dll" $pack -Force
 # Both helper and replaceable LibRaw DLL use static CRT; verify the staged binaries.
 Get-ChildItem $pack -File | Where-Object { $_.Extension -in '.exe', '.dll' } | ForEach-Object {
@@ -39,13 +39,13 @@ Get-ChildItem $pack -File | Where-Object { $_.Extension -in '.exe', '.dll' } | F
     }
 }
 $notices = [System.Text.StringBuilder]::new()
-[void]$notices.AppendLine('Pulse RAW preview pack; LibRaw is a replaceable LGPL/CDDL library. https://www.libraw.org/')
+[void]$notices.AppendLine('Luling RAW preview pack; LibRaw is a replaceable LGPL/CDDL library. https://www.libraw.org/')
 Get-ChildItem "$prefix\share" -Directory | Sort-Object Name | ForEach-Object {
     $license = Join-Path $_.FullName 'copyright'
     if (Test-Path $license) { [void]$notices.AppendLine($_.Name); [void]$notices.AppendLine((Get-Content $license -Raw)) }
 }
 [IO.File]::WriteAllText((Join-Path $pack 'THIRD-PARTY-NOTICES.txt'), $notices.ToString())
-& "$here\test.ps1" -Exe "$pack\pulse-rawpack.exe" -Work "$Work\test"
+& "$here\test.ps1" -Exe "$pack\luling-rawpack.exe" -Work "$Work\test"
 if ($LASTEXITCODE) { throw 'rawpack test failed' }
 Write-Output "RAW pack staged at $pack"
 

@@ -1,8 +1,8 @@
-"""Writes the setup's icon: src/app/pulse.ico without the 96/128 px images.
+"""Writes the setup's icon: src/app/luling.ico without the 96/128 px images.
 
 The bootstrapper draws its logo from the 256 px image (LoadIconWithScaleDown),
 so the intermediate sizes only add ~31 KB of incompressible PNG data.
-usage: make_setup_icon.py <pulse.ico> <out.ico>
+usage: make_setup_icon.py <luling.ico> <out.ico>
 """
 import struct
 import sys

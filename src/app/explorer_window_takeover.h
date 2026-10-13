@@ -1,11 +1,11 @@
 // explorer_window_takeover.h — Experimental (B站 #1 phase 2b): File Explorer
 // windows that programs open directly (explorer.exe /select,<file>, which
-// bypasses the folder verbs and IShellWindows lookups) are opened in Pulse.
+// bypasses the folder verbs and IShellWindows lookups) are opened in Luling.
 // A source is closed only after navigation/selection acknowledgement, another
 // source identity check, and proof that the source cannot contain other tabs.
 //
 // Only windows that appear while this runs are touched; windows already open
-// are left alone, as are virtual locations Pulse cannot show and any window
+// are left alone, as are virtual locations Luling cannot show and any window
 // opened with Shift held. Every call into Explorer runs on this object's own
 // STA thread.
 #pragma once
@@ -15,7 +15,7 @@
 #include <vector>
 #include "explorer_handoff.h"
 
-namespace pulse::app {
+namespace luling::app {
 
 struct ExplorerTakeoverRequest {
     std::wstring folder;               // file system folder; empty = This PC
@@ -43,4 +43,4 @@ private:
     HANDLE thread_ = nullptr;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -4,7 +4,7 @@
 #include "../ops/clipboard.h"
 #include "../common/localization.h"
 
-namespace pulse {
+namespace luling {
 
 namespace {
 
@@ -75,4 +75,4 @@ void ShowCloudPlaceMenu(AppState& s, const std::wstring& path, POINT screen_pt) 
     if (!path.empty()) RunPathCommand(s, path, filesystem, command);
 }
 
-} // namespace pulse
+} // namespace luling

@@ -8,7 +8,7 @@
 
 static bool TestArtworkBounds() {
     bool ok = true;
-    const auto check = [&](pulse::ui::IconArtworkBounds bounds,
+    const auto check = [&](luling::ui::IconArtworkBounds bounds,
                            float left, float top, float right, float bottom,
                            const char* name) {
         const bool pass = bounds.left == left && bounds.top == top &&
@@ -17,7 +17,7 @@ static bool TestArtworkBounds() {
         ok &= pass;
     };
     std::vector<uint8_t> pixels(8 * 4 * 4, 0);
-    using pulse::ui::MeasureIconArtwork;
+    using luling::ui::MeasureIconArtwork;
     check(MeasureIconArtwork(pixels, 8, 4), 0, 0, 1, 1, "transparent artwork uses full-frame fallback");
     for (size_t y = 1; y < 3; ++y)
         for (size_t x = 2; x < 6; ++x) pixels[(y * 8 + x) * 4 + 3] = 255;
@@ -38,13 +38,13 @@ static bool TestArtworkBounds() {
     check(MeasureIconArtwork(padded, 2, 2, 4), 0, 0, 1, 1,
           "undersized row stride uses fallback");
     const D2D1_RECT_F dest = D2D1::RectF(10, 20, 110, 120);
-    const pulse::ui::IconArtworkBounds inset{.25f, .25f, .75f, .75f};
+    const luling::ui::IconArtworkBounds inset{.25f, .25f, .75f, .75f};
     const auto geometry = [&](uint32_t w, uint32_t h,
-                              pulse::ui::IconArtworkBounds bounds, bool bottom,
+                              luling::ui::IconArtworkBounds bounds, bool bottom,
                               float left, float top, float right, float lower,
                               const char* name) {
-        const auto fitted = pulse::ui::ContainedThumbnailRect(dest, w, h, bounds, bottom);
-        const auto artwork = pulse::ui::ThumbnailArtworkRect(fitted, bounds);
+        const auto fitted = luling::ui::ContainedThumbnailRect(dest, w, h, bounds, bottom);
+        const auto artwork = luling::ui::ThumbnailArtworkRect(fitted, bounds);
         check({artwork.left, artwork.top, artwork.right, artwork.bottom},
               left, top, right, lower, name);
     };
@@ -61,7 +61,7 @@ static bool TestArtworkBounds() {
     return ok;
 }
 
-namespace pulse::ui {
+namespace luling::ui {
 struct ShellIconCacheTestAccess {
     static bool Wait(ShellIconCache& cache) {
         const auto end = GetTickCount64() + 10000;
@@ -113,7 +113,7 @@ struct ShellIconCacheTestAccess {
             check(cache.exact_index_.size() == 4096 && !cache.exact_index_.contains(L"seed-0") &&
                   cache.exact_index_.contains(L"seed-1"), "evicts only oldest entry");
         }
-        const std::wstring missing = std::wstring(windows) + L"\\pulse-nonexistent-icon-test\\missing.exe";
+        const std::wstring missing = std::wstring(windows) + L"\\luling-nonexistent-icon-test\\missing.exe";
         cache.RequestExact(missing);
         check(Wait(cache), "missing path query completes");
         {
@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
     const bool bounds_ok = TestArtworkBounds();
     if (argc == 2 && std::strcmp(argv[1], "--bounds-only") == 0) return bounds_ok ? 0 : 1;
     const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    const bool ok = pulse::ui::ShellIconCacheTestAccess::Run() && bounds_ok;
+    const bool ok = luling::ui::ShellIconCacheTestAccess::Run() && bounds_ok;
     if (SUCCEEDED(hr)) CoUninitialize();
     return ok ? 0 : 1;
 }

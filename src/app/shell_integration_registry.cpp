@@ -7,10 +7,10 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
-constexpr wchar_t kBackupRoot[] = L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\";
+constexpr wchar_t kBackupRoot[] = L"Software\\Luling\\ShellIntegration\\Backups\\v1\\";
 constexpr DWORD kSnapshotMagic = 0x31534950; // PIS1; one atomic REG_BINARY value per group.
 
 struct Value {
@@ -151,7 +151,7 @@ std::vector<Binding> Bindings(const std::wstring& group, const std::wstring& exe
                                 {verb + L"\\command", L"DelegateExecute", String(L"")}};
     if (group != L"WinE") result.push_back({shell, L"", String(L"open")});
     if (group == L"Directory" || group == L"Drive")
-        result.push_back({verb, L"DelegateExecute", String(L"")}); // compatibility with old Pulse values
+        result.push_back({verb, L"DelegateExecute", String(L"")}); // compatibility with old Luling values
     return result;
 }
 
@@ -163,7 +163,7 @@ std::vector<std::wstring> Groups(ShellIntegrationKind kind) {
 }
 
 void ImportLegacyBackup(const std::vector<Binding>& bindings, size_t i, Value& before) {
-    const wchar_t* name = i == 1 ? L"PulseBackupDelegateExecute" : L"PulseBackup";
+    const wchar_t* name = i == 1 ? L"LulingBackupDelegateExecute" : L"LulingBackup";
     Value backup;
     if (i > 2 || !Read(bindings[i].key, name, backup) || !backup.exists ||
         (backup.type != REG_SZ && backup.type != REG_EXPAND_SZ)) return;
@@ -211,7 +211,7 @@ bool LegacyResidue(std::vector<Binding>& bindings, std::vector<Value>& current) 
             const bool absent = i == 0 || (i == 1 && (group == std::wstring_view(L"Directory") ||
                                                                      group == std::wstring_view(L"Drive")));
             if (!SameValue(actual, absent ? Value{} : binding.desired)) return false;
-            for (const auto* name : {L"PulseBackup", L"PulseBackupDelegateExecute"})
+            for (const auto* name : {L"LulingBackup", L"LulingBackupDelegateExecute"})
                 if (!Read(binding.key, name, legacy) || legacy.exists) return false;
             bindings.push_back(binding);
             current.push_back(std::move(actual));
@@ -221,11 +221,11 @@ bool LegacyResidue(std::vector<Binding>& bindings, std::vector<Value>& current) 
             auto verb = group_bindings.front().key;
             verb.resize(verb.rfind(L'\\'));
             Value value;
-            for (const auto* name : {L"DelegateExecute", L"PulseBackup", L"PulseBackupDelegateExecute"})
+            for (const auto* name : {L"DelegateExecute", L"LulingBackup", L"LulingBackupDelegateExecute"})
                 if (!Read(verb, name, value) || value.exists) return false;
             if (group == std::wstring_view(L"WinE")) {
                 verb.resize(verb.rfind(L'\\'));
-                for (const auto* name : {L"", L"PulseBackup", L"PulseBackupDelegateExecute"})
+                for (const auto* name : {L"", L"LulingBackup", L"LulingBackupDelegateExecute"})
                     if (!Read(verb, name, value) || value.exists) return false;
             }
         }
@@ -414,7 +414,7 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
         return true;
     }
 
-    if (!command_ours && !removed_anchor) return true; // no evidence that these values belong to Pulse
+    if (!command_ours && !removed_anchor) return true; // no evidence that these values belong to Luling
     if (!valid) {
         // Migrate available legacy text through the same ownership checks.
         previous.before.resize(bindings.size());
@@ -424,7 +424,7 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
             previous.written.push_back(i == 0 ? current[i] : bindings[i].desired);
         }
     }
-    if (valid && !owned && !removed_anchor) return false; // someone edited Pulse's command
+    if (valid && !owned && !removed_anchor) return false; // someone edited Luling's command
     bool ok = valid;
     bool write_failed = false;
     for (size_t i = bindings.size(); i-- > 0;) {
@@ -696,4 +696,4 @@ bool UpgradeShellIntegration(ShellIntegrationKind kind, const std::wstring& prev
     return ok;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

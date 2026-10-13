@@ -9,7 +9,7 @@
 #include <optional>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 class SingleInstanceCoordinator {
 public:
@@ -58,4 +58,4 @@ private:
     std::map<std::array<unsigned char, 16>, OpenRequest> accepted_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

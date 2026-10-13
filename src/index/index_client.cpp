@@ -1,4 +1,4 @@
-// index_client.cpp — Connect to Pulse.Index (service or spawned helper).
+// index_client.cpp — Connect to Luling.Index (service or spawned helper).
 #include "../common/command_line.h"
 #include "index_client.h"
 #include "index_config.h"
@@ -8,14 +8,14 @@
 #include <shellapi.h>
 #include <winsvc.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 std::wstring IndexClient::ExePath() {
     wchar_t exe[MAX_PATH]{};
     GetModuleFileNameW(nullptr, exe, ARRAYSIZE(exe));
     wchar_t* slash = wcsrchr(exe, L'\\');
-    if (!slash) return L"Pulse.Index.exe";
-    return std::wstring(exe, slash + 1) + L"Pulse.Index.exe";
+    if (!slash) return L"Luling.Index.exe";
+    return std::wstring(exe, slash + 1) + L"Luling.Index.exe";
 }
 
 void IndexClient::Start(HWND notify, UINT status_msg, UINT search_msg, std::wstring pipe_name) {
@@ -75,7 +75,7 @@ bool IndexClient::SpawnHelper() {
     const std::wstring exe = ExePath();
     if (GetFileAttributesW(exe.c_str()) == INVALID_FILE_ATTRIBUTES) {
         std::lock_guard<std::mutex> lock(mu_);
-        status_ = L"找不到 Pulse.Index.exe";
+        status_ = L"找不到 Luling.Index.exe";
         return false;
     }
     std::wstring cmd = L"\"" + exe + L"\" " + std::to_wstring(GetCurrentProcessId());
@@ -185,7 +185,7 @@ void IndexClient::HandleStatus(const uint8_t* p, size_t n) {
     count_.store(count);
     uint64_t revision = 0; uint32_t version = 0;
     if (r.GetU64(revision) && r.GetU32(version) && version == 1) revision_ = revision;
-    else { std::lock_guard lock(mu_); status_ = L"索引进程版本过旧，请重启 Pulse 和索引服务以启用实时搜索"; }
+    else { std::lock_guard lock(mu_); status_ = L"索引进程版本过旧，请重启 鹿铃 和索引服务以启用实时搜索"; }
     if (notify_ && status_msg_) PostMessageW(notify_, status_msg_, 0, 0);
 }
 
@@ -348,7 +348,7 @@ void IndexClient::Worker() {
         if (!EnsureConnected()) {
             {
                 std::lock_guard<std::mutex> lock(mu_);
-                if (status_ != L"找不到 Pulse.Index.exe")
+                if (status_ != L"找不到 Luling.Index.exe")
                     status_ = L"索引未连接";
             }
             for (int i = 0; i < 10 && running_; ++i) Sleep(100);
@@ -482,7 +482,7 @@ bool IndexClient::RequestInstallService() {
 namespace {
 
 std::wstring QuoteCommandArg(const std::wstring& value) {
-    return pulse::QuoteWindowsArgument(value);
+    return luling::QuoteWindowsArgument(value);
 }
 
 bool RunElevatedIndexCommand(const std::wstring& exe, const std::wstring& parameters,
@@ -549,7 +549,7 @@ bool IndexClient::ConfigureIndexPathElevated(const std::wstring& path, std::wstr
         case ERROR_PARTIAL_COPY:
             *error = L"索引已切换到新位置，但部分旧文件被占用，未能清理。新索引可以正常使用。"; break;
         case kIndexDirectoryNotPrivate:
-            *error = L"索引位置里有不属于 Pulse 的文件或链接，为保护隐私，索引服务不会使用它。请改选一个空文件夹。"; break;
+            *error = L"索引位置里有不属于 鹿铃 的文件或链接，为保护隐私，索引服务不会使用它。请改选一个空文件夹。"; break;
         case ERROR_SERVICE_NOT_ACTIVE: case ERROR_SERVICE_REQUEST_TIMEOUT:
             *error = L"索引服务未能恢复。原索引文件已保留，请重新启动索引服务后重试。"; break;
         default:
@@ -575,4 +575,4 @@ bool IndexClient::ExportDiagnosticsElevated(const std::wstring& empty_directory)
         L"--export-diagnostics " + QuoteCommandArg(empty_directory));
 }
 
-} // namespace pulse::index
+} // namespace luling::index

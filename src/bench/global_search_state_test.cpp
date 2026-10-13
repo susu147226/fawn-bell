@@ -3,7 +3,7 @@
 #include <vector>
 struct Row { std::wstring path; };
 int main() {
-    using namespace pulse::app;
+    using namespace luling::app;
     bool ok = true;
     auto check = [&](bool value, const char* label) { std::cout << (value ? "[PASS] " : "[FAIL] ") << label << '\n'; ok &= value; };
     for (const bool network_first : {false, true}) {

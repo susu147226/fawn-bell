@@ -2,7 +2,7 @@
 #include "file_operation_dialog.h"
 #include "../common/localization.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 PickerOperationResult RunPickerOperation(HWND owner, ops::OpRequest request,
                                         bool dark, D2D1_COLOR_F accent) {
@@ -77,4 +77,4 @@ PickerOperationResult RunPickerOperation(HWND owner, ops::OpRequest request,
     return result;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

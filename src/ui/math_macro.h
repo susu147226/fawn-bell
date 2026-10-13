@@ -2,7 +2,7 @@
 
 #include "math_syntax.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct MathSourceOrigin {
     size_t start = 0;
@@ -20,4 +20,4 @@ struct MathMacroExpansion {
 // The caller supplies its own command registry so built-ins cannot be replaced.
 MathMacroExpansion ExpandMathMacros(std::wstring_view source, bool (*is_builtin)(std::wstring_view));
 
-} // namespace pulse::ui
+} // namespace luling::ui

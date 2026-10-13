@@ -21,11 +21,11 @@ struct Host {
     }
     bool Start(const wchar_t* mode) {
         wchar_t path[32768]{}; GetModuleFileNameW(nullptr, path, 32768);
-        auto exe = std::filesystem::path(path).parent_path() / L"Pulse.Preview.exe";
+        auto exe = std::filesystem::path(path).parent_path() / L"Luling.Preview.exe";
         auto command = L"\"" + exe.wstring() + L"\" " + std::to_wstring(GetCurrentProcessId()) + L" " + mode;
         STARTUPINFOW start{sizeof(start)};
         if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &start, &child)) return false;
-        const auto name = pulse::ipc::PreviewPipeName(GetCurrentProcessId());
+        const auto name = luling::ipc::PreviewPipeName(GetCurrentProcessId());
         const auto end = GetTickCount64() + 5000;
         while (GetTickCount64() < end) {
             pipe = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
@@ -49,15 +49,15 @@ struct Host {
         return true;
     }
     bool Request(const std::wstring& path, uint32_t id, bool fail_open,
-                 pulse::ipc::PreviewResponse& response, bool& opened) {
-        pulse::ipc::PreviewRequest request{};
+                 luling::ipc::PreviewResponse& response, bool& opened) {
+        luling::ipc::PreviewRequest request{};
         request.request_id = id; request.generation = id;
         request.path_chars = static_cast<uint32_t>(path.size());
-        request.attrs = FILE_ATTRIBUTE_NORMAL; request.flags = pulse::ipc::kPreviewRequestFlagGrid; request.pixel_size = 32;
-        if (!pulse::ipc::WriteAll(pipe, &request, sizeof(request)) ||
-            !pulse::ipc::WriteAll(pipe, path.data(), request.path_chars * static_cast<DWORD>(sizeof(wchar_t)))) return false;
+        request.attrs = FILE_ATTRIBUTE_NORMAL; request.flags = luling::ipc::kPreviewRequestFlagGrid; request.pixel_size = 32;
+        if (!luling::ipc::WriteAll(pipe, &request, sizeof(request)) ||
+            !luling::ipc::WriteAll(pipe, path.data(), request.path_chars * static_cast<DWORD>(sizeof(wchar_t)))) return false;
         const auto end = GetTickCount64() + 5000;
-        if (!Read(&response, sizeof(response), end) || response.magic != pulse::ipc::kPreviewMagic ||
+        if (!Read(&response, sizeof(response), end) || response.magic != luling::ipc::kPreviewMagic ||
             response.request_id != id || response.generation != id || response.mapping_chars > 512 ||
             response.text_chars > 65536 || response.error_chars > 65536 || response.property_count) return false;
         std::wstring name(response.mapping_chars, L'\0');
@@ -77,7 +77,7 @@ struct Host {
             }
             // Production consumer acknowledges every advertised mapping, even if open failed.
             unsigned char ack = 1;
-            if (!pulse::ipc::WriteAll(pipe, &ack, 1)) return false;
+            if (!luling::ipc::WriteAll(pipe, &ack, 1)) return false;
         }
         return true;
     }
@@ -100,7 +100,7 @@ int wmain() {
         const wchar_t* mode = scenario == 0 ? L"--test-map-create-failure" : scenario == 1 ? L"--test-map-view-failure" : L"";
         Check(host.Start(mode), "start owned isolated preview host");
         if (host.pipe == INVALID_HANDLE_VALUE) continue;
-        pulse::ipc::PreviewResponse response{}; bool opened = false;
+        luling::ipc::PreviewResponse response{}; bool opened = false;
         Check(host.Request(bitmap, 1, scenario == 2, response, opened), "first bitmap response completes within deadline");
         if (scenario < 2) Check(response.status == 2 && response.mapping_chars == 0 && !opened, "Create or Map failure advertises no mapping and needs no ACK");
         else Check(response.status == 0 && response.mapping_chars != 0 && opened == (scenario == 3), "client-open failure and normal mapping exercise advertised ACK");

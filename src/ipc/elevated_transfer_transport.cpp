@@ -1,7 +1,7 @@
 ﻿#include "elevated_transfer_transport.h"
 #include <sddl.h>
 
-namespace pulse::elevated {
+namespace luling::elevated {
 namespace {
 bool Await(HANDLE pipe, OVERLAPPED& overlap, HANDLE peer, const Tick& tick, DWORD timeout_ms, DWORD& transferred) {
     const ULONGLONG start = GetTickCount64();
@@ -90,7 +90,7 @@ bool IsElevated(HANDLE process) {
     return GetTokenInformation(token.Get(), TokenElevation, &elevation, sizeof(elevation), &bytes) && elevation.TokenIsElevated;
 }
 std::wstring PipeName(DWORD parent, const Nonce& nonce) {
-    return L"\\\\.\\pipe\\Pulse.Elevated." + std::to_wstring(parent) + L"." + NonceText(nonce);
+    return L"\\\\.\\pipe\\Luling.Elevated." + std::to_wstring(parent) + L"." + NonceText(nonce);
 }
 Handle CreateSessionPipe(const std::wstring& name) {
     const auto sid = UserSid(GetCurrentProcess());

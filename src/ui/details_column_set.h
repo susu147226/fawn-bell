@@ -7,7 +7,7 @@
 #include <array>
 #include <cstdint>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 inline constexpr uint32_t kDetailsColumnModified = 1u << 2;
 inline constexpr uint32_t kDetailsColumnType = 1u << 3;
@@ -28,4 +28,4 @@ constexpr uint32_t NormalizeDetailsColumns(uint32_t mask) noexcept {
 // 0 modified, 1 type, 2 size, 3 created, 4 accessed. 0 = automatic.
 using DetailsColumnWidths = std::array<float, 5>;
 
-} // namespace pulse::ui
+} // namespace luling::ui

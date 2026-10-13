@@ -30,7 +30,7 @@ std::string ReadBytes(const std::filesystem::path& path) {
 }
 }
 
-// Pulse's own data object with a different Preferred DropEffect, the way
+// Luling's own data object with a different Preferred DropEffect, the way
 // browser download lists, staged Electron drags and archive tools publish one.
 class PreferringDataObject final : public IDataObject {
 public:
@@ -86,13 +86,13 @@ private:
 
 HRESULT WINAPI AuditNativeDrag(IDataObject* data, IDropSource*, DWORD allowed, DWORD* effect) {
     ++native_calls;
-    pulse::ui::ExtractHDropPaths(data, native_paths);
+    luling::ui::ExtractHDropPaths(data, native_paths);
     *effect = allowed & DROPEFFECT_COPY;
     return DRAGDROP_S_DROP;
 }
 
 int wmain() {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     setvbuf(stdout, nullptr, _IONBF, 0);
     for (DWORD allowed : { DWORD(DROPEFFECT_NONE), DWORD(DROPEFFECT_COPY),
                            DWORD(DROPEFFECT_MOVE), DWORD(DROPEFFECT_COPY | DROPEFFECT_MOVE) }) {
@@ -103,7 +103,7 @@ int wmain() {
                 DWORD observed = 0;
                 bool preference_seen = true;
                 DropTargetCallbacks callbacks;
-                // Pulse's own drags publish COPY|MOVE, which must keep the
+                // Luling's own drags publish COPY|MOVE, which must keep the
                 // same-volume move: the expectations below are unchanged.
                 const auto compute = [&](const std::vector<std::wstring>& paths, POINT,
                                          DWORD state, DWORD mask, DWORD preferred) {
@@ -227,7 +227,7 @@ int wmain() {
     const auto before_archived = ReadBytes(archived);
     Check(!before_original.empty() && !before_archived.empty(), "create isolated recycle identity fixtures");
     const DWORD rejected = DoFileDragDrop({original.wstring()}, DROPEFFECT_COPY | DROPEFFECT_MOVE,
-                                         {}, L"pulse:recycle");
+                                         {}, L"luling:recycle");
     Check(rejected == DROPEFFECT_NONE && native_calls == 0 && native_paths.empty(),
           "recycle row cannot expose recreated original to a native drag");
     Check(ReadBytes(original) == before_original && ReadBytes(archived) == before_archived,

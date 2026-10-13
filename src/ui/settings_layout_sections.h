@@ -82,7 +82,7 @@ float LayoutSettingsGeneral(SettingsLayout& l, const WindowViewModel& vm, float 
     l.ui_font_size_card=row(narrow ? 98.0f : 64.0f); segments(l.ui_font_size_card,l.ui_font_size_row,4,340);
     l.group[0]=D2D1::RectF(left,l.theme_row.top,right,y);
     // Default file manager: a titled card of its own, independent of startup and background running.
-    // Every choice stays visible, so users see what the master switch hands to Pulse.
+    // Every choice stays visible, so users see what the master switch hands to Luling.
     y+=24*scale; l.integration_section=row(28);
     const float integration_top=y;
     auto caption_height=[&](std::wstring_view value,float width) {
@@ -300,16 +300,16 @@ inline const wchar_t* Install() { return l10n::Pick(L"下载并安装", L"Downlo
 inline const wchar_t* Remove() { return l10n::Pick(L"卸载", L"Remove"); }
 inline const wchar_t* CustomTitle() { return l10n::Pick(L"使用已有 FFmpeg", L"Use existing FFmpeg"); }
 inline const wchar_t* CustomDesc() { return l10n::Pick(
-    L"可选来源；关闭后使用 Pulse 管理的增强包",
-    L"Optional source; turn off to use the Pulse-managed pack"); }
+    L"可选来源；关闭后使用 鹿铃 管理的增强包",
+    L"Optional source; turn off to use the Luling-managed pack"); }
 inline const wchar_t* NoCustom() { return l10n::Pick(L"尚未选择 ffmpeg.exe", L"No ffmpeg.exe chosen"); }
 inline const wchar_t* Browse() { return l10n::Pick(L"浏览…", L"Browse…"); }
 inline const wchar_t* UseDetected() { return l10n::Pick(L"使用检测到的", L"Use found"); }
-inline const wchar_t* RemoveTitle() { return l10n::Pick(L"卸载 Pulse 时删除预览增强包", L"Remove packs when uninstalling Pulse"); }
-inline const wchar_t* RemoveDesc() { return l10n::Pick(L"否则保留，重新安装 Pulse 后可直接使用", L"Otherwise they stay and work again after reinstalling Pulse"); }
+inline const wchar_t* RemoveTitle() { return l10n::Pick(L"卸载 鹿铃 时删除预览增强包", L"Remove packs when uninstalling Luling"); }
+inline const wchar_t* RemoveDesc() { return l10n::Pick(L"否则保留，重新安装 鹿铃 后可直接使用", L"Otherwise they stay and work again after reinstalling Luling"); }
 inline const wchar_t* Note() { return l10n::Pick(
-    L"预览增强包在隔离的预览进程中运行：崩溃或超时只影响当前预览，Pulse 会回退到内置的缩略图和文本视图。",
-    L"Packs run in the isolated preview process: a crash or timeout only affects that preview, and Pulse falls back to its built-in views."); }
+    L"预览增强包在隔离的预览进程中运行：崩溃或超时只影响当前预览，鹿铃 会回退到内置的缩略图和文本视图。",
+    L"Packs run in the isolated preview process: a crash or timeout only affects that preview, and Luling falls back to its built-in views."); }
 inline std::wstring Bytes(uint64_t bytes) {
     wchar_t text[48]{};
     if (bytes >= 1024ull * 1024 * 1024) swprintf_s(text, L"%.1f GB", bytes / (1024.0 * 1024 * 1024));
@@ -362,10 +362,10 @@ inline const wchar_t* SourceStatus(const WindowViewModel& vm) {
     if (!vm.settings_pack_ffmpeg_enabled)
         return vm.settings_pack_use_custom
             ? l10n::Pick(L"已停用；所选来源：已有 FFmpeg", L"Off; selected source: existing FFmpeg")
-            : l10n::Pick(L"已停用；所选来源：Pulse 管理的增强包", L"Off; selected source: Pulse-managed pack");
+            : l10n::Pick(L"已停用；所选来源：鹿铃 管理的增强包", L"Off; selected source: Luling-managed pack");
     if (vm.settings_pack_use_custom)
         return l10n::Pick(L"当前来源：已有 FFmpeg（用户文件，不做完整性校验）", L"Source: existing FFmpeg (user file, not verified)");
-    return l10n::Pick(L"当前来源：Pulse 管理的增强包", L"Source: Pulse-managed pack");
+    return l10n::Pick(L"当前来源：鹿铃 管理的增强包", L"Source: Luling-managed pack");
 }
 // "正在下载… 42%" while a pack downloads.
 inline std::wstring Downloading(float progress) {

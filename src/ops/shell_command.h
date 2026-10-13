@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::ops {
+namespace luling::ops {
 struct ShellCommandParts { std::wstring executable, arguments; };
 bool SplitShellCommand(std::wstring_view command, ShellCommandParts& parts);
 struct ShellCommandResult {

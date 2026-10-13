@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::crash {
+namespace luling::crash {
 
 enum class ProcessRole : uint8_t {
     App,
@@ -33,4 +33,4 @@ bool SafeModeRequested() noexcept;
 const std::wstring& DiagnosticsRoot() noexcept;
 const wchar_t* RoleName(ProcessRole role) noexcept;
 
-} // namespace pulse::crash
+} // namespace luling::crash

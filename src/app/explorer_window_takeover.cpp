@@ -17,7 +17,7 @@
 #include <set>
 #include <type_traits>
 
-namespace pulse::app {
+namespace luling::app {
 
 using Microsoft::WRL::ComPtr;
 
@@ -223,7 +223,7 @@ private:
             index.lVal = i;
             ComPtr<IDispatch> item;
             if (windows_->Item(index, &item) != S_OK || !item) continue;
-            // Pulse's own panes (shell_window_registry) are IWebBrowserApp only.
+            // Luling's own panes (shell_window_registry) are IWebBrowserApp only.
             ComPtr<IWebBrowser2> browser;
             if (FAILED(item.As(&browser))) continue;
             SHANDLE_PTR handle = 0;
@@ -399,4 +399,4 @@ void ExplorerWindowTakeover::Stop(DWORD timeout_ms) {
     thread_ = nullptr;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

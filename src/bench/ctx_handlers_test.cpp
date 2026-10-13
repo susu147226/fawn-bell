@@ -97,7 +97,7 @@ private:
 void TestDynamicMenu(bool version3, bool send_to_only = false, bool empty = false) {
     DynamicMenu menu;
     menu.populate = !empty;
-    pulse::shell::CtxHandlerSlot slot;
+    luling::shell::CtxHandlerSlot slot;
     slot.menu = &menu;
     slot.menu2 = &menu;
     slot.menu3 = version3 ? &menu : nullptr;
@@ -107,8 +107,8 @@ void TestDynamicMenu(bool version3, bool send_to_only = false, bool empty = fals
     if (send_to_only) slot.send_to_title = L"Send to";
     menu.QueryContextMenu(slot.hmenu, 0, slot.id_first, slot.id_last, CMF_NORMAL);
     if (send_to_only) AppendMenuW(slot.hmenu, MF_STRING, 102, L"Unrelated command");
-    std::vector<pulse::shell::CtxItemOut> items;
-    pulse::shell::CollectHandlerItems(slot, false, items);
+    std::vector<luling::shell::CtxItemOut> items;
+    luling::shell::CollectHandlerItems(slot, false, items);
     Check(menu.initialized, version3 ? "IContextMenu3 initializes a normal submenu" :
                                      "IContextMenu2 initializes a normal submenu");
     const bool children = items.size() == 2 && items[0].has_children && items[0].id == 0 &&
@@ -132,7 +132,7 @@ void TestDynamicMenu(bool version3, bool send_to_only = false, bool empty = fals
 void TestSendToAfterSlowFlyout() {
     DynamicMenu menu;
     menu.slow_before = true;
-    pulse::shell::CtxHandlerSlot slot;
+    luling::shell::CtxHandlerSlot slot;
     slot.menu = &menu;
     slot.menu2 = &menu;
     slot.menu3 = &menu;
@@ -140,8 +140,8 @@ void TestSendToAfterSlowFlyout() {
     slot.id_first = 100;
     slot.id_last = 355;
     menu.QueryContextMenu(slot.hmenu, 0, slot.id_first, slot.id_last, CMF_NORMAL);
-    std::vector<pulse::shell::CtxItemOut> items;
-    pulse::shell::CollectHandlerItems(slot, false, items);
+    std::vector<luling::shell::CtxItemOut> items;
+    luling::shell::CollectHandlerItems(slot, false, items);
     bool flyout = false;
     for (size_t i = 0; i + 1 < items.size(); ++i)
         if (items[i].verb == L"sendto" && items[i].has_children && items[i + 1].child &&
@@ -154,7 +154,7 @@ void TestSendToAfterSlowFlyout() {
 void TestPlainSendToPlaceholder() {
     DynamicMenu menu;
     menu.plain_send_to = true;
-    pulse::shell::CtxHandlerSlot slot;
+    luling::shell::CtxHandlerSlot slot;
     slot.menu = &menu;
     slot.menu2 = &menu;
     slot.menu3 = &menu;
@@ -163,8 +163,8 @@ void TestPlainSendToPlaceholder() {
     slot.id_last = 355;
     slot.send_to_title = L"Send to";
     menu.QueryContextMenu(slot.hmenu, 0, slot.id_first, slot.id_last, CMF_NORMAL);
-    std::vector<pulse::shell::CtxItemOut> items;
-    pulse::shell::CollectHandlerItems(slot, false, items);
+    std::vector<luling::shell::CtxItemOut> items;
+    luling::shell::CollectHandlerItems(slot, false, items);
     Check(items.size() == 1 && items[0].text == L"Send to" && !items[0].enabled &&
               !items[0].has_children,
           "a Send to row without destinations is disabled, never an inert command (#77)");
@@ -175,18 +175,18 @@ void TestInstalledSendTo(const wchar_t* fixture = nullptr) {
     wchar_t windows[MAX_PATH]{};
     GetWindowsDirectoryW(windows, MAX_PATH);
     const std::wstring path = fixture ? std::wstring(fixture) : std::wstring(windows) + L"\\win.ini";
-    pulse::shell::CtxHandlerDesc handler;
+    luling::shell::CtxHandlerDesc handler;
     handler.clsid_text = L"{7BA4C740-9E81-11CF-99D3-00AA004AE837}";
     handler.name = L"SendTo";
     CLSIDFromString(handler.clsid_text.c_str(), &handler.clsid);
-    pulse::shell::CtxBind bind;
-    Check(pulse::shell::BindCtxSelection({path}, false, bind), "bind read-only Send to fixture");
-    pulse::shell::CtxHandlerSlot slot;
-    const HRESULT hr = pulse::shell::QueryOneHandler(handler, bind, nullptr, 100, 355,
+    luling::shell::CtxBind bind;
+    Check(luling::shell::BindCtxSelection({path}, false, bind), "bind read-only Send to fixture");
+    luling::shell::CtxHandlerSlot slot;
+    const HRESULT hr = luling::shell::QueryOneHandler(handler, bind, nullptr, 100, 355,
                                                     CMF_NORMAL, slot);
     Check(SUCCEEDED(hr), "query installed Send to handler");
-    std::vector<pulse::shell::CtxItemOut> items;
-    pulse::shell::CollectHandlerItems(slot, false, items);
+    std::vector<luling::shell::CtxItemOut> items;
+    luling::shell::CollectHandlerItems(slot, false, items);
     size_t children = 0;
     bool isolated = true;
     for (const auto& item : items) {
@@ -198,7 +198,7 @@ void TestInstalledSendTo(const wchar_t* fixture = nullptr) {
     Check(!items.empty() && items.front().has_children && children > 0,
           "installed Send to exposes destinations instead of an inert parent");
     Check(isolated, "Send to exposes only its own group and allocated command IDs");
-    pulse::shell::ReleaseHandlerSlot(slot);
+    luling::shell::ReleaseHandlerSlot(slot);
 }
 } // namespace
 

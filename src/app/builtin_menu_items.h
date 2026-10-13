@@ -1,16 +1,16 @@
-// builtin_menu_items.h — Pulse's own context-menu rows and list-row hover
+// builtin_menu_items.h — Luling's own context-menu rows and list-row hover
 // buttons that the 右键菜单 settings page can hide (#41, #44-⑩).
 //
 // Open and the cut / copy / delete / rename strip always stay; everything
 // listed here can be turned off. Hidden items persist by key in
-// context_menu.json ("pulse_items"), so the enum order is free to change.
+// context_menu.json ("luling_items"), so the enum order is free to change.
 #pragma once
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Settings-page order.
 enum class BuiltinMenuItem : uint8_t {
@@ -65,7 +65,7 @@ constexpr uint32_t kRowActionsAll = kRowActionStar | kRowActionNewTab | kRowActi
 constexpr uint32_t kRowActionOrderShift = 3u;
 uint32_t RowActionMask(uint32_t builtin_hidden, const BuiltinMenuOrder& row_order = {});
 
-// Settings page: the three surfaces the Pulse menu card switches between.
+// Settings page: the three surfaces the Luling menu card switches between.
 enum class BuiltinMenuSurface : uint8_t { Item, Background, RowButtons, Count };
 // Rows that are shown for reference but can never be hidden.
 enum class BuiltinFixedRow : uint8_t { None, Open, Strip };
@@ -117,4 +117,4 @@ uint32_t BuiltinMenuPresetHidden(BuiltinMenuPreset preset);
 // The preset whose mask equals `builtin_hidden`, or Count for 自定义.
 BuiltinMenuPreset BuiltinMenuPresetFor(uint32_t builtin_hidden);
 
-} // namespace pulse::app
+} // namespace luling::app

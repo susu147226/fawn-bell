@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr size_t kWorkbookBytes = 64u << 20;
@@ -385,4 +385,4 @@ bool ReadSheetModel(const std::wstring& path, int rows, int cols, SheetModel& mo
     return ReadXlsxModel(path, rows, cols, model, error);
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

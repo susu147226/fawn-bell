@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -234,7 +234,7 @@ std::vector<ui::FluentMenuItem> ContextMenuController::BuildDisplay(
         prefs, ComposeEntries(prefs, prefs_changed)));
     ui::FluentMenuItem manage;
     manage.command = CmdSettingsContextMenu;
-    manage.text = pulse::l10n::Get(pulse::l10n::StringId::ManageContext);
+    manage.text = luling::l10n::Get(luling::l10n::StringId::ManageContext);
     manage.glyph = L"\xE713";
     if (!display.empty()) display.back().separator_after = true;
     display.push_back(std::move(manage));
@@ -530,4 +530,4 @@ int ContextMenuController::ConsumeDueRefreshes(uint64_t now) noexcept {
     return due;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

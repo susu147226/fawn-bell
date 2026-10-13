@@ -3,7 +3,7 @@
 #include "../ipc/protocol.h"
 #include "network_agent_security.h"
 
-namespace pulse::index::agent {
+namespace luling::index::agent {
 
 inline constexpr uint32_t kMagic = 0x544E5050; // 'PPNT'
 inline constexpr size_t kMaxPayload = 16 * 1024 * 1024;
@@ -36,4 +36,4 @@ inline ipc::MsgHeader MakeHeader(uint32_t type, uint32_t id, uint32_t size) {
     return header;
 }
 
-} // namespace pulse::index::agent
+} // namespace luling::index::agent

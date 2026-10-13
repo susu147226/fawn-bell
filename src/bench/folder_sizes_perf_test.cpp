@@ -10,7 +10,7 @@
 
 namespace {
 using Clock = std::chrono::steady_clock;
-using State = pulse::app::FolderSizeState;
+using State = luling::app::FolderSizeState;
 double Milliseconds(Clock::time_point start) {
     return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
@@ -70,13 +70,13 @@ bool Wait(const std::function<bool()>& predicate, DWORD timeout = 10000) {
     return predicate();
 }
 int Real(const wchar_t* input) {
-    const auto path = pulse::fs::NormalizePath(input);
+    const auto path = luling::fs::NormalizePath(input);
     const DWORD attrs = GetFileAttributesW(path.c_str());
     if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY) ||
-        (attrs & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_OFFLINE)) || pulse::fs::IsUncPath(path)) {
+        (attrs & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_OFFLINE)) || luling::fs::IsUncPath(path)) {
         std::printf("[FAIL] benchmark requires an accessible local non-reparse directory\n"); return 2;
     }
-    pulse::app::FolderSizes sizes;
+    luling::app::FolderSizes sizes;
     sizes.SetIndexEnabled(false); // Exact metadata traversal, no service, watches or persistent cache.
     const auto cpu = [] {
         FILETIME created{}, exited{}, kernel{}, user{};
@@ -106,7 +106,7 @@ int Real(const wchar_t* input) {
     const auto reference_ms = Milliseconds(reference_start);
     bool same = finished && !reference.timed_out && value.has_value && value.bytes == reference.bytes &&
         (value.state == State::Partial) == reference.partial;
-#ifndef PULSE_FOLDER_SIZE_BASELINE
+#ifndef LULING_FOLDER_SIZE_BASELINE
     same = same && value.partial == reference.partial;
 #endif
     std::printf("[REAL] path=%ls source=%s bytes=%llu scan_ms=%.3f reference_ms=%.3f reference_bytes=%llu "
@@ -130,7 +130,7 @@ int Regression() {
     const auto check = [&](bool passed, const char* label) {
         std::printf("[%s] %s\n", passed ? "PASS" : "FAIL", label); ok &= passed;
     };
-    pulse::app::FolderSizes sizes;
+    luling::app::FolderSizes sizes;
     sizes.SetIndexEnabled(false);
     const auto nested = (fixture / L"nested").wstring(), empty = (fixture / L"empty").wstring();
     sizes.Sync({{nested}, {empty}}, {});
@@ -145,7 +145,7 @@ int Regression() {
     if (SetFileAttributesW(offline.c_str(), FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_OFFLINE)) {
         const auto cache_file = (fixture / L"partial-cache.json").wstring();
         {
-            pulse::app::FolderSizes partial;
+            luling::app::FolderSizes partial;
             partial.SetIndexEnabled(false); partial.SetCachePath([cache_file] { return cache_file; });
             partial.Sync({{nested}}, {});
             check(Wait([&] { return partial.Get(nested).state == State::Partial; }) &&
@@ -158,7 +158,7 @@ int Regression() {
             partial.Stop();
         }
         {
-            pulse::app::FolderSizes restored;
+            luling::app::FolderSizes restored;
             restored.SetIndexEnabled(false); restored.SetCachePath([cache_file] { return cache_file; });
             restored.Sync({{nested, false}}, {});
             check(Wait([&] { return restored.Get(nested).has_value; }) && restored.Get(nested).partial &&

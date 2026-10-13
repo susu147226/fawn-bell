@@ -7,8 +7,8 @@
 namespace {
 int failures = 0;
 void Check(bool ok, const char* label) { std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); std::fflush(stdout); failures += !ok; }
-std::wstring Pipe(const std::wstring& id) { return L"\\\\.\\pipe\\PulseDocumentImageTest-" + id; }
-std::wstring Event(const std::wstring& id) { return L"Local\\PulseDocumentImageTest-" + id; }
+std::wstring Pipe(const std::wstring& id) { return L"\\\\.\\pipe\\LulingDocumentImageTest-" + id; }
+std::wstring Event(const std::wstring& id) { return L"Local\\LulingDocumentImageTest-" + id; }
 int SlowProvider(const std::wstring& id) {
     HANDLE entered = OpenEventW(EVENT_MODIFY_STATE, FALSE, Event(id).c_str());
     if (!entered) return 2;
@@ -16,16 +16,16 @@ int SlowProvider(const std::wstring& id) {
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 4096, 4096, 0, nullptr);
     if (pipe == INVALID_HANDLE_VALUE) { CloseHandle(entered); return 2; }
     if (!ConnectNamedPipe(pipe, nullptr) && GetLastError() != ERROR_PIPE_CONNECTED) { CloseHandle(pipe); CloseHandle(entered); return 2; }
-    pulse::ipc::PreviewRequest req{};
-    bool ok = pulse::ipc::ReadAll(pipe, &req, sizeof(req)) && req.path_chars < 32768 &&
-        (req.flags & pulse::ipc::kPreviewRequestFlagDocumentImage);
+    luling::ipc::PreviewRequest req{};
+    bool ok = luling::ipc::ReadAll(pipe, &req, sizeof(req)) && req.path_chars < 32768 &&
+        (req.flags & luling::ipc::kPreviewRequestFlagDocumentImage);
     std::wstring path(ok ? req.path_chars : 0, L'\0');
-    ok = ok && pulse::ipc::ReadAll(pipe, path.data(), static_cast<DWORD>(path.size() * sizeof(wchar_t)));
+    ok = ok && luling::ipc::ReadAll(pipe, path.data(), static_cast<DWORD>(path.size() * sizeof(wchar_t)));
     if (ok) { SetEvent(entered); Sleep(INFINITE); }
     CloseHandle(pipe); CloseHandle(entered); return 2;
 }
 }
-namespace pulse::ui {
+namespace luling::ui {
 struct ThumbnailCacheTestAccess {
     static int Run() {
         ComPtr<ID3D11Device> d3d;
@@ -102,7 +102,7 @@ struct ThumbnailCacheTestAccess {
 }
 int wmain(int argc, wchar_t** argv) {
     if (argc == 3 && wcscmp(argv[1], L"--slow-provider") == 0) return SlowProvider(argv[2]);
-    pulse::ui::ThumbnailCacheTestAccess::Run();
+    luling::ui::ThumbnailCacheTestAccess::Run();
     const auto root = std::filesystem::absolute(std::filesystem::path(L"bench_data") /
         (L"document-image-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64())));
     std::error_code ec; std::filesystem::create_directories(root.parent_path(), ec);
@@ -110,19 +110,19 @@ int wmain(int argc, wchar_t** argv) {
     const auto file = root / L"offline.bmp";
     { std::ofstream out(file, std::ios::binary); out << "private offline fixture"; Check(out.good(), "private fixture written"); }
     Check(SetFileAttributesW(file.c_str(), FILE_ATTRIBUTE_OFFLINE) && (GetFileAttributesW(file.c_str()) & FILE_ATTRIBUTE_OFFLINE), "offline flag set only on private ordinary file");
-    pulse_test::Host host;
+    luling_test::Host host;
     Check(host.Start(), "production preview host started");
-    pulse_test::Result result;
-    Check(host.Request(file.wstring(), result, FILE_ATTRIBUTE_NORMAL, 128, pulse::ipc::PreviewRequestKind::Content,
-        pulse::ipc::kPreviewRequestFlagDocumentImage) && result.response.status != 0 && result.response.bytes_read == 0 && result.error == L"offline-placeholder",
+    luling_test::Result result;
+    Check(host.Request(file.wstring(), result, FILE_ATTRIBUTE_NORMAL, 128, luling::ipc::PreviewRequestKind::Content,
+        luling::ipc::kPreviewRequestFlagDocumentImage) && result.response.status != 0 && result.response.bytes_read == 0 && result.error == L"offline-placeholder",
         "production host resolves actual offline metadata and reads zero content");
     result = {};
-    Check(host.Request(root.wstring(), result, FILE_ATTRIBUTE_NORMAL, 128, pulse::ipc::PreviewRequestKind::Content,
-        pulse::ipc::kPreviewRequestFlagDocumentImage) && result.response.status != 0 && result.response.bytes_read == 0 && result.error == L"document-image-directory",
+    Check(host.Request(root.wstring(), result, FILE_ATTRIBUTE_NORMAL, 128, luling::ipc::PreviewRequestKind::Content,
+        luling::ipc::kPreviewRequestFlagDocumentImage) && result.response.status != 0 && result.response.bytes_read == 0 && result.error == L"document-image-directory",
         "production host rejects directories before decode");
     result = {};
-    Check(host.Request((root / L"missing.png").wstring(), result, FILE_ATTRIBUTE_NORMAL, 128, pulse::ipc::PreviewRequestKind::Content,
-        pulse::ipc::kPreviewRequestFlagDocumentImage) && result.response.status != 0 && result.error == L"path-unavailable",
+    Check(host.Request((root / L"missing.png").wstring(), result, FILE_ATTRIBUTE_NORMAL, 128, luling::ipc::PreviewRequestKind::Content,
+        luling::ipc::kPreviewRequestFlagDocumentImage) && result.response.status != 0 && result.error == L"path-unavailable",
         "production host reports missing image metadata");
     Check(SetFileAttributesW(file.c_str(), FILE_ATTRIBUTE_NORMAL), "private image brought online for success case");
     {
@@ -136,9 +136,9 @@ int wmain(int argc, wchar_t** argv) {
         Check(out.good(), "private bitmap fixture written");
     }
     result = {};
-    Check(host.Request(file.wstring(), result, FILE_ATTRIBUTE_OFFLINE, 128, pulse::ipc::PreviewRequestKind::Content,
-        pulse::ipc::kPreviewRequestFlagDocumentImage) && result.response.status == 0 &&
-        result.response.kind == pulse::ipc::PreviewContentKind::Bitmap && !result.pixels.empty(),
+    Check(host.Request(file.wstring(), result, FILE_ATTRIBUTE_OFFLINE, 128, luling::ipc::PreviewRequestKind::Content,
+        luling::ipc::kPreviewRequestFlagDocumentImage) && result.response.status == 0 &&
+        result.response.kind == luling::ipc::PreviewContentKind::Bitmap && !result.pixels.empty(),
         "production host uses fresh online metadata and decodes image");
     host.Stop();
     Check(SetFileAttributesW(file.c_str(), FILE_ATTRIBUTE_NORMAL) && DeleteFileW(file.c_str()) && RemoveDirectoryW(root.c_str()), "exclusive fixture cleaned up");

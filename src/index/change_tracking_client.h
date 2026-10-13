@@ -7,7 +7,7 @@
 #include <deque>
 #include <unordered_map>
 
-namespace pulse::index {
+namespace luling::index {
 class ChangeTrackingClient {
 public:
     ~ChangeTrackingClient() { Stop(); }

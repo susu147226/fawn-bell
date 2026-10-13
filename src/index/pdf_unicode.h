@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 inline HRESULT AppendPdfUnicode(std::wstring& text, uint32_t value, size_t capacity) {
     // PDFium uses zero for characters without a Unicode mapping.
     if (!value) return S_OK;
@@ -20,4 +20,4 @@ inline HRESULT AppendPdfUnicode(std::wstring& text, uint32_t value, size_t capac
     }
     return S_OK;
 }
-} // namespace pulse::index
+} // namespace luling::index

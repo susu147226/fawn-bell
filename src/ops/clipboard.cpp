@@ -5,7 +5,7 @@
 #include <shlobj.h>
 #include <cstring>
 
-namespace pulse::ops {
+namespace luling::ops {
 
 namespace {
 
@@ -179,4 +179,4 @@ bool CompleteCutClipboard(uint32_t sequence, const std::vector<std::wstring>& ex
     return ok;
 }
 
-} // namespace pulse::ops
+} // namespace luling::ops

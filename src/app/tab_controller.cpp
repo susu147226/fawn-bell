@@ -7,15 +7,15 @@
 #include <algorithm>
 #include <memory>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
-const wchar_t* TabText(pulse::l10n::StringId id) {
-    return pulse::l10n::Get(id).c_str();
+const wchar_t* TabText(luling::l10n::StringId id) {
+    return luling::l10n::Get(id).c_str();
 }
 
-using Text = pulse::l10n::StringId;
+using Text = luling::l10n::StringId;
 
 constexpr uint32_t kPalette[] = {
     0xE74856, 0xF7630C, 0xFFB900, 0x6CCB5F,
@@ -253,9 +253,9 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
     items.push_back(MenuItem(CmdTabNewRight, TabText(Text::TabNewRight), L"\xE710"));
     items.push_back(MenuItem(CmdTabDuplicate, TabText(Text::TabDuplicate), L"\xE8C8"));
     items.push_back(MenuItem(CmdTabRename,
-        pulse::l10n::Get(pulse::l10n::StringId::TabRename).c_str(), L"\xE8AC"));
+        luling::l10n::Get(luling::l10n::StringId::TabRename).c_str(), L"\xE8AC"));
     ui::FluentMenuItem colors;
-    colors.text = pulse::l10n::Get(pulse::l10n::StringId::TabColor);
+    colors.text = luling::l10n::Get(luling::l10n::StringId::TabColor);
     ui::FluentMenuItem palette;
     for (int i = 0; i < static_cast<int>(std::size(kPalette)); ++i) {
         ui::FluentMenuSwatch swatch;
@@ -266,7 +266,7 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
     }
     colors.children.push_back(std::move(palette));
     colors.children.push_back(MenuItem(CmdTabColorNone,
-        pulse::l10n::Get(pulse::l10n::StringId::TabColorNone).c_str()));
+        luling::l10n::Get(luling::l10n::StringId::TabColorNone).c_str()));
     items.push_back(std::move(colors));
     items.push_back(MenuItem(CmdTabPin,
         TabText(tab.pinned ? Text::TabUnpin : Text::TabPin), L"\xE718"));
@@ -307,14 +307,14 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
                        current ? current->current_path : L"C:\\");
     } else if (command == CmdTabRename) {
         std::wstring draft = LayoutTabTitle(tab);
-        menu.SetFilterPlaceholder(pulse::l10n::Get(pulse::l10n::StringId::TabNameHint));
+        menu.SetFilterPlaceholder(luling::l10n::Get(luling::l10n::StringId::TabNameHint));
         menu.SetInitialFilterText(draft);
         menu.SetFilterMinWidth(320.0f);
         const auto build = [&](const std::wstring& query) {
             draft = query;
             return std::vector<ui::FluentMenuItem>{
-                MenuItem(CmdTabNameSave, pulse::l10n::Get(pulse::l10n::StringId::TabNameSave).c_str()),
-                MenuItem(CmdTabNameReset, pulse::l10n::Get(pulse::l10n::StringId::TabNameReset).c_str())};
+                MenuItem(CmdTabNameSave, luling::l10n::Get(luling::l10n::StringId::TabNameSave).c_str()),
+                MenuItem(CmdTabNameReset, luling::l10n::Get(luling::l10n::StringId::TabNameReset).c_str())};
         };
         const int choice = menu.TrackPopup(screen_pt, build(draft), build);
         menu.SetFilterPlaceholder(TabText(Text::TabMenuSearch));
@@ -355,4 +355,4 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
     Changed();
 }
 
-} // namespace pulse::app
+} // namespace luling::app

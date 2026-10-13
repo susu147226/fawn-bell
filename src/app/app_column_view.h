@@ -2,7 +2,7 @@
 #pragma once
 #include "app_runtime.h"
 
-namespace pulse {
+namespace luling {
 
 // Keeps every visible pane's column listings in step with its folder and
 // selection. Cheap when nothing changed; starts async loads otherwise.
@@ -27,4 +27,4 @@ bool HandleColumnStripWheel(AppState& s, const ui::WindowViewModel& vm,
 bool HandleColumnArrowKey(AppState& s, bool right);
 void ToggleColumnLayout(AppState& s, int pane_index);
 
-} // namespace pulse
+} // namespace luling

@@ -12,12 +12,12 @@ const std::wstring parent_path = L"\\\\server\\share";
 const std::wstring child_path = L"\\\\SERVER\\SHARE\\sub";
 struct Item { std::wstring path; uint32_t size; bool directory = false; };
 }
-namespace pulse::index { std::wstring OverlapTestUserIndexRoot() { return fixture_directory; } }
+namespace luling::index { std::wstring OverlapTestUserIndexRoot() { return fixture_directory; } }
 #define UserIndexRoot OverlapTestUserIndexRoot
 #include "../index/network_index.cpp"
 #undef UserIndexRoot
 
-namespace pulse::index {
+namespace luling::index {
 struct NetworkIndexTestAccess {
     static bool Add(NetworkIndex& index, const std::wstring& path, const std::vector<Item>& items) {
         static unsigned next = 0;
@@ -70,7 +70,7 @@ struct NetworkIndexTestAccess {
 };
 }
 namespace {
-using namespace pulse::index;
+using namespace luling::index;
 SearchResult Search(NetworkIndex& index, Query query, bool& completed) {
     static uint32_t next = 0;
     const auto id = ++next;
@@ -95,7 +95,7 @@ bool Unique(const std::vector<Hit>& hits) {
 }
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     using Access = NetworkIndexTestAccess;
     int failures = 0;
     const auto check = [&](bool ok, const char* name) {
@@ -103,7 +103,7 @@ int main() {
         failures += !ok;
     };
     const auto temp = std::filesystem::temp_directory_path();
-    const auto fixture = temp / (L"pulse-network-overlap-test-" + std::to_wstring(GetCurrentProcessId()) +
+    const auto fixture = temp / (L"luling-network-overlap-test-" + std::to_wstring(GetCurrentProcessId()) +
                                 L"-" + std::to_wstring(GetTickCount64()));
     std::error_code ec;
     if (!std::filesystem::create_directory(fixture, ec)) return 1;
@@ -191,7 +191,7 @@ int main() {
     const auto status = std::filesystem::symlink_status(fixture, ec);
     const bool owned = same_parent && !guard_error && !ec &&
         status.type() == std::filesystem::file_type::directory &&
-        fixture.filename().wstring().starts_with(L"pulse-network-overlap-test-");
+        fixture.filename().wstring().starts_with(L"luling-network-overlap-test-");
     if (owned) std::filesystem::remove_all(fixture, ec);
     check(owned && !ec && !std::filesystem::exists(fixture), "private mapped shard fixture cleaned up");
     return failures ? 1 : 0;

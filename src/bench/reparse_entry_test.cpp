@@ -51,7 +51,7 @@ static bool MakeJunction(const std::filesystem::path& link, const std::filesyste
 }
 
 int main() {
-    using namespace pulse::fs;
+    using namespace luling::fs;
     const auto root = std::filesystem::absolute(L"bench_data/reparse-entry-" +
         std::to_wstring(GetCurrentProcessId()));
     std::filesystem::create_directories(root / L"target");
@@ -68,9 +68,9 @@ int main() {
         "cloud placeholder is not link");
     Check(ClassifyLink(FILE_ATTRIBUTE_REPARSE_POINT, 0) == LinkKind::None,
         "unknown reparse tag is not link");
-    Check(pulse::ui::LinkTypeText(LinkKind::None).empty() &&
-        !pulse::ui::LinkTypeText(LinkKind::SymbolicLink).empty() &&
-        pulse::ui::LinkTypeText(LinkKind::SymbolicLink) != pulse::ui::LinkTypeText(LinkKind::Junction),
+    Check(luling::ui::LinkTypeText(LinkKind::None).empty() &&
+        !luling::ui::LinkTypeText(LinkKind::SymbolicLink).empty() &&
+        luling::ui::LinkTypeText(LinkKind::SymbolicLink) != luling::ui::LinkTypeText(LinkKind::Junction),
         "link presentation uses distinct type labels");
     const auto junction = root / L"junction";
     Check(MakeJunction(junction, root / L"target"), "create isolated real junction");
@@ -113,7 +113,7 @@ int main() {
     entry.is_dir = entry.is_reparse = true;
     entry.reparse_tag = IO_REPARSE_TAG_MOUNT_POINT;
     entries->push_back(entry);
-    const std::wstring unc = L"\\\\pulse-reparse-fixture\\share";
+    const std::wstring unc = L"\\\\luling-reparse-fixture\\share";
     Check(SaveNetSnapshot(BeginNetSnapshotWrite(unc), entries), "save isolated v2 cache");
     auto loaded = LoadNetSnapshot(unc);
     Check(loaded && loaded->size() == 1 && (*loaded)[0].reparse_tag == IO_REPARSE_TAG_MOUNT_POINT,

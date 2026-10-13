@@ -1,9 +1,9 @@
-// app_prompts.h — Yes/no questions asked from app code, in the Pulse confirm dialog.
+// app_prompts.h — Yes/no questions asked from app code, in the Luling confirm dialog.
 #pragma once
 
 #include <cstddef>
 
-namespace pulse {
+namespace luling {
 struct AppState;
 
 bool ConfirmClearRecent(AppState& s);
@@ -12,4 +12,4 @@ bool ConfirmClearDiagnostics(AppState& s);
 bool ConfirmDiagnosticsExport(AppState& s, bool& include_service);
 // True = retry the recoverable operations, false = discard them.
 bool AskRetryRecovery(AppState& s, size_t count, bool uncertain_destructive, bool duplicate_cleanup = false);
-} // namespace pulse
+} // namespace luling

@@ -3,7 +3,7 @@
 #include "app_model.h"
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Keep the active pane when shrinking without moving or discarding owned views.
 // Existing visible panes take priority; expansion restores the ownership order.
@@ -35,4 +35,4 @@ inline std::vector<Pane*> SelectLayoutPanes(
     return ordered;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

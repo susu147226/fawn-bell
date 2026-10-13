@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 // Per-query disk spool. Only a bounded set of display pages lives in memory.
 // Append is called by the IPC reader, never by the window thread.
 class ContentResultStore {
@@ -50,4 +50,4 @@ private:
     struct Impl;
     std::shared_ptr<Impl> impl_;
 };
-} // namespace pulse::index
+} // namespace luling::index

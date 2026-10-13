@@ -1,9 +1,9 @@
 #include "filename_timing.h"
 #include "index_paths.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include <mutex>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 uint64_t FileTimeValue(FILETIME time) noexcept {
     return (static_cast<uint64_t>(time.dwHighDateTime) << 32) | time.dwLowDateTime;
@@ -21,7 +21,7 @@ std::string Utf8(const wchar_t* value) {
 void Write(const std::string& line) {
     const auto directory = DataDir();
     if (directory.empty()) return;
-    const auto path = directory + L"\\pulse-index-timing.jsonl";
+    const auto path = directory + L"\\luling-index-timing.jsonl";
     static std::mutex mutex;
     std::lock_guard lock(mutex);
     HANDLE file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE,
@@ -82,7 +82,7 @@ void FilenameTiming::Flush(bool force) noexcept {
         FILETIME time{}; GetSystemTimeAsFileTime(&time);
         std::string line = "{\"event\":\"filename_timing\",\"pid\":" + std::to_string(GetCurrentProcessId()) +
             ",\"role\":\"" + (MachineIndexScope() ? "filename_service" : "filename_user") +
-            "\",\"version\":\"" PULSE_VERSION_STRING_A "\",\"build\":\"" + Utf8(PULSE_BUILD_ID) +
+            "\",\"version\":\"" LULING_VERSION_STRING_A "\",\"build\":\"" + Utf8(LULING_BUILD_ID) +
             "\",\"timestamp_filetime\":" + std::to_string(FileTimeValue(time)) + ",\"stages\":{";
         for (size_t i = 0; i < counters_.size(); ++i) {
             const auto& c = counters_[i];

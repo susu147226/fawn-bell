@@ -9,7 +9,7 @@
 #include <cmath>
 
 int main(int argc, char** argv) {
-    using namespace pulse;
+    using namespace luling;
     CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
     l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
     int failures=0;
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     auto state=std::make_unique<AppState>(); auto& s=*state;
     s.isolatedTest=true; s.appPrefs.persist=false; s.searchHistory.persist=false;
     WNDCLASSW wc{}; wc.hInstance=GetModuleHandleW(nullptr); wc.lpfnWndProc=DefWindowProcW;
-    wc.lpszClassName=L"PulseContentProgressFixture"; RegisterClassW(&wc);
+    wc.lpszClassName=L"LulingContentProgressFixture"; RegisterClassW(&wc);
     s.hwnd=CreateWindowExW(0,wc.lpszClassName,L"",WS_OVERLAPPEDWINDOW,0,0,1100,720,nullptr,nullptr,wc.hInstance,nullptr);
     if(!s.hwnd || !s.compositor.Init(s.hwnd)) return 2;
     s.renderer.SetCompositor(&s.compositor);
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
         check(tab->EntryCount()==1 && !tab->banner_title.empty(),"network failure preserves local hits and displays incomplete status");
         app::SavedSearch saved; saved.name=L"fixture saved"; saved.query=L"fixture"; saved.root=L"C:\\Fixture";
         check(s.savedSearches.Add(saved),"saved filename query fixture is in memory only");
-        tab->current_path=L"pulse:saved-search:0";
+        tab->current_path=L"luling:saved-search:0";
         tab->search_total=2200; tab->search_next_offset=2048;
         tab->search_loading_more=false; tab->search_content_stopped=false; tab->search_awaiting_content=false;
         tab->loading=false; tab->search_session_id=9911;

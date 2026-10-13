@@ -44,13 +44,13 @@ bool CheckDeniedDirectoryProbe(const std::filesystem::path& directory) {
         DACL_SECURITY_INFORMATION, nullptr, nullptr, denied, nullptr);
     LocalFree(denied);
     if (applied != ERROR_SUCCESS) return false;
-    return pulse::ops::TargetNeedsElevation(directory.wstring()) &&
-           pulse::ops::TargetNeedsElevation((directory / L"absent" / L"nested").wstring());
+    return luling::ops::TargetNeedsElevation(directory.wstring()) &&
+           luling::ops::TargetNeedsElevation((directory / L"absent" / L"nested").wstring());
 }
 }
 
 int wmain() {
-    using namespace pulse::ops;
+    using namespace luling::ops;
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (FAILED(initialized)) return 2;
     int failures = 0;
@@ -61,7 +61,7 @@ int wmain() {
     wchar_t temporary[MAX_PATH]{};
     if (!GetTempPathW(MAX_PATH, temporary)) { CoUninitialize(); return 2; }
     const auto root = std::filesystem::path(temporary) /
-        (L"pulse_shell_transfer_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
+        (L"luling_shell_transfer_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
     try {
         const auto source = root / L"source";
         const auto copied = root / L"copied";

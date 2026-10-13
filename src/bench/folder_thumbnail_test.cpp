@@ -51,7 +51,7 @@ int wmain(int argc, wchar_t** argv) {
         for (int run = 0; run < 2; ++run) {
             UINT w = 0, h = 0, stride = 0; std::vector<uint8_t> pixels;
             const auto begin = std::chrono::steady_clock::now();
-            const bool ok = pulse::preview::DecodeFolderThumbnail(argv[2], 256, pixels, w, h, stride, false, force);
+            const bool ok = luling::preview::DecodeFolderThumbnail(argv[2], 256, pixels, w, h, stride, false, force);
             const DWORD error = GetLastError();
             std::cout << "[TRACE] run=" << run << " ok=" << ok << " error=" << error << " ms="
                 << std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count() << '\n';
@@ -67,7 +67,7 @@ int wmain(int argc, wchar_t** argv) {
             for (int run = 0; run < 10; ++run) {
                 UINT w = 0, h = 0, stride = 0; std::vector<uint8_t> pixels;
                 const auto begin = std::chrono::steady_clock::now();
-                const bool ok = pulse::preview::DecodeFolderThumbnail(argv[2], 256, pixels, w, h, stride, false, mode != 1);
+                const bool ok = luling::preview::DecodeFolderThumbnail(argv[2], 256, pixels, w, h, stride, false, mode != 1);
                 std::cout << "[BENCH] " << (mode == 0 ? "force-cache" : mode == 1 ? "warm-cache" : "force-no-cache")
                     << " " << run << " " << std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count()
                     << " ms ok=" << ok << '\n';
@@ -84,9 +84,9 @@ int wmain(int argc, wchar_t** argv) {
     SetEnvironmentVariableW(L"LOCALAPPDATA",(root/L"cache").c_str());
     for (int i=0; i<3; ++i) { std::error_code ec; fs::remove(root/L"input"/(std::to_wstring(i)+L".bmp"),ec); }
     UINT w=0,h=0,stride=0; std::vector<uint8_t> pixels, prior;
-    const auto decode=[&](bool single=false,bool force=false) {return pulse::preview::DecodeFolderThumbnail((root/L"input").wstring(),256,pixels,w,h,stride,single,force);};
-    Check(!pulse::preview::DecodeFolderThumbnail((root/L"empty").wstring(),256,pixels,w,h,stride),"empty uses ordinary folder icon");
-    Check(!pulse::preview::DecodeFolderThumbnail(L"\\\\invalid\\share",256,pixels,w,h,stride),"UNC rejected before probing");
+    const auto decode=[&](bool single=false,bool force=false) {return luling::preview::DecodeFolderThumbnail((root/L"input").wstring(),256,pixels,w,h,stride,single,force);};
+    Check(!luling::preview::DecodeFolderThumbnail((root/L"empty").wstring(),256,pixels,w,h,stride),"empty uses ordinary folder icon");
+    Check(!luling::preview::DecodeFolderThumbnail(L"\\\\invalid\\share",256,pixels,w,h,stride),"UNC rejected before probing");
     for (int i=0; i<3; ++i) {
         Fixture(root/L"input"/(std::to_wstring(i)+L".bmp"),i);
         const auto begin=std::chrono::steady_clock::now();
@@ -105,25 +105,25 @@ int wmain(int argc, wchar_t** argv) {
     Fixture(root/L"input"/L"0.bmp",2);
     Check(decode()&&pixels!=prior,"child write invalidates persisted composite");
     prior=pixels; Check(decode(false,true)&&pixels==prior,"explicit refresh preserves deterministic rendering");
-#ifdef PULSE_FOLDER_THUMBNAIL_TESTING
+#ifdef LULING_FOLDER_THUMBNAIL_TESTING
     fs::create_directories(root/L"budget");
     for (int i=0; i<3; ++i) Fixture(root/L"budget"/(std::to_wstring(i)+L".bmp"),i);
     const auto budget_decode=[&](bool force=false) {
-        return pulse::preview::DecodeFolderThumbnail((root/L"budget").wstring(),256,pixels,w,h,stride,false,force);
+        return luling::preview::DecodeFolderThumbnail((root/L"budget").wstring(),256,pixels,w,h,stride,false,force);
     };
-    pulse::preview::SetFolderThumbnailBudgetForTest(0);
+    luling::preview::SetFolderThumbnailBudgetForTest(0);
     Check(!budget_decode(true) && GetLastError()==ERROR_TIMEOUT && pixels.empty() && !w,
         "enumeration budget exhaustion is transient and emits no bitmap");
-    pulse::preview::SetFolderThumbnailBudgetForTest(450);
+    luling::preview::SetFolderThumbnailBudgetForTest(450);
     Check(budget_decode(),"budget exhaustion did not persist a negative cache entry");
     prior=pixels;
-    pulse::preview::SetFolderThumbnailBudgetForTest(450,1);
+    luling::preview::SetFolderThumbnailBudgetForTest(450,1);
     Check(!budget_decode(true) && GetLastError()==ERROR_TIMEOUT && pixels.empty() && !w,
         "budget exhaustion after first card never emits partial success");
-    pulse::preview::SetFolderThumbnailBudgetForTest(450);
+    luling::preview::SetFolderThumbnailBudgetForTest(450);
     Check(budget_decode() && pixels==prior,"partial attempt preserves previously complete cache entry");
     SetLastError(ERROR_TIMEOUT);
-    Check(!pulse::preview::DecodeFolderThumbnail((root/L"empty").wstring(),256,pixels,w,h,stride) &&
+    Check(!luling::preview::DecodeFolderThumbnail((root/L"empty").wstring(),256,pixels,w,h,stride) &&
         GetLastError()!=ERROR_TIMEOUT,"ordinary empty result clears a previous timeout status");
 #endif
     SetEnvironmentVariableW(L"LOCALAPPDATA",previous[0]?previous:nullptr);

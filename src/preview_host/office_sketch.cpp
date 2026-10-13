@@ -14,7 +14,7 @@
 #include <cmath>
 #include <cwctype>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -703,4 +703,4 @@ bool RenderOfficeSketch(const std::wstring& path, std::wstring_view extension, U
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

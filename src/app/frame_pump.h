@@ -12,7 +12,7 @@
 #include <atomic>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 
 class FramePump {
 public:
@@ -62,4 +62,4 @@ private:
     std::atomic<bool> posted_{false};
 };
 
-} // namespace pulse::app
+} // namespace luling::app

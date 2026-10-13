@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <array>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 using Microsoft::WRL::ComPtr;
 
@@ -148,4 +148,4 @@ std::vector<NetworkLocation> MergeNetworkLocations(const std::vector<NetworkLoca
     append(system);
     return result;
 }
-} // namespace pulse::app
+} // namespace luling::app

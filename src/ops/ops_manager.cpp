@@ -29,9 +29,9 @@
 #include <vector>
 #include <winioctl.h>
 
-namespace pulse::ops {
+namespace luling::ops {
 
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
 void ObserveTransferScanForReview(OpsManager&, const std::wstring&);
 void ObserveTransferStartForReview(OpsManager&, uint64_t);
 void ObserveShellCallbacksForReview(const ipc::ShellClient::Callbacks&);
@@ -56,7 +56,7 @@ void ShowMultiFilePropertiesAsync(std::vector<std::wstring> paths) {
         std::vector<PIDLIST_ABSOLUTE> pidls;
         pidls.reserve(paths.size());
         for (const auto& path : paths) {
-            const std::wstring shell_path = pulse::path::StripExtendedPathPrefix(path);
+            const std::wstring shell_path = luling::path::StripExtendedPathPrefix(path);
             PIDLIST_ABSOLUTE pidl = nullptr;
             if (SUCCEEDED(SHParseDisplayName(shell_path.c_str(), nullptr, &pidl, 0, nullptr)) && pidl)
                 pidls.push_back(pidl);
@@ -74,9 +74,9 @@ void ShowMultiFilePropertiesAsync(std::vector<std::wstring> paths) {
         bool shown = data && SUCCEEDED(SHMultiFileProperties(data, 0));
         if (!shown) {
             wchar_t message[160]{};
-            swprintf_s(message, L"Pulse: SHMultiFileProperties failed for %zu items\n", paths.size());
+            swprintf_s(message, L"Luling: SHMultiFileProperties failed for %zu items\n", paths.size());
             OutputDebugStringW(message);
-            const std::wstring first = pulse::path::StripExtendedPathPrefix(paths.front());
+            const std::wstring first = luling::path::StripExtendedPathPrefix(paths.front());
             SHObjectProperties(nullptr, SHOP_FILEPATH, first.c_str(), nullptr);
         }
         // The sheet may live on this thread (a thread's windows die with it)
@@ -638,7 +638,7 @@ bool SameFileObject(const std::wstring& left, const std::wstring& right) {
 // shell namespace paths or when the parent is not an existing directory.
 // Runs on the open thread (the parent may be on a slow network share).
 std::wstring OpenItemWorkingDirectory(const std::wstring& path) {
-    const std::wstring plain = pulse::path::StripExtendedPathPrefix(path);
+    const std::wstring plain = luling::path::StripExtendedPathPrefix(path);
     if (plain.size() < 3 || plain.rfind(L"::", 0) == 0) return {};
     const size_t slash = plain.find_last_of(L"\\/");
     if (slash == std::wstring::npos || slash == 0) return {};
@@ -769,7 +769,7 @@ void OpsManager::Start(std::function<void()> notify, bool own_shell_client) {
         menu_running_ = own_shell_client_;
     }
     thread_ = std::thread([this] { WorkerThread(); });
-#ifndef PULSE_ELEVATED_HOST
+#ifndef LULING_ELEVATED_HOST
     if (own_shell_client_) menu_thread_ = std::thread([this] { MenuThread(); });
     {
         std::lock_guard<std::mutex> lock(open_mutex_);
@@ -893,7 +893,7 @@ void OpsManager::OpenWithApp(const std::wstring& app_exe, const std::wstring& fi
     item.open_path = ParentOf(file);      // lpDirectory
     item.open_file = app_exe;
     item.open_verb = L"open";
-    item.open_args = L"\"" + pulse::path::StripExtendedPathPrefix(file) + L"\"";
+    item.open_args = L"\"" + luling::path::StripExtendedPathPrefix(file) + L"\"";
     EnqueueOpen(std::move(item));
 }
 
@@ -1337,7 +1337,7 @@ void OpsManager::OpenThread() {
             open_queue_.pop_front();
         }
 
-        // Dialogs and association errors belong to the Pulse window, the way
+        // Dialogs and association errors belong to the Luling window, the way
         // Explorer parents them to the folder window. The fallback covers a UI
         // thread that has not registered its HWND yet.
         HWND dialog_owner = ui_hwnd_.load();
@@ -1356,7 +1356,7 @@ void OpsManager::OpenThread() {
                     result.error, 0, detail, ARRAYSIZE(detail), nullptr);
                 const auto message = std::wstring(l10n::Pick(L"无法打开终端。", L"Could not open the terminal.")) +
                     L"\n" + detail + L" (" + std::to_wstring(result.error) + L")";
-                MessageBoxW(dialog_owner, message.c_str(), L"Pulse", MB_OK | MB_ICONERROR);
+                MessageBoxW(dialog_owner, message.c_str(), L"Luling", MB_OK | MB_ICONERROR);
             }
             continue;
         }
@@ -1373,7 +1373,7 @@ void OpsManager::OpenThread() {
                     result.error, 0, detail, ARRAYSIZE(detail), nullptr);
                 const auto message = std::wstring(l10n::Pick(L"无法启动此菜单命令。", L"Could not launch this menu command.")) +
                     L"\n" + detail + L" (" + std::to_wstring(result.error) + L")";
-                MessageBoxW(dialog_owner, message.c_str(), L"Pulse", MB_OK | MB_ICONERROR);
+                MessageBoxW(dialog_owner, message.c_str(), L"Luling", MB_OK | MB_ICONERROR);
             }
             continue;
         }
@@ -1381,7 +1381,7 @@ void OpsManager::OpenThread() {
         if (_wcsicmp(item.open_verb.c_str(), L"openas") == 0 ||
             _wcsicmp(item.open_verb.c_str(), L"openwith") == 0) {
             const std::wstring shell_path =
-                pulse::path::StripExtendedPathPrefix(item.open_path);
+                luling::path::StripExtendedPathPrefix(item.open_path);
             OPENASINFO info{};
             info.pcszFile = shell_path.c_str();
             info.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC;
@@ -1391,7 +1391,7 @@ void OpsManager::OpenThread() {
                 // Queue wait and dialog cost need different fixes, so report both
                 // (DebugView) instead of guessing which one the user feels.
                 wchar_t timing[192]{};
-                swprintf_s(timing, L"Pulse: open-with queued %llu ms, dialog %llu ms\n",
+                swprintf_s(timing, L"Luling: open-with queued %llu ms, dialog %llu ms\n",
                            dialog_started - item.enqueued_at,
                            GetTickCount64() - dialog_started);
                 OutputDebugStringW(timing);
@@ -1408,7 +1408,7 @@ void OpsManager::OpenThread() {
                     // Used to fail silently, which read as a dead menu row.
                     wchar_t message[320]{};
                     swprintf_s(message,
-                        L"Pulse: open-with failed for %ls (SHOpenWithDialog 0x%08lX, "
+                        L"Luling: open-with failed for %ls (SHOpenWithDialog 0x%08lX, "
                         L"shell error %lu)\n",
                         shell_path.c_str(), static_cast<unsigned long>(hr), GetLastError());
                     OutputDebugStringW(message);
@@ -1423,7 +1423,7 @@ void OpsManager::OpenThread() {
         }
 
         if (_wcsicmp(item.open_verb.c_str(), L"properties") == 0) {
-            const std::wstring shell_path = pulse::path::StripExtendedPathPrefix(item.open_path);
+            const std::wstring shell_path = luling::path::StripExtendedPathPrefix(item.open_path);
             bool shown = SHObjectProperties(dialog_owner, SHOP_FILEPATH,
                                             shell_path.c_str(), nullptr) != FALSE;
             if (!shown) {
@@ -1437,7 +1437,7 @@ void OpsManager::OpenThread() {
             if (!shown) {
                 const DWORD error = GetLastError();
                 wchar_t message[256]{};
-                swprintf_s(message, L"Pulse: SHObjectProperties failed for %ls (error %lu)\n",
+                swprintf_s(message, L"Luling: SHObjectProperties failed for %ls (error %lu)\n",
                            shell_path.c_str(), error);
                 OutputDebugStringW(message);
             }
@@ -1451,7 +1451,7 @@ void OpsManager::OpenThread() {
         sei.lpVerb = item.open_verb.empty() ? L"open" : item.open_verb.c_str();
         // Like openas / properties above: the shell and association handlers
         // reject \\?\ paths and answer "Windows cannot find" (#55).
-        const std::wstring shell_path = pulse::path::StripExtendedPathPrefix(item.open_path);
+        const std::wstring shell_path = luling::path::StripExtendedPathPrefix(item.open_path);
         sei.lpFile = item.open_file.empty() ? shell_path.c_str() : item.open_file.c_str();
         sei.lpParameters = item.open_args.empty() ? nullptr : item.open_args.c_str();
         // Like Explorer, start an opened item in its own folder: batch files
@@ -1485,7 +1485,7 @@ void OpsManager::RecordShellDone(uint32_t id, uint32_t hr, bool cancelled, std::
     }
 
 void OpsManager::ConfigureShellCallbacks() {
-#ifndef PULSE_ELEVATED_HOST
+#ifndef LULING_ELEVATED_HOST
     ipc::ShellClient::Callbacks cb;
     // Item operations (delete, restore) only ever report item counts — the shell has no
     // byte callback for them — so their speed comes from counting items per second.
@@ -1553,7 +1553,7 @@ void OpsManager::ConfigureShellCallbacks() {
         }
         OnCtxItems(id, std::move(out), partial, std::move(slow_clsids));
     };
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     ObserveShellCallbacksForReview(cb);
 #endif
     if (own_shell_client_) ipc::ShellClient::Instance().Start(cb);
@@ -1634,7 +1634,7 @@ void OpsManager::WorkerThread() {
         PersistJournal();
     }
 
-#ifndef PULSE_ELEVATED_HOST
+#ifndef LULING_ELEVATED_HOST
     if (own_shell_client_) ipc::ShellClient::Instance().Stop();
 #endif
     CoUninitialize();
@@ -1642,7 +1642,7 @@ void OpsManager::WorkerThread() {
 
 // ---------------------------------------------------------------------------
 // Context-menu forwarding thread: keeps ShellClient::Submit (which may spawn
-// or reconnect to pulse_shell) off the UI thread and out of the transfer queue.
+// or reconnect to luling_shell) off the UI thread and out of the transfer queue.
 // ---------------------------------------------------------------------------
 void OpsManager::SetShellMenuCallback(ShellMenuCallback cb) {
     std::lock_guard<std::mutex> lock(menu_mutex_);
@@ -1817,7 +1817,7 @@ void OpsManager::MenuThread() {
 }
 
 void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     ObserveTransferStartForReview(*this, task_id);
 #endif
     {
@@ -1885,7 +1885,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
         return cancelled;
     };
     if (!req.new_name.empty() && (req.type != OpType::Move || req.sources.size() != 1 ||
-        !pulse::IsRenameFilename(req.new_name))) {
+        !luling::IsRenameFilename(req.new_name))) {
         failure_hr = E_INVALIDARG;
         failure = l10n::Pick(L"移动目标名称无效", L"The move destination name is invalid");
     }
@@ -1894,7 +1894,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
     };
     // Decide before the fast move mutates any source. A whole-request retry
     // after partial completion could duplicate copies or move items twice.
-#ifndef PULSE_ELEVATED_HOST
+#ifndef LULING_ELEVATED_HOST
     if (failure.empty() && !stop_requested() &&
         !req.sources.empty() && !req.dest_dir.empty() &&
         NeedsShellTransfer(req.sources, req.dest_dir, req.type == OpType::Move, req.new_name)) {
@@ -1944,7 +1944,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
                 return;
             }
             const DWORD move_error = GetLastError();
-#ifndef PULSE_ELEVATED_HOST
+#ifndef LULING_ELEVATED_HOST
             if (move_error == ERROR_ACCESS_DENIED || move_error == ERROR_PRIVILEGE_NOT_HELD ||
                 move_error == ERROR_ELEVATION_REQUIRED) {
                 // A locked descendant also makes a directory rename return access
@@ -1967,7 +1967,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
     namespace fsys = std::filesystem;
     if (failure.empty() && !stop_requested()) {
         for (const auto& source : req.sources) {
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
             ObserveTransferScanForReview(*this, source);
 #endif
             if (stop_requested()) break;
@@ -2024,7 +2024,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
                 break;
             }
             for (; it != end;) {
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
                 ObserveTransferScanForReview(*this, it->path().wstring());
 #endif
                 if (stop_requested()) break;
@@ -2279,7 +2279,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
                 break;
             }
             const std::wstring backup = UniqueTemporaryPath(
-                entry.destination, L".pulse-backup-", task_id, index);
+                entry.destination, L".luling-backup-", task_id, index);
             if (!MoveFileExW(entry.destination.c_str(), backup.c_str(), MOVEFILE_WRITE_THROUGH)) {
                 failure = l10n::Pick(L"无法安全备份要替换的目标项目：", L"Could not safely back up the item being replaced: ") + entry.destination
                     + L" | " + Win32Message(GetLastError());
@@ -2331,7 +2331,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
 
         const bool direct = !destination_exists && entry.bytes < kDirectCopyMaxBytes;
         std::wstring copy_destination = direct ? entry.destination
-            : UniqueTemporaryPath(entry.destination, L".pulse-copy-", task_id, index);
+            : UniqueTemporaryPath(entry.destination, L".luling-copy-", task_id, index);
         const bool replacing = destination_exists && choice == ConflictChoice::Replace;
 
         uint64_t known_file_total = entry.bytes;
@@ -2526,7 +2526,7 @@ void OpsManager::RunTransfer(const OpRequest& req, uint64_t task_id) {
     }
 
     // Replacements that could not be put back, appended to the result text so
-    // the kept ".pulse-backup-" copy can be recovered by hand.
+    // the kept ".luling-backup-" copy can be recovered by hand.
     std::wstring rollback_note;
     if (failure.empty() && !cancelled) {
         for (const auto& backup : replacement_backups) {
@@ -2693,7 +2693,7 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
         SetStatus([](OpStatus& st) { st.phase = OpPhase::Running; st.percent = 0.0f; });
     }
 
-#ifndef PULSE_ELEVATED_HOST
+#ifndef LULING_ELEVATED_HOST
     if (req.type == OpType::RecycleDelete || req.type == OpType::RealDelete) {
         RunAuthorizedDelete(req, task_id);
         return;
@@ -3001,20 +3001,20 @@ std::wstring OpsManager::UndoToJson() const {
         swprintf_s(head, L"  {\"type\":%d,\"sup\":%s,", (int)e.type, e.supported ? L"true" : L"false");
         out += head;
         out += L"\"dest\":\"";
-        pulse::json::Escape(e.dest_dir, out);
+        luling::json::Escape(e.dest_dir, out);
         out += L"\",\"name\":\"";
-        pulse::json::Escape(e.new_name, out);
+        luling::json::Escape(e.new_name, out);
         out += L"\",\"src\":[";
         for (size_t j = 0; j < e.sources.size(); ++j) {
             out += L"\"";
-            pulse::json::Escape(e.sources[j], out);
+            luling::json::Escape(e.sources[j], out);
             out += L"\"";
             if (j + 1 < e.sources.size()) out += L",";
         }
         out += L"],\"dst\":[";
         for (size_t j = 0; j < e.destinations.size(); ++j) {
             out += L"\"";
-            pulse::json::Escape(e.destinations[j], out);
+            luling::json::Escape(e.destinations[j], out);
             out += L"\"";
             if (j + 1 < e.destinations.size()) out += L",";
         }
@@ -3148,4 +3148,4 @@ bool OpsManager::UndoFromJson(const std::wstring& in) {
     return true;
 }
 
-} // namespace pulse::ops
+} // namespace luling::ops

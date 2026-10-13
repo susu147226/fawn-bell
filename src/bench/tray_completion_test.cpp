@@ -8,7 +8,7 @@
 
 int RunTrayCompletionTest() {
     namespace fs = std::filesystem;
-    using namespace pulse;
+    using namespace luling;
     std::error_code log_error;
     fs::create_directories(L"bench_data", log_error);
     std::ofstream log(fs::path(L"bench_data/m12002_tray_completion_test.log"), std::ios::trunc);
@@ -27,7 +27,7 @@ int RunTrayCompletionTest() {
         check(false, "could not obtain temporary fixture parent");
         return 2;
     }
-    const auto root = fs::path(temporary) / (L"pulse_tray_completion_" +
+    const auto root = fs::path(temporary) / (L"luling_tray_completion_" +
         std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
     std::error_code ec;
     if (!fs::create_directory(root, ec) || ec) {
@@ -158,7 +158,7 @@ int RunTrayCompletionTest() {
           "absence alone or absent destination cannot confirm authorized success");
     const auto canonical_parent = fs::weakly_canonical(root.parent_path(), ec);
     const bool safe = !ec && fs::equivalent(canonical_parent, fs::path(temporary), ec) && !ec &&
-        root.filename().wstring().starts_with(L"pulse_tray_completion_");
+        root.filename().wstring().starts_with(L"luling_tray_completion_");
     if (safe) fs::remove_all(root, ec);
     check(safe && !ec && !fs::exists(root), "exclusive temporary fixture cleaned up");
     if (!safe || ec) std::wcerr << L"fixture=" << root.wstring() << L" error=" << ec.value() << L'\n';

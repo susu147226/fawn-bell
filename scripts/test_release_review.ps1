@@ -13,8 +13,8 @@ foreach ($name in @('package_portable.ps1','check_release_payload.ps1','archive_
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $fixtureScripts
 }
 [IO.File]::WriteAllText((Join-Path $fixture 'version.txt'), '0.0.0')
-$binaryNames = @('pulse.exe','Pulse.Index.exe','Pulse.Document.exe','Pulse.Preview.exe',
-    'pulse_shell.exe','pulse_elevated.exe','pulse_integration.exe','lumatext.dll','pdfium.dll')
+$binaryNames = @('luling.exe','Luling.Index.exe','Luling.Document.exe','Luling.Preview.exe',
+    'luling_shell.exe','luling_elevated.exe','luling_integration.exe','lumatext.dll','pdfium.dll')
 foreach ($name in $binaryNames) { [IO.File]::WriteAllText((Join-Path $build $name), 'private non-executable fixture') }
 foreach ($folder in @('licenses/PDFium','licenses/LumaText')) {
     $path = Join-Path $build $folder
@@ -29,7 +29,7 @@ foreach ($name in @('third_party/ib-pinyin-cpp/LICENSE.txt','third_party/md4c/LI
 $portableScript = Join-Path $fixtureScripts 'package_portable.ps1'
 & pwsh -NoProfile -File $portableScript -BuildDir $build *> (Join-Path $fixture 'portable.log')
 Check ($LASTEXITCODE -eq 0) 'production portable script packages private fixture'
-$archivePath = Join-Path $fixture 'dist/Pulse-0.0.0-portable-win-x64.zip'
+$archivePath = Join-Path $fixture 'dist/Luling-0.0.0-portable-win-x64.zip'
 $archive = [IO.Compression.ZipFile]::OpenRead($archivePath)
 try {
     foreach ($name in $binaryNames) {
@@ -37,37 +37,37 @@ try {
     }
 } finally { $archive.Dispose() }
 $archiveHash = (Get-FileHash -LiteralPath $archivePath).Hash
-Move-Item -LiteralPath (Join-Path $build 'pulse_elevated.exe') -Destination (Join-Path $build 'pulse_elevated.fixture')
+Move-Item -LiteralPath (Join-Path $build 'luling_elevated.exe') -Destination (Join-Path $build 'luling_elevated.fixture')
 & pwsh -NoProfile -File $portableScript -BuildDir $build *> (Join-Path $fixture 'missing-helper.log')
-Check ($LASTEXITCODE -ne 0 -and (Get-Content (Join-Path $fixture 'missing-helper.log') -Raw).Contains('pulse_elevated.exe')) 'missing helper fails packaging'
+Check ($LASTEXITCODE -ne 0 -and (Get-Content (Join-Path $fixture 'missing-helper.log') -Raw).Contains('luling_elevated.exe')) 'missing helper fails packaging'
 Check ((Get-FileHash -LiteralPath $archivePath).Hash -eq $archiveHash) 'rejected package leaves previous private archive unchanged'
-Move-Item -LiteralPath (Join-Path $build 'pulse_elevated.fixture') -Destination (Join-Path $build 'pulse_elevated.exe')
+Move-Item -LiteralPath (Join-Path $build 'luling_elevated.fixture') -Destination (Join-Path $build 'luling_elevated.exe')
 
 $winBuild = Join-Path $fixture 'build-win81'
 New-Item -ItemType Directory -Path $winBuild | Out-Null
-[IO.File]::WriteAllBytes((Join-Path $winBuild 'pulse.exe'), [Text.Encoding]::Unicode.GetBytes('PULSE_SELFTEST_CASE'))
+[IO.File]::WriteAllBytes((Join-Path $winBuild 'luling.exe'), [Text.Encoding]::Unicode.GetBytes('LULING_SELFTEST_CASE'))
 Copy-Item -LiteralPath (Join-Path $repo 'build_win81_installer.bat') -Destination $fixture
 & (Join-Path $fixture 'build_win81_installer.bat') /skipbuild *> (Join-Path $fixture 'win81-guard.log')
 Check ($LASTEXITCODE -ne 0 -and (Get-Content (Join-Path $fixture 'win81-guard.log') -Raw).Contains('embedded selftest')) 'Win81 skipbuild rejects actual selftest marker before packaging'
 $installerSource = Get-Content (Join-Path $repo 'build_win81_installer.bat') -Raw
 $winSource = Get-Content (Join-Path $repo 'build_win81.bat') -Raw
-Check ($installerSource.Contains('call build_win81.bat /release') -and $winSource.Contains('if /i "%~1"=="/release" set "PULSE_WIN81_SELFTEST=OFF"')) 'Win81 installer explicitly configures production mode'
-Check ($winSource.Contains('-DPULSE_WITH_SELFTEST=%PULSE_WIN81_SELFTEST%')) 'Win81 configuration uses requested mode'
+Check ($installerSource.Contains('call build_win81.bat /release') -and $winSource.Contains('if /i "%~1"=="/release" set "LULING_WIN81_SELFTEST=OFF"')) 'Win81 installer explicitly configures production mode'
+Check ($winSource.Contains('-DLULING_WITH_SELFTEST=%LULING_WIN81_SELFTEST%')) 'Win81 configuration uses requested mode'
 
 $releaseSource = Get-Content (Join-Path $repo 'build_release.bat') -Raw
 $signedSource = Get-Content (Join-Path $PSScriptRoot 'package_release.ps1') -Raw
-Check ($signedSource.Contains('"build_release.bat") /symbols') -and $releaseSource.Contains('if /i "%~1"=="/symbols" set "PULSE_BUILD_TYPE=RelWithDebInfo"')) 'signed package explicitly requests optimized debug symbols'
-Check ([regex]::Matches($releaseSource, '-DCMAKE_BUILD_TYPE=%PULSE_BUILD_TYPE%').Count -eq 3) 'all release dependency branches carry symbol configuration'
-Check ($signedSource.Contains('"pulse_elevated.exe"')) 'signed package includes elevated helper'
-[IO.File]::WriteAllText((Join-Path $build 'pulse_build_id.txt'), 'fixture-build')
+Check ($signedSource.Contains('"build_release.bat") /symbols') -and $releaseSource.Contains('if /i "%~1"=="/symbols" set "LULING_BUILD_TYPE=RelWithDebInfo"')) 'signed package explicitly requests optimized debug symbols'
+Check ([regex]::Matches($releaseSource, '-DCMAKE_BUILD_TYPE=%LULING_BUILD_TYPE%').Count -eq 3) 'all release dependency branches carry symbol configuration'
+Check ($signedSource.Contains('"luling_elevated.exe"')) 'signed package includes elevated helper'
+[IO.File]::WriteAllText((Join-Path $build 'luling_build_id.txt'), 'fixture-build')
 foreach ($name in $binaryNames | Where-Object { $_.EndsWith('.exe') }) {
     [IO.File]::WriteAllText((Join-Path $build ([IO.Path]::ChangeExtension($name,'pdb'))), 'private symbol fixture')
 }
 & pwsh -NoProfile -File (Join-Path $fixtureScripts 'archive_symbols.ps1') -BuildDir 'build' *> (Join-Path $fixture 'symbols.log')
 Check ($LASTEXITCODE -eq 0) 'production symbol archiver accepts complete private set'
 $manifest = Get-Content (Join-Path $fixture 'dist/symbols/0.0.0/fixture-build/manifest.json') -Raw | ConvertFrom-Json
-Check (@($manifest.artifacts | Where-Object { $_.file -eq 'pulse_elevated.pdb' }).Count -eq 1) 'symbol archive records elevated helper PDB'
-Move-Item -LiteralPath (Join-Path $build 'pulse_elevated.pdb') -Destination (Join-Path $build 'pulse_elevated.symbol-fixture')
+Check (@($manifest.artifacts | Where-Object { $_.file -eq 'luling_elevated.pdb' }).Count -eq 1) 'symbol archive records elevated helper PDB'
+Move-Item -LiteralPath (Join-Path $build 'luling_elevated.pdb') -Destination (Join-Path $build 'luling_elevated.symbol-fixture')
 & pwsh -NoProfile -File (Join-Path $fixtureScripts 'archive_symbols.ps1') -BuildDir 'build' *> (Join-Path $fixture 'missing-symbol.log')
 Check ($LASTEXITCODE -ne 0) 'missing expected symbol remains a hard failure'
 foreach ($name in @('package_portable.ps1','package_release.ps1','archive_symbols.ps1')) {

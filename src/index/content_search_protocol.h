@@ -1,7 +1,7 @@
 #pragma once
 #include "../ipc/protocol.h"
 #include "content_index.h"
-namespace pulse::index::content {
+namespace luling::index::content {
 inline constexpr uint32_t kMagic = 0x43535051;
 inline constexpr size_t kMaximumPayload = 8 * 1024 * 1024;
 enum Message : uint32_t {
@@ -10,7 +10,7 @@ enum Message : uint32_t {
     REQ_SUBSCRIBE = 9,
     RSP_BATCH = 101, RSP_STATUS = 102,
 };
-inline std::wstring PipeName(std::wstring_view token) { return L"\\\\.\\pipe\\PulseContentSearch." + std::wstring(token); }
+inline std::wstring PipeName(std::wstring_view token) { return L"\\\\.\\pipe\\LulingContentSearch." + std::wstring(token); }
 inline ipc::MsgHeader Header(uint32_t type, uint32_t size) {
     ipc::MsgHeader h; h.magic = kMagic; h.type = type; h.payload_size = size; return h;
 }
@@ -110,4 +110,4 @@ inline bool GetStatus(ipc::PayloadReader& r, ContentIndexStatus& s) {
     s.change_sequence = 0;
     return !(flags & 8u) || r.GetU64(s.change_sequence);
 }
-} // namespace pulse::index::content
+} // namespace luling::index::content

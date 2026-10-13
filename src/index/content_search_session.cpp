@@ -1,7 +1,7 @@
 #include "content_search_session.h"
 #include "search_trace.h"
 
-namespace pulse::index {
+namespace luling::index {
 ContentSearchSession::ContentSearchSession(const ContentSearchRequest& request, HWND notify, UINT message)
     : generation_(request.generation),
       results_(request.paged_results ? std::make_shared<ContentResultStore>(notify, message) : nullptr),
@@ -69,4 +69,4 @@ std::optional<ContentSearchUpdate> ContentSearchSession::Fail(DWORD error) {
     update.progress.error = error;
     return Accept(std::move(update));
 }
-} // namespace pulse::index
+} // namespace luling::index

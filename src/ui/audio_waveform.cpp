@@ -22,7 +22,7 @@
 
 #pragma comment(lib, "mfuuid.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 using Microsoft::WRL::ComPtr;
 
 namespace {
@@ -121,7 +121,7 @@ MfResult MediaFoundationWaveform(const std::wstring& path, const std::atomic<boo
         FAILED(startup(MF_VERSION, MFSTARTUP_LITE))) return MfResult::Unreadable;
     struct MfScope { Shutdown s; ~MfScope() { s(); } } mf_scope{shutdown};
 
-    const std::wstring url = pulse::path::StripExtendedPathPrefix(path);
+    const std::wstring url = luling::path::StripExtendedPathPrefix(path);
     ComPtr<IMFSourceReader> reader;
     if (FAILED(create_reader(url.c_str(), nullptr, &reader))) return MfResult::Unreadable;
     const DWORD audio = static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM);
@@ -268,4 +268,4 @@ void AudioWaveform::Run(std::shared_ptr<Shared> state, std::wstring path) {
     }
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

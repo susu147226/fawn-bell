@@ -14,7 +14,7 @@
 
 #include "FluentTokens.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class TableView {
 public:
@@ -141,4 +141,4 @@ private:
     Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> brush_;
 };
 
-}  // namespace pulse::ui
+}  // namespace luling::ui

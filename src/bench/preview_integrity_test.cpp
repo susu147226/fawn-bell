@@ -2,7 +2,7 @@
 #include <cstdio>
 
 int main() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     int failures = 0;
     const auto check = [&](bool ok, const char* label) {
         std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label);
@@ -46,7 +46,7 @@ int main() {
         status.state == IntegrityState::Partial, "EPUB chapter omissions have structured counts");
     check(IntegrityNumber(L"184467440737095516160") == 0, "overflow cannot fabricate a count");
     result = {};
-    result.kind = pulse::ipc::PreviewContentKind::Hex;
+    result.kind = luling::ipc::PreviewContentKind::Hex;
     check(DescribeIntegrity(result, true).reason == IntegrityReason::SourceFallback,
         "binary fallback never claims complete format rendering");
     return failures ? 1 : 0;

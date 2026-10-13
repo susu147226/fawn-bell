@@ -3,7 +3,7 @@
 #include "../common/json_utils.h"
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 // Indexed by ui::SortColumn; stable JSON names.
@@ -90,4 +90,4 @@ void FolderSortPrefs::ReadJson(const std::wstring& input) {
                 Set(path, FromInts(column, direction));
 }
 
-} // namespace pulse::app
+} // namespace luling::app

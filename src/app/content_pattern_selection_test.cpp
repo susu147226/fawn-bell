@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "app_runtime.h"
 #include "app_navigation.h"
 #include "content_results_ui.h"
@@ -7,7 +7,7 @@
 #include <atomic>
 
 bool RunContentPatternSelectionTest() {
-    using namespace pulse;
+    using namespace luling;
     std::filesystem::create_directories(L"bench_data");
     FILE* log = nullptr;
     _wfopen_s(&log, L"bench_data/m11005_content_pattern_test.log", L"w");
@@ -23,7 +23,7 @@ bool RunContentPatternSelectionTest() {
     s.appPrefs.persist = s.searchHistory.persist = s.ctxMenuPrefs.persist = s.places.persist = false;
     s.hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 960, 600,
         nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-    s.window_tabs.NewTab(L"pulse:search?content:fixture");
+    s.window_tabs.NewTab(L"luling:search?content:fixture");
     BindCurrentLayout(s);
     auto wait = [&](auto ready) {
         const auto until = GetTickCount64() + 5000;
@@ -44,7 +44,7 @@ bool RunContentPatternSelectionTest() {
         s.contentSelectionAction.reset();
         auto* tab = ActiveTab(s);
         *tab = app::Tab{};
-        tab->current_path = L"pulse:search?content:fixture";
+        tab->current_path = L"luling:search?content:fixture";
         auto store = std::make_shared<index::ContentResultStore>(nullptr, 0);
         std::vector<index::ContentHit> hits;
         for (const auto* name : {L"a.keep", L"b.other", L"c.keep"}) {

@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "rename_editor_test.h"
 #include "app_hosted_edit.h"
 #include "app_input.h"
@@ -9,7 +9,7 @@
 #include <share.h>
 #include <dwmapi.h>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 LRESULT CALLBACK TestOwner(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     auto* state = reinterpret_cast<AppState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -144,15 +144,15 @@ bool RunAddressEditorTest() {
     // action button there (Shortcuts opens a modal window), so keep hints off here.
     state->appPrefs.show_hints = false;
     wchar_t option[8]{};
-    const bool capture = GetEnvironmentVariableW(L"PULSE_ADDRESS_EDITOR_CAPTURE", option, ARRAYSIZE(option)) > 0;
-    if (GetEnvironmentVariableW(L"PULSE_ADDRESS_EDITOR_DARK", option, ARRAYSIZE(option)))
+    const bool capture = GetEnvironmentVariableW(L"LULING_ADDRESS_EDITOR_CAPTURE", option, ARRAYSIZE(option)) > 0;
+    if (GetEnvironmentVariableW(L"LULING_ADDRESS_EDITOR_DARK", option, ARRAYSIZE(option)))
         state->darkMode = option[0] == L'1';
-    if (GetEnvironmentVariableW(L"PULSE_ADDRESS_EDITOR_SCALE", option, ARRAYSIZE(option)) &&
+    if (GetEnvironmentVariableW(L"LULING_ADDRESS_EDITOR_SCALE", option, ARRAYSIZE(option)) &&
         wcscmp(option, L"150") == 0) state->scale = 1.5f;
     WNDCLASSW wc{};
     wc.lpfnWndProc = TestOwner;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseAddressEditorTest";
+    wc.lpszClassName = L"LulingAddressEditorTest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOREDIRECTIONBITMAP, wc.lpszClassName,
         L"", WS_POPUP, capture ? 0 : -30000, capture ? 0 : -30000, 1000, 700,
@@ -162,7 +162,7 @@ bool RunAddressEditorTest() {
         state->compositor.RecreateTextFormats(state->scale);
         state->renderer.SetCompositor(&state->compositor);
         state->renderer.SetScale(state->scale);
-        state->window_tabs.NewTab(L"C:\\pulse-address-editor-fixture");
+        state->window_tabs.NewTab(L"C:\\luling-address-editor-fixture");
         state->pane = state->window_tabs.Active()->panes.front().get();
         auto* tab = ActiveTab(*state);
         tab->loading = false;
@@ -290,17 +290,17 @@ bool RunRenameEditorTest() {
     state->appPrefs.persist = false;
     state->isolatedTest = true;
     wchar_t appearance[8]{};
-    if (GetEnvironmentVariableW(L"PULSE_RENAME_EDITOR_DARK", appearance, ARRAYSIZE(appearance)))
+    if (GetEnvironmentVariableW(L"LULING_RENAME_EDITOR_DARK", appearance, ARRAYSIZE(appearance)))
         state->darkMode = appearance[0] == L'1';
-    if (GetEnvironmentVariableW(L"PULSE_RENAME_EDITOR_SCALE", appearance, ARRAYSIZE(appearance)) &&
+    if (GetEnvironmentVariableW(L"LULING_RENAME_EDITOR_SCALE", appearance, ARRAYSIZE(appearance)) &&
         wcscmp(appearance, L"150") == 0) state->scale = 1.5f;
     WNDCLASSW wc{};
     wc.lpfnWndProc = TestOwner;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseRenameEditorTest";
+    wc.lpszClassName = L"LulingRenameEditorTest";
     RegisterClassW(&wc);
     wchar_t capture[8]{};
-    const bool capture_editor = GetEnvironmentVariableW(L"PULSE_RENAME_EDITOR_CAPTURE", capture, ARRAYSIZE(capture)) > 0;
+    const bool capture_editor = GetEnvironmentVariableW(L"LULING_RENAME_EDITOR_CAPTURE", capture, ARRAYSIZE(capture)) > 0;
     HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOREDIRECTIONBITMAP, wc.lpszClassName, L"", WS_POPUP,
         capture_editor ? 0 : -30000, capture_editor ? 0 : -30000, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);
     state->hwnd = hwnd;

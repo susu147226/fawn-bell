@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -460,4 +460,4 @@ bool RasterizePsdFile(const std::wstring& path, UINT max_edge, bool prefer_embed
     return false;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

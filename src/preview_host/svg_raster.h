@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 // Rejects markup outside the documented Direct2D subset before silent omission.
 // XmlLite is loaded dynamically; UTF-8/UTF-16 are checked without reading external resources.
 bool IsSvgSupportedForDirect2D(const std::vector<unsigned char>& bytes, std::wstring& error);
@@ -14,4 +14,4 @@ bool IsSvgSupportedForDirect2D(const std::vector<unsigned char>& bytes, std::wst
 bool RasterizeSvgFile(const std::wstring& path, UINT max_edge,
     std::vector<unsigned char>& pixels, UINT& width, UINT& height, UINT& stride,
     UINT& source_width, UINT& source_height, std::wstring* error);
-} // namespace pulse::preview
+} // namespace luling::preview

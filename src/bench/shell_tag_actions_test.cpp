@@ -1,12 +1,12 @@
 #include "../app/shell_tag_actions.h"
 #include <cstdio>
-namespace pulse::app { std::wstring GetPulseDataDir() { return {}; } }
+namespace luling::app { std::wstring GetLulingDataDir() { return {}; } }
 namespace {
 int failures=0;
 void Check(bool ok,const char* name) { std::printf("[%s] %s\n",ok?"PASS":"FAIL",name); failures += !ok; }
 }
 int main() {
-    using namespace pulse::app;
+    using namespace luling::app;
     PlacesCatalog places; places.persist=false;
     const auto id=places.CreateTag(L"private in-memory tag",0x123456);
     const std::wstring a=L"C:\\shell-tag-in-memory\\A.txt",b=L"C:\\shell-tag-in-memory\\B.txt";

@@ -32,9 +32,9 @@ int main() {
     Check(SUCCEEDED(hr),"private Direct2D draw target initialized");
     if(FAILED(hr)) return 2;
     dc->SetTarget(bitmap.Get());
-    pulse::ui::BloomAccentPicker picker;
+    luling::ui::BloomAccentPicker picker;
     picker.SetDisk(D2D1::RectF(10,10,310,310));
-    pulse::ui::Theme theme{};
+    luling::ui::Theme theme{};
     auto frame=[&] {
         dc->BeginDraw(); dc->Clear(D2D1::ColorF(D2D1::ColorF::White));
         picker.Draw(dc.Get(),theme);
@@ -48,7 +48,7 @@ int main() {
     for(int i=0;i<160;++i) {
         picker.SetSelection(i%2==0,0x335577,true);
         picker.SetPointer(static_cast<float>(i%300),150,true);
-        picker.SetPressed(i%pulse::ui::kBloomDotCount);
+        picker.SetPressed(i%luling::ui::kBloomDotCount);
         picker.Tick(1.0f/60.0f);
         rendered=frame()&&rendered;
     }

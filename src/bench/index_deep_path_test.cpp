@@ -1,7 +1,7 @@
 #include "../index/index_engine.h"
 #include "../index/index_path_builder.h"
 #include <cstdio>
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static int32_t Fill(Engine& e, int depth, const std::wstring& name, const std::wstring& root = L"C:") {
         int32_t parent = e.AddNodeLocked(e.live_, -1, root, Engine::kFlagDir);
@@ -17,7 +17,7 @@ struct EngineTestAccess {
 };
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; };
     for (int depth : {0, 70, 257, 1000}) {

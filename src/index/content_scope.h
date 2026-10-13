@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::index {
+namespace luling::index {
 inline std::wstring ContentScopeKey(std::wstring path) {
     std::replace(path.begin(), path.end(), L'/', L'\\');
     while (path.size() > 3 && path.back() == L'\\') path.pop_back();
@@ -74,4 +74,4 @@ inline ContentIndexConfig SharedContentScope(const ContentIndexConfig& previous,
     config.excluded_paths.erase(std::unique(config.excluded_paths.begin(), config.excluded_paths.end()), config.excluded_paths.end());
     return config;
 }
-} // namespace pulse::index
+} // namespace luling::index

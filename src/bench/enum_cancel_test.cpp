@@ -14,7 +14,7 @@ static HANDLE WINAPI TestFindFirst(LPCWSTR path, FINDEX_INFO_LEVELS level, LPVOI
 #define FindFirstFileExW TestFindFirst
 #include "../fs/fs_enum.cpp"
 #undef FindFirstFileExW
-using namespace pulse::fs;
+using namespace luling::fs;
 static NTSTATUS NTAPI TestCreate(PHANDLE h, ACCESS_MASK, NtObjectAttributes*, NtIoStatusBlock*,
     PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG) {
     if (mode == 3) return static_cast<NTSTATUS>(0xC0000001L);

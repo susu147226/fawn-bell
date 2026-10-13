@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 #include "../index/index_config.h"
-namespace pulse::index { std::wstring FixtureUserIndexRoot(); }
+namespace luling::index { std::wstring FixtureUserIndexRoot(); }
 HANDLE WINAPI FixtureFindFirstFileExW(LPCWSTR, FINDEX_INFO_LEVELS, LPVOID, FINDEX_SEARCH_OPS, LPVOID, DWORD);
 BOOL WINAPI FixtureFindNextFileW(HANDLE, LPWIN32_FIND_DATAW);
 BOOL WINAPI FixtureFindClose(HANDLE);
@@ -47,7 +47,7 @@ void SyntheticEntry(LPWIN32_FIND_DATAW data) {
     data->ftLastWriteTime.dwLowDateTime = last ? 9999999 : 1;
 }
 }
-std::wstring pulse::index::FixtureUserIndexRoot() { return cache_root; }
+std::wstring luling::index::FixtureUserIndexRoot() { return cache_root; }
 DWORD WINAPI FixtureWNetGetUniversalNameW(LPCWSTR path, DWORD level, LPVOID buffer, LPDWORD bytes) {
     if (!mapped_fixture) return ::WNetGetUniversalNameW(path, level, buffer, bytes);
     ++mapped_calls;
@@ -85,7 +85,7 @@ BOOL WINAPI FixtureFindNextFileW(HANDLE handle, LPWIN32_FIND_DATAW data) {
 BOOL WINAPI FixtureFindClose(HANDLE handle) {
     return handle == SyntheticHandle() ? TRUE : ::FindClose(handle);
 }
-namespace pulse::index {
+namespace luling::index {
 struct NetworkIndexTestAccess {
     static void Notify(NetworkIndex& index, const std::wstring& root, DWORD action, const std::wstring& name) {
         std::vector<BYTE> packet(offsetof(FILE_NOTIFY_INFORMATION, FileName) + name.size() * sizeof(wchar_t));
@@ -242,4 +242,4 @@ struct NetworkIndexTestAccess {
     }
 };
 }
-int main() { return pulse::index::NetworkIndexTestAccess::Run() ? 0 : 1; }
+int main() { return luling::index::NetworkIndexTestAccess::Run() ? 0 : 1; }

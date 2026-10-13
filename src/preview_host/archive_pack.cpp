@@ -7,7 +7,7 @@
 #include <atomic>
 #include <thread>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 constexpr size_t kOutputLimit = 8u * 1024u * 1024u;
 constexpr size_t kEntryLimit = 20000;
@@ -26,7 +26,7 @@ struct Handle {
 // One pipe merges both streams so neither can deadlock on a full buffer.
 bool Run(const std::wstring& tool, const std::wstring& arguments,
     std::string& output, DWORD& code, std::wstring* error) {
-    const bool trace = GetEnvironmentVariableW(L"PULSE_ARCHIVE_TRACE", nullptr, 0) != 0;
+    const bool trace = GetEnvironmentVariableW(L"LULING_ARCHIVE_TRACE", nullptr, 0) != 0;
     const ULONGLONG trace_start = GetTickCount64();
     SECURITY_ATTRIBUTES security{sizeof(security), nullptr, TRUE};
     Handle read, write, input, job, process, thread;
@@ -241,7 +241,7 @@ bool ArchivePackListingWithTool(const std::wstring& tool, const std::wstring& pa
     DWORD code = 0;
     // Explicit nonempty password avoids a prompt, even for encrypted headers.
     // No extraction or archive-test command is used on the preview path.
-    if (!Run(tool, L"l -slt -sccUTF-8 -bd -pPulsePreviewNoPassword -- " +
+    if (!Run(tool, L"l -slt -sccUTF-8 -bd -pLulingPreviewNoPassword -- " +
         ffmpeg::QuoteArgument(path), output, code, error)) return false;
     return ParseArchivePackListing(output, code, text, error);
 }

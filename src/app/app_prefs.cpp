@@ -19,12 +19,12 @@
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "shell32.lib")
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 constexpr const wchar_t* kRunKey =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-constexpr const wchar_t* kRunValue = L"Pulse";
+constexpr const wchar_t* kRunValue = L"Luling";
 
 std::wstring ExePath() {
     wchar_t path[MAX_PATH] = {};
@@ -51,7 +51,7 @@ void AppPrefs::ResetToDefaults() {
     launch_on_startup = false;
     keep_running_on_close = false;
     notify_icon_mode = 0;
-    open_folders_in_pulse = false;
+    open_folders_in_luling = false;
     take_over_win_e = false;
     take_over_this_pc = false;
     integration_enabled = false;
@@ -118,18 +118,18 @@ std::wstring AppPrefs::ToJson() const {
     std::wstring escaped_image;
     std::wstring escaped_language;
     std::wstring escaped_home;
-    pulse::json::Escape(window_effect, escaped_effect);
-    pulse::json::Escape(home_folder, escaped_home);
-    pulse::json::Escape(background_image, escaped_image);
-    pulse::json::Escape(language, escaped_language);
+    luling::json::Escape(window_effect, escaped_effect);
+    luling::json::Escape(home_folder, escaped_home);
+    luling::json::Escape(background_image, escaped_image);
+    luling::json::Escape(language, escaped_language);
     std::wstring out = L"{\n  \"version\":4,\n  \"launch_on_startup\":";
     out += launch_on_startup ? L"true" : L"false";
     out += L",\n  \"keep_running_on_close\":";
     out += keep_running_on_close ? L"true" : L"false";
     out += L",\n  \"notify_icon_mode\":";
     out += std::to_wstring(notify_icon_mode >= 0 && notify_icon_mode <= 2 ? notify_icon_mode : 0);
-    out += L",\n  \"open_folders_in_pulse\":";
-    out += open_folders_in_pulse ? L"true" : L"false";
+    out += L",\n  \"open_folders_in_luling\":";
+    out += open_folders_in_luling ? L"true" : L"false";
     out += L",\n  \"integration_enabled\":";
     out += integration_enabled ? L"true" : L"false";
     out += L",\n  \"integration_folders\":";
@@ -235,7 +235,7 @@ std::wstring AppPrefs::ToJson() const {
     out += L",\n  \"accent_rgb\":\"";
     {
         std::wstring escaped_accent;
-        pulse::json::Escape(accent_rgb, escaped_accent);
+        luling::json::Escape(accent_rgb, escaped_accent);
         out += escaped_accent;
     }
     out += L"\",\n  \"accent_follow_system\":" + std::to_wstring(accent_follow_system);
@@ -253,25 +253,25 @@ std::wstring AppPrefs::ToJson() const {
     out += L",\n  \"duplicate_scan_folder\":\"";
     {
         std::wstring escaped;
-        pulse::json::Escape(duplicate_scan_folder, escaped);
+        luling::json::Escape(duplicate_scan_folder, escaped);
         out += escaped;
     }
     out += L"\",\n  \"duplicate_scan_drive\":\"";
     {
         std::wstring escaped;
-        pulse::json::Escape(duplicate_scan_drive, escaped);
+        luling::json::Escape(duplicate_scan_drive, escaped);
         out += escaped;
     }
     out += L"\",\n  \"last_seen_version\":\"";
     {
         std::wstring escaped;
-        pulse::json::Escape(last_seen_version, escaped);
+        luling::json::Escape(last_seen_version, escaped);
         out += escaped;
     }
     out += L"\",\n  \"tray_dests\":\"";
     {
         std::wstring escaped;
-        pulse::json::Escape(tray_dests, escaped);
+        luling::json::Escape(tray_dests, escaped);
         out += escaped;
     }
     out += L"\"";
@@ -283,100 +283,100 @@ std::wstring AppPrefs::ToJson() const {
 }
 
 bool AppPrefs::FromJson(const std::wstring& json) {
-    if (!pulse::json::ValidConfigObject(json)) return false;
+    if (!luling::json::ValidConfigObject(json)) return false;
     folder_views.ReadJson(json);
     folder_sorts.ReadJson(json);
     folder_groups.ReadJson(json);
-    launch_on_startup = pulse::json::ExtractBool(json, L"launch_on_startup", false);
-    keep_running_on_close = pulse::json::ExtractBool(json, L"keep_running_on_close", false);
-    notify_icon_mode = pulse::json::ExtractInt(json, L"notify_icon_mode", 0);
+    launch_on_startup = luling::json::ExtractBool(json, L"launch_on_startup", false);
+    keep_running_on_close = luling::json::ExtractBool(json, L"keep_running_on_close", false);
+    notify_icon_mode = luling::json::ExtractInt(json, L"notify_icon_mode", 0);
     if (notify_icon_mode < 0 || notify_icon_mode > 2) notify_icon_mode = 0;
-    open_folders_in_pulse = pulse::json::ExtractBool(json, L"open_folders_in_pulse", false);
-    take_over_explorer_windows = pulse::json::ExtractBool(json, L"take_over_explorer_windows", false);
+    open_folders_in_luling = luling::json::ExtractBool(json, L"open_folders_in_luling", false);
+    take_over_explorer_windows = luling::json::ExtractBool(json, L"take_over_explorer_windows", false);
     integration_configured = json.find(L"\"integration_enabled\"") != std::wstring::npos;
-    integration_enabled = pulse::json::ExtractBool(json, L"integration_enabled", false);
-    integration_folders = pulse::json::ExtractBool(json, L"integration_folders", true);
-    integration_win_e = pulse::json::ExtractBool(json, L"integration_win_e", true);
-    integration_this_pc = pulse::json::ExtractBool(json, L"integration_this_pc", true);
-    shell_tag_menu = pulse::json::ExtractBool(json, L"shell_tag_menu", false);
-    verify_copies = pulse::json::ExtractBool(json, L"verify_copies", false);
-    show_status_performance = pulse::json::ExtractBool(json, L"show_status_performance", false);
-    show_pinned_tab_names = pulse::json::ExtractBool(json, L"show_pinned_tab_names", true);
-    list_smart_date = pulse::json::ExtractBool(json, L"list_smart_date", true);
-    list_zebra_rows = pulse::json::ExtractBool(json, L"list_zebra_rows", true);
-    list_size_bar = pulse::json::ExtractBool(json, L"list_size_bar", false);
-    list_tag_name_color = pulse::json::ExtractBool(json, L"list_tag_name_color", false);
-    list_selection_outline = pulse::json::ExtractBool(json, L"list_selection_outline", false);
-    list_thumbnail_badges = pulse::json::ExtractBool(json, L"list_thumbnail_badges", true);
-    vertical_tabs = pulse::json::ExtractBool(json, L"vertical_tabs", false);
-    sidebar_collapsed = pulse::json::ExtractBool(json, L"sidebar_collapsed", false);
-    folder_sort_mode = pulse::json::ExtractInt(json, L"folder_sort_mode", 0);
+    integration_enabled = luling::json::ExtractBool(json, L"integration_enabled", false);
+    integration_folders = luling::json::ExtractBool(json, L"integration_folders", true);
+    integration_win_e = luling::json::ExtractBool(json, L"integration_win_e", true);
+    integration_this_pc = luling::json::ExtractBool(json, L"integration_this_pc", true);
+    shell_tag_menu = luling::json::ExtractBool(json, L"shell_tag_menu", false);
+    verify_copies = luling::json::ExtractBool(json, L"verify_copies", false);
+    show_status_performance = luling::json::ExtractBool(json, L"show_status_performance", false);
+    show_pinned_tab_names = luling::json::ExtractBool(json, L"show_pinned_tab_names", true);
+    list_smart_date = luling::json::ExtractBool(json, L"list_smart_date", true);
+    list_zebra_rows = luling::json::ExtractBool(json, L"list_zebra_rows", true);
+    list_size_bar = luling::json::ExtractBool(json, L"list_size_bar", false);
+    list_tag_name_color = luling::json::ExtractBool(json, L"list_tag_name_color", false);
+    list_selection_outline = luling::json::ExtractBool(json, L"list_selection_outline", false);
+    list_thumbnail_badges = luling::json::ExtractBool(json, L"list_thumbnail_badges", true);
+    vertical_tabs = luling::json::ExtractBool(json, L"vertical_tabs", false);
+    sidebar_collapsed = luling::json::ExtractBool(json, L"sidebar_collapsed", false);
+    folder_sort_mode = luling::json::ExtractInt(json, L"folder_sort_mode", 0);
     if (folder_sort_mode < 0 || folder_sort_mode > 2) folder_sort_mode = 0;
-    details_columns = ui::NormalizeDetailsColumns(static_cast<uint32_t>(pulse::json::ExtractInt(
+    details_columns = ui::NormalizeDetailsColumns(static_cast<uint32_t>(luling::json::ExtractInt(
         json, L"details_columns", static_cast<int>(ui::kDetailsColumnsDefault))));
-    startup_open = pulse::json::ExtractInt(json, L"startup_open", 0) == 1 ? 1 : 0;
-    new_tab_open = pulse::json::ExtractInt(json, L"new_tab_open", 0) == 1 ? 1 : 0;
-    close_window_with_last_tab = pulse::json::ExtractBool(json, L"close_window_with_last_tab", false);
-    confirm_recycle_delete = pulse::json::ExtractBool(json, L"confirm_recycle_delete", false);
-    start_in_tray = pulse::json::ExtractBool(json, L"start_in_tray", false);
-    home_folder = pulse::json::ExtractString(json, L"home_folder");
-    text_render = pulse::json::ExtractInt(json, L"text_render", 0);
+    startup_open = luling::json::ExtractInt(json, L"startup_open", 0) == 1 ? 1 : 0;
+    new_tab_open = luling::json::ExtractInt(json, L"new_tab_open", 0) == 1 ? 1 : 0;
+    close_window_with_last_tab = luling::json::ExtractBool(json, L"close_window_with_last_tab", false);
+    confirm_recycle_delete = luling::json::ExtractBool(json, L"confirm_recycle_delete", false);
+    start_in_tray = luling::json::ExtractBool(json, L"start_in_tray", false);
+    home_folder = luling::json::ExtractString(json, L"home_folder");
+    text_render = luling::json::ExtractInt(json, L"text_render", 0);
     if (text_render < 0 || text_render > 2) text_render = 0;
-    ui_font_scale = NormalizeUiFontScale(pulse::json::ExtractInt(json, L"ui_font_scale", 100));
-    search_pinyin = pulse::json::ExtractBool(json, L"search_pinyin", true);
-    global_search_enabled = pulse::json::ExtractBool(json, L"global_search_enabled", false);
-    const int modifiers = pulse::json::ExtractInt(json, L"global_search_modifiers", 1);
-    const int key = pulse::json::ExtractInt(json, L"global_search_key", 32);
+    ui_font_scale = NormalizeUiFontScale(luling::json::ExtractInt(json, L"ui_font_scale", 100));
+    search_pinyin = luling::json::ExtractBool(json, L"search_pinyin", true);
+    global_search_enabled = luling::json::ExtractBool(json, L"global_search_enabled", false);
+    const int modifiers = luling::json::ExtractInt(json, L"global_search_modifiers", 1);
+    const int key = luling::json::ExtractInt(json, L"global_search_key", 32);
     global_search_modifiers = modifiers > 0 && modifiers <= 15 ? static_cast<uint32_t>(modifiers) : 1;
     global_search_key = key > 0 && key <= 254 ? static_cast<uint32_t>(key) : 32;
-    show_hidden_files = pulse::json::ExtractBool(json, L"show_hidden_files", false);
-    show_protected_os_files = pulse::json::ExtractBool(json, L"show_protected_os_files", false);
+    show_hidden_files = luling::json::ExtractBool(json, L"show_hidden_files", false);
+    show_protected_os_files = luling::json::ExtractBool(json, L"show_protected_os_files", false);
     // Files from before blank_click_action carry only the on/off flag (= back).
-    blank_click_action = NormalizeBlankClickAction(pulse::json::ExtractInt(json, L"blank_click_action",
-        pulse::json::ExtractBool(json, L"blank_click_go_back", false) ? kBlankClickBack : kBlankClickOff));
-    change_tracking_enabled = pulse::json::ExtractBool(json, L"change_tracking_enabled", false);
-    change_tracking_days = pulse::json::ExtractInt(json, L"change_tracking_days", 7);
+    blank_click_action = NormalizeBlankClickAction(luling::json::ExtractInt(json, L"blank_click_action",
+        luling::json::ExtractBool(json, L"blank_click_go_back", false) ? kBlankClickBack : kBlankClickOff));
+    change_tracking_enabled = luling::json::ExtractBool(json, L"change_tracking_enabled", false);
+    change_tracking_days = luling::json::ExtractInt(json, L"change_tracking_days", 7);
     if (change_tracking_days != 1 && change_tracking_days != 3 && change_tracking_days != 7)
         change_tracking_days = 7;
-    theme_mode = pulse::json::ExtractInt(json, L"theme_mode", -1);
+    theme_mode = luling::json::ExtractInt(json, L"theme_mode", -1);
     if (theme_mode < -1 || theme_mode > 2) theme_mode = -1;
-    language = pulse::json::ExtractString(json, L"language", L"system");
+    language = luling::json::ExtractString(json, L"language", L"system");
     if (language != L"system" && language != L"zh-CN" && language != L"zh-TW" &&
         language != L"en-US")
         language = L"system";
-    window_effect = pulse::json::ExtractString(json, L"window_effect", L"mica-alt");
+    window_effect = luling::json::ExtractString(json, L"window_effect", L"mica-alt");
     if (window_effect == L"dwm-blur") window_effect = L"acrylic-material";
     else if (window_effect.empty()) window_effect = L"mica-alt";
-    background_image = pulse::json::ExtractString(json, L"background_image");
-    row_height = pulse::json::ExtractInt(json, L"row_height", 34);
-    sidebar_width = pulse::json::ExtractInt(json, L"sidebar_width", 224);
+    background_image = luling::json::ExtractString(json, L"background_image");
+    row_height = luling::json::ExtractInt(json, L"row_height", 34);
+    sidebar_width = luling::json::ExtractInt(json, L"sidebar_width", 224);
     // The stored value is the user's intent; the window caps it while drawing.
     if (sidebar_width < static_cast<int>(ui::kSidebarMinWidthDip) ||
         sidebar_width > static_cast<int>(ui::kPanelWidthMaxDip)) sidebar_width = 224;
-    address_search_current = pulse::json::ExtractInt(json, L"address_search_current", 0) != 0;
-    address_search_content = pulse::json::ExtractInt(json, L"address_search_content", 0) != 0;
+    address_search_current = luling::json::ExtractInt(json, L"address_search_current", 0) != 0;
+    address_search_content = luling::json::ExtractInt(json, L"address_search_content", 0) != 0;
     if (row_height < 24 || row_height > 48) row_height = 34;
-    tray_icon_size = pulse::json::ExtractInt(json, L"tray_icon_size", 48);
-    show_hints = pulse::json::ExtractBool(json, L"show_hints", true);
-    auto_check_updates = pulse::json::ExtractBool(json, L"auto_check_updates", true);
-    const int seen = pulse::json::ExtractInt(json, L"tips_seen", 0);
+    tray_icon_size = luling::json::ExtractInt(json, L"tray_icon_size", 48);
+    show_hints = luling::json::ExtractBool(json, L"show_hints", true);
+    auto_check_updates = luling::json::ExtractBool(json, L"auto_check_updates", true);
+    const int seen = luling::json::ExtractInt(json, L"tips_seen", 0);
     tips_seen = seen > 0 ? static_cast<uint32_t>(seen) : 0u;
     if (tray_icon_size < 32 || tray_icon_size > 64) tray_icon_size = 48;
     {
         // Continuous values; migrate the former 0/1/2 levels when absent.
         static constexpr int kLookLevels[] = {25, 50, 75};
         static constexpr int kBlurLevels[] = {0, 14, 28};
-        int legacy = pulse::json::ExtractInt(json, L"wallpaper_look", 1);
+        int legacy = luling::json::ExtractInt(json, L"wallpaper_look", 1);
         if (legacy < 0 || legacy > 2) legacy = 1;
-        wallpaper_look = pulse::json::ExtractInt(json, L"panel_transparency", kLookLevels[legacy]);
+        wallpaper_look = luling::json::ExtractInt(json, L"panel_transparency", kLookLevels[legacy]);
         if (wallpaper_look < 0 || wallpaper_look > 90) wallpaper_look = kLookLevels[legacy];
-        legacy = pulse::json::ExtractInt(json, L"wallpaper_blur", 1);
+        legacy = luling::json::ExtractInt(json, L"wallpaper_blur", 1);
         if (legacy < 0 || legacy > 2) legacy = 1;
-        wallpaper_blur = pulse::json::ExtractInt(json, L"wallpaper_blur_px", kBlurLevels[legacy]);
+        wallpaper_blur = luling::json::ExtractInt(json, L"wallpaper_blur_px", kBlurLevels[legacy]);
         if (wallpaper_blur < 0 || wallpaper_blur > 40) wallpaper_blur = kBlurLevels[legacy];
     }
-    accent_rgb = pulse::json::ExtractString(json, L"accent_rgb");
-    accent_follow_system = pulse::json::ExtractInt(json, L"accent_follow_system", 0) != 0;
+    accent_rgb = luling::json::ExtractString(json, L"accent_rgb");
+    accent_follow_system = luling::json::ExtractInt(json, L"accent_follow_system", 0) != 0;
     uint32_t accent_parsed = 0;
     if (!accent_rgb.empty() && ParseAccentRgb(accent_rgb, accent_parsed)) {
         wchar_t hex[8]{};
@@ -387,7 +387,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     }
     custom_tag_colors.clear();
     for (const std::wstring& entry :
-         pulse::json::ExtractStringArray(json, L"custom_tag_colors")) {
+         luling::json::ExtractStringArray(json, L"custom_tag_colors")) {
         const wchar_t* text = entry.c_str();
         if (*text == L'#') ++text;
         wchar_t* end = nullptr;
@@ -395,18 +395,18 @@ bool AppPrefs::FromJson(const std::wstring& json) {
         if (end && *end == L'\0' && v <= 0xFFFFFFul && wcslen(text) == 6)
             custom_tag_colors.push_back(static_cast<uint32_t>(v));
     }
-    duplicate_scan_scope = pulse::json::ExtractInt(json, L"duplicate_scan_scope", 0);
+    duplicate_scan_scope = luling::json::ExtractInt(json, L"duplicate_scan_scope", 0);
     if (duplicate_scan_scope < 0 || duplicate_scan_scope > 2) duplicate_scan_scope = 0;
-    duplicate_scan_folder = pulse::json::ExtractString(json, L"duplicate_scan_folder");
-    duplicate_scan_drive = pulse::json::ExtractString(json, L"duplicate_scan_drive");
-    last_seen_version = pulse::json::ExtractString(json, L"last_seen_version");
-    tray_dests = pulse::json::ExtractString(json, L"tray_dests");
+    duplicate_scan_folder = luling::json::ExtractString(json, L"duplicate_scan_folder");
+    duplicate_scan_drive = luling::json::ExtractString(json, L"duplicate_scan_drive");
+    last_seen_version = luling::json::ExtractString(json, L"last_seen_version");
+    tray_dests = luling::json::ExtractString(json, L"tray_dests");
     return true;
 }
 
 bool AppPrefs::StoreBackgroundImage(const std::wstring& source_path) {
     if (source_path.empty()) return false;
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty() || load_failed) return false;
     const wchar_t* ext = PathFindExtensionW(source_path.c_str());
     wchar_t temporary[MAX_PATH]{};
@@ -430,13 +430,13 @@ bool AppPrefs::StoreBackgroundImage(const std::wstring& source_path) {
 }
 
 void AppPrefs::ClearBackgroundImage() {
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (IsStoredWallpaper(background_image, dir)) DeleteFileW(background_image.c_str());
     background_image.clear();
 }
 
 namespace {
-// The HKCU Run command for Pulse, or empty when there is none.
+// The HKCU Run command for Luling, or empty when there is none.
 std::wstring ReadRunCommand() {
     HKEY key = nullptr;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, kRunKey, 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS)
@@ -509,13 +509,13 @@ bool AppPrefs::ReadIntegrationIncomplete() const {
 }
 
 bool AppPrefs::ApplyFolderOpen(bool on) {
-    if (!persist) { open_folders_in_pulse = on; return true; }
+    if (!persist) { open_folders_in_luling = on; return true; }
     const bool ok = ApplyShellIntegration(ShellIntegrationKind::Folders, ExePath(), on);
-    open_folders_in_pulse = ReadFolderOpen();
+    open_folders_in_luling = ReadFolderOpen();
     integration_residual = ReadIntegrationResidual();
     integration_incomplete = ReadIntegrationIncomplete();
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
-    return ok && open_folders_in_pulse == on;
+    return ok && open_folders_in_luling == on;
 }
 
 bool AppPrefs::ReadWinE() const {
@@ -564,7 +564,7 @@ void AppPrefs::MigrateIntegration() {
     // Legacy registrations can still own an entry without satisfying the new
     // complete-value checks. Preserve that selected scope for repair.
     const std::wstring exe = integration_residual ? ExePath() : std::wstring();
-    const bool folders = open_folders_in_pulse || (integration_residual &&
+    const bool folders = open_folders_in_luling || (integration_residual &&
         HasShellIntegrationOwnership(ShellIntegrationKind::Folders, exe));
     const bool win_e = take_over_win_e || (integration_residual &&
         HasShellIntegrationOwnership(ShellIntegrationKind::WinE, exe));
@@ -583,13 +583,13 @@ void AppPrefs::MigrateIntegration() {
 bool AppPrefs::Load() {
     if (persist && HasLegacyShellIntegrationResidue()) {
         const bool repaired = RepairLegacyShellIntegrationResidue();
-        pulse::diagnostics::runtime::Event("shell_integration_legacy_repair", {{"success", repaired ? 1u : 0u}});
+        luling::diagnostics::runtime::Event("shell_integration_legacy_repair", {{"success", repaired ? 1u : 0u}});
         SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     }
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) {
         launch_on_startup = ReadLaunchOnStartup();
-        open_folders_in_pulse = ReadFolderOpen();
+        open_folders_in_luling = ReadFolderOpen();
         take_over_win_e = ReadWinE();
         take_over_this_pc = ReadThisPcOpen(ExePath());
         integration_residual = ReadIntegrationResidual();
@@ -610,7 +610,7 @@ bool AppPrefs::Load() {
     load_failed = false;
     had_file = !missing;
     launch_on_startup = ReadLaunchOnStartup();
-    open_folders_in_pulse = ReadFolderOpen();
+    open_folders_in_luling = ReadFolderOpen();
     take_over_win_e = ReadWinE();
     // Older builds registered the Run command without --startup.
     if (persist && launch_on_startup && StartupCommandNeedsRepair(ReadRunCommand(), ExePath()))
@@ -625,9 +625,9 @@ bool AppPrefs::Load() {
 bool AppPrefs::Save() const {
     if (!persist) return true;
     if (load_failed) return false;
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
     return WriteUtf8FileAtomic(dir + L"\\app.json", ToJson());
 }
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -14,7 +14,7 @@
 #include <condition_variable>
 #include <cstdio>
 
-using namespace pulse;
+using namespace luling;
 namespace {
 struct ProbeTaskResult {
     uint64_t task_id = 0;
@@ -65,9 +65,9 @@ int RunNavigationAuditProbe(AppState& s, FILE* log) {
         std::mutex mutex;
         std::condition_variable ready;
         std::vector<app::WorkResult> results;
-        const auto first = worker.LoadPaths(L"pulse:recent", {}, ui::SortColumn::Name, ui::SortDirection::Asc);
-        const auto second = worker.LoadPaths(L"pulse:recent", {L"pulse:skip"}, ui::SortColumn::Name, ui::SortDirection::Asc);
-        const auto cancelled = worker.LoadPaths(L"pulse:recent", {}, ui::SortColumn::Name, ui::SortDirection::Asc);
+        const auto first = worker.LoadPaths(L"luling:recent", {}, ui::SortColumn::Name, ui::SortDirection::Asc);
+        const auto second = worker.LoadPaths(L"luling:recent", {L"luling:skip"}, ui::SortColumn::Name, ui::SortDirection::Asc);
+        const auto cancelled = worker.LoadPaths(L"luling:recent", {}, ui::SortColumn::Name, ui::SortDirection::Asc);
         worker.CancelGeneration(cancelled);
         worker.Start([&](app::WorkResult result) {
             std::lock_guard lock(mutex);
@@ -167,7 +167,7 @@ int RunNavigationAuditProbe(AppState& s, FILE* log) {
     tab->filter_text.clear();
     tab->SetSnapshot(original_snapshot);
     tab->ClearSelection();
-    for (const auto* path : {L"pulse:recycle", L"pulse:saved-search:probe", L"pulse:search:probe", L"C:\\fixture"}) {
+    for (const auto* path : {L"luling:recycle", L"luling:saved-search:probe", L"luling:search:probe", L"C:\\fixture"}) {
         app::Pane pane;
         pane.view.current_path = path;
         pane.view.SetSnapshot(std::make_shared<std::vector<fs::DirEntry>>());
@@ -196,10 +196,10 @@ int RunNavigationAuditProbe(AppState& s, FILE* log) {
         tabs.NewTab(fixture_root);
         auto* active = tabs.Active();
         auto* pinned = tabs.items.front().get();
-        CommitVerticalTabDrag(*probe, L"pulse:tab:2", 0);
+        CommitVerticalTabDrag(*probe, L"luling:tab:2", 0);
         check(tabs.items.front().get() == pinned && tabs.Active() == active,
               "vertical normal-tab drag cannot cross pinned prefix or change active identity");
-        CommitVerticalTabDrag(*probe, L"pulse:tab:0", 3);
+        CommitVerticalTabDrag(*probe, L"luling:tab:0", 3);
         check(tabs.items.front().get() == pinned, "vertical pinned-tab drag cannot cross into normal tabs");
         tabs.MoveTab(1, 2);
         check(tabs.items.front().get() == pinned, "within-region tab moves preserve pinned prefix");

@@ -75,7 +75,7 @@ struct Canvas {
     }
 };
 }
-namespace pulse::ui {
+namespace luling::ui {
 struct ThumbnailCacheTestAccess {
     static void Run(Canvas& canvas, float scale, bool dark, const std::filesystem::path& root) {
         canvas.Begin(dark); canvas.End();
@@ -160,7 +160,7 @@ int main() {
     if (!fs::create_directory(root)) return 2;
     for (float scale : {1.0f, 1.5f}) {
         Canvas canvas; const bool ready = canvas.Init(scale); Check(ready, "WARP image view initialized");
-        if (ready) for (bool dark : {false, true}) pulse::ui::ThumbnailCacheTestAccess::Run(canvas, scale, dark, root);
+        if (ready) for (bool dark : {false, true}) luling::ui::ThumbnailCacheTestAccess::Run(canvas, scale, dark, root);
     }
     if (root.parent_path() != parent || !root.filename().wstring().starts_with(L"document-images-")) return 2;
     std::error_code cleanup;

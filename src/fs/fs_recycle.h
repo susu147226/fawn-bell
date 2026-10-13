@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::fs {
+namespace luling::fs {
 
 struct RecycleBinInfo {
     uint64_t bytes = 0;
@@ -32,7 +32,7 @@ bool EnumerateRecycleBinAtRoot(const std::wstring& recycle_root, std::vector<Dir
 void EnumerateRecycleBin(std::vector<DirEntry>& out, RecycleBinInfo* info = nullptr);
 
 inline bool IsRecycleViewPath(const std::wstring& path) {
-    return path == L"pulse:recycle";
+    return path == L"luling:recycle";
 }
 
-} // namespace pulse::fs
+} // namespace luling::fs

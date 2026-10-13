@@ -23,7 +23,7 @@ static HANDLE WINAPI TestThread(LPSECURITY_ATTRIBUTES attributes,SIZE_T stack,LP
 static BOOL WINAPI TestClose(HANDLE handle){
     {std::lock_guard lock(handles_mutex);events.erase(handle);}return CloseHandle(handle);
 }
-namespace pulse::shell {
+namespace luling::shell {
 static std::vector<CtxHandlerDesc> TestHandlers(bool,const std::wstring&,const std::vector<std::wstring>&){CtxHandlerDesc desc;desc.clsid_text=L"isolated-test-handler";return {desc};}
 static bool TestBind(const std::vector<std::wstring>&,bool,CtxBind&){if(block_query){SetEvent(entered);WaitForSingleObject(release_query,10000);}return false;}
 }

@@ -1,10 +1,10 @@
 #include "update_transport.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include <winhttp.h>
 #include <array>
 #include <limits>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 struct HttpHandle {
     HINTERNET value = nullptr;
@@ -54,7 +54,7 @@ bool ReadUpdateResponseWithProgress(std::wstring_view url, uint64_t maximum_byte
     std::wstring path(parts.lpszUrlPath, parts.dwUrlPathLength);
     if (parts.dwExtraInfoLength) path.append(parts.lpszExtraInfo, parts.dwExtraInfoLength);
     if (path.empty()) path = L"/";
-    HttpHandle session{WinHttpOpen(L"Pulse Update/" PULSE_VERSION_STRING,
+    HttpHandle session{WinHttpOpen(L"Luling Update/" LULING_VERSION_STRING,
         WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0)};
     if (!session.value) { error = GetLastError(); return false; }
     WinHttpSetTimeouts(session.value, 5000, 5000, 10000, 10000);

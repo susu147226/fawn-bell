@@ -11,7 +11,7 @@
 #include <iostream>
 #include <chrono>
 
-namespace pulse::index {
+namespace luling::index {
 struct UsnStreamTestAccess {
     static std::unique_ptr<UsnStream> Make(HANDLE signal) {
         return std::unique_ptr<UsnStream>(new UsnStream(signal));
@@ -24,7 +24,7 @@ struct EngineTestAccess {
     static bool ExclusionConcurrencyFixture() {
         SetMachineIndexScope(false);
         Engine engine;
-        engine.fixture_root_ = L"C:\\Pulse-exclusion-test-not-enumerated";
+        engine.fixture_root_ = L"C:\\Luling-exclusion-test-not-enumerated";
         engine.running_ = false;
         const std::vector<std::wstring> snapshot(2048, L"C:\\excluded-fixture");
         engine.excluded_paths_ = snapshot;
@@ -245,7 +245,7 @@ struct EngineTestAccess {
         nodes[0].parent = 2; nodes[2].flags = 5; check(!valid(), "alive child cannot have deleted parent");
         nodes[2].flags = 1; check(valid(), "repaired hierarchy is accepted");
         Engine engine; check(Build(engine), "build valid mapped hierarchy fixture");
-        const auto file = std::filesystem::temp_directory_path() / (L"pulse-hierarchy-" + std::to_wstring(GetCurrentProcessId()) + L".bin");
+        const auto file = std::filesystem::temp_directory_path() / (L"luling-hierarchy-" + std::to_wstring(GetCurrentProcessId()) + L".bin");
         check(Save(engine, file.wstring()), "save valid hierarchy");
         check(ValidateCache(file.wstring()), "production loader accepts valid hierarchy");
         {
@@ -550,7 +550,7 @@ struct EngineTestAccess {
                 memory.retained.aggregate_mapped_file_bytes > 0,
                 "memory diagnostics distinguish feed capacity from mapped file size");
             engine.filename_timing_.Flush(true);
-            std::ifstream timing(dir / L"pulse-index-timing.jsonl");
+            std::ifstream timing(dir / L"luling-index-timing.jsonl");
             const std::string line((std::istreambuf_iterator<char>(timing)), std::istreambuf_iterator<char>());
             timing.close();
             check(line.find("\"stages\":") != std::string::npos && line.find("\"memory\":") != std::string::npos &&
@@ -650,10 +650,10 @@ struct EngineTestAccess {
             Engine engine;
             check(Build(engine), "build self-log exclusion fixture");
             const auto before = engine.LiveCount();
-            Usn(engine, 9990, 20, L"pulse-index-timing.jsonl", USN_REASON_FILE_CREATE);
+            Usn(engine, 9990, 20, L"luling-index-timing.jsonl", USN_REASON_FILE_CREATE);
             check(engine.LiveCount() == before, "USN excludes the default filename timing log");
             engine.index_directory_ = L"C:\\Users\\TestUser\\index-data";
-            for (const auto* name : {L"pulse-index-timing.jsonl", L"pulse-index-timing.jsonl.1", L"index-data", L"index-data\\internal.tmp"}) {
+            for (const auto* name : {L"luling-index-timing.jsonl", L"luling-index-timing.jsonl.1", L"index-data", L"index-data\\internal.tmp"}) {
                 const size_t chars = wcslen(name);
                 std::vector<BYTE> packet(sizeof(FILE_NOTIFY_INFORMATION) + chars * sizeof(wchar_t));
                 auto* notification = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(packet.data());
@@ -718,7 +718,7 @@ struct EngineTestAccess {
         std::cout << "[INFO] elapsed_ms=" << elapsed << " single_core_cpu_percent=" << percent
             << " ready=" << ready << " revision_stable=" << stable << " create=" << created
             << " rename=" << renamed << " delete=" << deleted << " prompt_stop=" << stopped << '\n';
-        std::wcout << L"[INFO] retained isolated timing log: " << (data / L"pulse-index-timing.jsonl").wstring() << L'\n';
+        std::wcout << L"[INFO] retained isolated timing log: " << (data / L"luling-index-timing.jsonl").wstring() << L'\n';
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << "filename idle CPU and post-idle live updates\n";
         return ok;
     }
@@ -957,9 +957,9 @@ struct EngineTestAccess {
     }
 };
 
-} // namespace pulse::index
+} // namespace luling::index
 
-using namespace pulse::index;
+using namespace luling::index;
 namespace {
 int failures = 0;
 void Check(bool ok, const char* label) {
@@ -1013,16 +1013,16 @@ int wmain(int argc, wchar_t** argv) {
     if (argc == 2 && std::wstring_view(argv[1]) == L"--audit-query-only") return EngineTestAccess::AuditQueryFixture() ? 0 : 1;
     if (argc == 3 && std::wstring_view(argv[1]) == L"--validate-cache") return EngineTestAccess::ValidateCache(argv[2]) ? 0 : 1;
     if (argc == 4 && std::wstring_view(argv[1]) == L"--diagnostic-cache") {
-        if (!pulse::diagnostics::runtime::Initialize(argv[3], "test")) return 2;
+        if (!luling::diagnostics::runtime::Initialize(argv[3], "test")) return 2;
         const bool valid = EngineTestAccess::ValidateCache(argv[2]);
-        pulse::diagnostics::runtime::Shutdown();
+        luling::diagnostics::runtime::Shutdown();
         return valid ? 0 : 1;
     }
     if (argc == 4 && std::wstring_view(argv[1]) == L"--recover-cache") return EngineTestAccess::RecoverCache(argv[2], argv[3]) ? 0 : 1;
     if (argc == 3 && std::wstring_view(argv[1]) == L"--reopen-cache") return EngineTestAccess::ReopenCache(argv[2]) ? 0 : 1;
     if (argc == 2 && std::wstring_view(argv[1]) == L"--hierarchy-only") return EngineTestAccess::HierarchyFixture() ? 0 : 1;
     const bool quiet = argc > 1 && std::wstring_view(argv[1]) == L"--quiet-maintenance-only";
-    if (!SetEnvironmentVariableW(L"PULSE_INDEX_DIAGNOSTICS", quiet ? nullptr : L"1")) return 2;
+    if (!SetEnvironmentVariableW(L"LULING_INDEX_DIAGNOSTICS", quiet ? nullptr : L"1")) return 2;
     if (quiet) return EngineTestAccess::QuietDiagnosticsFixture() ? 0 : 1;
     if (argc > 1 && std::wstring_view(argv[1]) == L"--visibility-cache-only") return EngineTestAccess::VisibilityCacheFixture() ? 0 : 1;
     if (argc > 1 && std::wstring_view(argv[1]) == L"--name-pool-only") return EngineTestAccess::NamePoolFixture() ? 0 : 1;
@@ -1072,7 +1072,7 @@ int wmain(int argc, wchar_t** argv) {
         SetMachineIndexScope(true);
         SetActiveIndexDirectory(selected.wstring());
         Check(DataDir() == selected.wstring(), "running host reports actual index directory");
-        Check(CacheFilePath() == selected.wstring() + L"\\pulse-index.bin",
+        Check(CacheFilePath() == selected.wstring() + L"\\luling-index.bin",
               "base cache follows active directory");
         const auto delta_path = DeltaFilePath(L'C');
         {
@@ -1090,7 +1090,7 @@ int wmain(int argc, wchar_t** argv) {
             Check(delta.Flush(), "replacement directory receives index updates");
         }
         Check(std::filesystem::file_size(delta_path) == old_size &&
-              std::filesystem::exists(next / L"pulse-index-C.dlt"),
+              std::filesystem::exists(next / L"luling-index-C.dlt"),
               "closed old directory receives no replacement writes");
         Check(DeltaFilePathForVolume(L"test-volume").find(next.wstring() + L"\\") == 0,
               "volume shard delta follows active directory");

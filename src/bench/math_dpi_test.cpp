@@ -11,8 +11,8 @@ void Check(bool ok, const char* name) { std::printf("[%s] %s\n", ok ? "PASS" : "
 bool Close(float a, float b) { return std::abs(a - b) < 0.15f; }
 }
 int wmain() {
-    using namespace pulse::ui;
-    using namespace pulse::ui::math;
+    using namespace luling::ui;
+    using namespace luling::ui::math;
     ComPtr<IDWriteFactory2> factory;
     Check(SUCCEEDED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory2),
         reinterpret_cast<IUnknown**>(factory.GetAddressOf()))), "real DirectWrite factory");

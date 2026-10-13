@@ -12,7 +12,7 @@
 #include <string_view>
 #include <unordered_set>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -493,7 +493,7 @@ std::vector<ui::FluentMenuItem> BuildViewMenu(ui::ViewMode current_mode, bool de
 }
 
 static std::wstring DisplayPath(const std::wstring& path) {
-    return pulse::path::FriendlyPathText(path);
+    return luling::path::FriendlyPathText(path);
 }
 
 static std::wstring FolderTitle(const std::wstring& path) {
@@ -593,7 +593,7 @@ std::vector<ui::FluentMenuItem> BuildCommandPalette(const std::wstring& query,
         add_cmd(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C");
         add_cmd(CmdInstallFullIndex, l10n::Get(l10n::StringId::EnableFullIndex).c_str(), kGlyphSearch, nullptr);
         add_cmd(CmdSettings, l10n::Get(l10n::StringId::Settings).c_str(), kGlyphSettings, nullptr);
-        add_cmd(CmdExitPulse, l10n::Get(l10n::StringId::ExitPulse).c_str(), L"\xE7E8", nullptr);
+        add_cmd(CmdExitLuling, l10n::Get(l10n::StringId::ExitLuling).c_str(), L"\xE7E8", nullptr);
         add_cmd(CmdOpenRecycle, l10n::Get(l10n::StringId::RecycleBin).c_str(), kGlyphRecycle, nullptr);
         add_cmd(CmdBatchRename, l10n::Get(l10n::StringId::BatchRename).c_str(), kGlyphRename, L"Ctrl+Shift+R");
         add_cmd(CmdAdvancedSearch, l10n::Get(l10n::StringId::AdvancedSearch).c_str(), kGlyphSearch, L"Ctrl+Shift+F");
@@ -655,7 +655,7 @@ std::wstring UniqueChildName(const std::wstring& dir, const std::wstring& base,
         std::wstring full = dir;
         if (!full.empty() && full.back() != L'\\') full += L'\\';
         full += name;
-        return pulse::path::Exists(full);
+        return luling::path::Exists(full);
     };
     std::wstring candidate = base + ext;
     for (int i = 2; exists(candidate); ++i) {
@@ -664,4 +664,4 @@ std::wstring UniqueChildName(const std::wstring& dir, const std::wstring& base,
     return candidate;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

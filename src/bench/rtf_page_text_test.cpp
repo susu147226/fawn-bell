@@ -14,7 +14,7 @@ void Check(bool ok, const char* label) {
 }
 
 int wmain() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     const auto root = std::filesystem::current_path() / L"bench_data" /
         (L"rtf-pages-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
     std::filesystem::create_directories(root);
@@ -70,11 +70,11 @@ int wmain() {
             "input byte budget is explicitly incomplete");
     }
     Check(write("{\\rtf1 first\\page second\\sect third}"), "write host text fixture");
-    pulse_test::Host host;
+    luling_test::Host host;
     const bool started = host.Start();
     Check(started, "private preview host starts");
     if (started) {
-        pulse_test::Result result;
+        luling_test::Result result;
         const bool ok = host.Request(path.wstring(), result);
         Check(ok && result.text == L"first\r\nsecond\r\nthird", "real host returns later pages and sections");
         Check(ok && result.response.integrity.state == IntegrityState::Complete,
@@ -83,7 +83,7 @@ int wmain() {
         const bool limited = host.Request(path.wstring(), result);
         Check(limited && result.text.size() == 12000 &&
             result.response.integrity.state == IntegrityState::Partial &&
-            (result.response.flags & pulse::ipc::kPreviewFlagTruncated),
+            (result.response.flags & luling::ipc::kPreviewFlagTruncated),
             "real host reports bounded RTF body as partial");
         constexpr DWORD flags[] = {FILE_ATTRIBUTE_OFFLINE, 0x00040000, 0x00400000};
         for (unsigned mask = 1; mask < 8; ++mask) {

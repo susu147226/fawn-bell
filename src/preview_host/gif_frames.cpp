@@ -3,7 +3,7 @@
 #include <wincodec.h>
 #include <wrl/client.h>
 #include <algorithm>
-namespace pulse::preview {
+namespace luling::preview {
 using Microsoft::WRL::ComPtr;
 namespace {
 constexpr uint64_t kGifWorkingBytes = 64ull * 1024 * 1024;

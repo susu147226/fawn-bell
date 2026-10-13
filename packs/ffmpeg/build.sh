@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Builds the Pulse FFmpeg preview pack: a decode-only, LGPL-2.1+ FFmpeg.
+# Builds the Luling FFmpeg preview pack: a decode-only, LGPL-2.1+ FFmpeg.
 #
 #   ffmpeg.exe / ffprobe.exe, statically linked, no DLLs next to them.
 #   Decoders, demuxers and parsers: all of FFmpeg's built-in ones, plus dav1d
-#   (BSD-2) for software AV1. Encoders and muxers: only what Pulse pipes back
+#   (BSD-2) for software AV1. Encoders and muxers: only what Luling pipes back
 #   (BMP frames, raw PCM / WAV for playback). No network, no devices, no GPL
 #   or nonfree components; --enable-gpl / --enable-nonfree are never passed.
 #
@@ -47,7 +47,7 @@ FILTERS=scale,setsar,format,null,anull,transpose,hflip,vflip,select,fps,tile,pad
     --enable-muxer=image2pipe,rawvideo,wav,pcm_s16le,pcm_f32le,null \
     --enable-filter="$FILTERS" \
     --enable-swscale --enable-swresample \
-    --extra-version=pulse-pack
+    --extra-version=luling-pack
 
 # Hard guarantees, checked on the generated configuration.
 grep -q '^#define CONFIG_GPL 0' config.h
@@ -64,11 +64,11 @@ cp COPYING.LGPLv2.1 "$OUT/LICENSE-FFmpeg-LGPL-2.1.txt"
 DAV1D_LICENSE="$(find /mingw64/share -ipath '*dav1d*' -iname 'COPYING*' -o -ipath '*dav1d*' -iname 'LICENSE*' | head -n1 || true)"
 [ -n "$DAV1D_LICENSE" ] && cp "$DAV1D_LICENSE" "$OUT/LICENSE-dav1d.txt"
 cat > "$OUT/SOURCE.txt" <<EOF
-Pulse FFmpeg preview pack
+Luling FFmpeg preview pack
 FFmpeg ${VERSION}, built from the unmodified release tarball:
   https://ffmpeg.org/releases/${TARBALL}
 Build script and configuration:
-  packs/ffmpeg/build.sh in the Pulse repository
+  packs/ffmpeg/build.sh in the Luling repository
 License: GNU Lesser General Public License 2.1 or later (no GPL or nonfree parts).
 EOF
 "$OUT/ffmpeg.exe" -hide_banner -buildconf > "$OUT/BUILDCONF.txt" 2>&1

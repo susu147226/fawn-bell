@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct BatchRenameDialogResult {
     bool accepted = false;
@@ -19,4 +19,4 @@ BatchRenameDialogResult ShowBatchRenameDialog(HWND owner,
                                               bool dark,
                                               D2D1_COLOR_F accent);
 
-} // namespace pulse::ui
+} // namespace luling::ui

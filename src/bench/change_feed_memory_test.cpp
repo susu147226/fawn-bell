@@ -36,7 +36,7 @@ void operator delete[](void* p) noexcept { Release(p); }
 void operator delete(void* p, size_t) noexcept { Release(p); }
 void operator delete[](void* p, size_t) noexcept { Release(p); }
 
-using namespace pulse::index;
+using namespace luling::index;
 namespace {
 // Original Engine::RecordFeed and ReadFeed storage/scan, kept as an independent reference.
 struct LegacyFeed {
@@ -120,7 +120,7 @@ template<class Feed> void Benchmark(const char* label, bool short_paths) {
 }
 int main(int argc, char** argv) {
     if (argc > 1 && std::string_view(argv[1]) == "--probe") {
-        if (!SetEnvironmentVariableW(L"PULSE_INDEX_DIAGNOSTICS", L"1")) return 2;
+        if (!SetEnvironmentVariableW(L"LULING_INDEX_DIAGNOSTICS", L"1")) return 2;
         IndexMemoryProbe probe;
         const auto count = allocations.load();
         const auto begin = std::chrono::steady_clock::now();

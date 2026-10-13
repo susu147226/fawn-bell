@@ -9,7 +9,7 @@
 #include <atomic>
 #include <algorithm>
 #include <cstdio>
-using namespace pulse;
+using namespace luling;
 namespace {
 int failures=0;
 void Check(bool ok,const char* label) { printf("[%s] %s\n",ok ? "PASS":"FAIL",label);fflush(stdout);if(!ok)++failures; }
@@ -288,7 +288,7 @@ int wmain(int argc, wchar_t** argv) {
     Check(GetFileAttributesW(spool_path.c_str())==INVALID_FILE_ATTRIBUTES,"query spool removed when its owner is released");
     const auto root=base/L"files", profile=base/L"profile";
     std::filesystem::create_directories(root);
-    const auto dbdir=profile/L"Pulse"/L"ContentIndex";std::filesystem::create_directories(dbdir);
+    const auto dbdir=profile/L"Luling"/L"ContentIndex";std::filesystem::create_directories(dbdir);
     for(int i=0;i<count;++i) std::ofstream(root/Name(i)) << "20 complete result " << i;
     index::ContentIndexConfig config;config.roots={{root.wstring(),text::Encoding::Auto}};
     {

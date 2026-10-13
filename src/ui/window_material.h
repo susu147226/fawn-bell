@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 enum class WindowEffect {
     None = 0,
@@ -49,7 +49,7 @@ public:
     bool DrawBackdrop(ID2D1DeviceContext* dc, const D2D1_RECT_F& dest,
                       WindowEffect effect, bool dark, const std::wstring& path);
 
-#ifdef PULSE_WINDOW_MATERIAL_TESTING
+#ifdef LULING_WINDOW_MATERIAL_TESTING
     void SetDecodeDelayForTesting(DWORD delay_ms);
     uint64_t DecodeAttemptsForTesting() const;
     bool DecodeFailedForTesting(const std::wstring& path);
@@ -104,4 +104,4 @@ private:
     ID2D1DeviceContext* blurred_dc_ = nullptr;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

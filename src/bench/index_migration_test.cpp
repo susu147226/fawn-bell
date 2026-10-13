@@ -7,19 +7,19 @@
 #include <iostream>
 
 namespace fs = std::filesystem;
-using namespace pulse::index;
+using namespace luling::index;
 int main() {
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << '\n';
         if (!ok) ++failures;
     };
-    check(SameIndexLocation(L"C:\\ProgramData\\Pulse\\Index", L"c:/ProgramData/Pulse/Index/"),
+    check(SameIndexLocation(L"C:\\ProgramData\\Luling\\Index", L"c:/ProgramData/Luling/Index/"),
         "unchanged location normalizes case and trailing separator");
     check(!SameIndexLocation(L"C:\\Index", L"D:\\Index") && !SameIndexLocation(L"", L""),
         "different or empty locations do not skip migration");
     for (const std::wstring value : {L"D:\\Folder With Space\\", L"D:\\中文\\索引", L"", L"embedded\\\"quote"}) {
-        const auto command = L"helper.exe " + pulse::QuoteWindowsArgument(value);
+        const auto command = L"helper.exe " + luling::QuoteWindowsArgument(value);
         int count = 0;
         auto arguments = CommandLineToArgvW(command.c_str(), &count);
         check(arguments && count == 2 && arguments[1] == value, "elevated command path round trip");

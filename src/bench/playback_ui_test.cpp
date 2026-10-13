@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct QuickPreviewPlaybackProbe {
     static inline int failures = 0;
     static inline HWND scrub_test_window = nullptr;
@@ -306,7 +306,7 @@ struct QuickPreviewPlaybackProbe {
             EnumChildWindows(q.hwnd_, [](HWND child, LPARAM context) -> BOOL {
                 wchar_t name[64]{}; GetClassNameW(child, name, ARRAYSIZE(name));
                 RECT rect{}; GetWindowRect(child, &rect);
-                if (wcscmp(name, L"Pulse.VideoPreview") == 0 && IsWindowVisible(child) &&
+                if (wcscmp(name, L"Luling.VideoPreview") == 0 && IsWindowVisible(child) &&
                     rect.right > rect.left && rect.bottom > rect.top)
                     *reinterpret_cast<bool*>(context) = true;
                 return TRUE;
@@ -405,9 +405,9 @@ int wmain(int argc, wchar_t** argv) {
     if (argc != 2 && !video_only && !end_seek_only) return 2;
     OleInitialize(nullptr);
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES}; InitCommonControlsEx(&controls);
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
-    const int result = end_seek_only ? pulse::ui::QuickPreviewPlaybackProbe::RunEndSeek(argv[2])
-        : video_only ? pulse::ui::QuickPreviewPlaybackProbe::RunVideo(argv[2])
-        : pulse::ui::QuickPreviewPlaybackProbe::Run(argv[1]);
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    const int result = end_seek_only ? luling::ui::QuickPreviewPlaybackProbe::RunEndSeek(argv[2])
+        : video_only ? luling::ui::QuickPreviewPlaybackProbe::RunVideo(argv[2])
+        : luling::ui::QuickPreviewPlaybackProbe::Run(argv[1]);
     OleUninitialize(); return result;
 }

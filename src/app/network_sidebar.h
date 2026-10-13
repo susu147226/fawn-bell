@@ -3,11 +3,11 @@
 #include "network_locations.h"
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 inline void AppendSystemNetworkLocations(ui::SidebarGroup& networks,
                                         const std::vector<SidebarEntry>& imported) {
     networks.navigable = true;
-    networks.navigation_path = L"pulse:networks";
+    networks.navigation_path = L"luling:networks";
     for (const auto& entry : imported) {
         if (std::any_of(networks.items.begin(), networks.items.end(),
             [&](const auto& item) { return SameNetworkLocation(item.path, entry.path); })) continue;
@@ -21,4 +21,4 @@ inline void AppendSystemNetworkLocations(ui::SidebarGroup& networks,
         networks.items.push_back(std::move(item));
     }
 }
-} // namespace pulse::app
+} // namespace luling::app

@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 struct MigratedIndexFile {
     std::wstring relative;
     uint64_t size = 0;

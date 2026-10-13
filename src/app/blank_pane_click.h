@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct BlankPaneClickRelease {
     bool pending = false;
@@ -40,4 +40,4 @@ inline bool BlankClickGoesBack(int action, bool can_go_back) {
     return action == kBlankClickBack && can_go_back;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

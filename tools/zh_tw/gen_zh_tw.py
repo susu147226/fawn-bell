@@ -6,7 +6,7 @@
     python tools/zh_tw/gen_zh_tw.py --check  # fail if they are stale
 
 Inputs:  src/common/strings.rcinc (LANGUAGE 0x04, 0x02 blocks)
-         tools/zh_tw/glossary.tsv   Pulse / Windows zh-TW terms, applied before OpenCC s2twp
+         tools/zh_tw/glossary.tsv   Luling / Windows zh-TW terms, applied before OpenCC s2twp
          tools/zh_tw/overrides.tsv  exact per-id text for ambiguous strings
          tools/zh_tw/vocabulary.txt common words added to the runtime phrase table
          src/**/*.cpp|h             Simplified UI literals written in code
@@ -59,7 +59,7 @@ QUOTES = str.maketrans({"\u201c": "\u300c", "\u201d": "\u300d", "\u2018": "\u300
 
 
 def to_hant(text):
-    """Simplified -> Traditional (Taiwan), with the Pulse glossary protected."""
+    """Simplified -> Traditional (Taiwan), with the Luling glossary protected."""
     protected = []
     for simplified, traditional in GLOSSARY:
         if simplified in text:

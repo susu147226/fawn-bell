@@ -5,7 +5,7 @@
 
 #include <functional>
 
-namespace pulse::app {
+namespace luling::app {
 
 class TabController {
 public:
@@ -51,4 +51,4 @@ private:
     Callbacks callbacks_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

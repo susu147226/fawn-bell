@@ -14,7 +14,7 @@ void Check(bool ok, const char* label) {
 }
 
 bool InBounds(std::wstring_view extension, std::wstring_view text, size_t budget) {
-    const auto spans = pulse::ui::HighlightSyntax(extension, text, budget);
+    const auto spans = luling::ui::HighlightSyntax(extension, text, budget);
     if (spans.size() > budget) return false;
     size_t previous_end = 0;
     for (const auto& span : spans) {
@@ -33,11 +33,11 @@ bool InBounds(std::wstring_view extension, std::wstring_view text, size_t budget
 
 void Variable(std::wstring_view text, uint32_t start, uint32_t length, const char* label) {
     for (const auto extension : {std::wstring_view(L".bat"), std::wstring_view(L".cmd")}) {
-        const auto spans = pulse::ui::HighlightSyntax(extension, text);
+        const auto spans = luling::ui::HighlightSyntax(extension, text);
         size_t variables = 0;
         bool exact = false;
         for (const auto& span : spans) {
-            if (span.token != pulse::ui::SyntaxToken::Variable) continue;
+            if (span.token != luling::ui::SyntaxToken::Variable) continue;
             ++variables;
             exact = span.start == start && span.length == length;
         }

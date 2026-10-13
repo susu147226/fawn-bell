@@ -6,7 +6,7 @@
 #include <atomic>
 
 int main() {
-    using namespace pulse::ops;
+    using namespace luling::ops;
     int failures = 0;
     auto check = [&](bool ok, const char* name) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << std::endl;
@@ -15,7 +15,7 @@ int main() {
     wchar_t temporary[MAX_PATH]{};
     if (!GetTempPathW(MAX_PATH, temporary)) return 2;
     const auto root = std::filesystem::path(temporary) /
-        (L"pulse_authorization_flow_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
+        (L"luling_authorization_flow_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
     const auto target = root / L"protected";
     std::filesystem::create_directories(target);
     const auto first = root / L"first.txt", second = root / L"second.txt";

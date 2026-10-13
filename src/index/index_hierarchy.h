@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 enum class HierarchyError : uint8_t { None, Count, ParentRange, SelfParent, FileRoot, ParentType, DeletedParent, Cycle };
 struct HierarchyIssue {
     HierarchyError error = HierarchyError::None;

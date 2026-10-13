@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <iostream>
 #include <fstream>
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static bool Fixture(Engine& e, const std::wstring& path, int count) {
         Engine::Store store;
@@ -53,7 +53,7 @@ struct EngineTestAccess {
 };
 }
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::index;
+    using namespace luling::index;
     const int count = argc > 1 && std::wstring_view(argv[1]) == L"--million" ? 1000000 : 10000;
     const auto dir = std::filesystem::absolute(std::filesystem::path(L"bench_data") /
         (L"pinyin-test-" + std::to_wstring(GetCurrentProcessId())));

@@ -61,7 +61,7 @@ HANDLE WINAPI ArtifactFirst(LPCWSTR path, LPWIN32_FIND_DATAW data) {
     return find;
 }
 void ClearTests(const fs::path& root) {
-    using namespace pulse::diagnostics;
+    using namespace luling::diagnostics;
     std::wstring error = L"stale";
     Check(ClearCrashReports(root.wstring(), &error) && error.empty(), "missing directory is successful empty cleanup");
     auto dir = root / L"Diagnostics" / L"Crashes"; fs::create_directories(dir);
@@ -89,11 +89,11 @@ void ClearTests(const fs::path& root) {
     Check(!ClearCrashReports(root.wstring(), &error) && !error.empty(), "file substituted for directory is failure");
 }
 void Retention(const fs::path& root) {
-    Check(pulse::crash::Initialize({pulse::crash::ProcessRole::Test, false, root.wstring()}), "initialize private diagnostics");
+    Check(luling::crash::Initialize({luling::crash::ProcessRole::Test, false, root.wstring()}), "initialize private diagnostics");
     const auto dir = root / L"Diagnostics" / L"Crashes";
-    for (int i = 0; i < 13; ++i) { pulse::crash::ReportRecoverable(nullptr, "living-host"); Sleep(2); }
+    for (int i = 0; i < 13; ++i) { luling::crash::ReportRecoverable(nullptr, "living-host"); Sleep(2); }
     Check(Wait([&] { return Groups(dir) == 10; }), "living host prunes repeated recoverable reports without restart");
-    pulse::crash::ReportRecoverable(nullptr, "retention-latest");
+    luling::crash::ReportRecoverable(nullptr, "retention-latest");
     Check(Wait([&] { return Groups(dir) == 10; }), "subsequent report schedules another maintenance pass");
     bool latest = false;
     for (const auto& item : fs::directory_iterator(dir)) if (item.path().extension() == L".json") {
@@ -112,26 +112,26 @@ void Retention(const fs::path& root) {
         CloseHandle(oversized); Old(dir / L"oversized.dmp");
     }
     Check(sized, "private oversized dump fixture has exact logical size");
-    pulse::crash::ReportRecoverable(nullptr, "byte-budget");
+    luling::crash::ReportRecoverable(nullptr, "byte-budget");
     Check(Wait([&] { return !fs::exists(dir / L"oversized.dmp") && Groups(dir) <= 10; }),
         "runtime maintenance enforces aggregate byte budget");
     Write(dir / L"locked.json"); Old(dir / L"locked.json");
     HANDLE lock = CreateFileW((dir / L"locked.json").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
     Check(lock != INVALID_HANDLE_VALUE, "retention locked oldest fixture");
-    pulse::crash::ReportRecoverable(nullptr, "locked-oldest");
+    luling::crash::ReportRecoverable(nullptr, "locked-oldest");
     Check(Wait([&] { return Groups(dir) == 10; }) && fs::exists(dir / L"locked.json"), "failed delete is not counted as reclaimed event");
     if (lock != INVALID_HANDLE_VALUE) CloseHandle(lock);
-    pulse::crash::ReportRecoverable(nullptr, "unlocked-oldest");
+    luling::crash::ReportRecoverable(nullptr, "unlocked-oldest");
     Check(Wait([&] { return !fs::exists(dir / L"locked.json") && Groups(dir) == 10; }), "unlocked oldest can be reclaimed later");
     auto writer = Child(L"--lease", root);
     Check(Wait([&] { return fs::exists(root / L"ready"); }), "other process owns live report lease");
-    pulse::crash::ReportRecoverable(nullptr, "writer-active");
+    luling::crash::ReportRecoverable(nullptr, "writer-active");
     Check(Wait([&] { return Groups(dir) == 10; }) && fs::exists(dir / L"live.json"), "retention skips active cross-process writer");
     Write(root / L"release"); Check(Finish(writer), "writer exits without closing lease explicitly");
     Check(!fs::exists(dir / L"live.writing"), "OS removes lease after abrupt writer exit");
-    pulse::crash::ReportRecoverable(nullptr, "writer-exited");
+    luling::crash::ReportRecoverable(nullptr, "writer-exited");
     Check(Wait([&] { return !fs::exists(dir / L"live.json") && Groups(dir) == 10; }), "crashed writer cannot pin report forever");
-    const auto before = GetTickCount64(); pulse::crash::Shutdown();
+    const auto before = GetTickCount64(); luling::crash::Shutdown();
     Check(GetTickCount64() - before < 1000, "shutdown signals maintenance without joining filesystem I/O");
 }
 }

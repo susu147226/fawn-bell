@@ -1,7 +1,7 @@
 #include "../ui/open_with_icons.h"
 #include <cstdio>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct OpenWithIconCacheTest {
     static void HoldWorker(OpenWithIconCache& cache) { cache.running_ = true; }
     static size_t Queued(OpenWithIconCache& cache) { return cache.queue_.size(); }
@@ -19,7 +19,7 @@ struct OpenWithIconCacheTest {
 }
 
 int main() {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     int failed = 0;
     const auto check = [&](bool ok, const char* name) {
         std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", name);

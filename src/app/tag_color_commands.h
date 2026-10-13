@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <limits>
 
-namespace pulse::app {
+namespace luling::app {
 inline constexpr int kCreateTagCommand = 29999;
 inline constexpr int kTagColorStripCommand = 30050;
 inline constexpr int kCustomTagColorCommand = 30051;

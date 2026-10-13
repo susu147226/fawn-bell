@@ -16,7 +16,7 @@
 #include <numeric>
 #include <unordered_map>
 
-namespace pulse {
+namespace luling {
 namespace {
 
 struct ModeStyle {
@@ -274,7 +274,7 @@ void OpenGroupWheel(AppState& s) {
     app::Tab* tab = ActiveTab(s);
     if (!tab) return;
     std::wstring kind;
-    app::ParsePulsePath(tab->current_path, &kind, nullptr);
+    app::ParseLulingPath(tab->current_path, &kind, nullptr);
     const bool recent = kind == L"recent";
     const bool multi = kind == L"search" || kind == L"saved-search" || kind == L"tag" || kind == L"recycle";
     // Preview only: counting stops at 20k entries so opening stays instant.
@@ -313,7 +313,7 @@ void OpenSortWheel(AppState& s) {
     app::Tab* tab = ActiveTab(s);
     if (!tab) return;
     std::wstring kind;
-    app::ParsePulsePath(tab->current_path, &kind, nullptr);
+    app::ParseLulingPath(tab->current_path, &kind, nullptr);
     if (kind == L"starred" || kind == L"recent") return;
     const bool show_path = kind == L"search" || kind == L"saved-search" || kind == L"recycle";
     const bool indexed = (kind == L"search" || kind == L"saved-search") && !tab->content_results;
@@ -480,4 +480,4 @@ bool GroupWheelMessage(AppState& s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     }
 }
 
-} // namespace pulse
+} // namespace luling

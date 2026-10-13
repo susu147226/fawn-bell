@@ -3,7 +3,7 @@
 #include "../ops/ops_manager.h"
 #include <d2d1.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct PickerOperationResult {
     std::wstring error;
@@ -15,4 +15,4 @@ struct PickerOperationResult {
 PickerOperationResult RunPickerOperation(HWND owner, ops::OpRequest request,
                                         bool dark, D2D1_COLOR_F accent);
 
-} // namespace pulse::ui
+} // namespace luling::ui

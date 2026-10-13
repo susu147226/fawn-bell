@@ -3,12 +3,12 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::index {
+namespace luling::index {
 // Opt-in, cross-process monotonic timestamps. No file IO in normal operation.
 inline void TraceSearch(const char* stage, uint64_t revision = 0, std::wstring_view path = {}) {
     static const std::wstring destination = [] {
         std::wstring value(32768, L'\0');
-        const DWORD n = GetEnvironmentVariableW(L"PULSE_SEARCH_TRACE", value.data(), static_cast<DWORD>(value.size()));
+        const DWORD n = GetEnvironmentVariableW(L"LULING_SEARCH_TRACE", value.data(), static_cast<DWORD>(value.size()));
         if (!n || n >= value.size()) return std::wstring{};
         value.resize(n); return value;
     }();

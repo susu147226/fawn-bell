@@ -1,4 +1,4 @@
-# Overlay of vcpkg's libheif port (vcpkg d46283cf) for Pulse's image preview pack.
+# Overlay of vcpkg's libheif port (vcpkg d46283cf) for Luling's image preview pack.
 # Changes: a "dav1d" feature, every encoder off, no plugin loading.
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
@@ -34,7 +34,7 @@ vcpkg_cmake_configure(
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         "-DCMAKE_PROJECT_INCLUDE=${CURRENT_PORT_DIR}/cmake-project-include.cmake"
         -DPLUGIN_DIRECTORY=  # empty
-        # Pulse image pack: decoders only, built into heif.dll. No encoder
+        # Luling image pack: decoders only, built into heif.dll. No encoder
         # (x265 / x264 are GPL), no plugin loading from disk.
         -DENABLE_PLUGIN_LOADING=OFF
         -DWITH_DAV1D_PLUGIN=OFF

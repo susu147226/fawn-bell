@@ -1,7 +1,7 @@
 #pragma once
 #include "ui_compositor.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 struct ShortcutHelpLayout {
     D2D1_RECT_F card{}, close{}, body{};
     float content_height = 0;

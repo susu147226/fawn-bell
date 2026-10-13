@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Reads the member `name` of the ZIP file at `path` into `data`.
 //
@@ -26,4 +26,4 @@ bool ReadZipEntry(const std::wstring& path, std::string_view name, size_t max_by
 bool ReadZipEntryPrefix(const std::wstring& path, std::string_view name, size_t max_bytes,
                         std::vector<unsigned char>& data, bool* truncated, std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

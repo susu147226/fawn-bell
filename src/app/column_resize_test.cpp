@@ -1,10 +1,10 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "../ui/ui_renderer_internal.h"
 #include "../common/windows_compat.h"
 #include <filesystem>
 #include <fstream>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct ColumnResizeUiTest {
     static bool Run() {
         const std::filesystem::path root = L"bench_data/column-resize";
@@ -110,7 +110,7 @@ struct ColumnResizeUiTest {
     }
 };
 }
-namespace pulse::app {
+namespace luling::app {
 bool RunColumnResizeUiTest() {
     const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(hr)) return false;

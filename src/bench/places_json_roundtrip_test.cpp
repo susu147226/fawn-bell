@@ -4,12 +4,12 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdio>
-namespace pulse::app { std::wstring fixture; std::wstring GetPulseDataDir() { return fixture; } }
+namespace luling::app { std::wstring fixture; std::wstring GetLulingDataDir() { return fixture; } }
 namespace {
 int failures = 0;
 void Check(bool ok, const char* text) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", text); failures += !ok; }
 void Json() {
-    using namespace pulse::json;
+    using namespace luling::json;
     const std::wstring input = LR"({"name":"paths","nested":{"paths":["wrong"]},"rgb":0x123456,"pa\u0074hs":["right","quote\"\\"]})";
     Check(ExtractStringArray(input, L"paths") == std::vector<std::wstring>{L"right", L"quote\"\\"},
         "real top-level escaped key wins over string values and nested members");
@@ -36,7 +36,7 @@ void Json() {
 }
 int wmain() {
     namespace fs = std::filesystem;
-    using namespace pulse::app;
+    using namespace luling::app;
     Json();
     const auto parent = fs::absolute(L"bench_data").lexically_normal();
     const auto base = parent / (L"places-json-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
@@ -44,7 +44,7 @@ int wmain() {
     if (!fs::create_directory(base)) return 1;
     fixture = base.wstring();
     const auto source = base / L"private.txt";
-    const auto expected_path = pulse::fs::NormalizePath(source.wstring());
+    const auto expected_path = luling::fs::NormalizePath(source.wstring());
     { std::ofstream file(source); file << "private ADS fixture"; }
     {
         const auto open = [](const wchar_t* path) {
@@ -79,7 +79,7 @@ int wmain() {
     }
     for (const wchar_t* filename : {L"tags.json", L"places.json"}) {
         std::wstring json;
-        Check(pulse::ReadUtf8File((base / filename).wstring(), json) && pulse::json::ValidConfigObject(json, true),
+        Check(luling::ReadUtf8File((base / filename).wstring(), json) && luling::json::ValidConfigObject(json, true),
             "persisted Places JSON has no raw control characters");
     }
     auto verify = [&] {

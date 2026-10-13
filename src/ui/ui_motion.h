@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <unordered_map>
 
-namespace pulse::ui::motion {
+namespace luling::ui::motion {
 
 // Settings > Accessibility > Visual effects > Animation effects. Queried only
 // when a transition starts, never per frame.
@@ -278,4 +278,4 @@ private:
     std::unordered_map<uint64_t, uint64_t> born_;
 };
 
-} // namespace pulse::ui::motion
+} // namespace luling::ui::motion

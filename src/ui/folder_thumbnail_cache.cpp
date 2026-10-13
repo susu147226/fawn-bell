@@ -2,7 +2,7 @@
 #include "thumbnail_artwork_layout.h"
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 FolderThumbnailCache::DebugStats FolderThumbnailCache::ReadDebugStats() {
     DebugStats stats;
     std::lock_guard lock(cache_.mutex_);
@@ -176,4 +176,4 @@ PreviewDrawResult FolderThumbnailCache::Draw(ID2D1DeviceContext* dc,
         visible->second.attempted && !cache_.pending_.contains(key);
     return settled_without_artwork ? PreviewDrawResult::Failed : PreviewDrawResult::Pending;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

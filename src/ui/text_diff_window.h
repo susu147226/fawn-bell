@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class TextDiffWindow {
 public:
@@ -151,4 +151,4 @@ private:
         ignore_case_rc_{}, swap_rc_{}, prev_rc_{}, next_rc_{}, position_rc_{}, summary_rc_{};
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

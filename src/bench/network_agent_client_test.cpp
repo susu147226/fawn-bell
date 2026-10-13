@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <future>
 
-namespace pulse::index {
+namespace luling::index {
 struct NetworkAgentClientTestAccess {
     static void Start(NetworkAgentClient& client, const std::wstring& pipe, std::promise<void>& done) {
         client.pipe_name_ = pipe;
@@ -23,8 +23,8 @@ struct NetworkAgentClientTestAccess {
 };
 }
 int main() {
-    using namespace pulse;
-    const auto name = LR"(\\.\pipe\PulseNetworkFixture-)" + std::to_wstring(GetCurrentProcessId()) +
+    using namespace luling;
+    const auto name = LR"(\\.\pipe\LulingNetworkFixture-)" + std::to_wstring(GetCurrentProcessId()) +
         L"-" + std::to_wstring(GetTickCount64());
     HANDLE pipe = CreateNamedPipeW(name.c_str(), PIPE_ACCESS_DUPLEX,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, nullptr);

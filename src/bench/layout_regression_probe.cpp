@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "../app/app_internal.h"
 #include "../app/app_input.h"
 #include <windowsx.h>
@@ -6,10 +6,10 @@
 #include <filesystem>
 #include <cmath>
 
-int RunLayoutRegressionProbe(pulse::AppState& s, const wchar_t* output) {
-    using namespace pulse;
+int RunLayoutRegressionProbe(luling::AppState& s, const wchar_t* output) {
+    using namespace luling;
     wchar_t data[32768]{};
-    const auto length = GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", data, ARRAYSIZE(data));
+    const auto length = GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", data, ARRAYSIZE(data));
     if (!s.isolatedTest || !length || length >= ARRAYSIZE(data)) return 2;
     std::ofstream log{std::filesystem::path(output)};
     if (!log) return 2;
@@ -60,11 +60,11 @@ int RunLayoutRegressionProbe(pulse::AppState& s, const wchar_t* output) {
     for (float scale : {1.0f, 1.5f, 2.0f}) for (int panes : {1, 2})
     for (int width : {1000, 1680}) for (uint32_t mask : {ui::kDetailsColumnsDefault, ui::kDetailsColumnModified | ui::kDetailsColumnSize})
     for (const auto& path :
-        std::vector<std::wstring>{private_folder, L"pulse:search:report", L"pulse:saved-search:fixture", L"pulse:recycle"}) {
+        std::vector<std::wstring>{private_folder, L"luling:search:report", L"luling:saved-search:fixture", L"luling:recycle"}) {
         setup(panes, path);
         log << "[CASE] scale=" << scale << " panes=" << panes << " width=" << width << " mask=" << mask
-            << " kind=" << (path == private_folder ? "folder" : path == L"pulse:recycle" ? "recycle" :
-                           path == L"pulse:search:report" ? "search" : "saved-search") << std::endl;
+            << " kind=" << (path == private_folder ? "folder" : path == L"luling:recycle" ? "recycle" :
+                           path == L"luling:search:report" ? "search" : "saved-search") << std::endl;
         s.renderer.SetDetailsColumns(mask);
         s.scale = scale; s.renderer.SetScale(scale); s.compositor.RecreateTextFormats(scale);
         SetWindowPos(s.hwnd, nullptr, 0, 0, static_cast<int>(width * scale), static_cast<int>(740 * scale),
@@ -113,7 +113,7 @@ int RunLayoutRegressionProbe(pulse::AppState& s, const wchar_t* output) {
             check(std::abs(moved_columns.DividerX(0) - columns.DividerX(0)) > 1,
                   "visible divider follows real drag");
             if (panes == 1 && width == 1680 && scale <= 1.5f && mask == ui::kDetailsColumnsDefault &&
-                (path == L"pulse:recycle" || path == L"pulse:saved-search:fixture")) {
+                (path == L"luling:recycle" || path == L"luling:saved-search:fixture")) {
                 for (bool dark : {false, true}) {
                     const auto theme = ui::MakeTheme(dark, s.accentColor);
                     auto* dc = s.compositor.Dc(); dc->BeginDraw(); dc->Clear(theme.bg);
@@ -121,7 +121,7 @@ int RunLayoutRegressionProbe(pulse::AppState& s, const wchar_t* output) {
                     themed_vm.dark = dark;
                     s.renderer.Render(themed_vm, window, theme);
                     check(SUCCEEDED(dc->EndDraw()), "render actual virtual-page column drag result");
-                    const auto shot = artifacts / (std::wstring(path == L"pulse:recycle" ? L"recycle-" : L"saved-search-") +
+                    const auto shot = artifacts / (std::wstring(path == L"luling:recycle" ? L"recycle-" : L"saved-search-") +
                         std::to_wstring(static_cast<int>(scale * 100)) + (dark ? L"-dark.png" : L"-light.png"));
                     check(s.compositor.SaveSnapshot(shot.c_str()), "save actual virtual-page drag screenshot");
                 }

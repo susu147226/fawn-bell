@@ -33,19 +33,19 @@ int wmain(int argc, wchar_t** argv) {
         std::filesystem::create_directories(source); std::filesystem::create_directories(target);
         Write(source / L"item.txt", "orphan fixture");
         std::atomic<bool> cancel{false};
-        const auto result = pulse::ops::TransferWithElevatedHelper({(source / L"item.txt").wstring()}, target.wstring(), false, nullptr, cancel);
+        const auto result = luling::ops::TransferWithElevatedHelper({(source / L"item.txt").wstring()}, target.wstring(), false, nullptr, cancel);
         if (FAILED(result.hr)) return 3;
-        { std::ofstream output(fixture / L"helper.pid"); output << pulse::ops::ElevatedHelperProcessIdForTesting(); }
+        { std::ofstream output(fixture / L"helper.pid"); output << luling::ops::ElevatedHelperProcessIdForTesting(); }
         const auto started = GetTickCount64();
         while (!std::filesystem::exists(fixture / L"exit_parent") && GetTickCount64() - started < 15000) Sleep(25);
         ExitProcess(0); // Deliberately bypass explicit client/helper shutdown.
     }
-    using namespace pulse::ops;
+    using namespace luling::ops;
     int failed = 0;
     auto check = [&](bool ok, const char* name) { std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n'; if (!ok) ++failed; };
     wchar_t temp[MAX_PATH]{};
     if (!GetTempPathW(MAX_PATH, temp)) return 2;
-    const auto root = std::filesystem::path(temp) / (L"pulse_session_test_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
+    const auto root = std::filesystem::path(temp) / (L"luling_session_test_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
     std::atomic<bool> cancel{false};
     try {
         const auto source = root / L"source", destination = root / L"destination", moved = root / L"moved";
@@ -64,8 +64,8 @@ int wmain(int argc, wchar_t** argv) {
         unsigned conflicts = 0;
         callbacks.conflict = [&](const ConflictItemInfo& item) {
             ++conflicts;
-            check(pulse::path::EqualInsensitive(pulse::path::StripExtendedPathPrefix(item.source), (source / L"a.txt").wstring()) &&
-                  pulse::path::EqualInsensitive(pulse::path::StripExtendedPathPrefix(item.destination), (destination / L"a.txt").wstring()), "conflict names forwarded to Pulse");
+            check(luling::path::EqualInsensitive(luling::path::StripExtendedPathPrefix(item.source), (source / L"a.txt").wstring()) &&
+                  luling::path::EqualInsensitive(luling::path::StripExtendedPathPrefix(item.destination), (destination / L"a.txt").wstring()), "conflict names forwarded to Luling");
             return ElevatedConflictAnswer{ConflictChoice::Skip, false};
         };
         Write(source / L"a.txt", "updated");
@@ -74,7 +74,7 @@ int wmain(int argc, wchar_t** argv) {
         check(helper != 0 && helper == ElevatedHelperProcessIdForTesting(), "same helper reused across requests");
         callbacks.conflict = [&](const ConflictItemInfo&) { return ElevatedConflictAnswer{ConflictChoice::Replace, false}; };
         result = TransferWithElevatedHelper({(source / L"a.txt").wstring()}, destination.wstring(), false, nullptr, cancel, ShellCollisionPolicy::System, callbacks);
-        check(SUCCEEDED(result.hr) && Read(destination / L"a.txt") == "updated", "Pulse replace choice applied in existing engine");
+        check(SUCCEEDED(result.hr) && Read(destination / L"a.txt") == "updated", "Luling replace choice applied in existing engine");
         result = TransferWithElevatedHelper({(source / L"a.txt").wstring()}, moved.wstring(), true, nullptr, cancel, ShellCollisionPolicy::System, callbacks);
         check(SUCCEEDED(result.hr) && result.sources.size() == 1 && !std::filesystem::exists(source / L"a.txt") && Read(moved / L"a.txt") == "updated", "helper move reports actual paths");
         std::filesystem::create_directories(source / L"tree"); std::filesystem::create_directories(destination / L"tree");
@@ -86,8 +86,8 @@ int wmain(int argc, wchar_t** argv) {
         check(SUCCEEDED(result.hr) && conflicts == 1 && Read(destination / L"tree" / L"same.txt") == "old" && Read(destination / L"tree" / L"fresh.txt") == "fresh", "nested merge delegates collision without batch replay");
         bool renamed_new = false;
         for (size_t i = 0; i < result.sources.size(); ++i) {
-            if (pulse::path::EqualInsensitive(pulse::path::StripExtendedPathPrefix(result.sources[i]), (source / L"tree" / L"same.txt").wstring()) &&
-                !pulse::path::EqualInsensitive(pulse::path::StripExtendedPathPrefix(result.destinations[i]), (destination / L"tree" / L"same.txt").wstring()) &&
+            if (luling::path::EqualInsensitive(luling::path::StripExtendedPathPrefix(result.sources[i]), (source / L"tree" / L"same.txt").wstring()) &&
+                !luling::path::EqualInsensitive(luling::path::StripExtendedPathPrefix(result.destinations[i]), (destination / L"tree" / L"same.txt").wstring()) &&
                 Read(result.destinations[i]) == "new") renamed_new = true;
         }
         check(renamed_new, "nested keep-both returns actual renamed file containing new content");
@@ -115,7 +115,7 @@ int wmain(int argc, wchar_t** argv) {
         result = DeleteWithElevatedHelper({(source / L"delete.txt").wstring()}, true, nullptr, cancel, callbacks);
         check(SUCCEEDED(result.hr) && result.sources.size() == 1 && result.destinations.empty() && !std::filesystem::exists(source / L"delete.txt"), "permanent delete opcode reports actual deleted source");
         check(helper == ElevatedHelperProcessIdForTesting() && authorization_events == std::vector<bool>({true, false}), "cached helper deletes without repeated authorization state");
-        result = DeleteWithElevatedHelper({L"\\\\localhost\\nonexistent_pulse_recycle_test_share\\file.txt"}, false, nullptr, cancel, callbacks);
+        result = DeleteWithElevatedHelper({L"\\\\localhost\\nonexistent_luling_recycle_test_share\\file.txt"}, false, nullptr, cancel, callbacks);
         check(FAILED(result.hr) && !result.cancelled && !result.mutated && result.sources.empty(), "recycle opcode refuses unsupported location without permanent fallback");
         HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, helper);
         ShutdownElevatedTransferHelper();

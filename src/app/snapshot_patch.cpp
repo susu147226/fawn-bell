@@ -7,7 +7,7 @@
 #include <optional>
 #include <unordered_map>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -255,4 +255,4 @@ NotifyPatch ApplyDirNotifyBatch(std::vector<fs::DirEntry>& entries, const std::w
     return NotifyPatch::Applied;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

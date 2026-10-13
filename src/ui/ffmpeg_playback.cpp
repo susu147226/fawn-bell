@@ -5,7 +5,7 @@
 
 #pragma comment(lib, "winmm.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 constexpr int64_t kSecond = 10'000'000;          // 100 ns units
@@ -449,4 +449,4 @@ bool FfmpegPlayback::Ended() {
     return video_done && AudioDrained();
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

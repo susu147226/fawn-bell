@@ -49,7 +49,7 @@ void WritePdf(const std::filesystem::path& path, const std::vector<std::string>&
     std::ofstream out(path, std::ios::binary); out << pdf;
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     namespace fs = std::filesystem;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; };
@@ -92,7 +92,7 @@ int main() {
             body.find(L"A\u4e2d\U00020000\U0001f600B") != std::wstring::npos,
             "document host full extraction preserves supplementary Unicode");
         check(ReadSearchableDocument(path.wstring(), 1024 * 1024, body, bytes, &error,
-            pulse::text::Encoding::Auto, {}, L"\U00020000\U0001f600", true) &&
+            luling::text::Encoding::Auto, {}, L"\U00020000\U0001f600", true) &&
             body.find(L"\U00020000\U0001f600") != std::wstring::npos,
             "document host foreground literal path preserves supplementary match");
     }

@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::fs {
+namespace luling::fs {
 struct DirNotifyEvent;
 // Overflow supersedes all pending details for this path. Keep one queue item
 // while a UI consumer is paused, instead of accumulating repeated refreshes.
@@ -75,4 +75,4 @@ private:
     std::unordered_map<std::wstring, std::unique_ptr<DirWatch>> watches_;
 };
 
-} // namespace pulse::fs
+} // namespace luling::fs

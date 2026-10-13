@@ -1,4 +1,4 @@
 #pragma once
-namespace pulse::app {
+namespace luling::app {
 bool RunOperationToastTest();
 }

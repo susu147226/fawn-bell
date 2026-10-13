@@ -12,7 +12,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -259,16 +259,16 @@ namespace {
 thread_local const EntryGrouping* t_grouping = nullptr;
 
 std::wstring GroupFolderKey(const std::wstring& path) {
-    if (path.starts_with(L"pulse:")) {
+    if (path.starts_with(L"luling:")) {
         // One shared choice per virtual kind: every search remembers the same.
         std::wstring key = path;
         for (auto& ch : key) ch = static_cast<wchar_t>(std::towlower(ch));
         const size_t colon = key.find(L':', 6);
         const std::wstring kind = key.substr(6, colon == std::wstring::npos ? std::wstring::npos : colon - 6);
-        if (kind == L"recent") return L"pulse:recent";
-        if (kind == L"search" || kind == L"saved-search") return L"pulse:search";
-        if (kind == L"tag") return L"pulse:tag";
-        if (kind == L"recycle") return L"pulse:recycle";
+        if (kind == L"recent") return L"luling:recent";
+        if (kind == L"search" || kind == L"saved-search") return L"luling:search";
+        if (kind == L"tag") return L"luling:tag";
+        if (kind == L"recycle") return L"luling:recycle";
         return {};
     }
     std::wstring key = path::StripExtendedPathPrefix(path);
@@ -321,7 +321,7 @@ std::shared_ptr<const TagGroupMap> TagGroupsForFolder(const std::wstring& folder
     if (!catalog) return map;
     map->untagged = static_cast<int>(catalog->tags.size());
     // Callers pass tab / work paths, already normalized like the catalog keys.
-    if (folder.empty() || folder.starts_with(L"pulse:")) return map;
+    if (folder.empty() || folder.starts_with(L"luling:")) return map;
     std::wstring parent = folder;
     for (auto& ch : parent) ch = static_cast<wchar_t>(std::towlower(ch));
     while (!parent.empty() && parent.back() == L'\\') parent.pop_back();
@@ -394,21 +394,21 @@ GroupBy FolderGroupPrefs::Resolve(const std::wstring& path) const {
     const auto key = GroupFolderKey(path);
     if (!key.empty()) {
         if (const auto it = groups_.find(key); it != groups_.end()) return it->second;
-        if (default_ && !key.starts_with(L"pulse:")) return *default_;
+        if (default_ && !key.starts_with(L"luling:")) return *default_;
     }
     return DefaultGroupFor(path);
 }
 
 void FolderGroupPrefs::ApplyToAll(GroupBy by) {
     default_ = by;
-    std::erase_if(groups_, [](const auto& item) { return !item.first.starts_with(L"pulse:"); });
+    std::erase_if(groups_, [](const auto& item) { return !item.first.starts_with(L"luling:"); });
 }
 
 GroupBy DefaultGroupFor(const std::wstring& path) {
     const std::wstring key = GroupFolderKey(path);
     if (key.empty()) return GroupBy::None;
     // Recycle bin: mtime is the deleted time, so this groups by deletion date.
-    if (key == L"pulse:recent" || key == L"pulse:recycle") return GroupBy::Date;
+    if (key == L"luling:recent" || key == L"luling:recycle") return GroupBy::Date;
     const std::wstring& downloads = DownloadsFolder();
     if (!downloads.empty() &&
         CompareStringOrdinal(key.c_str(), static_cast<int>(key.size()),
@@ -417,4 +417,4 @@ GroupBy DefaultGroupFor(const std::wstring& path) {
     return GroupBy::None;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

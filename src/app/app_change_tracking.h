@@ -3,7 +3,7 @@
 #include "../ui/ui_renderer.h"
 #include <unordered_map>
 
-namespace pulse {
+namespace luling {
 struct AppState;
 namespace app { struct Tab; }
 struct ChangeDetailPending {

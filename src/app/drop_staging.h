@@ -3,16 +3,16 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Archive managers (7-Zip, WinRAR, Bandizip) drag files out of a temporary
-// folder that they delete as soon as the drop returns, while Pulse resolves
+// folder that they delete as soon as the drop returns, while Luling resolves
 // copy conflicts afterwards (#55). Such sources are staged under
 // DropStageRoot() before the drop returns.
 
 // The user's temp folder, long form (GetTempPath may answer in 8.3 names).
 std::wstring TempDirectory();
-// %TEMP%\PulseDrop: one "<pid>-<n>-<tick>" folder per staged drop.
+// %TEMP%\LulingDrop: one "<pid>-<n>-<tick>" folder per staged drop.
 std::wstring DropStageRoot();
 
 // True for entries inside `temp_dir` but outside `stage_root`.
@@ -57,4 +57,4 @@ DropStageResult SubmitStagedDrop(const std::vector<std::wstring>& sources,
 // folders as well when `include_own` (at exit).
 void SweepDropStages(const std::wstring& stage_root, bool include_own);
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -2,7 +2,7 @@
 #include <windows.h>
 #include "ui_compositor.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 // Applies the selected backend to existing child surfaces; returns custom mode.
 bool SynchronizeChildEditBackend(Compositor& compositor, HWND hwnd);
 bool HandleChildEditMessage(Compositor& compositor, IDWriteTextFormat* format,

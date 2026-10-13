@@ -5,7 +5,7 @@
 #include <cwchar>
 #include <mutex>
 
-namespace pulse::l10n {
+namespace luling::l10n {
 namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
@@ -17,7 +17,7 @@ static_assert(static_cast<UINT>(StringId::ListThumbnailBadgesDesc) <= kLastStrin
 static_assert(static_cast<UINT>(StringId::UpdateWaitingOperations) <= kLastString);
 static_assert(static_cast<UINT>(StringId::SidebarShowHidden) <= kLastString);
 static_assert(static_cast<UINT>(StringId::ApplyGroupNoneMessage) <= kLastString);
-static_assert(static_cast<UINT>(StringId::ExitPulse) <= kLastString);
+static_assert(static_cast<UINT>(StringId::ExitLuling) <= kLastString);
 static_assert(static_cast<UINT>(StringId::RecycleConfirmManyFormat) <= kLastString);
 static_assert(static_cast<UINT>(StringId::NetworkLiveAddFailed) <= kLastString);
 static_assert(static_cast<UINT>(StringId::IntegrationReapply) <= kLastString);
@@ -178,4 +178,4 @@ const std::wstring& Get(StringId id) {
     return g_cache[locale][index];
 }
 
-} // namespace pulse::l10n
+} // namespace luling::l10n

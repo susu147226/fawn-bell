@@ -4,13 +4,13 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::index::config_storage {
+namespace luling::index::config_storage {
 inline bool SameStoredPath(const std::wstring& a, const std::wstring& b) { return CompareStringOrdinal(a.c_str(), -1, b.c_str(), -1, TRUE) == CSTR_EQUAL; }
 inline std::wstring DatabasePath() {
     wchar_t base[32768]{};
     const DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", base, ARRAYSIZE(base));
     if (!n || n >= ARRAYSIZE(base)) return {};
-    std::wstring dir = std::wstring(base) + L"\\Pulse";
+    std::wstring dir = std::wstring(base) + L"\\Luling";
     CurrentUserSecurityAttributes security;
     CreateDirectoryW(dir.c_str(), security ? security.get() : nullptr);
     dir += L"\\ContentIndex";
@@ -23,7 +23,7 @@ inline std::wstring ObjectName(const std::wstring& path, const wchar_t* kind) {
     const std::wstring_view value = n && n < ARRAYSIZE(absolute) ? std::wstring_view(absolute, n) : std::wstring_view(path);
     uint64_t hash = 1469598103934665603ull;
     for (wchar_t ch : value) { hash ^= static_cast<uint16_t>(towlower(ch)); hash *= 1099511628211ull; }
-    return L"Local\\PulseContent." + std::wstring(kind) + L"." + std::to_wstring(hash);
+    return L"Local\\LulingContent." + std::wstring(kind) + L"." + std::to_wstring(hash);
 }
 inline HANDLE NamedMutex(const std::wstring& path, const wchar_t* kind) {
     CurrentUserSecurityAttributes security;

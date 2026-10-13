@@ -2,7 +2,7 @@
 #include <cstdio>
 
 int main() {
-    using pulse::app::SidebarRefreshSchedule;
+    using luling::app::SidebarRefreshSchedule;
     bool passed = true;
     const auto check = [&](bool ok, const char* label) {
         std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label);

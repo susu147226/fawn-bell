@@ -9,12 +9,12 @@
 #include <string>
 #include <vector>
 
-using namespace pulse::index;
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using namespace luling::index;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 
 namespace {
 
@@ -162,7 +162,7 @@ int wmain(int argc, wchar_t** argv) {
         wchar_t temp[MAX_PATH]{};
         GetTempPathW(ARRAYSIZE(temp), temp);
         const std::wstring tag = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
-        const std::wstring base = std::wstring(temp) + L"pulse-live-dedup-" + tag;
+        const std::wstring base = std::wstring(temp) + L"luling-live-dedup-" + tag;
         const std::wstring files = base + L"\\files", cache = base + L"\\cache";
         CreateDirectoryW(base.c_str(), nullptr);
         CreateDirectoryW(files.c_str(), nullptr);
@@ -172,10 +172,10 @@ int wmain(int argc, wchar_t** argv) {
             if (h == INVALID_HANDLE_VALUE) return false;
             DWORD written = 0; WriteFile(h, "x", 1, &written, nullptr); CloseHandle(h); return true;
         };
-        touch(files + L"\\pulsededup-a.txt");
-        touch(files + L"\\pulsededup-b.txt");
-        const std::wstring pipe = L"\\\\.\\pipe\\PulseIndex.Test." + tag;
-        const std::wstring exe = SiblingExecutable(L"Pulse.Index.exe");
+        touch(files + L"\\lulingsedup-a.txt");
+        touch(files + L"\\lulingsedup-b.txt");
+        const std::wstring pipe = L"\\\\.\\pipe\\LulingIndex.Test." + tag;
+        const std::wstring exe = SiblingExecutable(L"Luling.Index.exe");
         std::wstring cmd = L"\"" + exe + L"\" --test-host " + tag + L" \"" + files + L"\" \"" + cache + L"\"";
         STARTUPINFOW si{sizeof(si)};
         PROCESS_INFORMATION host{};
@@ -196,13 +196,13 @@ int wmain(int argc, wchar_t** argv) {
         uint32_t matched = 0;
         bool indexed = false;
         for (uint32_t id = 10; client != INVALID_HANDLE_VALUE && id < 60 && !indexed; ++id) {
-            indexed = SendFrame(client, REQ_IDX_SEARCH, id, query(0, L"pulsededup")) &&
+            indexed = SendFrame(client, REQ_IDX_SEARCH, id, query(0, L"lulingsedup")) &&
                 WaitForSearch(client, id, 2000, nullptr, &matched) && matched == 2;
             if (!indexed) Sleep(250);
         }
         Check(indexed, L"live dedup fixture is indexed");
         constexpr uint32_t kLive = 100;
-        const bool subscribed = indexed && SendFrame(client, REQ_IDX_SEARCH, kLive, query(8, L"pulsededup")) &&
+        const bool subscribed = indexed && SendFrame(client, REQ_IDX_SEARCH, kLive, query(8, L"lulingsedup")) &&
             WaitForSearch(client, kLive, 5000, nullptr, &matched) && matched == 2;
         Check(subscribed, L"live dedup subscription returns the initial page");
         uint32_t pushes = 0, statuses = 0;
@@ -223,7 +223,7 @@ int wmain(int argc, wchar_t** argv) {
         std::wcout << L"[INFO] unrelated churn: status frames " << statuses << L", live pages " << pushes << L"\n";
         Check(subscribed && statuses > 0 && pushes == 0,
               L"unrelated file changes do not re-send an unchanged live page");
-        const bool changed = subscribed && touch(files + L"\\pulsededup-c.txt") &&
+        const bool changed = subscribed && touch(files + L"\\lulingsedup-c.txt") &&
             WaitForSearch(client, kLive, 5000, nullptr, &matched) && matched == 3;
         Check(changed, L"a changed live page is still pushed");
         if (client != INVALID_HANDLE_VALUE) {
@@ -232,14 +232,14 @@ int wmain(int argc, wchar_t** argv) {
         }
         if (WaitForSingleObject(host.hProcess, 5000) != WAIT_OBJECT_0) TerminateProcess(host.hProcess, 1);
         CloseHandle(host.hProcess);
-        for (const wchar_t* name : {L"pulsededup-a.txt", L"pulsededup-b.txt", L"pulsededup-c.txt"})
+        for (const wchar_t* name : {L"lulingsedup-a.txt", L"lulingsedup-b.txt", L"lulingsedup-c.txt"})
             DeleteFileW((files + L"\\" + name).c_str());
         return failures ? 1 : 0;
     }
     const std::wstring token = std::to_wstring(GetCurrentProcessId()) + L"-" +
         std::to_wstring(GetTickCount64());
-    const std::wstring pipe_name = L"\\\\.\\pipe\\PulseIndex.Test." + token;
-    const std::wstring executable = SiblingExecutable(L"Pulse.Index.exe");
+    const std::wstring pipe_name = L"\\\\.\\pipe\\LulingIndex.Test." + token;
+    const std::wstring executable = SiblingExecutable(L"Luling.Index.exe");
     std::wstring command = L"\"" + executable + L"\" --test-host " + token;
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION process{};
@@ -253,7 +253,7 @@ int wmain(int argc, wchar_t** argv) {
         HANDLE client = Connect(pipe_name, 15000);
         Check(client != INVALID_HANDLE_VALUE, L"folder-size client connects to real isolated host");
         PayloadWriter request; request.PutU32(1); request.PutU32(2);
-        request.PutString(L"C:\\PulseIndexStress"); request.PutString(L"\\\\server\\share");
+        request.PutString(L"C:\\LulingIndexStress"); request.PutString(L"\\\\server\\share");
         bool received = false;
         if (client != INVALID_HANDLE_VALUE && SendFrame(client, kFolderSizeRequest, 42, request.data())) {
             const auto until = GetTickCount64() + 3000;

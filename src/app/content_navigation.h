@@ -1,7 +1,7 @@
 #pragma once
 #include "app_model.h"
 
-namespace pulse::app {
+namespace luling::app {
 struct ContentNavigationState {
     std::wstring path, title, filter, input, root, banner, message;
     std::shared_ptr<index::ContentResultStore> results;

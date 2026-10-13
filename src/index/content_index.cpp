@@ -25,7 +25,7 @@
 #include <optional>
 #include <winioctl.h>
 
-namespace pulse::index {
+namespace luling::index {
 using namespace config_storage;
 namespace {
 struct QueryMatch {
@@ -83,7 +83,7 @@ bool InternalContentPath(const std::wstring& path) {
     }
     if (!n || n >= profile.size()) return false;
     profile.resize(n);
-    return ContentPathUnder(ContentScopeKey(path), ContentScopeKey(profile + L"\\Pulse"));
+    return ContentPathUnder(ContentScopeKey(path), ContentScopeKey(profile + L"\\Luling"));
 }
 bool ExcludedContentPath(const ContentIndexConfig& config, const std::wstring& path) {
     return InternalContentPath(path) || ContentPathExcluded(config, path);
@@ -180,9 +180,9 @@ bool Open(const std::wstring& path, sqlite3** db, bool readonly) {
     const auto name = Utf8(path);
     if (name.empty() || sqlite3_open_v2(name.c_str(), db, readonly ? SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nullptr) != SQLITE_OK) return false;
     sqlite3_busy_timeout(*db, 2000);
-    sqlite3_create_collation(*db, "PULSE_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
-    sqlite3_create_function_v2(*db, "pulse_filename", 1, SQLITE_UTF16 | SQLITE_DETERMINISTIC, nullptr, SqlFilename, nullptr, nullptr, nullptr);
-    sqlite3_create_function_v2(*db,"pulse_extension",1,SQLITE_UTF16|SQLITE_DETERMINISTIC,nullptr,SqlExtension,nullptr,nullptr,nullptr);
+    sqlite3_create_collation(*db, "LULING_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
+    sqlite3_create_function_v2(*db, "luling_filename", 1, SQLITE_UTF16 | SQLITE_DETERMINISTIC, nullptr, SqlFilename, nullptr, nullptr, nullptr);
+    sqlite3_create_function_v2(*db,"luling_extension",1,SQLITE_UTF16|SQLITE_DETERMINISTIC,nullptr,SqlExtension,nullptr,nullptr,nullptr);
     return RegisterTokenizer(*db) && Exec(*db, readonly ? "PRAGMA cache_size=-8192; PRAGMA temp_store=FILE;" : "PRAGMA cache_size=-32768; PRAGMA temp_store=FILE;");
 }
 std::wstring LongPath(const std::wstring& p) {
@@ -336,7 +336,7 @@ struct ReadSlot {
 bool IsInternalContentPath(const std::wstring& path) {
     if (InternalContentPath(path)) return true;
     wchar_t directory[32768]{};
-    const auto n = GetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", directory, ARRAYSIZE(directory));
+    const auto n = GetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", directory, ARRAYSIZE(directory));
     return n && n < ARRAYSIZE(directory) && ContentPathUnder(ContentScopeKey(path), ContentScopeKey(std::wstring(directory, n)));
 }
 struct ContentIndex::Impl {
@@ -1289,9 +1289,9 @@ bool ContentIndex::SearchCached(const ContentSearchRequest& r, const std::atomic
         if (progress.total_files && !callback(progress, {})) ok = false;
         if (!progress.delta) {
         switch (r.sort) {
-        case ContentResultSort::Type: sql += " ORDER BY pulse_extension(path) COLLATE PULSE_ORDINAL"; break;
-        case ContentResultSort::Name: sql += " ORDER BY pulse_filename(path) COLLATE PULSE_ORDINAL"; break;
-        case ContentResultSort::Path: sql += " ORDER BY path COLLATE PULSE_ORDINAL"; break;
+        case ContentResultSort::Type: sql += " ORDER BY luling_extension(path) COLLATE LULING_ORDINAL"; break;
+        case ContentResultSort::Name: sql += " ORDER BY luling_filename(path) COLLATE LULING_ORDINAL"; break;
+        case ContentResultSort::Path: sql += " ORDER BY path COLLATE LULING_ORDINAL"; break;
         case ContentResultSort::Size: sql += " ORDER BY size"; break;
         case ContentResultSort::Mtime: sql += " ORDER BY modified"; break;
         default: sql += " ORDER BY id"; break;
@@ -1636,4 +1636,4 @@ bool ContentIndex::SearchTask(const ContentSearchRequest& request, const std::at
     const bool completed = RunContentTaskSupplement(config,request,cancel,cache,progress,hits,deliver, {}, &timing);
     return completed && accepted;
 }
-} // namespace pulse::index
+} // namespace luling::index

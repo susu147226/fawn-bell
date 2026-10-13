@@ -86,7 +86,7 @@ int main() {
         state.fail_register = scenario == 2;
         state.fail_navigate = scenario >= 3;
         state.disconnect = scenario == 4;
-        pulse::app::ShellWindowRegistry registry(nullptr, 0, CreateFake);
+        luling::app::ShellWindowRegistry registry(nullptr, 0, CreateFake);
         registry.Publish({{1, (root / L"first").wstring()}});
         check(Wait([&] { return state.successes.load() == 1; }), "unchanged desired state recovers create/pending/register/navigate/disconnect failure");
         const int navigation_calls = state.navigated;
@@ -104,7 +104,7 @@ int main() {
     }
     {
         State state; active = &state; state.fail_create = -1;
-        pulse::app::ShellWindowRegistry registry(nullptr, 0, CreateFake);
+        luling::app::ShellWindowRegistry registry(nullptr, 0, CreateFake);
         registry.Publish({{1, (root / L"first").wstring()}});
         check(Wait([&] { return state.factories.load() >= 2; }), "persistent failure reaches bounded retry");
         registry.Stop();

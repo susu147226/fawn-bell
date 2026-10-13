@@ -1,2 +1,2 @@
 #pragma once
-namespace pulse::app { bool RunChangeTrackingAppTest(); }
+namespace luling::app { bool RunChangeTrackingAppTest(); }

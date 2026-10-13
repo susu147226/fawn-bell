@@ -16,9 +16,9 @@ std::string Utf8(const std::wstring& text) {
     std::string bytes(static_cast<size_t>(size), '\0');
     WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), bytes.data(), size, nullptr, nullptr); return bytes;
 }
-bool RequestTree(pulse_test::Host& host, const std::wstring& path, pulse_test::Result& result) {
-    const bool ok = host.Request(path, result, MAXDWORD, pulse::ipc::kPreviewDefaultPixelSize,
-        pulse::ipc::PreviewRequestKind::Content, pulse::ipc::kPreviewRequestFlagRichText);
+bool RequestTree(luling_test::Host& host, const std::wstring& path, luling_test::Result& result) {
+    const bool ok = host.Request(path, result, MAXDWORD, luling::ipc::kPreviewDefaultPixelSize,
+        luling::ipc::PreviewRequestKind::Content, luling::ipc::kPreviewRequestFlagRichText);
     std::cout << "[RESPONSE] file=" << Utf8(std::filesystem::path(path).filename().wstring())
               << " transport=" << ok << " status=" << result.response.status
               << " kind=" << static_cast<unsigned>(result.response.kind)
@@ -71,7 +71,7 @@ int wmain() {
     const auto folder = root / (L"xml-copy-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
     if (!CreateDirectoryW(folder.c_str(), nullptr)) return 2;
     {
-        pulse_test::Host host; Check(host.Start(), "start isolated real preview host");
+        luling_test::Host host; Check(host.Start(), "start isolated real preview host");
         const std::vector<std::wstring> cases{
             LR"(<empty a="A &amp; B &lt; C &quot;Q&quot;" b='both &apos;single&apos; and "double"' />)",
             LR"(<root id="normal"><child a="&amp;quot; &amp;amp; &gt;"/><child quote='" &amp; &lt;'/></root>)",
@@ -85,11 +85,11 @@ int wmain() {
         for (const auto& xml : cases) {
             const auto path = folder / (std::to_wstring(index++) + L".xml");
             Check(Write(path, xml), "write exclusive XML fixture");
-            pulse_test::Result response;
-            const bool received = RequestTree(host, path, response) && response.response.status == 0 && response.response.kind == pulse::ipc::PreviewContentKind::Tree;
+            luling_test::Result response;
+            const bool received = RequestTree(host, path, response) && response.response.status == 0 && response.response.kind == luling::ipc::PreviewContentKind::Tree;
             Check(received, "host returns actual XML tree payload");
             if (!received) continue;
-            pulse::ui::TreeView view;
+            luling::ui::TreeView view;
             Check(view.SetPayload(response.text) && !view.HasError() && view.IsXml(), "production TreeView accepts host payload");
             view.Reveal(0);
             const auto copy = view.CurrentValue();
@@ -99,9 +99,9 @@ int wmain() {
         const auto nested = folder / L"namespace.xml";
         const std::wstring original = LR"(<root xmlns="urn:outer" xmlns:p="urn:old"><p:branch xmlns:p="urn:new" p:label="&quot; &amp;"><leaf a="&lt;"/></p:branch></root>)";
         Check(Write(nested, original), "write inherited namespace fixture");
-        pulse_test::Result response;
+        luling_test::Result response;
         Check(RequestTree(host, nested, response), "read namespace fixture through host");
-        pulse::ui::TreeView view; view.SetPayload(response.text);
+        luling::ui::TreeView view; view.SetPayload(response.text);
         const auto position = view.PlainText().find(L"p:branch");
         Check(position != std::wstring::npos, "display still contains qualified child name");
         if (position != std::wstring::npos) view.Reveal(static_cast<uint32_t>(position));

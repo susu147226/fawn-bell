@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <span>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct IconArtworkBounds {
     float left = 0.0f;
@@ -37,4 +37,4 @@ inline IconArtworkBounds MeasureIconArtwork(std::span<const uint8_t> bgra,
              static_cast<float>(bottom) / static_cast<float>(height) };
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -2,7 +2,7 @@
 #pragma once
 #include "app_runtime.h"
 
-namespace pulse {
+namespace luling {
 bool HandleBrowserNavigation(AppState& s, LPARAM command);
 bool HandleListCharacter(AppState& s, wchar_t ch);
 void TickQuickPreviewSelection(AppState& s, ULONGLONG now);
@@ -49,4 +49,4 @@ void TickTagTransitions(AppState& s);
 void TickTabTransitions(AppState& s);
 void StartSmoothScroll(AppState& s, float delta, bool horizontal = false);
 void UpdateSmoothScroll(AppState& s);
-} // namespace pulse
+} // namespace luling

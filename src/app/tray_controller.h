@@ -5,9 +5,9 @@
 
 #include <functional>
 
-namespace pulse::app {
+namespace luling::app {
 
-// Notification-area icon rule (#57). `background`: closing keeps Pulse running
+// Notification-area icon rule (#57). `background`: closing keeps Luling running
 // (keep running after close, or global search). `mode`: 0 always, 1 only while
 // the window is hidden, 2 never.
 inline bool TrayIconWanted(bool background, int mode, bool window_hidden) {
@@ -29,7 +29,7 @@ public:
     void Detach();
     bool SetVisible(bool visible);
     // `show_icon` false (icon set to never): hide without an icon; a second
-    // launch of Pulse brings the window back.
+    // launch of Luling brings the window back.
     void HideWindow(bool show_icon = true);
     void RestoreWindow();
     // Sign-in launch into the tray: add the icon and keep the window hidden.
@@ -60,4 +60,4 @@ private:
     std::function<void()> before_restore_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

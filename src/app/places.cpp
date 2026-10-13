@@ -17,17 +17,17 @@
 #include <cwctype>
 #include <chrono>
 
-namespace pulse::app {
-#ifdef PULSE_PLACES_SAVE_TEST
+namespace luling::app {
+#ifdef LULING_PLACES_SAVE_TEST
 void PlacesSaveTestStage(unsigned stage);
 #endif
 
 namespace {
 
-constexpr const wchar_t* kAdsSuffix = L":Pulse.Tag";
+constexpr const wchar_t* kAdsSuffix = L":Luling.Tag";
 
 bool WriteCatalogDocument(const std::wstring& path, const std::wstring& document, bool tags) {
-    if (!pulse::json::ValidConfigObject(document, true)) {
+    if (!luling::json::ValidConfigObject(document, true)) {
         SetLastError(ERROR_INVALID_DATA);
     } else if (WriteUtf8FileAtomic(path, document)) {
         return true;
@@ -49,7 +49,7 @@ static std::wstring FolderTitle(std::wstring path) {
 }
 
 static uint32_t ExtractRgb(const std::wstring& json) {
-    size_t pos = pulse::json::ValuePosition(json, L"rgb");
+    size_t pos = luling::json::ValuePosition(json, L"rgb");
     if (pos == std::wstring::npos) return 0xEF4444;
     if (pos + 2 < json.size() && json[pos] == L'0' && (json[pos + 1] == L'x' || json[pos + 1] == L'X')) {
         pos += 2;
@@ -66,13 +66,13 @@ static uint32_t ExtractRgb(const std::wstring& json) {
         }
         return v;
     }
-    return static_cast<uint32_t>(pulse::json::ExtractInt(json, L"rgb"));
+    return static_cast<uint32_t>(luling::json::ExtractInt(json, L"rgb"));
 }
 
 static bool ReadTagsGeneration(const std::wstring& json, uint64_t& generation) {
     generation = 0;
-    if (pulse::json::ValuePosition(json, L"tags_generation") == std::wstring::npos) return true;
-    const auto value = pulse::json::ExtractString(json, L"tags_generation");
+    if (luling::json::ValuePosition(json, L"tags_generation") == std::wstring::npos) return true;
+    const auto value = luling::json::ExtractString(json, L"tags_generation");
     if (value.empty()) return false;
     for (wchar_t digit : value) {
         if (digit < L'0' || digit > L'9' || generation > (UINT64_MAX - (digit - L'0')) / 10) return false;
@@ -125,7 +125,7 @@ static bool PathIsOrDescendant(const std::wstring& path, const std::wstring& roo
 static std::vector<std::wstring> ExtractObjectArray(const std::wstring& json,
                                                      const wchar_t* key) {
     std::vector<std::wstring> out;
-    size_t pos = pulse::json::ValuePosition(json, key);
+    size_t pos = luling::json::ValuePosition(json, key);
     if (pos == std::wstring::npos || pos >= json.size() || json[pos] != L'[') return out;
     int array_depth = 0;
     int object_depth = 0;
@@ -187,7 +187,7 @@ PlacesCatalog::~PlacesCatalog() {
 }
 
 bool PlacesCatalog::SaveTagFile(const std::vector<ColorTag>& snapshot, uint64_t generation) {
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
     std::wostringstream file;
     auto write_array = [&](const std::vector<std::wstring>& values) {
@@ -195,7 +195,7 @@ bool PlacesCatalog::SaveTagFile(const std::vector<ColorTag>& snapshot, uint64_t 
         for (size_t i = 0; i < values.size(); ++i) {
             if (i) file << L",";
             std::wstring escaped;
-            pulse::json::Escape(values[i], escaped);
+            luling::json::Escape(values[i], escaped);
             file << L"\"" << escaped << L"\"";
         }
         file << L"]";
@@ -203,8 +203,8 @@ bool PlacesCatalog::SaveTagFile(const std::vector<ColorTag>& snapshot, uint64_t 
     file << L"{\n  \"version\":2,\n  \"tags_generation\":\"" << generation << L"\",\n  \"tags\":[\n";
     for (size_t i = 0; i < snapshot.size(); ++i) {
         std::wstring id, name;
-        pulse::json::Escape(snapshot[i].id, id);
-        pulse::json::Escape(snapshot[i].name, name);
+        luling::json::Escape(snapshot[i].id, id);
+        luling::json::Escape(snapshot[i].name, name);
         wchar_t rgb[16]{};
         swprintf_s(rgb, L"0x%06X", snapshot[i].rgb & 0xFFFFFFu);
         file << L"    {\"id\":\"" << id << L"\",\"name\":\"" << name
@@ -276,11 +276,11 @@ void PlacesCatalog::QueueTagSave() const {
                     }
                     std::unique_lock lock(tag_save_mutex_);
                     if (stopping) {
-                        if (pending_tag_save_) OutputDebugStringW(L"Pulse: final tag save failed; check the places.json recovery copy.\n");
+                        if (pending_tag_save_) OutputDebugStringW(L"Luling: final tag save failed; check the places.json recovery copy.\n");
                         return;
                     }
                     if (current && !saved && attempts >= 3)
-                        OutputDebugStringW(L"Pulse: tag save retries exhausted; tag changes remain pending.\n");
+                        OutputDebugStringW(L"Luling: tag save retries exhausted; tag changes remain pending.\n");
                     if (pending_tag_save_ && pending_tag_save_->second == snapshot.second && attempts < 3) {
                         tag_save_cv_.wait_for(lock, std::chrono::milliseconds(250 * attempts), [&] {
                             return tag_save_stop_ || !pending_tag_save_ || pending_tag_save_->second != snapshot.second;
@@ -325,7 +325,7 @@ bool PlacesCatalog::FlushTagSave() const {
     tag_save_cv_.notify_all();
     if (!saved) {
         MarkPlacesDirty();
-        OutputDebugStringW(L"Pulse: tag flush failed; changes remain pending for recovery.\n");
+        OutputDebugStringW(L"Luling: tag flush failed; changes remain pending for recovery.\n");
     }
     return saved;
 }
@@ -365,7 +365,7 @@ bool PlacesCatalog::Load() {
     StopPlacesWriter();
     StopTagWriter();
     pending_tag_save_.reset();
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     std::wstring json, tag_json;
     auto read = [&](const wchar_t* name, std::wstring& text) {
         const std::wstring file = dir + name;
@@ -373,7 +373,7 @@ bool PlacesCatalog::Load() {
             const DWORD error = GetLastError();
             if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) return true;
         }
-        return ReadUtf8File(file, text) && pulse::json::ValidConfigObject(text, true);
+        return ReadUtf8File(file, text) && luling::json::ValidConfigObject(text, true);
     };
     if (dir.empty() || !read(L"\\places.json", json) || !read(L"\\tags.json", tag_json)) {
         load_failed = true;
@@ -386,7 +386,7 @@ bool PlacesCatalog::Load() {
     }
     load_failed = false;
     const auto generation = [](const std::wstring& document) {
-        const auto text = pulse::json::ExtractString(document, L"save_generation");
+        const auto text = luling::json::ExtractString(document, L"save_generation");
         return text.empty() ? uint64_t{0} : _wcstoui64(text.c_str(), nullptr, 10);
     };
     std::wstring recovery;
@@ -405,20 +405,20 @@ bool PlacesCatalog::Load() {
     active_workspace = -1;
     const bool places_loaded = !json.empty();
 
-    active_workspace = pulse::json::ExtractInt(json, L"active_workspace");
+    active_workspace = luling::json::ExtractInt(json, L"active_workspace");
     if (json.find(L"\"active_workspace\"") == std::wstring::npos) active_workspace = -1;
 
     for (const auto& block : ExtractObjectArray(json, L"workspaces")) {
         Workspace w;
-        w.name = pulse::json::ExtractString(block, L"name");
-        w.root = pulse::json::ExtractString(block, L"root");
-        w.layout = pulse::json::ExtractInt(block, L"layout");
-        w.pane_paths = pulse::json::ExtractStringArray(block, L"panes");
-        for (const auto& value : pulse::json::ExtractStringArray(block, L"views"))
+        w.name = luling::json::ExtractString(block, L"name");
+        w.root = luling::json::ExtractString(block, L"root");
+        w.layout = luling::json::ExtractInt(block, L"layout");
+        w.pane_paths = luling::json::ExtractStringArray(block, L"panes");
+        for (const auto& value : luling::json::ExtractStringArray(block, L"views"))
             w.pane_views.push_back(ui::ParseViewMode(value));
         while (w.pane_views.size() < w.pane_paths.size())
             w.pane_views.push_back(ui::ViewMode::Details);
-        auto freq = pulse::json::ExtractStringArray(block, L"freq");
+        auto freq = luling::json::ExtractStringArray(block, L"freq");
         for (const auto& row : freq) {
             auto tab = row.find(L'\t');
             std::pair<std::wstring, int> hit;
@@ -436,34 +436,34 @@ bool PlacesCatalog::Load() {
 
     for (const auto& block : ExtractObjectArray(json, L"tags")) {
         ColorTag t;
-        t.id = pulse::json::ExtractString(block, L"id");
+        t.id = luling::json::ExtractString(block, L"id");
         if (t.id.empty()) t.id = NewTagId();
-        t.name = pulse::json::ExtractString(block, L"name");
+        t.name = luling::json::ExtractString(block, L"name");
         t.rgb = ExtractRgb(block);
-        t.paths = pulse::json::ExtractStringArray(block, L"paths");
+        t.paths = luling::json::ExtractStringArray(block, L"paths");
         if (!t.name.empty()) tags.push_back(std::move(t));
     }
 
     for (const auto& block : ExtractObjectArray(json, L"networks")) {
         NetworkPlace n;
-        n.name = pulse::json::ExtractString(block, L"name");
-        n.unc = pulse::json::ExtractString(block, L"unc");
+        n.name = luling::json::ExtractString(block, L"name");
+        n.unc = luling::json::ExtractString(block, L"unc");
         if (!n.unc.empty()) networks.push_back(std::move(n));
     }
 
-    for (const auto& path : pulse::json::ExtractStringArray(json, L"quick_access_paths")) {
+    for (const auto& path : luling::json::ExtractStringArray(json, L"quick_access_paths")) {
         const auto normalized = Norm(path);
         if (!normalized.empty() && !fs::IsVirtualPath(normalized) &&
             !IsQuickAccessPinned(normalized)) quick_access_paths.push_back(normalized);
     }
 
-    const bool has_starred_items = pulse::json::ValuePosition(
+    const bool has_starred_items = luling::json::ValuePosition(
         json, L"starred_items") != std::wstring::npos;
     for (const auto& block : ExtractObjectArray(json, L"starred_items")) {
         StarredItem item;
-        item.path = Norm(pulse::json::ExtractString(block, L"path"));
-        item.kind = ParseKind(pulse::json::ExtractString(block, L"kind"));
-        item.badge = TrimBadge(pulse::json::ExtractString(block, L"badge"));
+        item.path = Norm(luling::json::ExtractString(block, L"path"));
+        item.kind = ParseKind(luling::json::ExtractString(block, L"kind"));
+        item.badge = TrimBadge(luling::json::ExtractString(block, L"badge"));
         item.badge_rgb = ExtractRgb(block);
         if (!item.path.empty() && !fs::IsVirtualPath(item.path) &&
             std::none_of(starred_items.begin(), starred_items.end(), [&](const StarredItem& old) {
@@ -473,7 +473,7 @@ bool PlacesCatalog::Load() {
         }
     }
     if (!has_starred_items) {
-        for (const auto& path : pulse::json::ExtractStringArray(json, L"starred")) {
+        for (const auto& path : luling::json::ExtractStringArray(json, L"starred")) {
             const std::wstring normalized = Norm(path);
             if (!normalized.empty() && !fs::IsVirtualPath(normalized))
                 starred_items.push_back({ normalized });
@@ -481,17 +481,17 @@ bool PlacesCatalog::Load() {
     }
     for (const auto& block : ExtractObjectArray(json, L"quick_access_badges")) {
         QuickAccessBadge item;
-        item.path = Norm(pulse::json::ExtractString(block, L"path"));
-        item.badge = TrimBadge(pulse::json::ExtractString(block, L"badge"));
+        item.path = Norm(luling::json::ExtractString(block, L"path"));
+        item.badge = TrimBadge(luling::json::ExtractString(block, L"badge"));
         item.badge_rgb = ExtractRgb(block) & 0xFFFFFFu;
         if (!item.path.empty() && !FindQuickAccessBadge(item.path))
             quick_access_badges.push_back(std::move(item));
     }
     for (const auto& block : ExtractObjectArray(json, L"recent_items")) {
         RecentItem item;
-        item.path = Norm(pulse::json::ExtractString(block, L"path"));
-        item.kind = ParseKind(pulse::json::ExtractString(block, L"kind"));
-        const std::wstring opened = pulse::json::ExtractString(block, L"opened_at");
+        item.path = Norm(luling::json::ExtractString(block, L"path"));
+        item.kind = ParseKind(luling::json::ExtractString(block, L"kind"));
+        const std::wstring opened = luling::json::ExtractString(block, L"opened_at");
         item.opened_at = opened.empty() ? 0 : _wcstoui64(opened.c_str(), nullptr, 10);
         if (!item.path.empty() && !fs::IsVirtualPath(item.path) &&
             std::none_of(recent_items.begin(), recent_items.end(), [&](const RecentItem& old) {
@@ -511,13 +511,13 @@ bool PlacesCatalog::Load() {
         std::vector<ColorTag> loaded;
         for (const auto& block : ExtractObjectArray(tag_json, L"tags")) {
             ColorTag tag;
-            tag.id = pulse::json::ExtractString(block, L"id");
-            tag.name = pulse::json::ExtractString(block, L"name");
+            tag.id = luling::json::ExtractString(block, L"id");
+            tag.name = luling::json::ExtractString(block, L"name");
             tag.rgb = ExtractRgb(block);
-            tag.paths = pulse::json::ExtractStringArray(block, L"paths");
+            tag.paths = luling::json::ExtractStringArray(block, L"paths");
             if (!tag.id.empty() && !tag.name.empty()) loaded.push_back(std::move(tag));
         }
-        const auto position = pulse::json::ValuePosition(tag_json, L"tags");
+        const auto position = luling::json::ValuePosition(tag_json, L"tags");
         bool empty_array = false;
         if (position != std::wstring::npos && tag_json[position] == L'[') {
             const auto next = tag_json.find_first_not_of(L" \t\r\n", position + 1);
@@ -542,8 +542,8 @@ bool PlacesCatalog::Load() {
     return places_loaded || tags_loaded;
 }
 
-bool ParsePulsePath(const std::wstring& path, std::wstring* kind, std::wstring* rest) {
-    constexpr std::wstring_view kPrefix = L"pulse:";
+bool ParseLulingPath(const std::wstring& path, std::wstring* kind, std::wstring* rest) {
+    constexpr std::wstring_view kPrefix = L"luling:";
     if (!path.starts_with(kPrefix)) return false;
     std::wstring_view v = std::wstring_view(path).substr(kPrefix.size());
     const auto colon = v.find(L':');
@@ -576,7 +576,7 @@ PlacesCatalog::SaveSnapshot PlacesCatalog::CaptureSaveSnapshot() const {
 }
 
 void PlacesCatalog::MarkPlacesDirty() const {
-#ifdef PULSE_PLACES_SAVE_TEST
+#ifdef LULING_PLACES_SAVE_TEST
     PlacesSaveTestStage(3);
 #endif
     std::lock_guard lock(places_save_mutex_);
@@ -608,7 +608,7 @@ void PlacesCatalog::QueuePlacesSave() const {
                         }
                     }
                     if (pending) {
-#ifdef PULSE_PLACES_SAVE_TEST
+#ifdef LULING_PLACES_SAVE_TEST
                         PlacesSaveTestStage(1);
 #endif
                         bool saved = false;
@@ -623,7 +623,7 @@ void PlacesCatalog::QueuePlacesSave() const {
                         }
                         std::lock_guard state_lock(places_save_mutex_);
                         if (saved && places_save_revision_ == pending->second) {
-#ifdef PULSE_PLACES_SAVE_TEST
+#ifdef LULING_PLACES_SAVE_TEST
                             PlacesSaveTestStage(2);
 #endif
                             places_save_due_ = 0;
@@ -668,7 +668,7 @@ bool PlacesCatalog::Save() const {
 }
 
 bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
-    std::wstring dir = GetPulseDataDir();
+    std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
     std::wostringstream f;
     auto writeArr = [&](const std::vector<std::wstring>& arr) {
@@ -676,7 +676,7 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
         for (size_t i = 0; i < arr.size(); ++i) {
             if (i) f << L",";
             std::wstring e;
-            pulse::json::Escape(arr[i], e);
+            luling::json::Escape(arr[i], e);
             f << L"\"" << e << L"\"";
         }
         f << L"]";
@@ -687,8 +687,8 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     for (size_t i = 0; i < snapshot.workspaces.size(); ++i) {
         const auto& w = snapshot.workspaces[i];
         std::wstring name, root;
-        pulse::json::Escape(w.name, name);
-        pulse::json::Escape(w.root, root);
+        luling::json::Escape(w.name, name);
+        luling::json::Escape(w.root, root);
         f << L"    {\"name\":\"" << name << L"\",\"root\":\"" << root
           << L"\",\"layout\":" << w.layout << L",\"panes\":";
         writeArr(w.pane_paths);
@@ -711,8 +711,8 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     for (size_t i = 0; i < snapshot.tags.size(); ++i) {
         const auto& t = snapshot.tags[i];
         std::wstring id, name;
-        pulse::json::Escape(t.id, id);
-        pulse::json::Escape(t.name, name);
+        luling::json::Escape(t.id, id);
+        luling::json::Escape(t.name, name);
         wchar_t rgb[16];
         swprintf_s(rgb, L"0x%06X", t.rgb & 0xFFFFFFu);
         f << L"    {\"id\":\"" << id << L"\",\"name\":\"" << name
@@ -726,8 +726,8 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     for (size_t i = 0; i < snapshot.networks.size(); ++i) {
         const auto& n = snapshot.networks[i];
         std::wstring name, unc;
-        pulse::json::Escape(n.name, name);
-        pulse::json::Escape(n.unc, unc);
+        luling::json::Escape(n.name, name);
+        luling::json::Escape(n.unc, unc);
         f << L"    {\"name\":\"" << name << L"\",\"unc\":\"" << unc << L"\"}";
         if (i + 1 < snapshot.networks.size()) f << L",";
         f << L"\n";
@@ -743,8 +743,8 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     for (size_t i = 0; i < snapshot.starred_items.size(); ++i) {
         const auto& item = snapshot.starred_items[i];
         std::wstring path, badge;
-        pulse::json::Escape(item.path, path);
-        pulse::json::Escape(item.badge, badge);
+        luling::json::Escape(item.path, path);
+        luling::json::Escape(item.badge, badge);
         wchar_t rgb[16]{};
         swprintf_s(rgb, L"0x%06X", item.badge_rgb & 0xFFFFFFu);
         f << L"    {\"path\":\"" << path << L"\",\"kind\":\""
@@ -757,8 +757,8 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     for (size_t i = 0; i < snapshot.quick_access_badges.size(); ++i) {
         const auto& item = snapshot.quick_access_badges[i];
         std::wstring path, badge;
-        pulse::json::Escape(item.path, path);
-        pulse::json::Escape(item.badge, badge);
+        luling::json::Escape(item.path, path);
+        luling::json::Escape(item.badge, badge);
         wchar_t rgb[16]{};
         swprintf_s(rgb, L"0x%06X", item.badge_rgb & 0xFFFFFFu);
         f << L"    {\"path\":\"" << path << L"\",\"badge\":\"" << badge
@@ -770,7 +770,7 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     for (size_t i = 0; i < snapshot.recent_items.size(); ++i) {
         const auto& item = snapshot.recent_items[i];
         std::wstring path;
-        pulse::json::Escape(item.path, path);
+        luling::json::Escape(item.path, path);
         f << L"    {\"path\":\"" << path << L"\",\"kind\":\""
           << KindName(item.kind) << L"\",\"opened_at\":\""
           << item.opened_at << L"\"}";
@@ -1589,7 +1589,7 @@ bool WriteTagAdsV2(const std::wstring& path, const std::vector<TagAdsRecord>& ta
         const DWORD error = GetLastError();
         return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
     }
-    std::wstring payload = L"PULSE_TAGS_V2\r\n";
+    std::wstring payload = L"LULING_TAGS_V2\r\n";
     for (const auto& tag : tags) {
         std::wstring name = tag.name;
         for (auto& c : name) if (c == L'\t' || c == L'\r' || c == L'\n') c = L' ';
@@ -1637,7 +1637,7 @@ static std::wstring ReadAdsPayload(const std::wstring& path) {
 std::vector<TagAdsRecord> ReadTagAdsV2(const std::wstring& path) {
     std::vector<TagAdsRecord> out;
     const std::wstring payload = ReadAdsPayload(path);
-    constexpr std::wstring_view header = L"PULSE_TAGS_V2\r\n";
+    constexpr std::wstring_view header = L"LULING_TAGS_V2\r\n";
     if (!payload.starts_with(header)) return out;
     size_t pos = header.size();
     while (pos < payload.size()) {
@@ -1681,4 +1681,4 @@ std::vector<std::wstring> ReadTagAds(const std::wstring& path) {
     return out;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

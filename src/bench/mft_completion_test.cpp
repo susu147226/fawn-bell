@@ -6,7 +6,7 @@
 #include <string>
 
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); if (!ok) ++failures; };
     NTFS_VOLUME_DATA_BUFFER geometry{};

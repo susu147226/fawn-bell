@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <string_view>
 
-namespace pulse_test {
+namespace luling_test {
 using Microsoft::WRL::ComPtr;
 const std::vector<std::wstring>& MathStage3Formulas() {
     static const std::vector<std::wstring> formulas = {
@@ -129,7 +129,7 @@ int TestMathStage3(IDWriteFactory2* factory) {
         auto layout = Layout(factory, source);
         ComPtr<IDWriteInlineObject> object;
         DWRITE_INLINE_OBJECT_METRICS metrics{};
-        const bool valid = layout && pulse::ui::ApplyMathInline(factory, layout.Get(),
+        const bool valid = layout && luling::ui::ApplyMathInline(factory, layout.Get(),
             {0, static_cast<UINT32>(source.size())}, source, 24, false, 10000) &&
             SUCCEEDED(layout->GetInlineObject(0, &object)) && object && SUCCEEDED(object->GetMetrics(&metrics));
         return Measurement{valid, metrics.width, metrics.height};
@@ -163,7 +163,7 @@ int TestMathStage3(IDWriteFactory2* factory) {
     for (const auto& source : invalid) {
         auto layout = Layout(factory, source);
         ComPtr<IDWriteInlineObject> object;
-        check(layout && !pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())}, source, 24, false, 600) &&
+        check(layout && !luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())}, source, 24, false, 600) &&
             SUCCEEDED(layout->GetInlineObject(0, &object)) && !object, "malformed and over-budget syntax preserves raw source");
     }
     std::wstring payload;
@@ -172,23 +172,23 @@ int TestMathStage3(IDWriteFactory2* factory) {
             if (run.text == expected && (run.flags & flag) && (!kind || run.kind == kind)) return true;
         return false;
     };
-    check(pulse::preview::MakeMarkdownDocument(LR"(Before \(x_i^2\) after.)", payload) && has_run(LR"(\(x_i^2\))", 128),
+    check(luling::preview::MakeMarkdownDocument(LR"(Before \(x_i^2\) after.)", payload) && has_run(LR"(\(x_i^2\))", 128),
         "parenthesis math range retains complete original delimiters");
-    check(pulse::preview::MakeMarkdownDocument(LR"([label]\(x\))", payload) && has_run(LR"(\(x\))", 128) &&
+    check(luling::preview::MakeMarkdownDocument(LR"([label]\(x\))", payload) && has_run(LR"(\(x\))", 128) &&
         !HasRunFlag(payload, 16), "formula after square-bracket text never becomes a Markdown link");
     const std::wstring quote_source = L"> \\[\n> x\n> \\]\n";
-    pulse::ui::MarkdownView quoted_view;
-    bool quote_ok = pulse::preview::MakeMarkdownDocument(quote_source, payload) &&
+    luling::ui::MarkdownView quoted_view;
+    bool quote_ok = luling::preview::MakeMarkdownDocument(quote_source, payload) &&
         quoted_view.SetPayload(payload, L"bench_data/math_preview.md") && quoted_view.Source() == quote_source;
     for (const auto& run : Runs(payload))
         quote_ok = quote_ok && run.text.find(L'>') == std::wstring::npos && run.text.find(L'x') != std::wstring::npos;
     check(quote_ok, "multiline quote strips structural markers from math or keeps literal fallback");
-    check(pulse::preview::MakeMarkdownDocument(LR"(\(x\)_tail_ and \(\text{price $5}\))", payload) &&
+    check(luling::preview::MakeMarkdownDocument(LR"(\(x\)_tail_ and \(\text{price $5}\))", payload) &&
         has_run(LR"(\(x\))", 128) && has_run(LR"(\(\text{price $5}\))", 128),
         "adjacent emphasis and a single literal dollar preserve formula boundaries");
-    check(pulse::preview::MakeMarkdownDocument(L"\\[\n\\frac{a}{b}\n\\]\n", payload) &&
+    check(luling::preview::MakeMarkdownDocument(L"\\[\n\\frac{a}{b}\n\\]\n", payload) &&
         has_run(L"\\[\n\\frac{a}{b}\n\\]", 256, L'm'), "standalone bracket math preserves newlines and display kind");
-    check(pulse::preview::MakeMarkdownDocument(LR"(**Bold \(x\)** and [linked \(y\)](https://example.com)
+    check(luling::preview::MakeMarkdownDocument(LR"(**Bold \(x\)** and [linked \(y\)](https://example.com)
 
 - Item \(z\)
 
@@ -200,24 +200,24 @@ int TestMathStage3(IDWriteFactory2* factory) {
     for (const auto& source : {LR"(`\(x\)` and `\[x\]`)", LR"([target](https://example.com/\(x\)))",
         LR"(Escaped \\(x\\) and \\[x\\])", LR"(Unclosed \(x and mismatched \[y\))", LR"(\(x\\))",
         L"```tex\n\\(x\\)\n\\[x\\]\n```\n"}) {
-        check(pulse::preview::MakeMarkdownDocument(source, payload) && Runs(payload).empty(),
+        check(luling::preview::MakeMarkdownDocument(source, payload) && Runs(payload).empty(),
             "code URLs escaped and malformed delimiters do not create math runs");
     }
     for (const auto& source : {L"    \\(x\\)\n    \\[y\\]\n", LR"html(<span title="\(x\)">text</span>)html",
         L"<div>\n\\(x\\)\n</div>\n", L"\\(x\n\ny\\)\n", L"| a | b |\n| --- | --- |\n| \\(x | y\\) |\n"}) {
-        check(pulse::preview::MakeMarkdownDocument(source, payload) && Runs(payload).empty(),
+        check(luling::preview::MakeMarkdownDocument(source, payload) && Runs(payload).empty(),
             "indented code HTML and cross-block or cross-cell delimiters stay literal");
     }
-    check(pulse::preview::MakeMarkdownDocument(L"\\(" + std::wstring(4097, L'x') + L"\\)", payload) && Runs(payload).empty(),
+    check(luling::preview::MakeMarkdownDocument(L"\\(" + std::wstring(4097, L'x') + L"\\)", payload) && Runs(payload).empty(),
         "oversized delimited source stays literal within host budget");
     payload.clear();
-    check(pulse::preview::AppendMarkdownBlocks(LR"(Notebook \(x\)
+    check(luling::preview::AppendMarkdownBlocks(LR"(Notebook \(x\)
 
 \[y\]
 )", payload, 10000, 1) && has_run(LR"(\(x\))", 128) && has_run(LR"(\[y\])", 256, L'm'),
         "notebook blocks share backslash-delimiter support");
-    pulse::ui::MarkdownView view;
-    check(pulse::preview::MakeMarkdownDocument(MathStage3Source(), payload) &&
+    luling::ui::MarkdownView view;
+    check(luling::preview::MakeMarkdownDocument(MathStage3Source(), payload) &&
         view.SetPayload(payload, L"bench_data/math_preview.md") && view.Source() == MathStage3Source() &&
         view.PlainText().find(LR"(\(x_i^2\))") != std::wstring::npos,
         "source and copied text retain backslash formula delimiters");

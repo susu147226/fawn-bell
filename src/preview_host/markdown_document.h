@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Parses Markdown (CommonMark plus the GitHub table, task list, strikethrough
 // and autolink extensions, plus $ / $$ and \( \) / \[ \] math spans) with md4c
@@ -50,4 +50,4 @@ bool AppendMarkdownBlock(std::wstring& payload, size_t limit, wchar_t kind, cons
 // Marker l<label> on a code block: the notebook In/Out label in the gutter;
 // n<label>: a cell output (plain monospace text or a picture, no box).
 
-} // namespace pulse::preview
+} // namespace luling::preview

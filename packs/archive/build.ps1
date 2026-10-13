@@ -31,7 +31,7 @@ foreach ($name in @('7z.exe', '7z.dll', 'License.txt')) {
 License: GNU LGPL with BSD components and unRAR restriction; see License.txt.
 Official source: https://github.com/ip7z/7zip/tree/$Version
 Downloads and corresponding source: https://www.7-zip.org/download.html
-Pulse invokes the listing command only. This pack is optional.
+Luling invokes the listing command only. This pack is optional.
 "@ | Set-Content -LiteralPath (Join-Path $pack 'NOTICE.txt') -Encoding utf8
 # Use Process rather than an unbounded pipeline; validate the exact packaged pair.
 $start = [Diagnostics.ProcessStartInfo]::new()

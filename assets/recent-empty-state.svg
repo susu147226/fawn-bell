@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="360" viewBox="0 0 512 360" fill="none">
   <title>No recent items</title>
-  <desc>A clock resting in a blue folder in the Pulse empty-state style.</desc>
+  <desc>A clock resting in a blue folder in the Luling empty-state style.</desc>
   <defs>
     <radialGradient id="ambient" cx="0" cy="0" r="1" gradientTransform="translate(256 155) rotate(90) scale(120)" gradientUnits="userSpaceOnUse">
       <stop stop-color="#AAB4C6" stop-opacity="0.13"/>

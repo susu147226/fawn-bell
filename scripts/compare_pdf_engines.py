@@ -5,7 +5,7 @@ from pathlib import Path
 root=Path(__file__).resolve().parent.parent
 build=root/'build_realtime'
 admission=root/'bench_data/pdfium-admission';admission.mkdir(parents=True,exist_ok=True)
-os.environ['PULSE_DOCUMENT_ADMISSION_DIR']=str(admission)
+os.environ['LULING_DOCUMENT_ADMISSION_DIR']=str(admission)
 candidate_engine=sys.argv[3] if len(sys.argv)>3 else 'pdfium'
 manifest=Path(sys.argv[1])
 output=Path(sys.argv[2])
@@ -17,7 +17,7 @@ for i,path in enumerate(paths):
     item={'path':path,'size':Path(path).stat().st_size,'candidate_engine':candidate_engine,'runs':{}}
     texts={}
     for engine in (['ifilter','pdfium'] if i%2==0 else ['pdfium','ifilter']):
-        process=subprocess.run([str(build/'pulse_pdf_bench.exe'),candidate_engine if engine=='pdfium' else engine,path,''],capture_output=True,timeout=40)
+        process=subprocess.run([str(build/'luling_pdf_bench.exe'),candidate_engine if engine=='pdfium' else engine,path,''],capture_output=True,timeout=40)
         if process.returncode: raise RuntimeError((engine,process.returncode,process.stderr[:200]))
         header,body=process.stdout.split(b'\n',1)
         values=json.loads(header)

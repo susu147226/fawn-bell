@@ -32,10 +32,10 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "uxtheme.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
-constexpr wchar_t kPickerClass[] = L"PulseFolderPickerWindow";
+constexpr wchar_t kPickerClass[] = L"LulingFolderPickerWindow";
 constexpr UINT kListingMessage = WM_APP + 1;
 constexpr UINT kValidationMessage = WM_APP + 2;
 constexpr UINT kEndAddressMessage = WM_APP + 3;
@@ -270,7 +270,7 @@ public:
         std::wstring start = NormalizePickerInput(spec.initial_path);
         if (start.empty()) start = g_last_folder[mode_index_];
         if (start.empty()) start = fallback_;
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(owner ? owner : GetDesktopWindow()))
+        scale_ = static_cast<float>(luling::compat::WindowDpi(owner ? owner : GetDesktopWindow()))
                / 96.0f;
 
         WNDCLASSEXW wc{ sizeof(wc) };
@@ -1107,7 +1107,7 @@ private:
             return;
         }
         if (const auto snapshot = reinterpret_cast<const wchar_t*>(
-                RemovePropW(hwnd_, L"Pulse.PickerTestSnapshot")))
+                RemovePropW(hwnd_, L"Luling.PickerTestSnapshot")))
             compositor_.SaveSnapshot(snapshot);
         compositor_.Present();
         PresentEdits();
@@ -1837,7 +1837,7 @@ private:
     LRESULT Handle(UINT message, WPARAM wparam, LPARAM lparam) {
         switch (message) {
         case WM_CREATE:
-            scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
+            scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
             backdrop_enabled_ = ApplyBackdrop(hwnd_, dark_);
             if (!compositor_.Init(hwnd_)) return -1;
             compositor_.RecreateTextFormats(scale_);
@@ -2135,4 +2135,4 @@ bool ShowFolderPicker(HWND owner, const FolderPickerSpec& spec, bool dark,
     return true;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

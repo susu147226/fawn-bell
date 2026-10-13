@@ -105,11 +105,11 @@ struct CloseControl {
     std::atomic<int> fallback_calls{0};
 };
 CloseControl* close_control = nullptr;
-std::vector<pulse::shell::CtxHandlerDesc> OneControlledHandler(
+std::vector<luling::shell::CtxHandlerDesc> OneControlledHandler(
         bool, const std::wstring&, const std::vector<std::wstring>&) {
     ++close_control->enumerate_calls;
     if (close_control->empty_handlers) return {};
-    pulse::shell::CtxHandlerDesc desc;
+    luling::shell::CtxHandlerDesc desc;
     desc.clsid_text = L"review-controlled-worker";
     return {desc};
 }

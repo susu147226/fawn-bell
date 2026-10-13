@@ -12,10 +12,10 @@
 
 using Microsoft::WRL::ComPtr;
 namespace fs = std::filesystem;
-namespace tags = pulse::app::shell_tags;
-namespace pulse::app {
+namespace tags = luling::app::shell_tags;
+namespace luling::app {
 static std::wstring fixture;
-std::wstring GetPulseDataDir() { return fixture; }
+std::wstring GetLulingDataDir() { return fixture; }
 }
 namespace {
 int failures = 0;
@@ -157,7 +157,7 @@ int ColdClient(const fs::path& directory, const wchar_t* sandbox) {
     if (RegOpenKeyExW(HKEY_CURRENT_USER, sandbox, 0, KEY_READ, &menu_registry) != ERROR_SUCCESS) return 2;
     HRESULT invoked = E_FAIL;
     wchar_t clsid_text[64]{}; DWORD clsid_bytes = sizeof(clsid_text);
-    const auto read_id = RegGetValueW(menu_registry, L"Software\\Classes\\*\\shell\\PulseTags\\shell\\pulse.tag.fixture-tag\\command",
+    const auto read_id = RegGetValueW(menu_registry, L"Software\\Classes\\*\\shell\\LulingTags\\shell\\luling.tag.fixture-tag\\command",
         L"DelegateExecute", RRF_RT_REG_SZ, nullptr, clsid_text, &clsid_bytes);
     CLSID clsid{}; const auto parsed_id = CLSIDFromString(clsid_text, &clsid);
     std::wofstream details(directory / L"cold_registration.txt");
@@ -215,13 +215,13 @@ DWORD WINAPI Audit(void*) {
     UINT32 package_length = 0;
     const auto package_status = GetCurrentPackageFullName(&package_length, nullptr);
     std::cout << "[INFO] package identity status=" << package_status << " length=" << package_length << '\n';
-    HDESK desktop = CreateDesktopW((L"PulseTagAudit-" + std::to_wstring(GetCurrentProcessId())).c_str(),
+    HDESK desktop = CreateDesktopW((L"LulingTagAudit-" + std::to_wstring(GetCurrentProcessId())).c_str(),
         nullptr, nullptr, 0, GENERIC_ALL, nullptr);
     if (!desktop || !SetThreadDesktop(desktop)) return 2;
     if (FAILED(OleInitialize(nullptr))) return 2;
     const auto directory = fs::absolute(fs::path(L"bench_data") / (L"tag-com-" + std::to_wstring(GetCurrentProcessId())));
     fs::create_directories(directory);
-    pulse::app::fixture = directory.wstring();
+    luling::app::fixture = directory.wstring();
     wchar_t executable[32768]{}; GetModuleFileNameW(nullptr, executable, ARRAYSIZE(executable));
     GUID class_id{}; const HRESULT generated = CoCreateGuid(&class_id);
     wchar_t class_text[40]{}; StringFromGUID2(class_id, class_text, ARRAYSIZE(class_text));
@@ -232,27 +232,27 @@ DWORD WINAPI Audit(void*) {
         "isolated GUID local-server registration created for real COM cold activation");
     Set(HKEY_CURRENT_USER, actual_class + L"\\LocalServer32", L"ServerExecutable", executable);
     Set(HKEY_CURRENT_USER, actual_class, L"AppID", class_text);
-    Set(HKEY_CURRENT_USER, actual_class, nullptr, L"Pulse tag audit");
+    Set(HKEY_CURRENT_USER, actual_class, nullptr, L"Luling tag audit");
     const std::wstring actual_app = L"Software\\Classes\\AppID\\" + std::wstring(class_text);
-    Set(HKEY_CURRENT_USER, actual_app, nullptr, L"Pulse tag audit");
+    Set(HKEY_CURRENT_USER, actual_app, nullptr, L"Luling tag audit");
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     wchar_t registered_exe[32768]{}; DWORD registered_bytes = sizeof(registered_exe);
     const auto read_server = RegGetValueW(HKEY_CLASSES_ROOT, (L"CLSID\\" + std::wstring(class_text) + L"\\LocalServer32").c_str(),
         nullptr, RRF_RT_REG_SZ, nullptr, registered_exe, &registered_bytes);
     std::wcout << L"[INFO] merged LocalServer32 status=" << read_server << L" value=" << registered_exe << L'\n';
-    const auto sandbox = L"Software\\PulseTest\\TagCom-" + std::to_wstring(GetCurrentProcessId());
+    const auto sandbox = L"Software\\LulingTest\\TagCom-" + std::to_wstring(GetCurrentProcessId());
     HKEY user = nullptr, classes = nullptr;
     RegCreateKeyExW(HKEY_CURRENT_USER, sandbox.c_str(), 0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &user, nullptr);
     RegCreateKeyExW(user, L"Software\\Classes", 0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &classes, nullptr);
     Check(user && classes, "Shell menu uses explicit isolated association key without global registry overrides");
     menu_registry = user;
-    pulse::app::TagMenuRegistryApi registry_api; registry_api.root = user;
+    luling::app::TagMenuRegistryApi registry_api; registry_api.root = user;
     const std::wstring tag_id = L"fixture-tag";
-    std::vector<pulse::app::ColorTag> catalog{{tag_id, L"Fixture tag", 0x123456, {}}};
+    std::vector<luling::app::ColorTag> catalog{{tag_id, L"Fixture tag", 0x123456, {}}};
     for (int i = 0; i < 31; ++i) catalog.push_back({L"other-" + std::to_wstring(i), L"Other " + std::to_wstring(i), 0x456789, {}});
     const auto icons = (directory / L"icons").wstring();
-    Check(pulse::app::InstallTagMenu(catalog, executable, L"Pulse audit tags", icons, registry_api), "production static menu installation succeeds");
-    for (const auto* parent : {L"Software\\Classes\\*\\shell\\PulseTags\\shell\\", L"Software\\Classes\\Directory\\shell\\PulseTags\\shell\\"})
+    Check(luling::app::InstallTagMenu(catalog, executable, L"Luling audit tags", icons, registry_api), "production static menu installation succeeds");
+    for (const auto* parent : {L"Software\\Classes\\*\\shell\\LulingTags\\shell\\", L"Software\\Classes\\Directory\\shell\\LulingTags\\shell\\"})
         for (const auto& tag : catalog) Set(user, std::wstring(parent) + tags::VerbName(tag.id) + L"\\command", L"DelegateExecute", class_text);
     std::vector<std::wstring> selection_paths;
     for (int i = 0; i < 3; ++i) {
@@ -285,8 +285,8 @@ DWORD WINAPI Audit(void*) {
     // Wait for cold server revocation before registering the same isolated class here.
     if (!warm_only) Check(Wait([&] { return fs::exists(directory / L"cold_done.txt"); }), "cold server has revoked its factory before warm reuse");
     Check(SUCCEEDED(tags::RegisterCommandServer(&class_id)), "warm existing process publishes its own COM factory");
-    pulse::app::PlacesCatalog places; places.persist = false; places.tags = catalog; places.TagsReordered();
-    std::vector<pulse::app::TagAdsUpdate> deferred;
+    luling::app::PlacesCatalog places; places.persist = false; places.tags = catalog; places.TagsReordered();
+    std::vector<luling::app::TagAdsUpdate> deferred;
     places.SetTagsBatch(tag_id, {selection_paths[0]}, true, &deferred);
     tags::BatchHandler handler;
     for (int repetition = 0; repetition < 2; ++repetition) {
@@ -300,7 +300,7 @@ DWORD WINAPI Audit(void*) {
             batch.size() == 1 && batch[0].paths == selection_paths, "warm real Shell call delivers exactly one complete batch");
         if (batch.size() == 1) {
             Check(handler.Handle(places, batch[0], {}, GetTickCount64()) == tags::Reply::Applied &&
-                places.GetSelectionState(tag_id, selection_paths) == (repetition ? pulse::app::TagSelectionState::None : pulse::app::TagSelectionState::All),
+                places.GetSelectionState(tag_id, selection_paths) == (repetition ? luling::app::TagSelectionState::None : luling::app::TagSelectionState::All),
                 repetition ? "all tagged selection removes all in one transaction" : "mixed selection adds to all in one transaction");
             const auto state = places.GetSelectionState(tag_id, selection_paths);
             Check(handler.Handle(places, batch[0], {}, GetTickCount64()) == tags::Reply::Applied &&
@@ -328,7 +328,7 @@ DWORD WINAPI Audit(void*) {
             const auto model_start = GetTickCount64();
             const auto applied = handler.Handle(places, batch[0], {}, model_start);
             const auto model_elapsed = GetTickCount64() - model_start;
-            Check(applied == tags::Reply::Applied && places.GetSelectionState(tag_id, large) == pulse::app::TagSelectionState::All,
+            Check(applied == tags::Reply::Applied && places.GetSelectionState(tag_id, large) == luling::app::TagSelectionState::All,
                 "1000-file complete request applies all model tags");
             std::cout << "[PERF] 1000-file BatchHandler model transaction: " << model_elapsed << " ms\n";
         }
@@ -350,10 +350,10 @@ DWORD WINAPI Audit(void*) {
         if (command) { command.As(&initialize); command.As(&selection); }
         Check(SUCCEEDED(array_result) && SUCCEEDED(created) && initialize && selection, "lifecycle uses real Shell array and COM interfaces");
         if (initialize && selection && items) {
-            Check(FAILED(initialize->Initialize(L"PulseTags", nullptr)), "cascading parent cannot accidentally invoke a tag operation");
-            initialize->Initialize(L"pulse.tag.fixture-tag", nullptr); selection->SetSelection(items.Get());
+            Check(FAILED(initialize->Initialize(L"LulingTags", nullptr)), "cascading parent cannot accidentally invoke a tag operation");
+            initialize->Initialize(L"luling.tag.fixture-tag", nullptr); selection->SetSelection(items.Get());
             Check(SUCCEEDED(command->Execute()) && SUCCEEDED(command->Execute()), "repeated Execute is accepted idempotently");
-            Check(FAILED(initialize->Initialize(L"pulse.tag.other-1", nullptr)) && FAILED(selection->SetSelection(items.Get())),
+            Check(FAILED(initialize->Initialize(L"luling.tag.other-1", nullptr)) && FAILED(selection->SetSelection(items.Get())),
                 "post-Execute tag and selection replacement are rejected");
             std::vector<tags::Request> batches;
             Check(Wait([&] { batches = tags::TakeCommandBatches(); return !batches.empty(); }) && batches.size() == 1 &&
@@ -365,7 +365,7 @@ DWORD WINAPI Audit(void*) {
             CoCreateInstance(class_id, nullptr, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&command));
             if (command) { command.As(&initialize); command.As(&selection); }
             if (initialize && selection) {
-                initialize->Initialize(L"pulse.tag.fixture-tag", nullptr); selection->SetSelection(items.Get());
+                initialize->Initialize(L"luling.tag.fixture-tag", nullptr); selection->SetSelection(items.Get());
                 Check(SUCCEEDED(command->Execute()), "late-worker fixture submits a batch");
                 tags::RevokeCommandServer();
                 Check(SUCCEEDED(tags::RegisterCommandServer(&class_id)), "new authority registers while old work exists");
@@ -377,7 +377,7 @@ DWORD WINAPI Audit(void*) {
         }
     }
     tags::RevokeCommandServer();
-    Check(pulse::app::RemoveTagMenu(icons, registry_api), "production unregister removes menu and owned class registration");
+    Check(luling::app::RemoveTagMenu(icons, registry_api), "production unregister removes menu and owned class registration");
     RegCloseKey(classes); RegCloseKey(user);
     Check(RegDeleteTreeW(HKEY_CURRENT_USER, actual_class.c_str()) == ERROR_SUCCESS &&
         RegDeleteTreeW(HKEY_CURRENT_USER, actual_app.c_str()) == ERROR_SUCCESS &&

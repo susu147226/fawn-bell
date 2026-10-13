@@ -1,5 +1,5 @@
 #pragma once
-// Shared helpers for the Pulse setup bootstrapper.
+// Shared helpers for the Luling setup bootstrapper.
 
 #include <windows.h>
 #include <shlobj.h>
@@ -9,18 +9,18 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::setup {
+namespace luling::setup {
 
-// Same AppId as installer/PulseSetup.iss so upgrades from Inno builds find
+// Same AppId as installer/LulingSetup.iss so upgrades from Inno builds find
 // the previous installation and keep a single "Apps & features" entry.
 inline constexpr wchar_t kUninstallKey[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{A3F47C2E-9D1B-4E58-8C6A-2B5D0F9E1734}_is1";
 // Test installs (/PULSETEST) use their own per-user entry and never touch the
-// machine-wide installation, the PulseIndex service or user preferences.
+// machine-wide installation, the LulingIndex service or user preferences.
 inline constexpr wchar_t kTestUninstallKey[] =
-    L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PulseSetupTest";
+    L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\LulingSetupTest";
 inline constexpr wchar_t kRunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-inline constexpr wchar_t kServiceName[] = L"PulseIndex";
+inline constexpr wchar_t kServiceName[] = L"LulingIndex";
 
 // Exit codes follow Inno Setup so UpdateInstallErrorFromExitCode keeps working.
 enum ExitCode : int {
@@ -60,4 +60,4 @@ void RemoveTree(const std::wstring& dir);  // locked leftovers are removed at re
 std::wstring Utf8ToWide(const std::string& s);
 std::string WideToUtf8(const std::wstring& s);
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

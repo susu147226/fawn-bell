@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct Theme;
 
@@ -131,4 +131,4 @@ public:
     ~GroupWheel() { ReleaseFormats(); }
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

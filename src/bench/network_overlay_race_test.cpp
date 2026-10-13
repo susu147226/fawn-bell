@@ -7,7 +7,7 @@
 #include <iostream>
 
 namespace {
-const std::wstring root_path = L"\\\\pulse-test.invalid\\race";
+const std::wstring root_path = L"\\\\luling-test.invalid\\race";
 const std::wstring item_path = root_path + L"\\item.txt";
 std::wstring fixture_directory;
 uint32_t file_size = 10;
@@ -16,8 +16,8 @@ int handles_open = 0;
 bool unexpected_path = false;
 HANDLE WINAPI RaceFindFirst(LPCWSTR path, FINDEX_INFO_LEVELS, LPVOID data,
                             FINDEX_SEARCH_OPS, LPVOID, DWORD) {
-    if (std::wstring(path) != L"\\\\?\\UNC\\pulse-test.invalid\\race\\*" &&
-        std::wstring(path) != L"\\\\?\\UNC\\pulse-test.invalid\\race\\parent\\*") {
+    if (std::wstring(path) != L"\\\\?\\UNC\\luling-test.invalid\\race\\*" &&
+        std::wstring(path) != L"\\\\?\\UNC\\luling-test.invalid\\race\\parent\\*") {
         unexpected_path = true;
         SetLastError(ERROR_BAD_NETPATH);
         return INVALID_HANDLE_VALUE;
@@ -45,7 +45,7 @@ BOOL WINAPI RaceFindClose(HANDLE handle) {
     return TRUE;
 }
 BOOL WINAPI RaceAttributes(LPCWSTR path, GET_FILEEX_INFO_LEVELS, LPVOID data) {
-    if (std::wstring(path) != L"\\\\?\\UNC\\pulse-test.invalid\\race\\item.txt") {
+    if (std::wstring(path) != L"\\\\?\\UNC\\luling-test.invalid\\race\\item.txt") {
         unexpected_path = true;
         SetLastError(ERROR_FILE_NOT_FOUND);
         return FALSE;
@@ -57,7 +57,7 @@ BOOL WINAPI RaceAttributes(LPCWSTR path, GET_FILEEX_INFO_LEVELS, LPVOID data) {
     return TRUE;
 }
 }
-namespace pulse::index {
+namespace luling::index {
 std::wstring RaceUserIndexRoot() { return fixture_directory; }
 }
 #define FindFirstFileExW RaceFindFirst
@@ -72,7 +72,7 @@ std::wstring RaceUserIndexRoot() { return fixture_directory; }
 #undef FindNextFileW
 #undef FindFirstFileExW
 
-namespace pulse::index {
+namespace luling::index {
 struct NetworkIndexTestAccess {
     static void Prepare(NetworkIndex& index) {
         index.running_ = true;
@@ -132,7 +132,7 @@ struct NetworkIndexTestAccess {
 }
 
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     using Access = NetworkIndexTestAccess;
     int failures = 0;
     const auto check = [&](bool ok, const char* name) {
@@ -140,7 +140,7 @@ int main() {
         failures += !ok;
     };
     const auto temp = std::filesystem::temp_directory_path();
-    const auto fixture = temp / (L"pulse-network-race-test-" + std::to_wstring(GetCurrentProcessId()) +
+    const auto fixture = temp / (L"luling-network-race-test-" + std::to_wstring(GetCurrentProcessId()) +
                                 L"-" + std::to_wstring(GetTickCount64()));
     std::error_code error;
     if (!std::filesystem::create_directory(fixture, error)) return 1;
@@ -222,7 +222,7 @@ int main() {
     const auto status = std::filesystem::symlink_status(fixture, error);
     const bool owned_directory = same_parent && !guard_error && !error &&
         status.type() == std::filesystem::file_type::directory &&
-        fixture.filename().wstring().starts_with(L"pulse-network-race-test-");
+        fixture.filename().wstring().starts_with(L"luling-network-race-test-");
     if (owned_directory) std::filesystem::remove_all(fixture, error);
     check(owned_directory && !error && !std::filesystem::exists(fixture), "private fixture cleaned up");
     return failures ? 1 : 0;

@@ -1,4 +1,4 @@
-name: Build and publish Pulse
+name: Build and publish Luling
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pulse-release-${{ github.ref }}
+  group: luling-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -38,8 +38,8 @@ jobs:
         with:
           name: installer-${{ matrix.channel }}
           path: |
-            dist/PulseSetup-*.exe
-            dist/Pulse-*-portable-win-x64.zip
+            dist/LulingSetup-*.exe
+            dist/Luling-*-portable-win-x64.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
@@ -70,6 +70,6 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          PULSE_UPDATE_PRIVATE_KEY: ${{ secrets.PULSE_UPDATE_PRIVATE_KEY }}
-          PULSE_PREVIEW_PACK_SOURCE_TAG: ${{ vars.PULSE_PREVIEW_PACK_SOURCE_TAG }}
+          LULING_UPDATE_PRIVATE_KEY: ${{ secrets.LULING_UPDATE_PRIVATE_KEY }}
+          LULING_PREVIEW_PACK_SOURCE_TAG: ${{ vars.LULING_PREVIEW_PACK_SOURCE_TAG }}
         run: ./scripts/publish_release.ps1

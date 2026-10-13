@@ -7,9 +7,9 @@ ready=out/('instant-'+mode+'-ready.txt')
 for marker in [Path(str(ready)+'.stop'),Path(str(ready)+'.stopped')]:
     if marker.exists(): marker.unlink()
 if ready.exists(): ready.unlink()
-env=os.environ.copy();env['PULSE_TEST_INSTANT_MODE']='1';env['PULSE_TEST_INSTANT_CRASH_READY']=str(ready);env.pop('PULSE_TEST_INSTANT_IDLE_SECONDS',None)
+env=os.environ.copy();env['LULING_TEST_INSTANT_MODE']='1';env['LULING_TEST_INSTANT_CRASH_READY']=str(ready);env.pop('LULING_TEST_INSTANT_IDLE_SECONDS',None)
 log=open(out/('instant-'+mode+'-child.log'),'w')
-p=subprocess.Popen([str(out/'pulse_content_index_test.exe')],env=env,stdout=log,stderr=subprocess.STDOUT,creationflags=0x08000000)
+p=subprocess.Popen([str(out/'luling_content_index_test.exe')],env=env,stdout=log,stderr=subprocess.STDOUT,creationflags=0x08000000)
 k=ctypes.WinDLL('kernel32',use_last_error=True)
 k.OpenProcess.argtypes=[ctypes.c_uint32,ctypes.c_int,ctypes.c_uint32];k.OpenProcess.restype=ctypes.c_void_p
 k.WaitForSingleObject.argtypes=[ctypes.c_void_p,ctypes.c_uint32];k.CloseHandle.argtypes=[ctypes.c_void_p]
@@ -38,7 +38,7 @@ try:
         snap=k.CreateToolhelp32Snapshot(2,0);e=ENTRY();e.size=ctypes.sizeof(e)
         ok=k.Process32FirstW(snap,ctypes.byref(e))
         while ok:
-            if e.parent in ids and e.exe.lower()=='pulse.document.exe': doc_pid=e.pid;break
+            if e.parent in ids and e.exe.lower()=='luling.document.exe': doc_pid=e.pid;break
             ok=k.Process32NextW(snap,ctypes.byref(e))
         k.CloseHandle(snap)
         if not doc_pid: time.sleep(.01)

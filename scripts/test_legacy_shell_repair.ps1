@@ -4,13 +4,13 @@ $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class PulseRepairTestRegistry {
+public static class LulingRepairTestRegistry {
     [DllImport("advapi32.dll")] public static extern int RegOverridePredefKey(IntPtr key, IntPtr replacement);
 }
 '@
 $original = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::CurrentUser,
     [Microsoft.Win32.RegistryView]::Registry64)
-$parent = $original.CreateSubKey('Software\PulseTest')
+$parent = $original.CreateSubKey('Software\LulingTest')
 $name = 'LegacyRepair-' + [Guid]::NewGuid().ToString('N')
 $root = $parent.CreateSubKey($name)
 $hkcu = [IntPtr]::new(-2147483647)
@@ -47,7 +47,7 @@ function Has-Value([string]$Path, [string]$Name) {
 }
 $redirected = $false
 try {
-    $status = [PulseRepairTestRegistry]::RegOverridePredefKey($hkcu, $root.Handle.DangerousGetHandle())
+    $status = [LulingRepairTestRegistry]::RegOverridePredefKey($hkcu, $root.Handle.DangerousGetHandle())
     if ($status -ne 0) { throw "Registry isolation failed: $status" }
     $redirected = $true
     Setup
@@ -105,7 +105,7 @@ try {
     Write-Output $_.ScriptStackTrace
     throw
 } finally {
-    if ($redirected) { [void][PulseRepairTestRegistry]::RegOverridePredefKey($hkcu, [IntPtr]::Zero) }
+    if ($redirected) { [void][LulingRepairTestRegistry]::RegOverridePredefKey($hkcu, [IntPtr]::Zero) }
     $root.Dispose()
     try { $parent.DeleteSubKeyTree($name, $false) }
     catch { Write-Warning "Isolated fixture cleanup failed for $name : $($_.Exception.Message)"; $failures++ }

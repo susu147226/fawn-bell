@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 constexpr uint64_t kMaximumInstallerBytes = 512ull * 1024 * 1024;
 struct FileHandle {
@@ -103,7 +103,7 @@ struct UpdateInstaller::State {
         wchar_t local[MAX_PATH]{};
         if (FAILED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, local)))
             return ERROR_PATH_NOT_FOUND;
-        if (!CreateUpdateDownloadPackage(std::wstring(local) + L"\\PulseUpdateDownloads", package))
+        if (!CreateUpdateDownloadPackage(std::wstring(local) + L"\\LulingUpdateDownloads", package))
             return ERROR_ACCESS_DENIED;
         directory = package.directory;
         file = package.file;
@@ -234,7 +234,7 @@ bool UpdateInstaller::Launch(HWND owner, DWORD& error) {
     execute.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
     execute.hwnd = owner;
     // Let the setup elevate its worker while retaining the original user's
-    // token for post-install launch. Explicit runas makes Pulse elevated too.
+    // token for post-install launch. Explicit runas makes Luling elevated too.
     execute.lpVerb = L"open";
     execute.lpFile = state_->file.c_str();
     execute.lpParameters = parameters.c_str();

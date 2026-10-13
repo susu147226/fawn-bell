@@ -5,7 +5,7 @@
 #include <shlwapi.h>
 #include <wrl/client.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 HRESULT CreateSvgResourceBitmap(ID2D1RenderTarget* target, int resource_id,
                                 D2D1_SIZE_U size, D2D1_SIZE_F viewport, ID2D1Bitmap** bitmap) {
     using Microsoft::WRL::ComPtr;

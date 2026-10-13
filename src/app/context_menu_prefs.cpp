@@ -9,17 +9,17 @@
 #include <unordered_set>
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
-using pulse::json::ExtractObject;
+using luling::json::ExtractObject;
 
 int ClampCap(int v, int lo, int hi, int fallback) {
     if (v < lo || v > hi) return fallback;
     return v;
 }
 
-// context_menu.json "pulse_order" keys, indexed by BuiltinMenuSurface.
+// context_menu.json "luling_order" keys, indexed by BuiltinMenuSurface.
 constexpr const wchar_t* kOrderKeys[] = { L"item", L"background", L"row_buttons" };
 static_assert(std::size(kOrderKeys) == static_cast<size_t>(BuiltinMenuSurface::Count));
 
@@ -234,7 +234,7 @@ std::wstring ContextMenuPrefs::ToJson() const {
     cat(L"open_with_com", open_with_com, false);
     cat(L"system_extra", system_extra, false);
     cat(L"print", print, true);
-    out += L"  },\n  \"pulse_items\":{";
+    out += L"  },\n  \"luling_items\":{";
     bool first_builtin = true;
     for (int i = 0; i < kBuiltinMenuItemCount; ++i) {
         const auto item = static_cast<BuiltinMenuItem>(i);
@@ -245,8 +245,8 @@ std::wstring ContextMenuPrefs::ToJson() const {
         first_builtin = false;
     }
     out += first_builtin ? L"},\n" : L"\n  },\n";
-    // "pulse_order": comma-joined keys per surface, only when moved.
-    out += L"  \"pulse_order\":{";
+    // "luling_order": comma-joined keys per surface, only when moved.
+    out += L"  \"luling_order\":{";
     bool first_order = true;
     for (int s = 0; s < static_cast<int>(BuiltinMenuSurface::Count); ++s) {
         const auto surface = static_cast<BuiltinMenuSurface>(s);
@@ -267,7 +267,7 @@ std::wstring ContextMenuPrefs::ToJson() const {
     size_t n = 0;
     for (const auto& kv : item_enabled) {
         std::wstring key;
-        pulse::json::Escape(kv.first, key);
+        luling::json::Escape(kv.first, key);
         out += L"    \"";
         out += key;
         out += L"\":{\"enabled\":";
@@ -280,8 +280,8 @@ std::wstring ContextMenuPrefs::ToJson() const {
     for (size_t i = 0; i < seen.size(); ++i) {
         const auto& item = seen[i];
         std::wstring key, text;
-        pulse::json::Escape(item.key, key);
-        pulse::json::Escape(item.text, text);
+        luling::json::Escape(item.key, key);
+        luling::json::Escape(item.text, text);
         out += L"    {\"key\":\"";
         out += key;
         out += L"\",\"text\":\"";
@@ -299,7 +299,7 @@ std::wstring ContextMenuPrefs::ToJson() const {
     size_t se = 0;
     for (const auto& kv : slow_ext) {
         std::wstring key;
-        pulse::json::Escape(kv.first, key);
+        luling::json::Escape(kv.first, key);
         out += L"    \"";
         out += key;
         out += L"\":{\"ms\":";
@@ -321,34 +321,34 @@ std::wstring ContextMenuPrefs::ToJson() const {
 }
 
 bool ContextMenuPrefs::FromJson(const std::wstring& json) {
-    if (!pulse::json::ValidConfigObject(json)) return false;
-    explorer_cap = ClampCap(pulse::json::ExtractInt(json, L"explorer_cap", ipc::kDefaultExplorerCap),
+    if (!luling::json::ValidConfigObject(json)) return false;
+    explorer_cap = ClampCap(luling::json::ExtractInt(json, L"explorer_cap", ipc::kDefaultExplorerCap),
                             1, 48, ipc::kDefaultExplorerCap);
-    open_with_mru = ClampCap(pulse::json::ExtractInt(json, L"open_with_mru", 2), 0, 8, 2);
+    open_with_mru = ClampCap(luling::json::ExtractInt(json, L"open_with_mru", 2), 0, 8, 2);
 
     const std::wstring cats = ExtractObject(json, L"categories");
     const std::wstring& src = cats.empty() ? json : cats;
-    software = pulse::json::ExtractBool(src, L"software", true);
-    share = pulse::json::ExtractBool(src, L"share", false);
-    wallpaper = pulse::json::ExtractBool(src, L"wallpaper", false);
-    rotate = pulse::json::ExtractBool(src, L"rotate", false);
-    shortcut = pulse::json::ExtractBool(src, L"shortcut", false);
-    open_with = pulse::json::ExtractBool(src, L"open_with", true);
-    open_with_com = pulse::json::ExtractBool(src, L"open_with_com", false);
-    system_extra = pulse::json::ExtractBool(src, L"system_extra", false);
-    print = pulse::json::ExtractBool(src, L"print", true);
+    software = luling::json::ExtractBool(src, L"software", true);
+    share = luling::json::ExtractBool(src, L"share", false);
+    wallpaper = luling::json::ExtractBool(src, L"wallpaper", false);
+    rotate = luling::json::ExtractBool(src, L"rotate", false);
+    shortcut = luling::json::ExtractBool(src, L"shortcut", false);
+    open_with = luling::json::ExtractBool(src, L"open_with", true);
+    open_with_com = luling::json::ExtractBool(src, L"open_with_com", false);
+    system_extra = luling::json::ExtractBool(src, L"system_extra", false);
+    print = luling::json::ExtractBool(src, L"print", true);
 
     builtin_hidden = 0;
-    const std::wstring builtin = ExtractObject(json, L"pulse_items");
+    const std::wstring builtin = ExtractObject(json, L"luling_items");
     for (int i = 0; i < kBuiltinMenuItemCount && !builtin.empty(); ++i) {
         const auto item = static_cast<BuiltinMenuItem>(i);
-        if (!pulse::json::ExtractBool(builtin, std::wstring(BuiltinMenuKey(item)), true))
+        if (!luling::json::ExtractBool(builtin, std::wstring(BuiltinMenuKey(item)), true))
             builtin_hidden |= BuiltinMenuBit(item);
     }
     ResetBuiltinOrder();
-    const std::wstring orders = ExtractObject(json, L"pulse_order");
+    const std::wstring orders = ExtractObject(json, L"luling_order");
     for (int s = 0; s < static_cast<int>(BuiltinMenuSurface::Count) && !orders.empty(); ++s) {
-        const std::wstring keys = pulse::json::ExtractString(orders, kOrderKeys[s]);
+        const std::wstring keys = luling::json::ExtractString(orders, kOrderKeys[s]);
         BuiltinMenuOrder order;
         for (size_t at = 0; at < keys.size();) {
             size_t end = keys.find(L',', at);
@@ -364,20 +364,20 @@ bool ContextMenuPrefs::FromJson(const std::wstring& json) {
     // Keys are menu ids such as "h:{GUID}" and texts are whatever the menu
     // shows, so values are walked with the shared string-aware readers.
     item_enabled.clear();
-    pulse::json::ForEachMember(ExtractObject(json, L"items"),
+    luling::json::ForEachMember(ExtractObject(json, L"items"),
         [&](const std::wstring& key, const std::wstring& block) {
-            item_enabled[key] = pulse::json::ExtractBool(block, L"enabled", true);
+            item_enabled[key] = luling::json::ExtractBool(block, L"enabled", true);
         });
 
     seen.clear();
-    pulse::json::ForEachElement(pulse::json::ExtractArray(json, L"seen"), [&](const std::wstring& block) {
+    luling::json::ForEachElement(luling::json::ExtractArray(json, L"seen"), [&](const std::wstring& block) {
         if (block.empty() || block.front() != L'{') return;
         SeenMenuItem item;
-        item.key = pulse::json::ExtractString(block, L"key");
-        item.text = pulse::json::ExtractString(block, L"text");
-        item.flyout = pulse::json::ExtractString(block, L"kind") == L"flyout";
-        item.from_com = pulse::json::ExtractString(block, L"source") == L"com";
-        item.category = ipc::ParseCtxMenuCategory(pulse::json::ExtractString(block, L"category"));
+        item.key = luling::json::ExtractString(block, L"key");
+        item.text = luling::json::ExtractString(block, L"text");
+        item.flyout = luling::json::ExtractString(block, L"kind") == L"flyout";
+        item.from_com = luling::json::ExtractString(block, L"source") == L"com";
+        item.category = ipc::ParseCtxMenuCategory(luling::json::ExtractString(block, L"category"));
         if (!item.key.empty() && !item.text.empty()) seen.push_back(std::move(item));
     });
 
@@ -385,18 +385,18 @@ bool ContextMenuPrefs::FromJson(const std::wstring& json) {
     CoalesceCompressCatalog();
 
     slow_ext.clear();
-    pulse::json::ForEachMember(ExtractObject(json, L"slow_ext"),
+    luling::json::ForEachMember(ExtractObject(json, L"slow_ext"),
         [&](const std::wstring& key, const std::wstring& block) {
             if (key.empty() || block.empty() || block.front() != L'{') return;
             SlowComExt st;
             st.last_ms = static_cast<uint32_t>(
-                std::max(0, pulse::json::ExtractInt(block, L"ms", 0)));
+                std::max(0, luling::json::ExtractInt(block, L"ms", 0)));
             st.slow_hits = static_cast<uint32_t>(
-                std::max(0, pulse::json::ExtractInt(block, L"slow", 0)));
+                std::max(0, luling::json::ExtractInt(block, L"slow", 0)));
             st.timeout_hits = static_cast<uint32_t>(
-                std::max(0, pulse::json::ExtractInt(block, L"timeout", 0)));
-            st.deferred = pulse::json::ExtractBool(block, L"deferred", false);
-            st.disabled = pulse::json::ExtractBool(block, L"disabled", false);
+                std::max(0, luling::json::ExtractInt(block, L"timeout", 0)));
+            st.deferred = luling::json::ExtractBool(block, L"deferred", false);
+            st.disabled = luling::json::ExtractBool(block, L"disabled", false);
             slow_ext[key] = st;
         });
     // Purge disable state older builds persisted for SendTo (#77): the
@@ -410,7 +410,7 @@ bool ContextMenuPrefs::FromJson(const std::wstring& json) {
 // switching one of them off left its siblings on. Only display-text identities
 // are migrated; command and handler identities must remain language independent.
 void ContextMenuPrefs::MigrateSeenKeys() {
-    constexpr std::wstring_view quick_access = L"pulse:quick-access";
+    constexpr std::wstring_view quick_access = L"luling:quick-access";
     const auto display_key = [](std::wstring_view key) {
         return key.starts_with(L"v:") || key.starts_with(L"f:");
     };
@@ -428,7 +428,7 @@ void ContextMenuPrefs::MigrateSeenKeys() {
     std::unordered_set<std::wstring> observed_keys;
     for (const auto& item : seen) observed_keys.insert(item.key);
     // Older preferences can retain an override after its seen row was evicted.
-    // Only infer the legacy Pulse alias when no row identifies it as COM/other.
+    // Only infer the legacy Luling alias when no row identifies it as COM/other.
     for (const auto& [key, enabled] : item_enabled) {
         (void)enabled;
         if (observed_keys.contains(key) || !key.starts_with(L"v:")) continue;
@@ -515,7 +515,7 @@ void ContextMenuPrefs::CoalesceCompressCatalog() {
 }
 
 bool ContextMenuPrefs::Load() {
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) { load_failed = true; return false; }
     const std::wstring file = dir + L"\\context_menu.json";
     const DWORD attributes = GetFileAttributesW(file.c_str());
@@ -534,9 +534,9 @@ bool ContextMenuPrefs::Load() {
 bool ContextMenuPrefs::Save() const {
     if (!persist) return true;
     if (load_failed) return false;
-    const std::wstring dir = GetPulseDataDir();
+    const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
     return WriteUtf8FileAtomic(dir + L"\\context_menu.json", ToJson());
 }
 
-} // namespace pulse::app
+} // namespace luling::app

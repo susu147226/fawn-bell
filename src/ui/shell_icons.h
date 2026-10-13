@@ -18,7 +18,7 @@
 struct IImageList;
 struct IWICImagingFactory;
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class ShellIconCache {
 public:
@@ -115,4 +115,4 @@ private:
     std::atomic<bool> running_{false};
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

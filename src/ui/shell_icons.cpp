@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -29,7 +29,7 @@ std::wstring LowerExt(const std::wstring& name) {
 }
 
 std::wstring ShellPath(const std::wstring& path) {
-    return pulse::path::StripExtendedPathPrefix(path);
+    return luling::path::StripExtendedPathPrefix(path);
 }
 
 constexpr size_t kReadyPixelsLimit = 256;
@@ -492,4 +492,4 @@ std::optional<uint64_t> ShellIconCache::CachedBitmapKey(const std::wstring& path
     }
     return std::nullopt;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

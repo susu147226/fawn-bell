@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <cstring>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 namespace {
 bool StartsWith(const uint8_t* data, size_t size, const char* magic, size_t length) {
@@ -59,4 +59,4 @@ SniffedFormat SniffContent(const std::wstring& path) {
     return ok ? SniffContentBytes(head, read) : SniffedFormat::None;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

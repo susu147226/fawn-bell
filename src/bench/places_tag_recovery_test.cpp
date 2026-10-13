@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
-namespace pulse::app { std::wstring fixture; std::wstring GetPulseDataDir() { return fixture; } }
+namespace luling::app { std::wstring fixture; std::wstring GetLulingDataDir() { return fixture; } }
 namespace {
 int failures = 0;
 void Check(bool ok, const char* name) {
@@ -17,7 +17,7 @@ template<class Predicate> bool Wait(Predicate predicate, DWORD timeout = 3000) {
 }
 }
 int wmain() {
-    using namespace pulse::app;
+    using namespace luling::app;
     namespace fs = std::filesystem;
     const auto parent = fs::absolute(L"bench_data").lexically_normal();
     const auto base = parent / (L"places-tag-recovery-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
@@ -76,24 +76,24 @@ int wmain() {
         PlacesCatalog catalog;
         newest = catalog.CreateTag(L"older", 0x112233);
         Check(catalog.FlushTagSave() && catalog.Save(), "generation comparison baseline saved");
-        Check(pulse::ReadUtf8File(fixture + L"\\places.json", old_places) && pulse::ReadUtf8File(fixture + L"\\tags.json", old_tags), "older complete copies captured");
+        Check(luling::ReadUtf8File(fixture + L"\\places.json", old_places) && luling::ReadUtf8File(fixture + L"\\tags.json", old_tags), "older complete copies captured");
         catalog.RenameTag(newest, L"newer");
         Check(catalog.FlushTagSave() && catalog.Save(), "new generation saved to both files");
-        Check(pulse::ReadUtf8File(fixture + L"\\places.json", new_places) && pulse::ReadUtf8File(fixture + L"\\tags.json", new_tags), "newer complete copies captured");
+        Check(luling::ReadUtf8File(fixture + L"\\places.json", new_places) && luling::ReadUtf8File(fixture + L"\\tags.json", new_tags), "newer complete copies captured");
     }
-    Check(pulse::WriteUtf8FileAtomic(fixture + L"\\places.json", old_places), "restore older recovery copy to model interrupted dual-file save");
+    Check(luling::WriteUtf8FileAtomic(fixture + L"\\places.json", old_places), "restore older recovery copy to model interrupted dual-file save");
     {
         PlacesCatalog loaded; loaded.persist = false;
         Check(loaded.Load() && loaded.FindTag(newest) && loaded.FindTag(newest)->name == L"newer", "newer canonical tags generation wins over older places");
     }
-    Check(pulse::WriteUtf8FileAtomic(fixture + L"\\places.json", new_places) && pulse::WriteUtf8FileAtomic(fixture + L"\\tags.json", old_tags), "restore older canonical copy independently");
+    Check(luling::WriteUtf8FileAtomic(fixture + L"\\places.json", new_places) && luling::WriteUtf8FileAtomic(fixture + L"\\tags.json", old_tags), "restore older canonical copy independently");
     {
         PlacesCatalog loaded; loaded.persist = false;
         Check(loaded.Load() && loaded.FindTag(newest) && loaded.FindTag(newest)->name == L"newer", "newer places generation wins deterministically");
     }
     directory(L"legacy");
-    Check(pulse::WriteUtf8FileAtomic(fixture + L"\\places.json", LR"({"tags":[{"id":"legacy","name":"places","rgb":123,"paths":[]}]})") &&
-        pulse::WriteUtf8FileAtomic(fixture + L"\\tags.json", LR"({"version":2,"tags":[{"id":"legacy","name":"tags","rgb":456,"paths":[]}]})"), "legacy generation-free copies created");
+    Check(luling::WriteUtf8FileAtomic(fixture + L"\\places.json", LR"({"tags":[{"id":"legacy","name":"places","rgb":123,"paths":[]}]})") &&
+        luling::WriteUtf8FileAtomic(fixture + L"\\tags.json", LR"({"version":2,"tags":[{"id":"legacy","name":"tags","rgb":456,"paths":[]}]})"), "legacy generation-free copies created");
     {
         PlacesCatalog loaded; loaded.persist = false;
         Check(loaded.Load() && loaded.FindTag(L"legacy") && loaded.FindTag(L"legacy")->name == L"tags", "equal legacy generations retain canonical tags precedence");

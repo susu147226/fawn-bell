@@ -1,6 +1,6 @@
 #pragma once
 // Setup wizard window (P2): Direct2D/DirectWrite drawing of the pages in
-// installer-prototype/pulse-installer-prototype.html. Runs the install
+// installer-prototype/luling-installer-prototype.html. Runs the install
 // engine on a worker thread.
 
 #include "setup_engine.h"
@@ -9,11 +9,11 @@
 
 #include <string>
 
-namespace pulse::setup {
+namespace luling::setup {
 
 struct WizardOutcome {
     int exit_code = kExitCancelledBefore;
-    bool launch = false;  // start Pulse (as the original user) after exit
+    bool launch = false;  // start Luling (as the original user) after exit
     std::wstring app_dir;
     bool self_delete = false;  // uninstall: remove uninstall.exe after exit
 };
@@ -22,4 +22,4 @@ WizardOutcome RunWizard(Payload& payload, const std::wstring& self_path, Install
 struct UninstallRequest;
 WizardOutcome RunUninstallWizard(const std::wstring& self_path, const UninstallRequest& request, Lang lang);
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

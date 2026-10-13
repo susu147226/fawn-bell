@@ -8,11 +8,11 @@
 #include <sddl.h>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 std::wstring ShellPath(const std::wstring& path) {
-    return pulse::path::StripExtendedPathPrefix(path);
+    return luling::path::StripExtendedPathPrefix(path);
 }
 
 std::wstring LookupSid(PSID sid) {
@@ -53,7 +53,7 @@ void FetchPermissions(const std::wstring& shell_path, bool is_dir, DetailsMeta& 
                                       DACL_SECURITY_INFORMATION, nullptr, nullptr,
                                       &dacl, nullptr, &sd) == ERROR_SUCCESS) {
         if (!dacl) {
-            out.permissions = pulse::l10n::Get(pulse::l10n::StringId::PermFull).c_str(); // NULL DACL grants everyone full access
+            out.permissions = luling::l10n::Get(luling::l10n::StringId::PermFull).c_str(); // NULL DACL grants everyone full access
         } else {
             TRUSTEE_W trustee{};
             trustee.TrusteeForm = TRUSTEE_IS_SID;
@@ -85,8 +85,8 @@ void FetchVolume(const std::wstring& shell_path, DetailsMeta& out) {
         const uint64_t pct = free_avail.QuadPart * 100 / total.QuadPart;
         wchar_t text[96];
         swprintf_s(text, L"%s / %s (%llu%%)",
-                   pulse::format::ByteSize(free_avail.QuadPart).c_str(),
-                   pulse::format::ByteSize(total.QuadPart).c_str(),
+                   luling::format::ByteSize(free_avail.QuadPart).c_str(),
+                   luling::format::ByteSize(total.QuadPart).c_str(),
                    static_cast<unsigned long long>(pct));
         out.free_space = text;
     }
@@ -95,23 +95,23 @@ void FetchVolume(const std::wstring& shell_path, DetailsMeta& out) {
 } // namespace
 
 std::wstring FormatAccessMask(unsigned int mask, bool is_dir) {
-    if ((mask & FILE_ALL_ACCESS) == FILE_ALL_ACCESS) return pulse::l10n::Get(pulse::l10n::StringId::PermFull).c_str();
+    if ((mask & FILE_ALL_ACCESS) == FILE_ALL_ACCESS) return luling::l10n::Get(luling::l10n::StringId::PermFull).c_str();
     // winnt.h has FILE_GENERIC_READ/WRITE/EXECUTE but no FILE_GENERIC_MODIFY.
     const bool read = (mask & FILE_GENERIC_READ) == FILE_GENERIC_READ;
     const bool write = (mask & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE;
     std::wstring out;
     auto add = [&](const wchar_t* part) {
-        if (!out.empty()) out += pulse::l10n::IsChinese() ? L"、" : L", ";
+        if (!out.empty()) out += luling::l10n::IsChinese() ? L"、" : L", ";
         out += part;
     };
-    if (read && write) add(pulse::l10n::Get(pulse::l10n::StringId::PermModify).c_str());
-    if ((mask & FILE_GENERIC_EXECUTE) == FILE_GENERIC_EXECUTE) add(pulse::l10n::Get(pulse::l10n::StringId::PermReadExecute).c_str());
+    if (read && write) add(luling::l10n::Get(luling::l10n::StringId::PermModify).c_str());
+    if ((mask & FILE_GENERIC_EXECUTE) == FILE_GENERIC_EXECUTE) add(luling::l10n::Get(luling::l10n::StringId::PermReadExecute).c_str());
     if (is_dir && (mask & FILE_LIST_DIRECTORY) == FILE_LIST_DIRECTORY)
-        add(pulse::l10n::Get(pulse::l10n::StringId::PermList).c_str());
-    if (read && !write) add(pulse::l10n::Get(pulse::l10n::StringId::PermRead).c_str());
-    if (write && !read) add(pulse::l10n::Get(pulse::l10n::StringId::PermWrite).c_str());
-    if (mask & DELETE) add(pulse::l10n::Get(pulse::l10n::StringId::Delete).c_str());
-    if (out.empty()) add(pulse::l10n::Get(pulse::l10n::StringId::PermSpecial).c_str());
+        add(luling::l10n::Get(luling::l10n::StringId::PermList).c_str());
+    if (read && !write) add(luling::l10n::Get(luling::l10n::StringId::PermRead).c_str());
+    if (write && !read) add(luling::l10n::Get(luling::l10n::StringId::PermWrite).c_str());
+    if (mask & DELETE) add(luling::l10n::Get(luling::l10n::StringId::Delete).c_str());
+    if (out.empty()) add(luling::l10n::Get(luling::l10n::StringId::PermSpecial).c_str());
     return out;
 }
 
@@ -126,4 +126,4 @@ DetailsMeta FetchDetailsMeta(const std::wstring& path) {
     return out;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

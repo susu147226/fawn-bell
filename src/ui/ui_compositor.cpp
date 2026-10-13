@@ -12,13 +12,13 @@
 #include <algorithm>
 #include <cstdio>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
 // One D3D11 + D2D device per UI thread, shared by every Compositor on it.
 // Each hardware device costs the process driver worker threads (9 per device
-// on current NVIDIA drivers) and ~15 MB of driver heaps, and Pulse keeps
+// on current NVIDIA drivers) and ~15 MB of driver heaps, and Luling keeps
 // several composited windows alive at once: the main window plus the hidden,
 // reusable quick preview and file operation windows, and any open dialog.
 // Every window still owns its device context, swap chain and
@@ -53,11 +53,11 @@ bool Compositor::CheckGraphics(HRESULT hr, const wchar_t* stage) {
     initialization_error_ = message;
     PWSTR local = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &local))) {
-        const std::wstring directory = std::wstring(local) + L"\\Pulse";
+        const std::wstring directory = std::wstring(local) + L"\\Luling";
         CoTaskMemFree(local);
         CreateDirectoryW(directory.c_str(), nullptr);
         FILE* log = nullptr;
-        if (_wfopen_s(&log, (directory + L"\\pulse_graphics.log").c_str(), L"a, ccs=UTF-8") == 0) {
+        if (_wfopen_s(&log, (directory + L"\\luling_graphics.log").c_str(), L"a, ccs=UTF-8") == 0) {
             fwprintf(log, L"%s\n", message);
             fclose(log);
         }
@@ -220,8 +220,8 @@ bool Compositor::PresentLumaEdit(HWND hwnd, IDWriteTextFormat* format,
                                  const D2D1_COLOR_F& foreground,
                                  const D2D1_COLOR_F& background) {
     if (!hwnd) return false;
-#if defined(PULSE_TEST_LUMATEXT_PRESENT_FAILURE) || defined(PULSE_WITH_SELFTEST)
-    if (GetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_PRESENT_FAILURE", nullptr, 0)) return false;
+#if defined(LULING_TEST_LUMATEXT_PRESENT_FAILURE) || defined(LULING_WITH_SELFTEST)
+    if (GetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_PRESENT_FAILURE", nullptr, 0)) return false;
 #endif
     // LWA_ALPHA children use Windows' redirected surface. Mixing that mode
     // with UpdateLayeredWindow fails; paint our bitmap into their DC instead.
@@ -595,4 +595,4 @@ void Compositor::RecreateTextFormats(float scale) {
     }
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

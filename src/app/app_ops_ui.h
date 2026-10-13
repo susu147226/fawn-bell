@@ -3,7 +3,7 @@
 #include "app_runtime.h"
 #include "../ui/confirm_dialog.h"
 
-namespace pulse {
+namespace luling {
 bool SubmitWithConflictResolution(AppState& s, ops::OpRequest request, uint64_t* task_id = nullptr);
 void ReleaseTrayBatch(AppState& s, size_t idx);
 void PasteIntoCurrent(AppState& s);
@@ -27,4 +27,4 @@ void SendTrayToDest(AppState& s, const std::wstring& dir, bool move);
 void ShowBatchRenamePaths(AppState& s, const std::vector<std::wstring>& paths);
 void PinAndShowOperationWindow(AppState& s);
 void UpdateOperationWindow(AppState& s, bool allow_conflict_dialog);
-} // namespace pulse
+} // namespace luling

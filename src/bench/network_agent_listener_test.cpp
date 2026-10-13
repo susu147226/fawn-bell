@@ -1,7 +1,7 @@
 #include "../index/network_agent_listener.h"
 #include <cstdio>
 
-namespace agent = pulse::index::agent;
+namespace agent = luling::index::agent;
 int main() {
     int failures = 0;
     const auto check = [&](bool ok, const char* name) {

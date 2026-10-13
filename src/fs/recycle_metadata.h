@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::fs {
+namespace luling::fs {
 struct RecycleMetadata {
     std::wstring original_path;
     uint64_t size = 0;
@@ -70,4 +70,4 @@ inline RecycleRestoreResult RestoreRecyclePayload(const std::wstring& index, con
     DeleteFileW(index.c_str());
     return RecycleRestoreResult::Restored;
 }
-} // namespace pulse::fs
+} // namespace luling::fs

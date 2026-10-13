@@ -2,7 +2,7 @@
 #include "../fs/fs_snapshot.h"
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 struct ContentSearchSnapshot {
     fs::SnapshotPtr snapshot;
     bool retained = false;
@@ -14,4 +14,4 @@ inline ContentSearchSnapshot PrepareContentSearchSnapshot(fs::SnapshotPtr previo
         snapshot_path == query_path;
     return {retain ? std::move(previous) : std::move(empty_results), retain};
 }
-} // namespace pulse::app
+} // namespace luling::app

@@ -7,7 +7,7 @@
 #include <iterator>
 #include <algorithm>
 
-namespace pulse::app::folder_size {
+namespace luling::app::folder_size {
 std::wstring Key(std::wstring path) {
     path = fs::NormalizePath(std::move(path));
     while (path.size() > 7 && path.back() == L'\\') path.pop_back();
@@ -149,4 +149,4 @@ bool WriteValues(const std::wstring& file, const SavedValues& values) {
     text += L"]}";
     return WriteUtf8FileAtomic(file, text);
 }
-} // namespace pulse::app::folder_size
+} // namespace luling::app::folder_size

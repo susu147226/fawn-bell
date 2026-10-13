@@ -1,5 +1,5 @@
 #include "runtime_log.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include <windows.h>
 #include <psapi.h>
 #include <algorithm>
@@ -14,7 +14,7 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::diagnostics::runtime {
+namespace luling::diagnostics::runtime {
 namespace {
 constexpr size_t kQueueLimit = 1024, kFieldLimit = 12;
 struct Value { char name[48]{}; uint64_t value = 0; };
@@ -81,8 +81,8 @@ public:
         std::string line = "{\"schema\":1,\"utc\":\"" + std::string(utc) + "\",\"tick_ms\":" + std::to_string(record.tick) +
             ",\"session\":" + std::to_string(session) + ",\"pid\":" + std::to_string(GetCurrentProcessId()) +
             ",\"tid\":" + std::to_string(record.thread) + ",\"seq\":" + std::to_string(record.sequence) +
-            ",\"component\":\"" + component + "\",\"version\":\"" PULSE_VERSION_STRING_A "\",\"build\":\"" +
-            Escape(PULSE_BUILD_ID) + "\",\"event\":\"" + record.event + "\",\"data\":{";
+            ",\"component\":\"" + component + "\",\"version\":\"" LULING_VERSION_STRING_A "\",\"build\":\"" +
+            Escape(LULING_BUILD_ID) + "\",\"event\":\"" + record.event + "\",\"data\":{";
         for (size_t i = 0; i < record.count; ++i) {
             if (i) line += ',';
             line += "\"" + std::string(record.fields[i].name) + "\":" + std::to_string(record.fields[i].value);

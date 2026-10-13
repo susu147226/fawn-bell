@@ -1,3 +1,3 @@
 #pragma once
-namespace pulse::app { bool RunNameHighlightUiTest(); }
-namespace pulse::app { bool RunFilenameRenderTest(); }
+namespace luling::app { bool RunNameHighlightUiTest(); }
+namespace luling::app { bool RunFilenameRenderTest(); }

@@ -2,7 +2,7 @@
 #include <d2d1.h>
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct AddressSearchLayout {
     D2D1_RECT_F scope, mode, name, content, input, clear, options, close;
     bool scope_label = false;
@@ -36,4 +36,4 @@ inline AddressSearchLayout LayoutAddressSearch(D2D1_RECT_F field, float scale) {
                            out.mode.left - 4 * scale, field.bottom - 2 * scale);
     return out;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -1,5 +1,5 @@
 # Generates independent UDF fixtures through Windows IMAPI, without disc writes.
-# Run from the repository root, then pulse_udf_listing_test --image <output>.
+# Run from the repository root, then luling_udf_listing_test --image <output>.
 $ErrorActionPreference = 'Stop'
 $fixtureRoot = Join-Path (Get-Location) 'bench_data\udf_imapi_source'
 [void](New-Item -ItemType Directory -Force -Path (Join-Path $fixtureRoot 'folder'))
@@ -35,7 +35,7 @@ foreach ($revision in @(0x102, 0x150, 0x200, 0x201, 0x250)) {
     try {
         $image.FileSystemsToCreate = 4
         $image.UDFRevision = $revision
-        $image.VolumeName = 'PULSE_UDF_TEST'
+        $image.VolumeName = 'LULING_UDF_TEST'
         $image.Root.AddTree($fixtureRoot, $false)
         $result = $image.CreateResultImage()
         $output = Join-Path (Get-Location) ('bench_data\udf_imapi_{0:x}.iso' -f $revision)

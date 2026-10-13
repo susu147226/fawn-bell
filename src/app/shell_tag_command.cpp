@@ -3,7 +3,7 @@
 #include "default_file_manager.h"
 #include <objbase.h>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 constexpr ULONG_PTR kShellTagMessage = 0x50544147;
 constexpr size_t kMaxRequestChars = 32768;
@@ -30,7 +30,7 @@ std::optional<ShellTagRequest> ParseShellTagArgs(int argc, wchar_t** argv) {
 }
 std::wstring EncodeShellTagRequest(const ShellTagRequest& request) {
     if (!Field(request.tag_id) || !Field(request.path) || !Field(request.operation_id)) return {};
-    auto payload = std::wstring(L"PULSE-TAG-2\n") +
+    auto payload = std::wstring(L"LULING-TAG-2\n") +
         (request.action == ShellTagAction::Remove ? L"remove\n" : L"add\n") +
         request.operation_id + L"\n" + request.tag_id + L"\n" + request.path;
     return payload.size() < kMaxRequestChars ? payload : std::wstring{};
@@ -38,7 +38,7 @@ std::wstring EncodeShellTagRequest(const ShellTagRequest& request) {
 bool ForwardShellTagRequest(const ShellTagRequest& request, std::wstring_view endpoint_name) {
     auto normalized = request;
     if (!SingleInstanceCoordinator::NormalizeLaunchPath(request.path, normalized.path) ||
-        normalized.path.empty() || normalized.path.starts_with(L"pulse:") ||
+        normalized.path.empty() || normalized.path.starts_with(L"luling:") ||
         IsThisPcArgument(normalized.path)) return false;
     const auto payload = EncodeShellTagRequest(normalized);
     if (payload.empty()) return false;
@@ -67,7 +67,7 @@ bool DecodeShellTagRequest(const COPYDATASTRUCT* data, ShellTagRequest& out) {
     if (payload.find(L'\0') != std::wstring::npos) return false;
     ShellTagRequest request;
     size_t begin = 0;
-    if (payload.starts_with(L"PULSE-TAG-2\n")) {
+    if (payload.starts_with(L"LULING-TAG-2\n")) {
         begin = 12;
         auto end = payload.find(L'\n', begin);
         const auto action = payload.substr(begin, end - begin);

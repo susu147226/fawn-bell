@@ -4,14 +4,14 @@
 #include <chrono>
 #include <shellapi.h>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 
 std::vector<uint8_t> QueryPayload(const Query& query) {
     PayloadWriter writer;
@@ -45,8 +45,8 @@ std::wstring NetworkAgentClient::ExePath() {
     wchar_t path[MAX_PATH]{};
     GetModuleFileNameW(nullptr, path, ARRAYSIZE(path));
     wchar_t* slash = wcsrchr(path, L'\\');
-    if (!slash) return L"Pulse.Index.exe";
-    return std::wstring(path, slash + 1) + L"Pulse.Index.exe";
+    if (!slash) return L"Luling.Index.exe";
+    return std::wstring(path, slash + 1) + L"Luling.Index.exe";
 }
 
 bool NetworkAgentClient::EnsureAgent() {
@@ -57,7 +57,7 @@ bool NetworkAgentClient::EnsureAgent() {
         agent_process_ = nullptr;
     }
     // The agent is a per-session singleton (see RunAgent in network_agent_main.cpp). It may be
-    // owned by another Pulse window or outlive the Pulse instance that started it. Spawning a
+    // owned by another Luling window or outlive the Luling instance that started it. Spawning a
     // duplicate would exit immediately and cause a respawn loop on every request (and a
     // flickering AppStarting cursor), so reuse whichever agent currently holds the singleton.
     const auto singleton = agent::SingletonName();
@@ -350,4 +350,4 @@ void NetworkAgentClient::Rebuild(const std::wstring& path) {
     RefreshRoots();
 }
 
-} // namespace pulse::index
+} // namespace luling::index

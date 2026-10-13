@@ -62,16 +62,16 @@ void Check(bool ok, const char* label) {
     if (!ok) ++failures;
 }
 void Drain() {
-    for (int i = 0; i < 300 && pulse::fs::active_watchers.load(); ++i) Sleep(10);
-    Check(pulse::fs::active_watchers.load() == 0, "stopped watcher drains all owned resources");
-    if (pulse::fs::active_watchers.load()) std::exit(2);
+    for (int i = 0; i < 300 && luling::fs::active_watchers.load(); ++i) Sleep(10);
+    Check(luling::fs::active_watchers.load() == 0, "stopped watcher drains all owned resources");
+    if (luling::fs::active_watchers.load()) std::exit(2);
 }
 void RunFailure(const std::wstring& path, DWORD error, bool async, int limit) {
     injected_error = error; async_failure = async; attempts = 0; wait_limit = limit;
     { std::lock_guard lock(delays_mutex); delays.clear(); }
     ResetEvent(reached); ResetEvent(release_read);
     std::atomic<int> callbacks{0};
-    pulse::fs::DirWatch watch;
+    luling::fs::DirWatch watch;
     Check(watch.Start(path, [&](bool, auto) { ++callbacks; }), "watcher starts on an owned real directory");
     Check(WaitForSingleObject(reached, 3000) == WAIT_OBJECT_0, "failure policy reaches a bounded checkpoint");
     Check(!watch.Armed(), "failed watcher is explicitly unarmed during retry wait");
@@ -101,7 +101,7 @@ void RunRecovery(const std::filesystem::path& root) {
     HANDLE reconciled = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     HANDLE changed = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!reconciled || !changed) std::exit(2);
-    pulse::fs::DirWatch watch;
+    luling::fs::DirWatch watch;
     Check(watch.Start(root.wstring(), [&](bool overflow, auto events) {
         if (overflow && attempts >= 4) SetEvent(reconciled);
         if (!events.empty()) SetEvent(changed);
@@ -122,22 +122,22 @@ void RunRecovery(const std::filesystem::path& root) {
     DeleteFileW((root / L"recovered.txt").c_str());
 }
 void RunQueue() {
-    struct Batch { std::wstring path; bool overflow; std::vector<pulse::fs::DirNotifyEvent> events; };
+    struct Batch { std::wstring path; bool overflow; std::vector<luling::fs::DirNotifyEvent> events; };
     std::vector<Batch> queue;
-    const std::vector<pulse::fs::DirNotifyEvent> events{{FILE_ACTION_ADDED, L"item", {}}};
-    pulse::app::QueueDirNotify(queue, L"a", false, events);
-    pulse::app::QueueDirNotify(queue, L"b", false, events);
-    pulse::app::QueueDirNotify(queue, L"a", false, events);
+    const std::vector<luling::fs::DirNotifyEvent> events{{FILE_ACTION_ADDED, L"item", {}}};
+    luling::app::QueueDirNotify(queue, L"a", false, events);
+    luling::app::QueueDirNotify(queue, L"b", false, events);
+    luling::app::QueueDirNotify(queue, L"a", false, events);
     Check(queue.size() == 3, "ordinary event batches retain their ordering");
     for (int i = 0; i < 10000; ++i) {
-        pulse::app::QueueDirNotify(queue, L"a", true, {});
-        pulse::app::QueueDirNotify(queue, L"a", false, events);
+        luling::app::QueueDirNotify(queue, L"a", true, {});
+        luling::app::QueueDirNotify(queue, L"a", false, events);
     }
     Check(queue.size() == 2 && queue[0].path == L"b" && queue[0].events.size() == 1 &&
           queue[1].path == L"a" && queue[1].overflow && queue[1].events.empty(),
           "10000 repeated overflows occupy one batch per path and preserve another path");
     queue.clear();
-    pulse::app::QueueDirNotify(queue, L"a", false, events);
+    luling::app::QueueDirNotify(queue, L"a", false, events);
     Check(queue.size() == 1 && !queue[0].overflow && queue[0].events.size() == 1,
           "new events are accepted after the queue is drained");
 }

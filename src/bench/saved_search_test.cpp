@@ -4,11 +4,11 @@
 #include <filesystem>
 #include <cstdio>
 
-namespace pulse::app {
+namespace luling::app {
 static std::wstring fixture;
-std::wstring GetPulseDataDir() { return fixture; }
+std::wstring GetLulingDataDir() { return fixture; }
 }
-using namespace pulse::app;
+using namespace luling::app;
 
 namespace {
 int passed = 0;

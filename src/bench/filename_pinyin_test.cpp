@@ -2,7 +2,7 @@
 #include "../index/index_query.h"
 #include <iostream>
 #include <string>
-using namespace pulse::index;
+using namespace luling::index;
 int main() {
     int failed = 0;
     auto check = [&](bool pass, const char* text) {

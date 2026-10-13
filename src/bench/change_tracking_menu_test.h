@@ -6,7 +6,7 @@
 // Include from the app's focused regression entry point; no windows or IO needed.
 template<class Check>
 void RunRecentChangesMenuChecks(Check check) {
-    using namespace pulse;
+    using namespace luling;
     app::Tab tab;
     tab.current_path = L"C:\\fixture";
     auto entries = std::make_shared<std::vector<fs::DirEntry>>(2);
@@ -27,7 +27,7 @@ void RunRecentChangesMenuChecks(Check check) {
     (*entries)[1].link_target = L"C:\\target";
     (*entries)[1].link_target_is_dir = true;
     check(app::RecentChangesMenuPath(tab, false) == L"C:\\target", "resolved folder shortcut uses its target");
-    tab.current_path = L"pulse:search:";
+    tab.current_path = L"luling:search:";
     check(app::RecentChangesMenuPath(tab, true).empty(), "virtual background has no recent changes command");
     tab.SelectOnly(0);
     check(app::RecentChangesMenuPath(tab, false).empty(), "virtual row without concrete path has no command");

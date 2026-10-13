@@ -64,8 +64,8 @@ std::wstring Workbook(size_t selected = 0, bool failed = false) {
     }
     return p;
 }
-void Run(pulse::ui::Compositor& compositor, bool dark, float scale, const wchar_t* language) {
-    using namespace pulse::ui;
+void Run(luling::ui::Compositor& compositor, bool dark, float scale, const wchar_t* language) {
+    using namespace luling::ui;
     auto* dc=compositor.Dc();
     auto* factory=compositor.DwriteFactory();
     const auto theme=MakeTheme(dark,HexColor(0x0078d4));
@@ -100,7 +100,7 @@ void Run(pulse::ui::Compositor& compositor, bool dark, float scale, const wchar_
     Check(!archive.SelectAt(rect.left+30*scale,rect.bottom-scale) && !archive.HasSelection() && archive.SelectedPath().empty(),"blank space clears prior context target");
     archive.SetPayload(L"PULSEARC\t1\tISO/UDF\t-\t1\n0\t-\t14\t-\t-\tloaded.txt\n",L"Hybrid.iso",50000);
     archive.SetFilter(L"missing");
-    Check(archive.FilterHits()==0 && archive.StateNote().find(pulse::l10n::IsChinese() ? L"已加载" : L"loaded")!=std::wstring::npos && archive.StateNote().find(L"UDF")!=std::wstring::npos,"empty search retains loaded-only UDF warning");
+    Check(archive.FilterHits()==0 && archive.StateNote().find(luling::l10n::IsChinese() ? L"已加载" : L"loaded")!=std::wstring::npos && archive.StateNote().find(L"UDF")!=std::wstring::npos,"empty search retains loaded-only UDF warning");
     drawArchive();save(L"archive-partial-search");
     TableView table;
     Check(table.SetPayload(Workbook()) && table.PlainText()==L"value1\n","parse on-demand workbook with only selected content");
@@ -170,18 +170,18 @@ void Run(pulse::ui::Compositor& compositor, bool dark, float scale, const wchar_
 }
 int wmain() {
     CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr),L"en-US");
+    luling::l10n::Initialize(GetModuleHandleW(nullptr),L"en-US");
     std::filesystem::create_directories(L"build/preview-integrity-ui");
     HWND window=CreateWindowExW(0,L"STATIC",L"Preview integrity render tests",WS_OVERLAPPEDWINDOW,0,0,800,600,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     Check(window!=nullptr,"create hidden compositor window");
     {
-        pulse::ui::Compositor compositor;
+        luling::ui::Compositor compositor;
         const bool initialized=window && compositor.Init(window);
         Check(initialized,"initialize production compositor");
         if(initialized) for(const auto* language : {L"en-US", L"zh-CN"}) {
-            pulse::l10n::SetLanguage(language);
-            Check(!pulse::l10n::Get(pulse::l10n::StringId::ArcFiles).empty() &&
-                  !pulse::l10n::Get(pulse::l10n::StringId::ArcFolders).empty(), "localized archive labels are loaded");
+            luling::l10n::SetLanguage(language);
+            Check(!luling::l10n::Get(luling::l10n::StringId::ArcFiles).empty() &&
+                  !luling::l10n::Get(luling::l10n::StringId::ArcFolders).empty(), "localized archive labels are loaded");
             for(bool dark : {false,true}) for(float scale : {1.0f,1.5f}) Run(compositor,dark,scale,language);
         }
     }

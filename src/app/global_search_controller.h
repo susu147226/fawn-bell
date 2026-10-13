@@ -1,5 +1,5 @@
 #pragma once
-namespace pulse {
+namespace luling {
 struct AppState;
 void ApplyGlobalSearchSettings(AppState& s);
 void ToggleGlobalSearch(AppState& s);

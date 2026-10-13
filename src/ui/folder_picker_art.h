@@ -3,8 +3,8 @@
 #include "shell_icons.h"
 #include "thumbnail_cache.h"
 
-namespace pulse::ui {
-// Owns only bounded caches; all extraction uses Pulse's existing background backends.
+namespace luling::ui {
+// Owns only bounded caches; all extraction uses Luling's existing background backends.
 bool CanPickerThumbnailName(std::wstring_view name);
 enum class PickerArtResult { Pending, ShellIcon, Thumbnail };
 class FolderPickerArt {

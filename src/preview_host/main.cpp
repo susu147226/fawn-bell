@@ -1,4 +1,4 @@
-// Pulse.Preview.exe: serves preview requests from Pulse over a named pipe.
+// Luling.Preview.exe: serves preview requests from Luling over a named pipe.
 // Decoding lives in preview_decoders.cpp, details-pane properties in
 // preview_properties.cpp; this file only runs the request loop.
 
@@ -20,7 +20,7 @@
 #include <vector>
 #include <algorithm>
 
-using namespace pulse;
+using namespace luling;
 using preview::ExtensionOf;
 using preview::IsOfflinePlaceholder;
 using preview::PreviewPropertyValue;
@@ -157,9 +157,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         response.source_height = source_h;
         HANDLE mapping=nullptr; void* view=nullptr; std::wstring mappingName;
         if (made && response.kind == ipc::PreviewContentKind::Bitmap) {
-            mappingName=L"Local\\PulsePreviewMap-"+std::to_wstring(GetCurrentProcessId())+L"-"+
+            mappingName=L"Local\\LulingPreviewMap-"+std::to_wstring(GetCurrentProcessId())+L"-"+
                         std::to_wstring(req.request_id)+L"-"+std::to_wstring(GetTickCount64());
-#ifdef PULSE_PREVIEW_MAPPING_TEST
+#ifdef LULING_PREVIEW_MAPPING_TEST
             const bool fail_create = req.request_id == 1 && __argc > 2 && wcscmp(__wargv[2], L"--test-map-create-failure") == 0;
             const bool fail_view = req.request_id == 1 && __argc > 2 && wcscmp(__wargv[2], L"--test-map-view-failure") == 0;
 #else

@@ -4,7 +4,7 @@
 
 #include <shellapi.h>
 
-namespace pulse::app {
+namespace luling::app {
 
 TrayController::~TrayController() {
     Detach();
@@ -32,10 +32,10 @@ NOTIFYICONDATAW TrayController::IconData(UINT flags) const {
     data.uFlags = flags;
     data.uCallbackMessage = kCallbackMessage;
     if (flags & NIF_ICON) {
-        data.hIcon = LoadIconW(instance_, MAKEINTRESOURCEW(IDI_PULSE));
+        data.hIcon = LoadIconW(instance_, MAKEINTRESOURCEW(IDI_LULING));
         if (!data.hIcon) data.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     }
-    if (flags & NIF_TIP) wcscpy_s(data.szTip, L"Pulse");
+    if (flags & NIF_TIP) wcscpy_s(data.szTip, L"Luling");
     return data;
 }
 
@@ -117,4 +117,4 @@ TrayController::CallbackResult TrayController::HandleCallback(LPARAM event) {
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

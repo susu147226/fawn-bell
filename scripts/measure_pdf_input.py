@@ -19,8 +19,8 @@ for trial in range(rounds):
     for index, path in enumerate(paths):
         for read_mode in selected[trial % len(selected):] + selected[:trial % len(selected)]:
             directory = base / ('single' if read_mode == 'single' else 'candidate')
-            env = dict(os.environ, PULSE_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), PULSE_PDF_READ_MODE=read_mode)
-            result = subprocess.run([str(directory / 'pulse_pdf_bench.exe'), 'pdfium', path, needle],
+            env = dict(os.environ, LULING_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), LULING_PDF_READ_MODE=read_mode)
+            result = subprocess.run([str(directory / 'luling_pdf_bench.exe'), 'pdfium', path, needle],
                                     env=env, capture_output=True, timeout=40)
             first, body = result.stdout.split(b'\n', 1)
             value = json.loads(first)

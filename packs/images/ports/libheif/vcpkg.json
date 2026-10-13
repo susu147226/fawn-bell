@@ -1,7 +1,7 @@
 {
   "name": "libheif",
   "version": "1.21.2",
-  "description": "libheif for Pulse's image preview pack: HEIC (libde265) and AVIF (dav1d) decoding only. Overlay of the vcpkg port: the GPL encoders (x265, x264) are not available.",
+  "description": "libheif for Luling's image preview pack: HEIC (libde265) and AVIF (dav1d) decoding only. Overlay of the vcpkg port: the GPL encoders (x265, x264) are not available.",
   "homepage": "http://www.libheif.org/",
   "license": "LGPL-3.0-only",
   "supports": "!xbox",

@@ -1,6 +1,6 @@
 #pragma once
 #include <windows.h>
-namespace pulse {
+namespace luling {
 struct AppState;
 void TickUpdates(AppState& state, unsigned long long now);
 void CheckForUpdates(AppState& state);

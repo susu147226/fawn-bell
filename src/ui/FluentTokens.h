@@ -8,7 +8,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 inline D2D1_COLOR_F HexColor(uint32_t rgb, float a = 1.0f) noexcept {
     return D2D1::ColorF(
@@ -452,4 +452,4 @@ inline Theme MakeHighContrastTheme() noexcept {
     return t;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

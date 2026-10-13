@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <utility>
 
-namespace pulse::ui::math {
+namespace luling::ui::math {
 namespace {
 uint32_t Letter(uint32_t scalar, MathAlphabet alphabet, bool bold) {
     const bool upper = scalar >= 'A' && scalar <= 'Z';
@@ -131,4 +131,4 @@ bool MapMathAlphabet(std::wstring_view source, MathAlphabet alphabet, std::wstri
     output = std::move(result);
     return true;
 }
-} // namespace pulse::ui::math
+} // namespace luling::ui::math

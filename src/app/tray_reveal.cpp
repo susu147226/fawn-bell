@@ -3,7 +3,7 @@
 #include "app_internal.h"
 #include "startup_location.h"
 
-namespace pulse {
+namespace luling {
 
 void HideMainWindowToTray(AppState& s) {
     s.hidden_to_tray = true;
@@ -41,4 +41,4 @@ void InstallTrayRevealHook(AppState& s) {
     });
 }
 
-} // namespace pulse
+} // namespace luling

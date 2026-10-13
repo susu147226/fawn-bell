@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace pulse::ui::fluent {
+namespace luling::ui::fluent {
 
 // Immediate-mode state. The owner keeps input and animation state; controls only draw it.
 struct ControlState {
@@ -525,4 +525,4 @@ private:
     ComPtr<IDWriteInlineObject> ellipsis_sign_;
 };
 
-} // namespace pulse::ui::fluent
+} // namespace luling::ui::fluent

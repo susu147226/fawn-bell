@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $version = (Get-Content -LiteralPath (Join-Path $repo "version.txt") -TotalCount 1).Trim()
 $buildPath = [System.IO.Path]::GetFullPath((Join-Path $repo $BuildDir))
-$buildIdPath = Join-Path $buildPath "pulse_build_id.txt"
+$buildIdPath = Join-Path $buildPath "luling_build_id.txt"
 if (-not (Test-Path -LiteralPath $buildIdPath)) {
     throw "Missing build id: $buildIdPath"
 }
@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path $destination -Force | Out-Null
 
 . "$PSScriptRoot/release_payload.ps1"
 $artifacts = @()
-foreach ($executable in $PulseReleaseExecutables) {
+foreach ($executable in $LulingReleaseExecutables) {
     $pdb = [IO.Path]::ChangeExtension($executable, '.pdb')
     & python "$PSScriptRoot/verify_symbol_identity.py" (Join-Path $buildPath $executable) (Join-Path $buildPath $pdb)
     if ($LASTEXITCODE -ne 0) { throw "Missing or mismatched symbols for $executable; build_release.bat /symbols is required" }

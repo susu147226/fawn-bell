@@ -2,7 +2,7 @@
 #include <cstdio>
 
 int main() {
-    using pulse::GlobalSearchHotkey;
+    using luling::GlobalSearchHotkey;
     HWND first = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
     HWND second = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
     if (!first || !second) return 2;

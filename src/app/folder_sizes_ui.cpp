@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <unordered_set>
 
-namespace pulse {
+namespace luling {
 namespace {
 // A Size sort needs every folder's total, not only the rows on screen (#58);
 // half of the size cache leaves room for what other panes show.
@@ -89,17 +89,17 @@ void FillFolderSizes(AppState& s, ui::WindowViewModel& vm) {
     }
     if (!s.isolatedTest && !s.shot.active)
         s.folderSizes.SetCachePath([] {
-            const auto dir = app::GetPulseDataDir();
+            const auto dir = app::GetLulingDataDir();
             return dir.empty() ? std::wstring() : dir + L"\\folder_sizes.json";
         });
     if (s.isolatedTest && s.shot.active) {
         wchar_t cache[32768]{};
-        const auto count = GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_SIZE_CACHE", cache, ARRAYSIZE(cache));
+        const auto count = GetEnvironmentVariableW(L"LULING_TEST_FOLDER_SIZE_CACHE", cache, ARRAYSIZE(cache));
         if (count && count < ARRAYSIZE(cache))
             s.folderSizes.SetCachePath([file = std::wstring(cache)] { return file; });
     }
     const bool probe_index = (s.isolatedTest || s.shot.active) &&
-        GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_INDEX", nullptr, 0) > 0;
+        GetEnvironmentVariableW(L"LULING_TEST_FOLDER_INDEX", nullptr, 0) > 0;
     s.folderSizes.SetIndexEnabled((!s.isolatedTest && !s.shot.active) || probe_index);
     s.folderSizes.Sync(std::move(requests), std::move(roots));
     for (const auto& row : rows) {

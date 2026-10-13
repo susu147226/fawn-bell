@@ -1,7 +1,7 @@
 #pragma once
 #include "thumbnail_cache.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 // UI-thread visibility scheduling; decoding and every filesystem access stay in
 // a separate, low-priority preview host owned by this cache.
 class FolderThumbnailCache {
@@ -42,4 +42,4 @@ private:
     ThumbnailCache cache_;
     std::unordered_map<std::wstring, Visible> visible_;
 };
-} // namespace pulse::ui
+} // namespace luling::ui

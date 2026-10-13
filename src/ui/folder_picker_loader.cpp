@@ -15,7 +15,7 @@
 #include <wrl/client.h>
 #include <array>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 bool IsShortcut(std::wstring_view name) {
@@ -70,7 +70,7 @@ PickerListing ReadListing(const std::wstring& path, PickerMode mode, const Picke
         PickerEntry entry;
         entry.source = i;
         entry.name = source.name;
-        entry.path = !source.full_path.empty() ? pulse::path::FriendlyPathText(source.full_path)
+        entry.path = !source.full_path.empty() ? luling::path::FriendlyPathText(source.full_path)
                                                : prefix + source.name;
         entry.modified = source.mtime;
         if (path.empty()) {
@@ -290,4 +290,4 @@ std::unique_ptr<PickerValidation> PickerLoader::TakeValidation(LPARAM lparam) {
     return std::unique_ptr<PickerValidation>(reinterpret_cast<PickerValidation*>(lparam));
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

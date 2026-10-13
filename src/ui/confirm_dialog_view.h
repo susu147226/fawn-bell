@@ -1,6 +1,6 @@
 #pragma once
 
-// Layout and drawing of the Pulse confirm dialog, separate from its window so
+// Layout and drawing of the Luling confirm dialog, separate from its window so
 // the dialog gallery can render it offscreen.
 
 #include "FluentTokens.h"
@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Button ids shared by layout, hit testing and drawing.
 enum ConfirmControl : int {
@@ -85,9 +85,9 @@ void DrawConfirmDialog(Compositor& compositor, fluent::Painter& painter, const T
                        const ConfirmDialogFormats& formats, const ConfirmDialogVisual& visual,
                        bool dark, bool high_contrast);
 
-// Shared by Pulse dialogs: a top-aligned word-wrapped paragraph.
+// Shared by Luling dialogs: a top-aligned word-wrapped paragraph.
 void DrawDialogParagraph(Compositor& compositor, IDWriteTextFormat* format,
                          const D2D1_RECT_F& bounds, std::wstring_view text,
                          const D2D1_COLOR_F& color);
 
-} // namespace pulse::ui
+} // namespace luling::ui

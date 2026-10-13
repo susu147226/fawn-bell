@@ -1,7 +1,7 @@
 #include "column_view_model.h"
 #include "app_model.h"
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -41,4 +41,4 @@ void FillColumnStripView(ui::ColumnStripView& out, const Tab& tab) {
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

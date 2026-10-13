@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <array>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Reserve readable name/path space, then give metadata its measured width.
 // Long type descriptions yield first on narrow panes, preserving complete
@@ -42,4 +42,4 @@ inline void FitDetailsMetadata(std::array<float, N>& widths, int count,
     for (int i = 0; i < 3; ++i) widths[first + i] = fitted[i];
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

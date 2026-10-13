@@ -29,7 +29,7 @@ bool CpuTime(HANDLE thread, uint64_t& time) {
     time = Time(kernel) + Time(user);
     return true;
 }
-void CheckIdle(pulse::index::IndexClient& client, const char* name) {
+void CheckIdle(luling::index::IndexClient& client, const char* name) {
     uint64_t before = 0, after = 0;
     const bool begin = CpuTime(client.writer_.native_handle(), before);
     const auto wall = GetTickCount64();
@@ -42,17 +42,17 @@ void CheckIdle(pulse::index::IndexClient& client, const char* name) {
     // essentially the entire 200 ms interval when a core is available.
     Check(begin && end && after >= before && cpu_ms < 30.0, name);
 }
-bool ReadPacket(HANDLE pipe, pulse::ipc::MsgHeader& header, std::vector<uint8_t>& payload) {
+bool ReadPacket(HANDLE pipe, luling::ipc::MsgHeader& header, std::vector<uint8_t>& payload) {
     const auto deadline = GetTickCount64() + 2000;
     while (GetTickCount64() < deadline) {
         DWORD available = 0, peeked = 0;
         if (!PeekNamedPipe(pipe, &header, sizeof(header), &peeked, &available, nullptr)) return false;
         if (peeked == sizeof(header)) {
-            if (header.magic != pulse::index::kIndexMagic || header.payload_size > 2048) return false;
+            if (header.magic != luling::index::kIndexMagic || header.payload_size > 2048) return false;
             if (available >= sizeof(header) + header.payload_size) {
-                if (!pulse::ipc::PipeRead(pipe, reinterpret_cast<uint8_t*>(&header), sizeof(header))) return false;
+                if (!luling::ipc::PipeRead(pipe, reinterpret_cast<uint8_t*>(&header), sizeof(header))) return false;
                 payload.resize(header.payload_size);
-                return payload.empty() || pulse::ipc::PipeRead(pipe, payload.data(), header.payload_size);
+                return payload.empty() || luling::ipc::PipeRead(pipe, payload.data(), header.payload_size);
             }
         }
         Sleep(5);
@@ -64,7 +64,7 @@ bool ReadPacket(HANDLE pipe, pulse::ipc::MsgHeader& header, std::vector<uint8_t>
 int main() {
     // Run the real writer only. Starting the normal client also launches its
     // connection worker, which would touch the installed service or a helper.
-    pulse::index::IndexClient client;
+    luling::index::IndexClient client;
     client.running_ = true;
     client.writer_ = std::thread([&] { client.Writer(); });
     CheckIdle(client, "disconnected volume refresh sleeps instead of spinning");
@@ -73,7 +73,7 @@ int main() {
         Check(client.volume_refresh_requested_, "offline volume refresh remains pending");
         client.volume_refresh_requested_ = false;
     }
-    pulse::index::Query query;
+    luling::index::Query query;
     query.session_id = 741;
     query.needle = L"isolated-writer-test";
     query.path_prefix = L"C:\\isolated-writer-fixture";
@@ -106,13 +106,13 @@ int main() {
         client.pending_cv_.notify_all();
         bool volume = false, search = false, cancel = false, framing = true;
         for (unsigned i = 0; i < 3; ++i) {
-            pulse::ipc::MsgHeader header{};
+            luling::ipc::MsgHeader header{};
             std::vector<uint8_t> payload;
             if (!ReadPacket(read_pipe, header, payload)) { framing = false; break; }
-            pulse::ipc::PayloadReader reader(payload.data(), payload.size());
-            if (header.type == pulse::index::REQ_IDX_VOLUMES)
+            luling::ipc::PayloadReader reader(payload.data(), payload.size());
+            if (header.type == luling::index::REQ_IDX_VOLUMES)
                 volume = header.request_id == 0 && payload.empty();
-            else if (header.type == pulse::index::REQ_IDX_SEARCH) {
+            else if (header.type == luling::index::REQ_IDX_SEARCH) {
                 uint32_t flags = 0, sort = 0, limit = 0, offset = 0;
                 uint64_t session = 0;
                 std::wstring needle, prefix;

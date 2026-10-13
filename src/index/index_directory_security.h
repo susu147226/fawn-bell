@@ -8,7 +8,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::index {
+namespace luling::index {
 // Pin every path component from the volume root down. Protecting only the
 // leaf does not stop an attacker from renaming a writable parent directory.
 class PrivateIndexDirectoryLock {
@@ -133,8 +133,8 @@ inline bool AdoptableIndexEntry(const std::filesystem::path& relative, bool dire
     const bool plain = name.find_first_not_of(L"abcdefghijklmnopqrstuvwxyz0123456789.-") == std::wstring_view::npos;
     if (!plain) return false;
     if (parts.size() == 1)
-        return name == L"config.json" || name.starts_with(L"pulse-index") ||
-            name.starts_with(L"changes-s-1-") || name.starts_with(L".pulse-write-check-");
+        return name == L"config.json" || name.starts_with(L"luling-index") ||
+            name.starts_with(L"changes-s-1-") || name.starts_with(L".luling-write-check-");
     if (parts.size() < 3 || !shard_directory(parts.size() - 1) || !hex(parts[parts.size() - 2])) return false;
     for (const std::wstring_view base : {L"base-a.bin", L"base-b.bin", L"manifest.json", L"wal-a.log", L"wal-b.log"})
         if (name.starts_with(base) && (name.size() == base.size() || name[base.size()] == L'.')) return true;
@@ -215,7 +215,7 @@ inline bool AdoptIndexDirectory(const std::filesystem::path& root) {
 }
 }
 
-namespace pulse::index::security {
+namespace luling::index::security {
 inline bool ServiceSid(PSID sid) {
     return sid && (IsWellKnownSid(sid, WinLocalSystemSid) || IsWellKnownSid(sid, WinBuiltinAdministratorsSid));
 }
@@ -291,4 +291,4 @@ private:
     SECURITY_ATTRIBUTES attributes_{sizeof(SECURITY_ATTRIBUTES), nullptr, FALSE};
     PSECURITY_DESCRIPTOR descriptor_ = nullptr;
 };
-} // namespace pulse::index::security
+} // namespace luling::index::security

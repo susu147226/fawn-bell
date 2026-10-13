@@ -4,7 +4,7 @@
 #include "../common/localization.h"
 #include <algorithm>
 
-namespace pulse {
+namespace luling {
 std::vector<std::wstring> QuickAccessTargets(const app::Tab* tab, bool background) {
     if (!tab || IsRecycleTab(tab)) return {};
     if (background) {
@@ -28,7 +28,7 @@ void AppendQuickAccessCommand(AppState& s, std::vector<ui::FluentMenuItem>& item
     if (paths.empty()) return;
     const bool all_pinned = std::all_of(paths.begin(), paths.end(),
         [&](const auto& path) { return s.places.IsQuickAccessPinned(path); });
-    const std::wstring key = L"pulse:quick-access";
+    const std::wstring key = L"luling:quick-access";
     if (s.ctxMenuPrefs.RecordSeen(key, l10n::Get(l10n::StringId::PinQuickAccess),
                                 false, ipc::CtxMenuCategory::Software, false))
         s.ctxMenuPrefs.Save();

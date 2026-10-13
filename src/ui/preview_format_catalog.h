@@ -9,7 +9,7 @@
 #include <functional>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct WindowViewModel;
 enum class PreviewFormatSource { BuiltIn, Pack, PackOrSystem };
@@ -53,4 +53,4 @@ float LayoutPreviewFormats(const D2D1_RECT_F& area, float scale,
                            std::vector<PreviewFormatRow>* rows,
                            const std::function<float(std::wstring_view, float)>& measure_note = {});
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class QuickPreviewWindow {
 public:
@@ -50,7 +50,7 @@ public:
     std::wstring TakeOpenPath() { std::wstring path; path.swap(open_path_); return path; }
 
 private:
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     friend struct QuickPreviewAuditTest;
 #endif
     friend struct QuickPreviewPlaybackProbe;
@@ -364,4 +364,4 @@ private:
     fluent::Painter find_painter_;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

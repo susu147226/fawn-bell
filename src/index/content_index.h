@@ -3,7 +3,7 @@
 #include "../common/text_decode.h"
 #include <memory>
 
-namespace pulse::index {
+namespace luling::index {
 enum class ContentAgentMode { Instant, LegacyWriter, Observer };
 struct ContentIndexRoot {
     std::wstring path;
@@ -72,4 +72,4 @@ private:
 size_t MatchCachedContent(std::wstring_view text, const ContentSearchRequest& request, const std::atomic<bool>* cancelled = nullptr);
 ContentHit MakeCachedContentHit(const std::wstring& path, uint64_t size, uint64_t modified,
                                std::wstring_view content, size_t match);
-} // namespace pulse::index
+} // namespace luling::index

@@ -5,7 +5,7 @@
 #include <fstream>
 
 int main() {
-    using namespace pulse;
+    using namespace luling;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     l10n::Initialize(GetModuleHandleW(nullptr), L"en-US");
     int failures = 0;
@@ -16,13 +16,13 @@ int main() {
     auto owned = std::make_unique<AppState>(); auto& s = *owned;
     s.isolatedTest = true; s.appPrefs.persist = false;
     WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr); wc.lpfnWndProc = DefWindowProcW;
-    wc.lpszClassName = L"PulseSharedSettingsFixture"; RegisterClassW(&wc);
+    wc.lpszClassName = L"LulingSharedSettingsFixture"; RegisterClassW(&wc);
     s.hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
         0, 0, 1200, 900, nullptr, nullptr, wc.hInstance, nullptr);
     if (!s.hwnd || !s.compositor.Init(s.hwnd)) return 2;
     s.renderer.SetCompositor(&s.compositor);
     s.window_tabs.EnsureDefault(); s.pane = s.window_tabs.Active()->FocusedPane();
-    ActiveTab(s)->current_path = L"pulse:settings:search";
+    ActiveTab(s)->current_path = L"luling:settings:search";
     s.settings.SelectPage(1);
     const auto output = std::filesystem::absolute(L"../bench_data/shared-settings");
     std::filesystem::create_directories(output);

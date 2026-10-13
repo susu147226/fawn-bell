@@ -1,4 +1,4 @@
-// pulse-imgpack.exe - decoder of Pulse's optional image preview pack.
+// luling-imgpack.exe - decoder of Luling's optional image preview pack.
 //
 // HEIC / HEIF (libheif + libde265), AVIF (libheif + dav1d), JPEG XL (libjxl),
 // OpenEXR, Radiance HDR (stb_image) and QOI. The preview host starts one
@@ -47,7 +47,7 @@
 #include <utility>
 #include <vector>
 
-using namespace pulse::imgpack;
+using namespace luling::imgpack;
 
 namespace {
 
@@ -136,7 +136,7 @@ int Emit(const Picture& picture) {
         ? kExitOk : kExitIoError;
 }
 
-void Fail(const char* what) { std::fprintf(stderr, "pulse-imgpack: %s\n", what); }
+void Fail(const char* what) { std::fprintf(stderr, "luling-imgpack: %s\n", what); }
 
 using Properties = std::vector<std::pair<std::string, std::string>>;
 
@@ -647,7 +647,7 @@ int wmain(int argc, wchar_t** argv) {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     _setmode(_fileno(stdout), _O_BINARY);
     if (argc >= 2 && std::wcscmp(argv[1], L"version") == 0) {
-        std::printf("pulse-imgpack %d libheif %s libjxl %u.%u.%u\n", kVersion, heif_get_version(),
+        std::printf("luling-imgpack %d libheif %s libjxl %u.%u.%u\n", kVersion, heif_get_version(),
                     JPEGXL_MAJOR_VERSION, JPEGXL_MINOR_VERSION, JPEGXL_PATCH_VERSION);
         return kExitOk;
     }
@@ -663,6 +663,6 @@ int wmain(int argc, wchar_t** argv) {
         return Run(argv[1], argv[2], static_cast<uint32_t>(cap));
     }
     if (argc == 3 && std::wcscmp(argv[1], L"probe") == 0) return Run(argv[1], argv[2], 0);
-    std::fprintf(stderr, "usage: pulse-imgpack decode <file> <cap> | probe <file> | formats | version\n");
+    std::fprintf(stderr, "usage: luling-imgpack decode <file> <cap> | probe <file> | formats | version\n");
     return kExitUsage;
 }

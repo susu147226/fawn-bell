@@ -1,15 +1,15 @@
-// shell_window_sync.h — Keeps ShellWindowRegistry in step with Pulse's panes
+// shell_window_sync.h — Keeps ShellWindowRegistry in step with Luling's panes
 // and carries out the shell's "select this item" requests (B站 #1 phase 2a).
 #pragma once
 #include "explorer_window_takeover.h"
 #include "shell_window_plan.h"
 
-namespace pulse {
+namespace luling {
 struct AppState;
 namespace app { struct Tab; }
 
 // After each frame: publishes the panes' folders when they changed (while
-// Pulse opens folders) and starts/stops the experimental Explorer window
+// Luling opens folders) and starts/stops the experimental Explorer window
 // takeover with its setting. Never in shot or test runs.
 void SyncShellWindows(AppState& s);
 // WM_DESTROY: revokes every registration, stops the takeover.
@@ -20,4 +20,4 @@ void HandleShellSelect(AppState& s, const app::ShellSelectRequest& request);
 void HandleExplorerTakeover(AppState& s, const app::ExplorerTakeoverRequest& request);
 void CompleteExplorerNavigation(app::Tab& tab, uint64_t generation, bool success);
 
-} // namespace pulse
+} // namespace luling

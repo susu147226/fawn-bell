@@ -11,7 +11,7 @@
 
 #include "index_query.h"
 
-namespace pulse::index {
+namespace luling::index {
 class ContentResultStore;
 
 enum class ContentSearchMode : uint32_t { Content = 0, Duplicates = 1 };
@@ -92,4 +92,4 @@ bool MatchContentFilename(const std::wstring& path, uint64_t size, uint64_t modi
 bool RunContentSearch(const ContentSearchRequest& request, const std::atomic<bool>& cancelled,
                       ContentBatchCallback callback);
 
-} // namespace pulse::index
+} // namespace luling::index

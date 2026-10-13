@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Walks `path` recursively for at most budget_ms (and 200k entries), never
 // following junctions / symbolic links and never entering cloud placeholder
@@ -24,4 +24,4 @@ namespace pulse::preview {
 bool MakeFolderListing(const std::wstring& path, uint32_t budget_ms, bool final_pass,
                        std::wstring& text);
 
-} // namespace pulse::preview
+} // namespace luling::preview

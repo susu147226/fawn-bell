@@ -1,12 +1,12 @@
-# Pulse
+# Luling
 
 **A file manager for Windows that makes browsing, searching and organizing files feel effortless.**
 
 Tabs and multi-pane layouts, whole-disk indexed search with pinyin matching, Space-bar Quick Look, a staging tray and a customizable look — all in one workspace.
 
-[Download the latest release](https://github.com/jimmgreen/pulse/releases/latest) · [Release notes](https://github.com/jimmgreen/pulse/releases) · [Report an issue](https://github.com/jimmgreen/pulse/issues) · [简体中文](README.md)
+[Download the latest release](https://github.com/susu147226/fawn-bell/releases/latest) · [Release notes](https://github.com/susu147226/fawn-bell/releases) · [Report an issue](https://github.com/susu147226/fawn-bell/issues) · [简体中文](README.md)
 
-![Pulse in dark theme with a wallpaper background](docs/images/appearance.png)
+![Luling in dark theme with a wallpaper background](docs/images/appearance.png)
 
 ## Download and install
 
@@ -14,11 +14,11 @@ Pick the package for your system on the releases page:
 
 | Edition | System | File |
 | --- | --- | --- |
-| Windows (64-bit) | Windows 10 / Windows 11 | `PulseSetup-<version>.exe` |
-| Windows 8.1 compatible (64-bit) | Windows 8.1 | `PulseSetup-<version>-win81.exe` |
-| Portable (64-bit) | Windows 10 / Windows 11 | `Pulse-<version>-portable-win-x64.zip` |
+| Windows (64-bit) | Windows 10 / Windows 11 | `LulingSetup-<version>.exe` |
+| Windows 8.1 compatible (64-bit) | Windows 8.1 | `LulingSetup-<version>-win81.exe` |
+| Portable (64-bit) | Windows 10 / Windows 11 | `Luling-<version>-portable-win-x64.zip` |
 
-Run the installer and follow the wizard. You can enable the PulseIndex service during setup for whole-disk indexed search. The portable edition runs straight from the unpacked folder and still keeps its settings in your user app-data folder; the index service is only deployed by the installer.
+Run the installer and follow the wizard. You can enable the LulingIndex service during setup for whole-disk indexed search. The portable edition runs straight from the unpacked folder and still keeps its settings in your user app-data folder; the index service is only deployed by the installer.
 
 The interface is available in Simplified Chinese, Traditional Chinese and English. It follows Windows by default and can be changed in Settings → Display language.
 
@@ -32,13 +32,13 @@ The interface is available in Simplified Chinese, Traditional Chinese and Englis
 
 ## Find files faster
 
-- PulseIndex searches file names across whole drives with live-updating results; you can also limit a search to the current folder or a chosen folder.
+- LulingIndex searches file names across whole drives with live-updating results; you can also limit a search to the current folder or a chosen folder.
 - File-name search understands full pinyin, initials and polyphonic characters — typing `sh` finds 品牌设计, 城市夜景 and 山湖晨雾 — and highlights the matched characters.
 - Content search covers text and code, PDF, Word, Excel, PowerPoint and more. Results stream in, and after opening a file's location you can go back to the same results.
-- Advanced search (Ctrl+Shift+F) filters by type, date, size and more. Global quick search (Alt+Space) is available anywhere, and "Search in Pulse" opens the full result list in the main window.
+- Advanced search (Ctrl+Shift+F) filters by type, date, size and more. Global quick search (Alt+Space) is available anywhere, and "Search in Luling" opens the full result list in the main window.
 - Type `cmd`, `powershell`, `pwsh` or `wt` in the address bar to open a terminal in the current folder.
 
-![Pinyin search in Pulse](docs/images/search.png)
+![Pinyin search in Luling](docs/images/search.png)
 
 ## Work with several folders at once
 
@@ -48,7 +48,7 @@ The interface is available in Simplified Chinese, Traditional Chinese and Englis
 - Two-pane folder compare highlights items that differ, are missing or are newer on either side. Folder sizes are calculated in the background.
 - The details panel shows a preview, basic info and tags; multi-selection opens a combined Properties window.
 
-![Multi-pane layout and column view in Pulse](docs/images/panes.png)
+![Multi-pane layout and column view in Luling](docs/images/panes.png)
 
 ## Quick Look with the Space bar
 
@@ -61,7 +61,7 @@ Select a file and press Space to preview it without opening another app:
 
 Settings → Supported formats lists every previewable format and checks whether the HEIF / HEVC / AV1 / WebP system extensions are installed.
 
-![Markdown Quick Look in Pulse](docs/images/quicklook.png)
+![Markdown Quick Look in Luling](docs/images/quicklook.png)
 
 ## Staging tray and text compare
 
@@ -69,20 +69,20 @@ Files you copy or cut (Ctrl+C / Ctrl+X) are collected in the staging tray at the
 
 With two files staged you can compare location, modified time, size and content. For text files, "View diff" opens a compare window with side-by-side / unified views, inline change highlighting, differences-only mode, ignore whitespace and case, and F7 / Shift+F7 navigation.
 
-![Text compare from the Pulse staging tray](docs/images/diff.png)
+![Text compare from the Luling staging tray](docs/images/diff.png)
 
 ## Fits into Windows
 
-- Make Pulse the default file manager for opening folders, Win+E and the desktop This PC icon; "Open file location" selects the file in Pulse. Turn it off at any time to restore the original behavior.
-- The context menu merges Explorer and Windows 11 modern menu items (such as VS Code, Windows Terminal and NanaZip), and Pulse's own entries can be hidden.
+- Make Luling the default file manager for opening folders, Win+E and the desktop This PC icon; "Open file location" selects the file in Luling. Turn it off at any time to restore the original behavior.
+- The context menu merges Explorer and Windows 11 modern menu items (such as VS Code, Windows Terminal and NanaZip), and Luling's own entries can be hidden.
 - Start with Windows into the tray, set a default location, or restore your last tabs on launch.
-- When a file is in use, Pulse shows the locking process and can end it and retry; This PC shows drive types and usage bars.
+- When a file is in use, Luling shows the locking process and can end it and retry; This PC shows drive types and usage bars.
 
-![Pulse settings and Windows integration](docs/images/settings.png)
+![Luling settings and Windows integration](docs/images/settings.png)
 
 ## Automatic updates
 
-Pulse checks for a new version after it starts. When an update is available, a prompt appears in the window; click it to download the installer, which opens the setup wizard after it passes verification. You can also check manually in Settings → About & diagnostics, and turn off "Check for updates automatically" on the same page if you don't want reminders.
+Luling checks for a new version after it starts. When an update is available, a prompt appears in the window; click it to download the installer, which opens the setup wizard after it passes verification. You can also check manually in Settings → About & diagnostics, and turn off "Check for updates automatically" on the same page if you don't want reminders.
 
 Downloads can be cancelled; confirm the administrator prompt from Windows during installation. The standard and Windows 8.1 editions each receive their own updates.
 
@@ -98,7 +98,7 @@ Development build:
 
 ```powershell
 .\build_release.bat
-.\build\pulse.exe
+.\build\luling.exe
 ```
 
 Build the same installers as an official release and run the regression checks:
@@ -116,4 +116,4 @@ More: [Automatic updates and releases](docs/automatic-updates.md) · [Windows co
 
 ## License
 
-Pulse source code is licensed under the [Apache License 2.0](LICENSE). Third-party components (such as the LumaText SDK) are covered by their own bundled licenses.
+Luling source code is licensed under the [Apache License 2.0](LICENSE). Third-party components (such as the LumaText SDK) are covered by their own bundled licenses.

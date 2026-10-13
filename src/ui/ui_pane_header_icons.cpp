@@ -2,7 +2,7 @@
 #include "pane_header_icons.h"
 #include "command_icons.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 void MainRenderer::DrawPaneHeaderIcon(const D2D1_RECT_F& rc, PaneHeaderIcon icon,
                                       const D2D1_COLOR_F& color) {
@@ -33,4 +33,4 @@ void MainRenderer::DrawPaneHeaderIcon(const D2D1_RECT_F& rc, PaneHeaderIcon icon
                         command_icons::CenteredBounds(rc, 18.0f * scale_));
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -42,7 +42,7 @@
 #include <unordered_map>
 #include <vector>
 
-using namespace pulse;
+using namespace luling;
 using Microsoft::WRL::ComPtr;
 using preview::ExtensionOf;
 using preview::IsOfflinePlaceholder;
@@ -56,11 +56,11 @@ bool IsOneOf(std::wstring_view extension,
 }
 
 bool IsKnownText(std::wstring_view extension) {
-    return pulse::preview::IsTextExtension(extension);
+    return luling::preview::IsTextExtension(extension);
 }
 
 bool IsDirectImage(std::wstring_view extension) {
-    return pulse::preview::IsImageExtension(extension);
+    return luling::preview::IsImageExtension(extension);
 }
 
 bool IsKnownShellPreview(std::wstring_view extension) {
@@ -1481,6 +1481,6 @@ static const preview::DecoderEntry kDecoders[] = {
     { "text-or-hex",     AcceptsAny,          RunTextOrHex },
 };
 
-bool pulse::preview::DecodeContent(const DecodeRequest& request, DecodeResult& result) {
+bool luling::preview::DecodeContent(const DecodeRequest& request, DecodeResult& result) {
     return RunDecoders(kDecoders, request, result);
 }

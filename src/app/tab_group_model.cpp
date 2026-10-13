@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <unordered_set>
 
-namespace pulse::app {
+namespace luling::app {
 
 bool SetTabGroup(WindowTabs& tabs, size_t index, int group) {
     if (index >= tabs.items.size() || (tabs.items[index]->pinned && group != 0)) return false;
@@ -107,4 +107,4 @@ void NormalizeGroupRuns(WindowTabs& tabs) {
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

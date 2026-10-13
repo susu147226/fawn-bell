@@ -22,7 +22,7 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 constexpr float kW = 720.f, kH = 468.f, kTitle = 40.f;
@@ -75,7 +75,7 @@ Theme MakeTheme(bool dark) {
 bool SystemUsesDarkTheme() {
     // Screenshot tests of the other theme (only honoured with /PULSETEST, see Run()).
     wchar_t forced[8]{};
-    if (GetEnvironmentVariableW(L"PULSE_SETUP_TEST_THEME", forced, 8)) return !lstrcmpiW(forced, L"dark");
+    if (GetEnvironmentVariableW(L"LULING_SETUP_TEST_THEME", forced, 8)) return !lstrcmpiW(forced, L"dark");
     DWORD value = 1, size = sizeof(value);
     if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
                      L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &value, &size) != ERROR_SUCCESS)
@@ -128,10 +128,10 @@ public:
         : payload_(payload), self_(self), req_(std::move(request)), lang_(lang),
           theme_(MakeTheme(SystemUsesDarkTheme())) {
         if (!req_.options.test) {
-            SetEnvironmentVariableW(L"PULSE_SETUP_TEST_THEME", nullptr);
+            SetEnvironmentVariableW(L"LULING_SETUP_TEST_THEME", nullptr);
             theme_ = MakeTheme(SystemUsesDarkTheme());
         } else {
-            slow_ = GetEnvironmentVariableW(L"PULSE_SETUP_TEST_SLOW", nullptr, 0) != 0;
+            slow_ = GetEnvironmentVariableW(L"LULING_SETUP_TEST_SLOW", nullptr, 0) != 0;
         }
         if (payload_) for (const auto& f : payload_->Info().files) total_bytes_ += f.size;
         if (un) {
@@ -225,7 +225,7 @@ private:
     bool Animating() const;
     void Invalidate() { InvalidateRect(hwnd_, nullptr, FALSE); }
     void CloseWith(int code) { outcome_.exit_code = code; DestroyWindow(hwnd_); }
-    const wchar_t* T(Str s) const { return pulse::setup::Text(lang_, s); }
+    const wchar_t* T(Str s) const { return luling::setup::Text(lang_, s); }
 
     Payload* payload_;
     // uninstall mode
@@ -705,10 +705,10 @@ void Wizard::PaintWelcome() {
     if (logo_) rt_->DrawBitmap(logo_, {kW / 2 - 48, 54 + kWelcomeDy, kW / 2 + 48, 150 + kWelcomeDy}, 1, D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR);
 
     const std::wstring version(payload_->Info().version.begin(), payload_->Info().version.end());
-    const float name_w = TextWidth(L"Pulse", 28, DWRITE_FONT_WEIGHT_SEMI_BOLD);
+    const float name_w = TextWidth(L"Luling", 28, DWRITE_FONT_WEIGHT_SEMI_BOLD);
     const float badge_w = TextWidth(version, 12, DWRITE_FONT_WEIGHT_MEDIUM) + 14;
     const float x0 = (kW - name_w - 8 - badge_w) / 2;
-    Text(L"Pulse", {x0, 164 + kWelcomeDy, x0 + name_w + 2, 200 + kWelcomeDy}, 28, theme_.text, DWRITE_FONT_WEIGHT_SEMI_BOLD);
+    Text(L"Luling", {x0, 164 + kWelcomeDy, x0 + name_w + 2, 200 + kWelcomeDy}, 28, theme_.text, DWRITE_FONT_WEIGHT_SEMI_BOLD);
     const D2D1_RECT_F badge{x0 + name_w + 8, 173 + kWelcomeDy, x0 + name_w + 8 + badge_w, 193 + kWelcomeDy};
     Fill(badge, theme_.card_strong, 10);
     Stroke(badge, theme_.stroke, 10);
@@ -1419,11 +1419,11 @@ void Wizard::Browse(bool app) {
         PWSTR path = nullptr;
         if (SUCCEEDED(dlg->GetResult(&item)) && SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))) {
             std::wstring p = NormalizeDir(path);
-            // Like Inno's AppendDefaultDirName: picking "D:\Apps" installs to "D:\Apps\Pulse".
+            // Like Inno's AppendDefaultDirName: picking "D:\Apps" installs to "D:\Apps\Luling".
             if (app) {
                 const auto slash = p.find_last_of(L'\\');
                 const std::wstring last = slash == std::wstring::npos ? p : p.substr(slash + 1);
-                if (!EqualsNoCase(last, L"Pulse")) p += (p.back() == L'\\' ? L"" : L"\\") + std::wstring(L"Pulse");
+                if (!EqualsNoCase(last, L"Luling")) p += (p.back() == L'\\' ? L"" : L"\\") + std::wstring(L"Luling");
             }
             SetWindowTextW(app ? app_edit_ : index_edit_, p.c_str());
             SyncFromEdits();
@@ -1692,7 +1692,7 @@ WizardOutcome Wizard::Run() {
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.hIcon = LoadIconW(wc.hInstance, MAKEINTRESOURCEW(1));
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.lpszClassName = L"PulseSetupWindow";
+    wc.lpszClassName = L"LulingSetupWindow";
     RegisterClassExW(&wc);
 
     // Size for the monitor under the cursor.
@@ -1770,4 +1770,4 @@ WizardOutcome RunUninstallWizard(const std::wstring& self_path, const UninstallR
     return wizard.Run();
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

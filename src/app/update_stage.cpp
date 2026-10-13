@@ -5,9 +5,9 @@
 #include <cstring>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
-constexpr char marker[] = "Pulse owned update stage v1\n";
+constexpr char marker[] = "Luling owned update stage v1\n";
 struct Handle {
     HANDLE value = INVALID_HANDLE_VALUE;
     ~Handle() { if (value != INVALID_HANDLE_VALUE) CloseHandle(value); }
@@ -45,11 +45,11 @@ bool DeleteOwnedFile(const std::wstring& path) {
 }
 }
 bool CreateUpdateStage(const std::wstring& local, std::wstring& directory, std::wstring& file, HANDLE& lease) {
-    const auto pulse = local + L"\\Pulse";
-    if (!Directory(pulse)) return false;
-    Handle pulse_pin{Pin(pulse)};
-    if (pulse_pin.value == INVALID_HANDLE_VALUE) return false;
-    const auto root = pulse + L"\\UpdateStaging";
+    const auto luling = local + L"\\Luling";
+    if (!Directory(luling)) return false;
+    Handle luling_pin{Pin(luling)};
+    if (luling_pin.value == INVALID_HANDLE_VALUE) return false;
+    const auto root = luling + L"\\UpdateStaging";
     if (!Directory(root)) return false;
     Handle root_pin{Pin(root)};
     if (root_pin.value == INVALID_HANDLE_VALUE) return false;
@@ -73,7 +73,7 @@ bool CreateUpdateStage(const std::wstring& local, std::wstring& directory, std::
         DeleteFileW((candidate + L"\\owner").c_str()); DeleteFileW((candidate + L"\\lease").c_str());
         RemoveDirectoryW(candidate.c_str()); return false;
     }
-    directory = candidate; file = candidate + L"\\PulseSetup.exe"; lease = acquired;
+    directory = candidate; file = candidate + L"\\LulingSetup.exe"; lease = acquired;
     return true;
 }
 bool RemoveUpdateStage(const std::wstring& directory) {
@@ -102,22 +102,22 @@ bool RemoveUpdateStage(const std::wstring& directory) {
         do {
             const std::wstring name = entry.cFileName;
             if (name == L"." || name == L"..") continue;
-            if ((name != L"owner" && name != L"lease" && name != L"PulseSetup.exe") ||
+            if ((name != L"owner" && name != L"lease" && name != L"LulingSetup.exe") ||
                 (entry.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))) { owned = false; break; }
         } while (FindNextFileW(find, &entry));
         const DWORD enumeration_error = GetLastError();
         FindClose(find);
         if (!owned || enumeration_error != ERROR_NO_MORE_FILES) return false;
-        if (!DeleteOwnedFile(directory + L"\\PulseSetup.exe") || !DeleteOwnedFile(directory + L"\\owner")) return false;
+        if (!DeleteOwnedFile(directory + L"\\LulingSetup.exe") || !DeleteOwnedFile(directory + L"\\owner")) return false;
         FILE_DISPOSITION_INFO disposition{TRUE};
         if (!SetFileInformationByHandle(lease.value, FileDispositionInfo, &disposition, sizeof(disposition))) return false;
     }
     return RemoveDirectoryW(directory.c_str()) != FALSE;
 }
 void SweepUpdateStages(const std::wstring& local) {
-    Handle pulse_pin{Pin(local + L"\\Pulse")};
-    if (pulse_pin.value == INVALID_HANDLE_VALUE) return;
-    const auto root = local + L"\\Pulse\\UpdateStaging";
+    Handle luling_pin{Pin(local + L"\\Luling")};
+    if (luling_pin.value == INVALID_HANDLE_VALUE) return;
+    const auto root = local + L"\\Luling\\UpdateStaging";
     Handle root_pin{Pin(root)};
     if (root_pin.value == INVALID_HANDLE_VALUE) return;
     WIN32_FIND_DATAW entry{};
@@ -137,11 +137,11 @@ void CleanupAbandonedUpdateStagesAsync() noexcept {
                 wchar_t local[MAX_PATH]{};
                 if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, local))) SweepUpdateStages(local);
             } catch (...) {
-                OutputDebugStringW(L"Pulse update-stage cleanup failed; retained stages will be retried on next startup.\n");
+                OutputDebugStringW(L"Luling update-stage cleanup failed; retained stages will be retried on next startup.\n");
             }
         }).detach();
     } catch (...) {
-        OutputDebugStringW(L"Pulse update-stage cleanup could not start; startup will continue.\n");
+        OutputDebugStringW(L"Luling update-stage cleanup could not start; startup will continue.\n");
     }
 }
 }

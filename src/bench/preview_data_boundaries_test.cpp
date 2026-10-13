@@ -73,7 +73,7 @@ bool Workbook(const fs::path& path, const std::string& date, const std::string& 
 }
 }
 int wmain() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     int failures = 0;
     auto check = [&](bool ok, const char* text) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", text); failures += !ok; return ok; };
@@ -148,7 +148,7 @@ int wmain() {
             for (wchar_t c : text) { utf16.push_back(static_cast<unsigned char>(c)); utf16.push_back(static_cast<unsigned char>(c >> 8)); }
             const auto csv = root / L"clip.csv";
             check(Write(csv, utf16), "write private UTF16 CSV boundary");
-            bool truncated = false; pulse::ipc::PreviewTextEncoding encoding{};
+            bool truncated = false; luling::ipc::PreviewTextEncoding encoding{};
             std::wstring payload;
             const bool csv_ok = MakeCsvTable(csv.wstring(), L".csv", payload, bytes, truncated, encoding);
             auto row = Fields(payload, L'R');
@@ -171,7 +171,7 @@ int wmain() {
     }
     const auto csv = root / L"source.csv";
     { std::ofstream file(csv); for (int i = 0; i < 700; ++i) file << std::string(100, 'a') << '\n'; }
-    std::wstring payload; bool truncated = false; pulse::ipc::PreviewTextEncoding encoding{};
+    std::wstring payload; bool truncated = false; luling::ipc::PreviewTextEncoding encoding{};
     check(MakeCsvTable(csv.wstring(), L".csv", payload, bytes, truncated, encoding) && truncated,
         "CSV source-view character cap also reports incomplete content");
     std::error_code error;

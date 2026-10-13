@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace pulse {
+namespace luling {
 
 struct AppState;
 namespace ops { struct OpRequest; }
@@ -98,4 +98,4 @@ void PersistDuplicateScanPrefs(AppState& s);
 void RequestDuplicateVolumeCache(AppState& s, bool force = false);
 void ApplyDuplicateVolumeCache(AppState& s, std::vector<index::VolumeInfo> volumes);
 
-} // namespace pulse
+} // namespace luling

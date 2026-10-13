@@ -1,7 +1,7 @@
 #pragma once
 #include "../index/network_index.h"
 
-namespace pulse::app {
+namespace luling::app {
 inline bool UsesNetworkSnapshot(const std::vector<index::NetworkRootInfo>& roots,
                                 const index::Query& query, bool live_network) {
     if (live_network || roots.empty()) return false;

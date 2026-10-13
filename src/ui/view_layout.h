@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 enum class ViewMode : unsigned char {
     ExtraLargeIcons,
@@ -124,4 +124,4 @@ private:
     int visible_rows_ = 0;           // rows outside collapsed groups
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

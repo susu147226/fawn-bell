@@ -34,10 +34,10 @@
 #include <vector>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 
 std::wstring test_prefs_directory;
-std::wstring GetPulseDataDir() {
+std::wstring GetLulingDataDir() {
     return test_prefs_directory;
 }
 struct SettingsControllerTestPeer {
@@ -48,7 +48,7 @@ struct SettingsControllerTestPeer {
     }
 };
 
-} // namespace pulse::app
+} // namespace luling::app
 
 namespace {
 
@@ -58,7 +58,7 @@ bool Report(const char* name, bool passed) {
 }
 
 bool TestShellRegistryDebounce() {
-    using pulse::app::ShellRegistryDebounce;
+    using luling::app::ShellRegistryDebounce;
     bool passed = true;
     {
         ShellRegistryDebounce idle;
@@ -149,7 +149,7 @@ bool KeyExists(const wchar_t* key) {
 }
 
 bool SnapshotExists(const wchar_t* group) {
-    const std::wstring key = std::wstring(L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\") + group;
+    const std::wstring key = std::wstring(L"Software\\Luling\\ShellIntegration\\Backups\\v1\\") + group;
     DWORD bytes = 0;
     return RegGetValueW(HKEY_CURRENT_USER, key.c_str(), L"Snapshot", RRF_RT_REG_BINARY,
         nullptr, nullptr, &bytes) == ERROR_SUCCESS && bytes != 0;
@@ -158,7 +158,7 @@ bool SnapshotExists(const wchar_t* group) {
 } // namespace takeover_test
 
 bool TestDefaultFileManager() {
-    using namespace pulse::app;
+    using namespace luling::app;
     using namespace takeover_test;
     bool passed = true;
     {
@@ -176,29 +176,29 @@ bool TestDefaultFileManager() {
         const bool off = DefaultFileManagerState(flags) == DefaultManagerState::Off;
         flags.take_over_win_e = true;
         const bool partial = DefaultFileManagerState(flags) == DefaultManagerState::Partial;
-        flags.open_folders_in_pulse = flags.take_over_this_pc = true;
+        flags.open_folders_in_luling = flags.take_over_this_pc = true;
         passed &= Report("default file manager: state is off / partial / full from the three takeovers",
             off && partial && DefaultFileManagerState(flags) == DefaultManagerState::Full);
         flags.take_over_this_pc = false;
-        flags.open_folders_in_pulse = false;
+        flags.open_folders_in_luling = false;
         const std::wstring summary = DefaultFileManagerSummary(flags);
         passed &= Report("default file manager: a partial takeover names what Explorer still opens",
-            summary.find(pulse::l10n::Get(pulse::l10n::StringId::SettingsTakeoverFolders)) != std::wstring::npos &&
-            summary.find(pulse::l10n::Get(pulse::l10n::StringId::ThisPc)) != std::wstring::npos &&
+            summary.find(luling::l10n::Get(luling::l10n::StringId::SettingsTakeoverFolders)) != std::wstring::npos &&
+            summary.find(luling::l10n::Get(luling::l10n::StringId::ThisPc)) != std::wstring::npos &&
             summary.find(L"Win+E") == std::wstring::npos && summary.find(L"%s") == std::wstring::npos &&
             DefaultFileManagerSummary(AppPrefs{}) ==
-                pulse::l10n::Get(pulse::l10n::StringId::SettingsDefaultManagerDesc));
+                luling::l10n::Get(luling::l10n::StringId::SettingsDefaultManagerDesc));
         passed &= Report("default file manager: settings text is localized",
-            pulse::l10n::Get(pulse::l10n::StringId::SettingsDefaultManager) ==
+            luling::l10n::Get(luling::l10n::StringId::SettingsDefaultManager) ==
                 L"\u8BBE\u4E3A\u9ED8\u8BA4\u6587\u4EF6\u7BA1\u7406\u5668" &&
-            !pulse::l10n::Get(pulse::l10n::StringId::SettingsThisPc).empty() &&
-            !pulse::l10n::Get(pulse::l10n::StringId::SettingsThisPcDesc).empty());
+            !luling::l10n::Get(luling::l10n::StringId::SettingsThisPc).empty() &&
+            !luling::l10n::Get(luling::l10n::StringId::SettingsThisPcDesc).empty());
     }
 
     // Registry round trip, with HKCU redirected to a scratch key for this
     // process so the real associations are never touched.
     const std::wstring scratch_path =
-        L"Software\\PulseTest\\DefaultFileManager-" + std::to_wstring(GetCurrentProcessId());
+        L"Software\\LulingTest\\DefaultFileManager-" + std::to_wstring(GetCurrentProcessId());
     HKEY scratch = nullptr;
     if (RegCreateKeyExW(HKEY_CURRENT_USER, scratch_path.c_str(), 0, nullptr, 0, KEY_ALL_ACCESS,
                         nullptr, &scratch, nullptr) != ERROR_SUCCESS ||
@@ -310,19 +310,19 @@ bool TestDefaultFileManager() {
         Write(kThisPcCommand, L"DelegateExecute", L"");
         wchar_t temp_path[MAX_PATH]{};
         const DWORD temp_length = GetTempPathW(MAX_PATH, temp_path);
-        const auto prefs_directory = std::wstring(temp_path) + L"PulseLegacyPrefs-" +
+        const auto prefs_directory = std::wstring(temp_path) + L"LulingLegacyPrefs-" +
             std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
         const bool prefs_directory_created = temp_length > 0 && temp_length < MAX_PATH &&
             CreateDirectoryW(prefs_directory.c_str(), nullptr);
         passed &= Report("legacy repair preferences use an isolated temporary directory", prefs_directory_created);
-        if (prefs_directory_created) pulse::app::test_prefs_directory = prefs_directory;
+        if (prefs_directory_created) luling::app::test_prefs_directory = prefs_directory;
         AppPrefs prefs;
         prefs.persist = false;
         prefs.Load();
-        pulse::app::ContextMenuPrefs context;
-        pulse::index::IndexClient index;
-        pulse::index::NetworkAgentClient network;
-        pulse::app::SettingsController settings;
+        luling::app::ContextMenuPrefs context;
+        luling::index::IndexClient index;
+        luling::index::NetworkAgentClient network;
+        luling::app::SettingsController settings;
         settings.BindUi(prefs, context, index, network, {});
         passed &= Report("legacy orphan is shown as incomplete and offers restoration",
             prefs.integration_residual && prefs.integration_incomplete && settings.IntegrationState() == 2 &&
@@ -348,7 +348,7 @@ bool TestDefaultFileManager() {
         migrated.Load();
         passed &= Report("repeated startup leaves repaired associations and backup intact",
             !migrated.integration_residual && !KeyExists(kThisPcClsid) && SnapshotExists(L"LegacyOrphanRepair"));
-        pulse::app::test_prefs_directory.clear();
+        luling::app::test_prefs_directory.clear();
         if (prefs_directory_created) {
             const bool removed_file = DeleteFileW((prefs_directory + L"\\app.json").c_str()) != FALSE;
             const bool removed_directory = RemoveDirectoryW(prefs_directory.c_str()) != FALSE;
@@ -358,20 +358,20 @@ bool TestDefaultFileManager() {
     RegOverridePredefKey(HKEY_CURRENT_USER, nullptr);
     RegCloseKey(scratch);
     RegDeleteTreeW(HKEY_CURRENT_USER, scratch_path.c_str());
-    SHDeleteEmptyKeyW(HKEY_CURRENT_USER, L"Software\\PulseTest");
+    SHDeleteEmptyKeyW(HKEY_CURRENT_USER, L"Software\\LulingTest");
     passed &= Report("default file manager: scratch registry is removed",
         !takeover_test::KeyExists(scratch_path.c_str()) &&
-        !takeover_test::KeyExists(L"Software\\PulseTest"));
+        !takeover_test::KeyExists(L"Software\\LulingTest"));
     return passed;
 }
 
 bool TestShellWindowPlan() {
-    using namespace pulse::app;
+    using namespace luling::app;
     bool passed = true;
-    passed &= Report("shell windows: drives, shares and This PC are shell folders; Pulse views are not",
+    passed &= Report("shell windows: drives, shares and This PC are shell folders; Luling views are not",
         IsShellWindowPath(L"") && IsShellWindowPath(L"C:\\") && IsShellWindowPath(L"d:\\Work") &&
-        IsShellWindowPath(L"\\\\server\\share\\dir") && !IsShellWindowPath(L"pulse:search?q=a") &&
-        !IsShellWindowPath(L"pulse:settings") && !IsShellWindowPath(L"\\\\?\\C:\\x"));
+        IsShellWindowPath(L"\\\\server\\share\\dir") && !IsShellWindowPath(L"luling:search?q=a") &&
+        !IsShellWindowPath(L"luling:settings") && !IsShellWindowPath(L"\\\\?\\C:\\x"));
 
     using K = ShellWindowActionKind;
     const std::vector<ShellWindowEntry> current = {{1, L"C:\\A"}, {2, L"C:\\B"}, {3, L""}};
@@ -417,14 +417,14 @@ bool TestShellWindowPlan() {
         step(50, true, true, 1) == S::Take && step(50, true, true, 0) == S::Wait &&
         step(kExplorerSelectionGraceMs, true, true, 0) == S::Take);
     passed &= Report("explorer takeover: setting has a label and description",
-        !pulse::l10n::Get(pulse::l10n::StringId::SettingsExplorerWindows).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::SettingsExplorerWindowsDesc).empty());
+        !luling::l10n::Get(luling::l10n::StringId::SettingsExplorerWindows).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::SettingsExplorerWindowsDesc).empty());
     return passed;
 }
 
 bool TestAddressBarCommands() {
-    using pulse::app::AddressBarProgram;
-    using pulse::app::ParseAddressBarCommand;
+    using luling::app::AddressBarProgram;
+    using luling::app::ParseAddressBarCommand;
     auto is = [](const wchar_t* text, AddressBarProgram program, const wchar_t* args) {
         const auto command = ParseAddressBarCommand(text);
         return command.program == program && command.args == args;
@@ -452,16 +452,16 @@ bool TestAddressBarCommands() {
         is(L"\"cmd\"", AddressBarProgram::None, L"") &&
         is(L"D:\\Projects\\wt", AddressBarProgram::None, L""));
     passed &= Report("address bar: program executables",
-        std::wstring(pulse::app::AddressBarProgramExe(AddressBarProgram::Cmd)) == L"cmd.exe" &&
-        std::wstring(pulse::app::AddressBarProgramExe(AddressBarProgram::Pwsh)) == L"pwsh.exe" &&
-        std::wstring(pulse::app::AddressBarProgramExe(AddressBarProgram::WindowsTerminal)) == L"wt.exe" &&
-        pulse::app::AddressBarProgramExe(AddressBarProgram::None) == nullptr);
+        std::wstring(luling::app::AddressBarProgramExe(AddressBarProgram::Cmd)) == L"cmd.exe" &&
+        std::wstring(luling::app::AddressBarProgramExe(AddressBarProgram::Pwsh)) == L"pwsh.exe" &&
+        std::wstring(luling::app::AddressBarProgramExe(AddressBarProgram::WindowsTerminal)) == L"wt.exe" &&
+        luling::app::AddressBarProgramExe(AddressBarProgram::None) == nullptr);
     return passed;
 }
 
 // #54: %VAR% and shell: shortcuts typed in the address bar.
 bool TestAddressShortcuts() {
-    using pulse::app::ResolveAddressShortcut;
+    using luling::app::ResolveAddressShortcut;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     auto env = [](const wchar_t* name) {
         wchar_t buf[32768]{};
@@ -482,7 +482,7 @@ bool TestAddressShortcuts() {
     auto plain = [](const wchar_t* text) { return !ResolveAddressShortcut(text).resolved; };
 
     // An isolated variable, so the check never depends on the machine's own.
-    SetEnvironmentVariableW(L"PULSE_TEST_ALIAS", L"C:\\PulseAlias");
+    SetEnvironmentVariableW(L"LULING_TEST_ALIAS", L"C:\\LulingAlias");
     const std::wstring temp = env(L"TEMP");
     const std::wstring startup = known(FOLDERID_Startup);
     const std::wstring sendto = known(FOLDERID_SendTo);
@@ -490,31 +490,31 @@ bool TestAddressShortcuts() {
     passed &= Report("address shortcut: %VAR% expands, case-insensitively, with a subpath",
         !temp.empty() && is(L"%temp%", temp) && is(L"%TEMP%", temp) &&
         is(L"%Temp%\\sub", temp + L"\\sub") &&
-        is(L"%PULSE_TEST_ALIAS%\\docs", L"C:\\PulseAlias\\docs") &&
-        is(L"  \"%PULSE_TEST_ALIAS%\"  ", L"C:\\PulseAlias"));
+        is(L"%LULING_TEST_ALIAS%\\docs", L"C:\\LulingAlias\\docs") &&
+        is(L"  \"%LULING_TEST_ALIAS%\"  ", L"C:\\LulingAlias"));
     passed &= Report("address shortcut: shell: folders resolve to their filesystem path",
         !startup.empty() && is(L"shell:startup", startup) && is(L"Shell:Startup", startup) &&
         is(L"shell:startup\\", startup) && is(L"shell:startup\\Sub", startup + L"\\Sub") &&
         is(L"shell:startup/Sub/", startup + L"\\Sub") &&
         !sendto.empty() && is(L"shell:sendto", sendto));
-    passed &= Report("address shortcut: This PC and the recycle bin open Pulse's own views",
+    passed &= Report("address shortcut: This PC and the recycle bin open Luling's own views",
         is(L"shell:MyComputerFolder", L"") &&
         is(L"shell:::{20D04FE0-3AEA-1069-A2D8-08002B30309D}", L"") &&
-        is(L"shell:RecycleBinFolder", L"pulse:recycle") &&
-        is(L"shell:::{645FF040-5081-101B-9F08-00AA002F954E}", L"pulse:recycle"));
+        is(L"shell:RecycleBinFolder", L"luling:recycle") &&
+        is(L"shell:::{645FF040-5081-101B-9F08-00AA002F954E}", L"luling:recycle"));
     passed &= Report("address shortcut: plain paths, unknown names and stray % are left alone",
         plain(L"C:\\Windows") && plain(L"\\\\server\\share") && plain(L"") &&
-        plain(L"%PULSE_NO_SUCH_VARIABLE%") && plain(L"100%") &&
-        plain(L"shell:") && plain(L"shell:PulseNoSuchFolder") &&
+        plain(L"%LULING_NO_SUCH_VARIABLE%") && plain(L"100%") &&
+        plain(L"shell:") && plain(L"shell:LulingNoSuchFolder") &&
         ResolveAddressShortcut(L" C:\\Windows ").path == L"C:\\Windows");
-    SetEnvironmentVariableW(L"PULSE_TEST_ALIAS", nullptr);
+    SetEnvironmentVariableW(L"LULING_TEST_ALIAS", nullptr);
     if (SUCCEEDED(com)) CoUninitialize();
     return passed;
 }
 
 // #78: a selected row must stand out from its pane far more than a hovered one.
 bool TestSelectionTokens() {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     auto luma = [](D2D1_COLOR_F c) { return 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b; };
     auto lift = [&](const Theme& t, D2D1_COLOR_F fill) {
         return std::fabs(luma(BlendOver(fill, t.surface_card)) - luma(t.surface_card));
@@ -542,24 +542,24 @@ bool TestSelectionTokens() {
 
 // This PC: the view mode is remembered on its own and drives keep letter order.
 bool TestThisPc() {
-    using pulse::ui::SortColumn;
-    using pulse::ui::SortDirection;
-    using pulse::ui::ViewMode;
+    using luling::ui::SortColumn;
+    using luling::ui::SortDirection;
+    using luling::ui::ViewMode;
     bool passed = true;
-    pulse::app::AppPrefs prefs;
+    luling::app::AppPrefs prefs;
     prefs.persist = false;
     passed &= Report("this pc: no saved view until one is chosen",
         !prefs.folder_views.Find(L""));
     const bool saved = prefs.folder_views.Set(L"", ViewMode::Tiles);
     passed &= Report("this pc: tiles are kept apart from folders and virtual views",
         saved && prefs.folder_views.Find(L"") == ViewMode::Tiles &&
-        !prefs.folder_views.Find(L"C:\\") && !prefs.folder_views.Find(L"pulse:recent") &&
+        !prefs.folder_views.Find(L"C:\\") && !prefs.folder_views.Find(L"luling:recent") &&
         !prefs.folder_views.Set(L"", ViewMode::Tiles));
     prefs.folder_views.ApplyToAll(ViewMode::List);
     passed &= Report("this pc: apply to all folders leaves This PC alone",
         prefs.folder_views.Find(L"") == ViewMode::Tiles &&
         prefs.folder_views.Default() == ViewMode::List);
-    pulse::app::AppPrefs reloaded;
+    luling::app::AppPrefs reloaded;
     reloaded.persist = false;
     reloaded.FromJson(prefs.ToJson());
     passed &= Report("this pc: view choice survives a restart",
@@ -569,10 +569,10 @@ bool TestThisPc() {
 
     // Labels from the reporting machine; sorted as text they read C, G, F, D, E.
     const wchar_t* labels[] = { L"Win11", L"新加卷", L"资料安装盘", L"项目盘", L"软件池" };
-    std::vector<pulse::fs::DirEntry> drives;
+    std::vector<luling::fs::DirEntry> drives;
     for (int i = 4; i >= 0; --i) {
         const wchar_t letter = static_cast<wchar_t>(L'C' + i);
-        pulse::fs::DirEntry e;
+        luling::fs::DirEntry e;
         e.name = std::wstring(labels[i]) + L" (" + letter + L":)";
         e.full_path = std::wstring(L"\\\\?\\") + letter + L":\\";
         e.is_dir = true;
@@ -581,11 +581,11 @@ bool TestThisPc() {
         drives.push_back(std::move(e));
     }
     drives[1].drive_type = DRIVE_REMOVABLE;  // F: is a different drive kind
-    const auto order = [](std::vector<pulse::fs::DirEntry> entries, SortColumn column,
+    const auto order = [](std::vector<luling::fs::DirEntry> entries, SortColumn column,
                           SortDirection direction) {
         std::sort(entries.begin(), entries.end(), [&](const auto& a, const auto& b) {
-            return pulse::app::EntryLess(a, b, column, direction,
-                                         pulse::app::FolderSortMode::FoldersFirst);
+            return luling::app::EntryLess(a, b, column, direction,
+                                         luling::app::FolderSortMode::FoldersFirst);
         });
         std::wstring letters;
         for (const auto& e : entries) letters += e.full_path[4];
@@ -600,17 +600,17 @@ bool TestThisPc() {
         order(drives, SortColumn::Mtime, SortDirection::Asc) == L"CDEFG");
     passed &= Report("this pc: type order groups drive kinds, letters within",
         order(drives, SortColumn::Type, SortDirection::Asc) == L"FCDEG");
-    std::vector<pulse::fs::DirEntry> plain(2);
+    std::vector<luling::fs::DirEntry> plain(2);
     plain[0].name = L"Zeta (C:)";
     plain[1].name = L"Alpha (D:)";
     passed &= Report("this pc: ordinary entries still sort by name",
-        pulse::app::EntryLess(plain[1], plain[0], SortColumn::Name, SortDirection::Asc,
-                              pulse::app::FolderSortMode::FoldersFirst));
+        luling::app::EntryLess(plain[1], plain[0], SortColumn::Name, SortDirection::Asc,
+                              luling::app::FolderSortMode::FoldersFirst));
     return passed;
 }
 
 static bool TestLayoutActivePane() {
-    using namespace pulse::app;
+    using namespace luling::app;
     LayoutTab tab;
     for (const auto* path : {L"C:\\first", L"C:\\second", L"C:\\third"}) {
         auto pane = std::make_unique<Pane>();
@@ -625,7 +625,7 @@ static bool TestLayoutActivePane() {
     third->view.selected.insert(7);
     third->view.scroll_y = 125.0f;
     third->view.filter_text = L"report";
-    third->view.view_mode = pulse::ui::ViewMode::Details;
+    third->view.view_mode = luling::ui::ViewMode::Details;
     third->view.details_column_dividers[0] = 245.0f;
     bool ok = true;
     auto visible = SelectLayoutPanes(tab.panes, third, 2, {first, second, third});
@@ -697,7 +697,7 @@ static bool TestLayoutActivePane() {
 }
 
 bool TestNetworkLocationsView() {
-    using namespace pulse::app;
+    using namespace luling::app;
     SidebarModel sidebar;
     SidebarEntry duplicate;
     duplicate.label = L"System duplicate";
@@ -707,14 +707,14 @@ bool TestNetworkLocationsView() {
     imported.label = L"System location";
     imported.path = L"\\\\offline.invalid\\other";
     sidebar.system_networks.push_back(imported);
-    pulse::ui::SidebarGroup group;
-    pulse::ui::SidebarItem pin;
+    luling::ui::SidebarGroup group;
+    luling::ui::SidebarItem pin;
     pin.label = L"My saved name";
     pin.path = L"\\\\server\\share";
     group.items.push_back(pin);
     AppendSystemNetworkLocations(group, sidebar.system_networks);
     bool ok = Report("network view: section title opens its own view",
-        group.navigable && group.navigation_path == L"pulse:networks");
+        group.navigable && group.navigation_path == L"luling:networks");
     ok &= Report("network view: pinned name wins over imported duplicate",
         group.items.size() == 2 && group.items[0].label == L"My saved name");
     ok &= Report("network view: imported offline location is displayed without probing",
@@ -725,7 +725,7 @@ bool TestNetworkLocationsView() {
 }
 
 bool TestStaticMenuIdentity() {
-    using namespace pulse::app;
+    using namespace luling::app;
     bool ok = true;
     for (int scenario = 0; scenario != 5; ++scenario) {
         ContextMenuController controller;
@@ -759,7 +759,7 @@ bool TestStaticMenuIdentity() {
 }
 
 bool TestComMenuIdentity() {
-    using namespace pulse::app;
+    using namespace luling::app;
     bool ok = true;
     for (int scenario = 0; scenario < 3; ++scenario) {
         ContextMenuController controller;
@@ -775,15 +775,15 @@ bool TestComMenuIdentity() {
         };
         controller.SetShellOperations(std::move(operations));
         controller.StartQuery(prefs, nullptr, {L"C:\\fake.txt"}, false, L".txt", false, {}, {});
-        pulse::ops::ShellMenuItem a, b;
+        luling::ops::ShellMenuItem a, b;
         a.id = 10; a.text = L"A"; a.verb = L"a"; a.child = true;
         b.id = 11; b.text = L"B"; b.verb = L"b"; b.child = true;
         controller.CompleteComQuery(17, {a,b}, GetTickCount64(), true);
         controller.OpenMenu({});
         a.id = scenario == 0 ? 11 : 20;
         b.id = 10;
-        controller.CompleteComQuery(17, scenario == 2 ? std::vector<pulse::ops::ShellMenuItem>{b} :
-            std::vector<pulse::ops::ShellMenuItem>{a,b}, GetTickCount64());
+        controller.CompleteComQuery(17, scenario == 2 ? std::vector<luling::ops::ShellMenuItem>{b} :
+            std::vector<luling::ops::ShellMenuItem>{a,b}, GetTickCount64());
         controller.ExecuteShellCommand(CmdShellComBase + 10, {}, {});
         ok &= Report("COM displayed A survives partial-to-full ID swap/shift or safely rejects removal",
             scenario == 2 ? invoked == 0 : invoked == a.id && invoked_text == L"A");
@@ -792,7 +792,7 @@ bool TestComMenuIdentity() {
 }
 
 bool TestMenuQueryIdentity() {
-    using namespace pulse::app;
+    using namespace luling::app;
     bool ok = true;
     for (bool complete : {false, true}) {
         ContextMenuController controller;
@@ -819,7 +819,7 @@ bool TestMenuQueryIdentity() {
         start(false);
         ok &= Report("normal open replaces extended prefetch; matching reopen reuses session",
             token == 3 && closed == 2 && flags == std::vector<bool>{false,true,false});
-        prefs.SetItemEnabled(pulse::ipc::HandlerCatalogKey(L"{test-handler}"), false);
+        prefs.SetItemEnabled(luling::ipc::HandlerCatalogKey(L"{test-handler}"), false);
         start(false);
         ok &= Report("changed handler configuration replaces prefetch", token == 4 && closed == 3);
     }
@@ -827,7 +827,7 @@ bool TestMenuQueryIdentity() {
 }
 
 bool TestViewHitBounds() {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     bool ok = true;
     ViewLayout xl(ViewMode::ExtraLargeIcons, {0,0,900,900}, 20, 0, 0, 1);
     ViewLayout list(ViewMode::List, {0,0,800,250}, 30, 0, 0, 1);
@@ -856,8 +856,8 @@ bool TestViewHitBounds() {
 
 int wmain(int argc, wchar_t** argv) {
     if (argc == 2 && std::wstring_view(argv[1]) == L"--context-query-key") {
-        pulse::app::ContextMenuController controller;
-        pulse::app::ContextMenuPrefs prefs;
+        luling::app::ContextMenuController controller;
+        luling::app::ContextMenuPrefs prefs;
         prefs.persist = false;
         uint32_t issued = 0;
         std::vector<uint32_t> closed;
@@ -885,7 +885,7 @@ int wmain(int argc, wchar_t** argv) {
         ok &= Report("completed query with unchanged mode remains reusable", issued == 2);
         start(false);
         ok &= Report("ordinary open replaces completed extended query", issued == 3 && !modes.back() && closed.back() == 2);
-        const auto handler = pulse::ipc::HandlerCatalogKey(L"{00000000-0000-0000-0000-000000000001}");
+        const auto handler = luling::ipc::HandlerCatalogKey(L"{00000000-0000-0000-0000-000000000001}");
         prefs.SetItemEnabled(handler, false);
         start(false);
         ok &= Report("disabled-handler configuration is sent through a fresh session",
@@ -914,28 +914,28 @@ int wmain(int argc, wchar_t** argv) {
         return TestLayoutActivePane() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--audit-identity") return TestStaticMenuIdentity() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--default-manager") {
-        pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+        luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
         return TestDefaultFileManager() ? 0 : 1;
     }
     if (argc == 2 && std::wstring(argv[1]) == L"--integration-settings") {
-        using namespace pulse::app;
+        using namespace luling::app;
         AppPrefs prefs;
         prefs.persist = false;
         ContextMenuPrefs context;
         context.persist = false;
-        pulse::index::IndexClient index;
-        pulse::index::NetworkAgentClient network;
+        luling::index::IndexClient index;
+        luling::index::NetworkAgentClient network;
         SettingsController settings;
         settings.BindUi(prefs, context, index, network, {});
         settings.IntegrationAction(2);
         bool ok = Report("off master saves scope without changing associations",
-            !prefs.integration_win_e && !prefs.take_over_win_e && !prefs.open_folders_in_pulse);
+            !prefs.integration_win_e && !prefs.take_over_win_e && !prefs.open_folders_in_luling);
         settings.IntegrationAction(4);
         ok &= Report("experimental choice alone does not enable master",
             prefs.take_over_explorer_windows && !prefs.integration_enabled && settings.IntegrationState() == 0);
         settings.IntegrationAction(0);
         ok &= Report("master applies exactly selected scopes",
-            prefs.open_folders_in_pulse && !prefs.take_over_win_e && prefs.take_over_this_pc &&
+            prefs.open_folders_in_luling && !prefs.take_over_win_e && prefs.take_over_this_pc &&
             settings.IntegrationState() == 1);
         prefs.take_over_win_e = true;
         ok &= Report("external state mismatch is shown as partial", settings.IntegrationState() == 2);
@@ -947,7 +947,7 @@ int wmain(int argc, wchar_t** argv) {
         prefs.integration_incomplete = false;
         settings.IntegrationAction(6);
         ok &= Report("restore disables all mechanisms while preserving scope choices",
-            !prefs.integration_enabled && !prefs.open_folders_in_pulse && !prefs.take_over_win_e &&
+            !prefs.integration_enabled && !prefs.open_folders_in_luling && !prefs.take_over_win_e &&
             !prefs.take_over_this_pc && prefs.integration_folders && !prefs.integration_win_e &&
             prefs.take_over_explorer_windows && settings.IntegrationState() == 0);
         AppPrefs loaded;
@@ -968,7 +968,7 @@ int wmain(int argc, wchar_t** argv) {
         ok &= Report("legacy experiment migrates without enabling registry scopes",
             experimental.integration_enabled && !experimental.integration_folders &&
             !experimental.integration_win_e && !experimental.integration_this_pc);
-        prefs.persist = true; // This test's GetPulseDataDir is empty; no preferences are written.
+        prefs.persist = true; // This test's GetLulingDataDir is empty; no preferences are written.
         settings.IntegrationAction(1);
         ok &= Report("saving failure is visible and retryable",
             settings.IntegrationState() == 3 && settings.IntegrationCanRetry());
@@ -980,25 +980,25 @@ int wmain(int argc, wchar_t** argv) {
     }
     if (argc == 2 && std::wstring(argv[1]) == L"--this-pc") return TestThisPc() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--context-menu-prefs") {
-        pulse::app::AppPrefs prefs;
+        luling::app::AppPrefs prefs;
         prefs.persist = false;
-        pulse::app::ContextMenuPrefs context;
+        luling::app::ContextMenuPrefs context;
         context.persist = false;
         context.ResetToDefaults();
-        const auto category = pulse::ipc::CtxMenuCategory::Share;
-        const std::wstring send_key = pulse::ipc::CatalogKey(L"Send to", true);
-        const std::wstring other_key = pulse::ipc::CatalogKey(L"Other sharing action", false);
+        const auto category = luling::ipc::CtxMenuCategory::Share;
+        const std::wstring send_key = luling::ipc::CatalogKey(L"Send to", true);
+        const std::wstring other_key = luling::ipc::CatalogKey(L"Other sharing action", false);
         context.RecordSeen(send_key, L"Send to", true, category, true);
         context.SetItemEnabled(other_key, false);
-        pulse::index::IndexClient index;
-        pulse::index::NetworkAgentClient network;
-        pulse::app::SettingsController settings;
+        luling::index::IndexClient index;
+        luling::index::NetworkAgentClient network;
+        luling::app::SettingsController settings;
         settings.BindUi(prefs, context, index, network, {});
         settings.ToggleUi(100);
         bool passed = Report("enabling Send to enables Share without enabling disabled siblings",
             context.share && context.ItemEnabled(send_key, category, true) &&
             !context.ItemEnabled(other_key, category, true));
-        pulse::app::ContextMenuPrefs loaded;
+        luling::app::ContextMenuPrefs loaded;
         loaded.persist = false;
         loaded.FromJson(context.ToJson());
         passed &= Report("linked context menu settings survive serialization",
@@ -1008,23 +1008,23 @@ int wmain(int argc, wchar_t** argv) {
         passed &= Report("disabling Send to preserves the Share group",
             context.share && !context.ItemEnabled(send_key, category, true));
         context.RecordSeen(L"test-system", L"System action", false,
-            pulse::ipc::CtxMenuCategory::Rotate, true);
+            luling::ipc::CtxMenuCategory::Rotate, true);
         settings.ToggleUi(101);
         passed &= Report("enabling a system item also enables its parent group",
-            context.GroupEnabled(pulse::ipc::CtxMenuGroup::System));
+            context.GroupEnabled(luling::ipc::CtxMenuGroup::System));
         {
             // Handler rows are keyed "h:{CLSID}" and texts are free-form: a
             // brace or quote inside them must not end "items" or "seen" early.
-            pulse::app::ContextMenuPrefs handlers;
+            luling::app::ContextMenuPrefs handlers;
             handlers.persist = false;
             handlers.ResetToDefaults();
-            const std::wstring first = pulse::ipc::HandlerCatalogKey(L"{11111111-2222-3333-4444-555555555555}");
-            const std::wstring second = pulse::ipc::HandlerCatalogKey(L"{66666666-7777-8888-9999-AAAAAAAAAAAA}");
-            handlers.RecordSeen(first, L"Ext } menu \"one\"", true, pulse::ipc::CtxMenuCategory::Software, true);
-            handlers.RecordSeen(second, L"Ext ] two", false, pulse::ipc::CtxMenuCategory::Software, true);
+            const std::wstring first = luling::ipc::HandlerCatalogKey(L"{11111111-2222-3333-4444-555555555555}");
+            const std::wstring second = luling::ipc::HandlerCatalogKey(L"{66666666-7777-8888-9999-AAAAAAAAAAAA}");
+            handlers.RecordSeen(first, L"Ext } menu \"one\"", true, luling::ipc::CtxMenuCategory::Software, true);
+            handlers.RecordSeen(second, L"Ext ] two", false, luling::ipc::CtxMenuCategory::Software, true);
             handlers.SetItemEnabled(first, false);
             handlers.slow_ext[L"{11111111-2222-3333-4444-555555555555}"].deferred = true;
-            pulse::app::ContextMenuPrefs reloaded;
+            luling::app::ContextMenuPrefs reloaded;
             reloaded.persist = false;
             reloaded.FromJson(handlers.ToJson());
             auto has_seen = [&](const std::wstring& key) {
@@ -1044,12 +1044,12 @@ int wmain(int argc, wchar_t** argv) {
         return passed ? 0 : 1;
     }
     if (argc == 2 && std::wstring(argv[1]) == L"--layout-search-prefs") {
-        pulse::app::AppPrefs prefs;
+        luling::app::AppPrefs prefs;
         prefs.persist = false;
         prefs.sidebar_width = 360;
         prefs.address_search_current = true;
         prefs.address_search_content = true;
-        pulse::app::AppPrefs loaded;
+        luling::app::AppPrefs loaded;
         loaded.persist = false;
         loaded.FromJson(prefs.ToJson());
         bool ok = Report("sidebar and search preferences round trip", loaded.sidebar_width == 360 &&
@@ -1063,7 +1063,7 @@ int wmain(int argc, wchar_t** argv) {
         ok &= Report("reset restores sidebar width", loaded.sidebar_width == 224);
         {
             // The sidebar must leave room for both the file list and the shared toolbar.
-            using namespace pulse::ui;
+            using namespace luling::ui;
             ok &= Report("panel limit: without details the shared toolbar retains 360 DIP",
                 std::abs(MaxSidebarWidthDip(1600.0f, 340.0f, false, 8.0f) - 1240.0f) < 0.5f);
             ok &= Report("panel limit: an open details panel is reserved by the sidebar",
@@ -1078,22 +1078,22 @@ int wmain(int argc, wchar_t** argv) {
         }
         return ok ? 0 : 1;
     }
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     if (argc == 2 && std::wstring(argv[1]) == L"--global-search") {
-        pulse::app::AppPrefs prefs;
+        luling::app::AppPrefs prefs;
         prefs.persist = false;
         bool ok = Report("global search defaults to off with Alt Space", !prefs.global_search_enabled && prefs.global_search_modifiers == MOD_ALT && prefs.global_search_key == VK_SPACE);
-        pulse::app::ContextMenuPrefs context;
+        luling::app::ContextMenuPrefs context;
         context.persist = false;
-        pulse::index::IndexClient index;
-        pulse::index::NetworkAgentClient network;
-        pulse::app::SettingsController settings;
-        pulse::app::SettingsEffect effect = pulse::app::SettingsEffect::None;
-        pulse::app::SettingsController::UiCallbacks callbacks;
-        callbacks.apply_effects = [&](pulse::app::SettingsEffect value) { effect = value; };
+        luling::index::IndexClient index;
+        luling::index::NetworkAgentClient network;
+        luling::app::SettingsController settings;
+        luling::app::SettingsEffect effect = luling::app::SettingsEffect::None;
+        luling::app::SettingsController::UiCallbacks callbacks;
+        callbacks.apply_effects = [&](luling::app::SettingsEffect value) { effect = value; };
         settings.BindUi(prefs, context, index, network, std::move(callbacks));
         settings.ToggleUi(15);
-        ok &= Report("global search toggle applies registration", prefs.global_search_enabled && pulse::app::HasEffect(effect, pulse::app::SettingsEffect::GlobalSearch));
+        ok &= Report("global search toggle applies registration", prefs.global_search_enabled && luling::app::HasEffect(effect, luling::app::SettingsEffect::GlobalSearch));
         settings.BeginGlobalSearchHotkeyCapture();
         settings.CaptureGlobalSearchHotkey(VK_CONTROL, MOD_CONTROL);
         settings.CaptureGlobalSearchHotkey('A', 0);
@@ -1101,39 +1101,39 @@ int wmain(int argc, wchar_t** argv) {
         settings.CaptureGlobalSearchHotkey(VK_ESCAPE, 0);
         ok &= Report("Escape cancels shortcut capture", !settings.global_search_hotkey_capturing() && prefs.global_search_key == VK_SPACE);
         settings.BeginGlobalSearchHotkeyCapture();
-        effect = pulse::app::SettingsEffect::None;
+        effect = luling::app::SettingsEffect::None;
         settings.CaptureGlobalSearchHotkey('K', MOD_CONTROL | MOD_SHIFT);
-        ok &= Report("shortcut capture saves and applies combination", !settings.global_search_hotkey_capturing() && prefs.global_search_key == 'K' && prefs.global_search_modifiers == (MOD_CONTROL | MOD_SHIFT) && pulse::app::HasEffect(effect, pulse::app::SettingsEffect::GlobalSearch));
-        pulse::app::AppPrefs loaded;
+        ok &= Report("shortcut capture saves and applies combination", !settings.global_search_hotkey_capturing() && prefs.global_search_key == 'K' && prefs.global_search_modifiers == (MOD_CONTROL | MOD_SHIFT) && luling::app::HasEffect(effect, luling::app::SettingsEffect::GlobalSearch));
+        luling::app::AppPrefs loaded;
         loaded.persist = false;
         loaded.FromJson(prefs.ToJson());
         ok &= Report("global search preferences round trip", loaded.global_search_enabled && loaded.global_search_key == 'K' && loaded.global_search_modifiers == (MOD_CONTROL | MOD_SHIFT));
         loaded.FromJson(L"{}");
         ok &= Report("older preferences retain safe defaults", !loaded.global_search_enabled && loaded.global_search_key == VK_SPACE && loaded.global_search_modifiers == MOD_ALT);
         prefs.persist = true; // This executable's data-directory stub is empty, so Save fails without touching disk.
-        effect = pulse::app::SettingsEffect::None;
+        effect = luling::app::SettingsEffect::None;
         settings.BeginGlobalSearchHotkeyCapture();
         settings.CaptureGlobalSearchHotkey('L', MOD_ALT);
         ok &= Report("failed shortcut save rolls back and leaves registration unchanged", prefs.global_search_key == 'K' &&
-            prefs.global_search_modifiers == (MOD_CONTROL | MOD_SHIFT) && effect == pulse::app::SettingsEffect::None && settings.global_search_hotkey_capturing());
+            prefs.global_search_modifiers == (MOD_CONTROL | MOD_SHIFT) && effect == luling::app::SettingsEffect::None && settings.global_search_hotkey_capturing());
         settings.ToggleUi(15);
-        ok &= Report("failed toggle save rolls back without registration", prefs.global_search_enabled && effect == pulse::app::SettingsEffect::None);
+        ok &= Report("failed toggle save rolls back without registration", prefs.global_search_enabled && effect == luling::app::SettingsEffect::None);
         prefs.persist = false;
         settings.ResetUi();
         ok &= Report("settings reset cancels capture", !settings.global_search_hotkey_capturing());
         return ok ? 0 : 1;
     }
-    using pulse::app::HasEffect;
-    using pulse::app::SettingsController;
-    using pulse::app::SettingsEffect;
-    using pulse::app::ContextMenuController;
-    using pulse::app::SingleInstanceCoordinator;
-    using pulse::app::TrayController;
+    using luling::app::HasEffect;
+    using luling::app::SettingsController;
+    using luling::app::SettingsEffect;
+    using luling::app::ContextMenuController;
+    using luling::app::SingleInstanceCoordinator;
+    using luling::app::TrayController;
 
     bool passed = true;
 
     {
-        pulse::app::UncProbeScheduler probes;
+        luling::app::UncProbeScheduler probes;
         const uint64_t first = probes.Begin();
         const bool first_completed = probes.Finish(first);
         const uint64_t second = probes.Begin();
@@ -1146,21 +1146,21 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     passed &= Report("display paths strip extended UNC prefixes without losing the server",
-        pulse::path::StripExtendedPathPrefix(L"\\\\?\\UNC\\192.168.0.254\\资料\\项目") ==
+        luling::path::StripExtendedPathPrefix(L"\\\\?\\UNC\\192.168.0.254\\资料\\项目") ==
             L"\\\\192.168.0.254\\资料\\项目");
     passed &= Report("display paths preserve normal and long local paths",
-        pulse::path::StripExtendedPathPrefix(L"C:\\资料") == L"C:\\资料" &&
-        pulse::path::StripExtendedPathPrefix(L"\\\\?\\C:\\" + std::wstring(300, L'a')) ==
+        luling::path::StripExtendedPathPrefix(L"C:\\资料") == L"C:\\资料" &&
+        luling::path::StripExtendedPathPrefix(L"\\\\?\\C:\\" + std::wstring(300, L'a')) ==
             L"C:\\" + std::wstring(300, L'a'));
     {
-        pulse::app::BlankPaneClickRelease click;
+        luling::app::BlankPaneClickRelease click;
         click.pending = true;
         click.owns_capture = true;
         click.same_context = true;
         click.blank_list_hit = true;
         click.drag_width = 4;
         click.drag_height = 6;
-        const auto accepts = pulse::app::IsBlankPaneBackClick;
+        const auto accepts = luling::app::IsBlankPaneBackClick;
         passed &= Report("blank pane click navigates back on release", accepts(click));
         auto changed = click;
         changed.delta_x = -3;
@@ -1197,7 +1197,7 @@ int wmain(int argc, wchar_t** argv) {
         changed.pending = false;
         passed &= Report("cancelled or second double-click release never goes back", !accepts(changed));
     }
-    const std::wstring mutex_name = L"Local\\Pulse.ControllerTest." +
+    const std::wstring mutex_name = L"Local\\Luling.ControllerTest." +
         std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(GetTickCount64());
     SingleInstanceCoordinator primary;
     SingleInstanceCoordinator duplicate;
@@ -1230,7 +1230,7 @@ int wmain(int argc, wchar_t** argv) {
         !SingleInstanceCoordinator::DecodeOpenPath(&data, decoded));
 
     HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC",
-        L"Pulse tray controller test", WS_POPUP, -32000, -32000, 100, 100,
+        L"Luling tray controller test", WS_POPUP, -32000, -32000, 100, 100,
         nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     TrayController tray;
     tray.Attach(hwnd, GetModuleHandleW(nullptr));
@@ -1246,9 +1246,9 @@ int wmain(int argc, wchar_t** argv) {
     tray.Detach();
     if (hwnd) DestroyWindow(hwnd);
 
-    pulse::app::AppPrefs prefs;
+    luling::app::AppPrefs prefs;
     passed &= Report("pinned tab names are shown by default", prefs.show_pinned_tab_names);
-    pulse::app::ContextMenuPrefs context;
+    luling::app::ContextMenuPrefs context;
     prefs.persist = false;
     context.persist = false;
     SettingsController settings;
@@ -1264,31 +1264,31 @@ int wmain(int argc, wchar_t** argv) {
         SettingsController::PageFromName(L"duplicates") == 4 &&
         std::wstring(SettingsController::PageName(4)) == L"duplicates");
 
-    pulse::app::SettingsTaskResult completed_task;
-    completed_task.task.kind = pulse::app::SettingsTaskKind::InstallService;
+    luling::app::SettingsTaskResult completed_task;
+    completed_task.task.kind = luling::app::SettingsTaskKind::InstallService;
     completed_task.ok = true;
     auto task_effect = settings.CompleteTask(completed_task, true);
     passed &= Report("settings completion owns service refresh state",
         task_effect.refresh_index && settings.service_installed());
-    completed_task.task.kind = pulse::app::SettingsTaskKind::NetworkAdd;
+    completed_task.task.kind = luling::app::SettingsTaskKind::NetworkAdd;
     completed_task.task.path = L"\\\\server\\share";
     completed_task.task.pin = true;
     task_effect = settings.CompleteTask(completed_task, true);
     passed &= Report("settings completion returns network pin side effect",
         !task_effect.refresh_index && task_effect.pin_network == completed_task.task.path);
-    completed_task.task.kind = pulse::app::SettingsTaskKind::DiagnosticsExport;
+    completed_task.task.kind = luling::app::SettingsTaskKind::DiagnosticsExport;
     completed_task.task.path = L"C:\\diagnostics-export";
     task_effect = settings.CompleteTask(completed_task, true);
     passed &= Report("diagnostics completion opens export without index refresh",
         !task_effect.refresh_index && task_effect.open_path == completed_task.task.path);
-    completed_task.task.kind = pulse::app::SettingsTaskKind::NetworkRemove;
+    completed_task.task.kind = luling::app::SettingsTaskKind::NetworkRemove;
     completed_task.ok = false;
     task_effect = settings.CompleteTask(completed_task, true);
     passed &= Report("settings completion owns operation error text",
         !task_effect.refresh_index && settings.error() == L"无法移除服务器文件夹。");
 
-    pulse::index::IndexClient index_client;
-    pulse::index::NetworkAgentClient network_client;
+    luling::index::IndexClient index_client;
+    luling::index::NetworkAgentClient network_client;
     SettingsController& settings_ui = settings;
     int applied_effects = 0;
     SettingsEffect last_effect = SettingsEffect::None;
@@ -1345,7 +1345,7 @@ int wmain(int argc, wchar_t** argv) {
         prefs.show_hidden_files && HasEffect(last_effect, SettingsEffect::FileVisibility));
     settings_ui.ToggleUi(5);
     passed &= Report("settings hidden visibility toggle is reversible", !prefs.show_hidden_files);
-    pulse::app::AppPrefs protected_prefs;
+    luling::app::AppPrefs protected_prefs;
     settings_ui.ToggleUi(16);
     passed &= Report("settings protected system files toggle persists and refreshes panes",
         prefs.show_protected_os_files && HasEffect(last_effect, SettingsEffect::FileVisibility) &&
@@ -1354,7 +1354,7 @@ int wmain(int argc, wchar_t** argv) {
     passed &= Report("settings protected system files toggle is reversible",
         !prefs.show_protected_os_files);
     settings_ui.ToggleUi(6);
-    pulse::app::AppPrefs parsed_prefs;
+    luling::app::AppPrefs parsed_prefs;
     passed &= Report("pinned tab names toggle off and persist",
         !prefs.show_pinned_tab_names && parsed_prefs.FromJson(prefs.ToJson()) &&
         !parsed_prefs.show_pinned_tab_names);
@@ -1363,7 +1363,7 @@ int wmain(int argc, wchar_t** argv) {
         prefs.show_pinned_tab_names && parsed_prefs.FromJson(prefs.ToJson()) &&
         parsed_prefs.show_pinned_tab_names);
     {
-        pulse::app::AppPrefs update_prefs;
+        luling::app::AppPrefs update_prefs;
         passed &= Report("automatic update checks default on, also for an older app.json",
             prefs.auto_check_updates && update_prefs.FromJson(L"{\"show_hints\":true}") &&
             update_prefs.auto_check_updates);
@@ -1378,9 +1378,9 @@ int wmain(int argc, wchar_t** argv) {
     }
     settings_ui.Wallpaper(0);
     {
-        using pulse::app::kBlankClickOff;
-        using pulse::app::kBlankClickBack;
-        using pulse::app::kBlankClickUp;
+        using luling::app::kBlankClickOff;
+        using luling::app::kBlankClickBack;
+        using luling::app::kBlankClickUp;
         passed &= Report("blank click navigation defaults off", prefs.blank_click_action == kBlankClickOff);
         settings_ui.BlankClick(1);
         passed &= Report("blank click navigation goes back and persists",
@@ -1413,18 +1413,18 @@ int wmain(int argc, wchar_t** argv) {
         parsed_prefs.ResetToDefaults();
         passed &= Report("reset disables blank click navigation", parsed_prefs.blank_click_action == kBlankClickOff);
         passed &= Report("blank click: back uses history, up and missing history go to the parent",
-            pulse::app::BlankClickGoesBack(kBlankClickBack, true) &&
-            !pulse::app::BlankClickGoesBack(kBlankClickBack, false) &&
-            !pulse::app::BlankClickGoesBack(kBlankClickUp, true) &&
-            !pulse::app::BlankClickGoesBack(kBlankClickOff, true));
+            luling::app::BlankClickGoesBack(kBlankClickBack, true) &&
+            !luling::app::BlankClickGoesBack(kBlankClickBack, false) &&
+            !luling::app::BlankClickGoesBack(kBlankClickUp, true) &&
+            !luling::app::BlankClickGoesBack(kBlankClickOff, true));
         passed &= Report("blank click setting has localized choices",
-            pulse::l10n::Get(pulse::l10n::StringId::SettingsBlankClickOff) == L"\u4E0D\u64CD\u4F5C" &&
-            !pulse::l10n::Get(pulse::l10n::StringId::SettingsBlankClickBack).empty());
+            luling::l10n::Get(luling::l10n::StringId::SettingsBlankClickOff) == L"\u4E0D\u64CD\u4F5C" &&
+            !luling::l10n::Get(luling::l10n::StringId::SettingsBlankClickBack).empty());
     }
     passed &= Report("closing the last tab setting has localized text",
-        pulse::l10n::Get(pulse::l10n::StringId::SettingsCloseLastTab) ==
+        luling::l10n::Get(luling::l10n::StringId::SettingsCloseLastTab) ==
             L"\u5173\u95ED\u6700\u540E\u4E00\u4E2A\u6807\u7B7E\u9875\u65F6\u5173\u95ED\u7A97\u53E3" &&
-        !pulse::l10n::Get(pulse::l10n::StringId::SettingsCloseLastTabDesc).empty());
+        !luling::l10n::Get(luling::l10n::StringId::SettingsCloseLastTabDesc).empty());
     passed &= Report("closing the last tab keeps the window by default",
         !prefs.close_window_with_last_tab);
     settings_ui.ToggleUi(26);
@@ -1443,10 +1443,10 @@ int wmain(int argc, wchar_t** argv) {
     passed &= Report("reset keeps the window on the last tab close",
         !parsed_prefs.close_window_with_last_tab);
     passed &= Report("confirm before deleting setting has localized text",
-        !pulse::l10n::Get(pulse::l10n::StringId::SettingsConfirmDelete).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::SettingsConfirmDeleteDesc).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::RecycleConfirmOne).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::RecycleConfirmManyFormat).empty());
+        !luling::l10n::Get(luling::l10n::StringId::SettingsConfirmDelete).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::SettingsConfirmDeleteDesc).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::RecycleConfirmOne).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::RecycleConfirmManyFormat).empty());
     passed &= Report("deleting to the Recycle Bin does not ask by default",
         !prefs.confirm_recycle_delete);
     settings_ui.ToggleUi(32);
@@ -1465,10 +1465,10 @@ int wmain(int argc, wchar_t** argv) {
     passed &= Report("reset does not ask before deleting",
         !parsed_prefs.confirm_recycle_delete);
     passed &= Report("outline selected items setting has localized text",
-        !pulse::l10n::Get(pulse::l10n::StringId::ListSelectionOutline).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::ListSelectionOutlineDesc).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::ListThumbnailBadges).empty() &&
-        !pulse::l10n::Get(pulse::l10n::StringId::ListThumbnailBadgesDesc).empty());
+        !luling::l10n::Get(luling::l10n::StringId::ListSelectionOutline).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::ListSelectionOutlineDesc).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::ListThumbnailBadges).empty() &&
+        !luling::l10n::Get(luling::l10n::StringId::ListThumbnailBadgesDesc).empty());
     passed &= Report("selected items have no outline by default", !prefs.list_selection_outline);
     settings_ui.ToggleUi(33);
     passed &= Report("outline selected items enables and persists",
@@ -1485,9 +1485,9 @@ int wmain(int argc, wchar_t** argv) {
     parsed_prefs.ResetToDefaults();
     passed &= Report("reset draws no selection outline", !parsed_prefs.list_selection_outline);
     passed &= Report("start in tray setting has localized text",
-        pulse::l10n::Get(pulse::l10n::StringId::SettingsStartInTray) ==
+        luling::l10n::Get(luling::l10n::StringId::SettingsStartInTray) ==
             L"\u5F00\u673A\u81EA\u542F\u65F6\u9690\u85CF\u5230\u6258\u76D8" &&
-        !pulse::l10n::Get(pulse::l10n::StringId::SettingsStartInTrayDesc).empty());
+        !luling::l10n::Get(luling::l10n::StringId::SettingsStartInTrayDesc).empty());
     passed &= Report("start in tray defaults off", !prefs.start_in_tray);
     settings_ui.ToggleUi(27);
     passed &= Report("start in tray enables and persists",
@@ -1502,99 +1502,99 @@ int wmain(int argc, wchar_t** argv) {
     parsed_prefs.ResetToDefaults();
     passed &= Report("reset turns start in tray off", !parsed_prefs.start_in_tray);
     {
-        const std::wstring exe = L"C:\\Program Files\\Pulse\\pulse.exe";
+        const std::wstring exe = L"C:\\Program Files\\Luling\\luling.exe";
         passed &= Report("startup Run command quotes the exe and adds --startup",
-            pulse::app::StartupCommandLine(exe) == L"\"C:\\Program Files\\Pulse\\pulse.exe\" --startup" &&
-            pulse::app::StartupCommandLine(L"").empty());
+            luling::app::StartupCommandLine(exe) == L"\"C:\\Program Files\\Luling\\luling.exe\" --startup" &&
+            luling::app::StartupCommandLine(L"").empty());
         passed &= Report("startup Run command: only the old flagless value of this exe is repaired",
-            pulse::app::StartupCommandNeedsRepair(L"\"C:\\Program Files\\Pulse\\pulse.exe\"", exe) &&
-            pulse::app::StartupCommandNeedsRepair(L"\"c:\\program files\\pulse\\PULSE.EXE\"", exe) &&
-            !pulse::app::StartupCommandNeedsRepair(pulse::app::StartupCommandLine(exe), exe) &&
-            !pulse::app::StartupCommandNeedsRepair(L"\"D:\\Portable\\pulse.exe\"", exe) &&
-            !pulse::app::StartupCommandNeedsRepair(L"", exe) &&
-            !pulse::app::StartupCommandNeedsRepair(L"\"C:\\Program Files\\Pulse\\pulse.exe\"", L""));
-        const wchar_t* startup_argv[] = {L"pulse.exe", L"--startup"};
-        const wchar_t* folder_argv[] = {L"pulse.exe", L"C:\\--startup"};
+            luling::app::StartupCommandNeedsRepair(L"\"C:\\Program Files\\Luling\\luling.exe\"", exe) &&
+            luling::app::StartupCommandNeedsRepair(L"\"c:\\program files\\luling\\LULING.EXE\"", exe) &&
+            !luling::app::StartupCommandNeedsRepair(luling::app::StartupCommandLine(exe), exe) &&
+            !luling::app::StartupCommandNeedsRepair(L"\"D:\\Portable\\luling.exe\"", exe) &&
+            !luling::app::StartupCommandNeedsRepair(L"", exe) &&
+            !luling::app::StartupCommandNeedsRepair(L"\"C:\\Program Files\\Luling\\luling.exe\"", L""));
+        const wchar_t* startup_argv[] = {L"luling.exe", L"--startup"};
+        const wchar_t* folder_argv[] = {L"luling.exe", L"C:\\--startup"};
         passed &= Report("startup launch is recognised only by the exact flag",
-            pulse::app::HasStartupArgument(2, startup_argv) &&
-            !pulse::app::HasStartupArgument(2, folder_argv) &&
-            !pulse::app::HasStartupArgument(1, startup_argv) &&
-            !pulse::app::HasStartupArgument(0, nullptr));
+            luling::app::HasStartupArgument(2, startup_argv) &&
+            !luling::app::HasStartupArgument(2, folder_argv) &&
+            !luling::app::HasStartupArgument(1, startup_argv) &&
+            !luling::app::HasStartupArgument(0, nullptr));
         passed &= Report("start in tray needs both a sign-in launch and the setting",
-            pulse::app::StartsHiddenInTray(true, true) && !pulse::app::StartsHiddenInTray(true, false) &&
-            !pulse::app::StartsHiddenInTray(false, true) && !pulse::app::StartsHiddenInTray(false, false));
+            luling::app::StartsHiddenInTray(true, true) && !luling::app::StartsHiddenInTray(true, false) &&
+            !luling::app::StartsHiddenInTray(false, true) && !luling::app::StartsHiddenInTray(false, false));
     }
     passed &= Report("last tab close: only the single unpinned tab closes the window",
-        pulse::app::LastTabClosesWindow(1, false, true) && !pulse::app::LastTabClosesWindow(1, false, false) &&
-        !pulse::app::LastTabClosesWindow(2, false, true) && !pulse::app::LastTabClosesWindow(1, true, true) &&
-        !pulse::app::LastTabClosesWindow(0, false, true));
+        luling::app::LastTabClosesWindow(1, false, true) && !luling::app::LastTabClosesWindow(1, false, false) &&
+        !luling::app::LastTabClosesWindow(2, false, true) && !luling::app::LastTabClosesWindow(1, true, true) &&
+        !luling::app::LastTabClosesWindow(0, false, true));
     passed &= Report("settings UI controller owns image selection flow",
         picked_image);
     settings_ui.ResetUi();
     passed &= Report("settings UI controller has explicit binding lifecycle",
         !settings_ui.ui_bound());
 
-    pulse::app::LayoutTabSnapshot saved;
+    luling::app::LayoutTabSnapshot saved;
     saved.pinned = true;
     saved.marker_rgb = 0x0078D4;
     saved.group = 4;
     saved.layout = 1;
     saved.focused = 1;
-    saved.panes.push_back({ L"C:\\first", pulse::ui::ViewMode::Tiles, { 0.2f, 0.5f, 0.8f }, {} });
-    saved.panes.push_back({ L"D:\\loose", pulse::ui::ViewMode::Details, {}, {} });
-    saved.panes.push_back({ L"", pulse::ui::ViewMode::Details, {}, {} });
-    pulse::app::LayoutTab restored;
+    saved.panes.push_back({ L"C:\\first", luling::ui::ViewMode::Tiles, { 0.2f, 0.5f, 0.8f }, {} });
+    saved.panes.push_back({ L"D:\\loose", luling::ui::ViewMode::Details, {}, {} });
+    saved.panes.push_back({ L"", luling::ui::ViewMode::Details, {}, {} });
+    luling::app::LayoutTab restored;
     std::vector<std::wstring> loaded_paths;
-    pulse::app::RestoreLayoutTab(restored, saved,
-        [&](pulse::app::Tab& tab, const std::wstring& loaded) {
+    luling::app::RestoreLayoutTab(restored, saved,
+        [&](luling::app::Tab& tab, const std::wstring& loaded) {
             tab.current_path = loaded;
             loaded_paths.push_back(loaded);
         });
     // An empty saved path is This PC, a real location: the pane is kept, not skipped.
     passed &= Report("session layout restore keeps This PC (empty path) panes",
         restored.pinned && restored.tab_group == 0 &&
-        restored.layout == pulse::app::LayoutPreset::TwoVertical &&
+        restored.layout == luling::app::LayoutPreset::TwoVertical &&
         restored.panes.size() == 3 && restored.focused_index == 1 &&
         loaded_paths.size() == 3 && loaded_paths[0] == L"C:\\first" && loaded_paths[2].empty());
-    pulse::app::LayoutTabSnapshot single;
+    luling::app::LayoutTabSnapshot single;
     single.layout = 1;
-    single.panes.push_back({ L"", pulse::ui::ViewMode::Details, {}, {} });
-    pulse::app::LayoutTab grown;
+    single.panes.push_back({ L"", luling::ui::ViewMode::Details, {}, {} });
+    luling::app::LayoutTab grown;
     std::vector<std::wstring> grown_paths;
-    pulse::app::RestoreLayoutTab(grown, single,
-        [&](pulse::app::Tab& tab, const std::wstring& loaded) {
+    luling::app::RestoreLayoutTab(grown, single,
+        [&](luling::app::Tab& tab, const std::wstring& loaded) {
             tab.current_path = loaded;
             grown_paths.push_back(loaded);
         });
     passed &= Report("session layout restore grows to the preset by cloning This PC",
         grown.panes.size() == 2 && grown_paths.size() == 2 &&
         grown_paths[0].empty() && grown_paths[1].empty());
-    const auto captured = pulse::app::CaptureLayoutTab(restored);
+    const auto captured = luling::app::CaptureLayoutTab(restored);
     passed &= Report("session layout restore and capture preserve the tab marker",
         restored.marker_rgb == 0x0078D4 && captured.marker_rgb == 0x0078D4);
     passed &= Report("session layout capture preserves folder presentation state",
         captured.pinned && captured.layout == 1 && captured.panes.size() == 3 &&
         captured.panes[2].path.empty() &&
-        captured.panes[0].view == pulse::ui::ViewMode::Tiles &&
+        captured.panes[0].view == luling::ui::ViewMode::Tiles &&
         captured.panes[0].columns[1] == 0.5f);
-    pulse::app::LayoutTab empty_restored;
-    pulse::app::RestoreLayoutTab(empty_restored, {},
-        [](pulse::app::Tab& tab, const std::wstring& loaded) {
+    luling::app::LayoutTab empty_restored;
+    luling::app::RestoreLayoutTab(empty_restored, {},
+        [](luling::app::Tab& tab, const std::wstring& loaded) {
             tab.current_path = loaded;
         });
     passed &= Report("session layout restore supplies a usable fallback folder",
         empty_restored.panes.size() == 1 &&
         empty_restored.panes[0]->view.current_path == L"C:\\");
-    pulse::app::WindowTabs restored_tabs;
-    std::vector<pulse::app::GroupSessionSnapshot> groups{
+    luling::app::WindowTabs restored_tabs;
+    std::vector<luling::app::GroupSessionSnapshot> groups{
         { 4, L"work", 0x00112233, false },
         { 4, L"duplicate", 0x00445566, true },
         { -1, L"invalid", 0, false },
     };
     saved.pinned = false;
     saved.group = 4;
-    pulse::app::RestoreWindowTabs(restored_tabs, { saved }, groups, 0,
-        [&](pulse::app::Tab& tab, const std::wstring& loaded) {
+    luling::app::RestoreWindowTabs(restored_tabs, { saved }, groups, 0,
+        [&](luling::app::Tab& tab, const std::wstring& loaded) {
             tab.current_path = loaded;
         });
     passed &= Report("session window tabs restore validates groups",
@@ -1648,8 +1648,8 @@ int wmain(int argc, wchar_t** argv) {
         false, [](const std::wstring& path) { return path; }, {});
     passed &= Report("context menu begins a typed shell session",
         queried_token == 17);
-    std::vector<pulse::ops::ShellMenuItem> com_items;
-    pulse::ops::ShellMenuItem com_item;
+    std::vector<luling::ops::ShellMenuItem> com_items;
+    luling::ops::ShellMenuItem com_item;
     com_item.id = 23;
     com_item.verb = L"customverb";
     com_item.text = L"Custom action";
@@ -1664,7 +1664,7 @@ int wmain(int argc, wchar_t** argv) {
         17, com_items, GetTickCount64());
     passed &= Report("context menu final COM snapshot finishes the session",
         completion.accepted && !completion.partial && completion.cache_key == L".txt");
-    pulse::ui::FluentMenuItem base_item;
+    luling::ui::FluentMenuItem base_item;
     base_item.command = 1;
     base_item.text = L"Base";
     bool prefs_changed = false;
@@ -1675,7 +1675,7 @@ int wmain(int argc, wchar_t** argv) {
     context_menu.OpenMenu({ std::move(base_item) });
     passed &= Report("context menu owns popup baseline state",
         context_menu.menu_open() && !context_menu.base_items().empty());
-    pulse::ops::ShellMenuItem live_item = com_item;
+    luling::ops::ShellMenuItem live_item = com_item;
     live_item.id = 42;
     passed &= Report("context menu remaps snapshot ids onto the live session",
         context_menu.CompleteComQuery(17, { live_item }, GetTickCount64()).accepted);
@@ -1691,26 +1691,26 @@ int wmain(int argc, wchar_t** argv) {
     // is what made packaged verbs (WinRAR and friends) appear on one
     // right-click and vanish on the next.
     {
-        pulse::app::ContextMenuController cache_menu;
+        luling::app::ContextMenuController cache_menu;
         cache_menu.SetShellOperations({
             [](std::vector<std::wstring>, HWND, bool, bool, std::vector<std::wstring>) {
                 return 31u;
             },
             [](uint32_t) {}, [](uint32_t, uint32_t, std::wstring, std::wstring) {}, {}, {},
         });
-        pulse::app::ContextMenuPrefs cache_prefs;
+        luling::app::ContextMenuPrefs cache_prefs;
 
         // First right-click: complete answer, so this is what must be cached.
         cache_menu.CompleteStaticVerbs(L".zip", {}, cache_menu.cache_generation());
         cache_menu.StartQuery(cache_prefs, nullptr, { L"C:\\one.zip" }, false, L".zip",
                               false, [](const std::wstring& path) { return path; }, {});
-        std::vector<pulse::ops::ShellMenuItem> complete;
-        pulse::ops::ShellMenuItem packaged;
+        std::vector<luling::ops::ShellMenuItem> complete;
+        luling::ops::ShellMenuItem packaged;
         packaged.id = 5;
         packaged.verb = L"{b41db860-64e4-11d2-9906-e49fadc173ca}";
         packaged.text = L"WinRAR";
         complete.push_back(packaged);
-        pulse::ops::ShellMenuItem classic;
+        luling::ops::ShellMenuItem classic;
         classic.id = 6;
         classic.text = L"Classic only";
         complete.push_back(classic);
@@ -1722,8 +1722,8 @@ int wmain(int argc, wchar_t** argv) {
         // a real right-click does.
         cache_menu.StartQuery(cache_prefs, nullptr, { L"C:\\two.zip" }, false, L".zip",
                               false, [](const std::wstring& path) { return path; }, {});
-        std::vector<pulse::ops::ShellMenuItem> early;
-        pulse::ops::ShellMenuItem early_classic;
+        std::vector<luling::ops::ShellMenuItem> early;
+        luling::ops::ShellMenuItem early_classic;
         early_classic.id = 9;
         early_classic.text = L"Classic only";
         early.push_back(early_classic);
@@ -1735,7 +1735,7 @@ int wmain(int argc, wchar_t** argv) {
         cache_menu.SeedComItemsFromCache();
         bool cache_changed = false;
         const auto cached_display = cache_menu.BuildDisplay(
-            cache_prefs, { pulse::ui::FluentMenuItem{} }, cache_changed);
+            cache_prefs, { luling::ui::FluentMenuItem{} }, cache_changed);
         bool packaged_survived = false;
         for (const auto& row : cached_display)
             if (row.text == L"WinRAR") packaged_survived = true;
@@ -1744,7 +1744,7 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     const bool handled_shell = context_menu.ExecuteShellCommand(
-        pulse::app::CmdShellComBase + 23, {}, [&] { ++folder_refreshes; });
+        luling::app::CmdShellComBase + 23, {}, [&] { ++folder_refreshes; });
     passed &= Report("context menu invokes by verb when live ids differ",
         handled_shell && invoked_command == 42 &&
         invoked_verb == L"customverb" && invoked_text == L"Custom action" &&
@@ -1755,20 +1755,20 @@ int wmain(int argc, wchar_t** argv) {
     bool task_done = false;
     bool task_started = false;
     bool release_task = false;
-    pulse::app::SettingsTaskResult task_result;
-    pulse::app::SettingsTask volume_task;
-    volume_task.kind = pulse::app::SettingsTaskKind::Volume;
+    luling::app::SettingsTaskResult task_result;
+    luling::app::SettingsTask volume_task;
+    volume_task.kind = luling::app::SettingsTaskKind::Volume;
     volume_task.key = L"volume-async";
     volume_task.enabled = true;
     passed &= Report("settings async task admits one volume request",
-        pulse::app::SettingsControllerTestPeer::Start(settings, volume_task,
-            [&](const pulse::app::SettingsTask&, std::wstring&) {
+        luling::app::SettingsControllerTestPeer::Start(settings, volume_task,
+            [&](const luling::app::SettingsTask&, std::wstring&) {
                 std::unique_lock<std::mutex> lock(task_mutex);
                 task_started = true;
                 task_cv.notify_one();
                 task_cv.wait(lock, [&] { return release_task; });
                 return true;
-            }, [&](pulse::app::SettingsTaskResult result) {
+            }, [&](luling::app::SettingsTaskResult result) {
                 std::lock_guard<std::mutex> lock(task_mutex);
                 task_result = std::move(result);
                 task_done = true;
@@ -1779,16 +1779,16 @@ int wmain(int argc, wchar_t** argv) {
         task_cv.wait_for(lock, std::chrono::seconds(2), [&] { return task_started; });
     }
     passed &= Report("settings async task coalesces duplicate volume request",
-        !pulse::app::SettingsControllerTestPeer::Start(settings, volume_task,
-            [](const pulse::app::SettingsTask&, std::wstring&) { return true; },
-            [](pulse::app::SettingsTaskResult) {}));
-    pulse::app::SettingsTask exclude_task;
-    exclude_task.kind = pulse::app::SettingsTaskKind::Exclude;
+        !luling::app::SettingsControllerTestPeer::Start(settings, volume_task,
+            [](const luling::app::SettingsTask&, std::wstring&) { return true; },
+            [](luling::app::SettingsTaskResult) {}));
+    luling::app::SettingsTask exclude_task;
+    exclude_task.kind = luling::app::SettingsTaskKind::Exclude;
     exclude_task.path = L"C:\\excluded";
     passed &= Report("settings serializes all local index configuration",
-        !pulse::app::SettingsControllerTestPeer::Start(settings, std::move(exclude_task),
-            [](const pulse::app::SettingsTask&, std::wstring&) { return true; },
-            [](pulse::app::SettingsTaskResult) {}));
+        !luling::app::SettingsControllerTestPeer::Start(settings, std::move(exclude_task),
+            [](const luling::app::SettingsTask&, std::wstring&) { return true; },
+            [](luling::app::SettingsTaskResult) {}));
     {
         std::lock_guard<std::mutex> lock(task_mutex);
         release_task = true;
@@ -1805,15 +1805,15 @@ int wmain(int argc, wchar_t** argv) {
         !settings.VolumePending(L"volume-async"));
 
     task_done = false;
-    pulse::app::SettingsTask failed_task;
-    failed_task.kind = pulse::app::SettingsTaskKind::NetworkAdd;
+    luling::app::SettingsTask failed_task;
+    failed_task.kind = luling::app::SettingsTaskKind::NetworkAdd;
     failed_task.path = L"\\\\server\\missing";
     passed &= Report("settings async task propagates operation failure",
-        pulse::app::SettingsControllerTestPeer::Start(settings, std::move(failed_task),
-            [](const pulse::app::SettingsTask&, std::wstring& error) {
+        luling::app::SettingsControllerTestPeer::Start(settings, std::move(failed_task),
+            [](const luling::app::SettingsTask&, std::wstring& error) {
                 error = L"offline";
                 return false;
-            }, [&](pulse::app::SettingsTaskResult result) {
+            }, [&](luling::app::SettingsTaskResult result) {
                 std::lock_guard<std::mutex> lock(task_mutex);
                 task_result = std::move(result);
                 task_done = true;
@@ -1831,17 +1831,17 @@ int wmain(int argc, wchar_t** argv) {
 
     {
         SettingsController migration_ui;
-        pulse::app::SettingsTask task;
-        task.kind = pulse::app::SettingsTaskKind::ConfigureIndexPath;
+        luling::app::SettingsTask task;
+        task.kind = luling::app::SettingsTaskKind::ConfigureIndexPath;
         task.path = L"D:\\Index";
         bool pending_seen = false;
-        pulse::app::SettingsTaskResult result;
-        pulse::app::SettingsControllerTestPeer::Start(migration_ui, task,
-            [&](const pulse::app::SettingsTask&, std::wstring& error) {
+        luling::app::SettingsTaskResult result;
+        luling::app::SettingsControllerTestPeer::Start(migration_ui, task,
+            [&](const luling::app::SettingsTask&, std::wstring& error) {
                 pending_seen = migration_ui.migration_pending();
                 error = L"cleanup warning";
                 return false;
-            }, [&](pulse::app::SettingsTaskResult completed) { result = std::move(completed); });
+            }, [&](luling::app::SettingsTaskResult completed) { result = std::move(completed); });
         migration_ui.Stop();
         passed &= Report("migration displays pending state and clears it on failure",
             pending_seen && !migration_ui.migration_pending());
@@ -1853,13 +1853,13 @@ int wmain(int argc, wchar_t** argv) {
     bool lifecycle_completed = false;
     {
         SettingsController lifecycle;
-        pulse::app::SettingsTask task;
-        task.kind = pulse::app::SettingsTaskKind::NetworkRebuild;
-        pulse::app::SettingsControllerTestPeer::Start(lifecycle, std::move(task),
-            [](const pulse::app::SettingsTask&, std::wstring&) {
+        luling::app::SettingsTask task;
+        task.kind = luling::app::SettingsTaskKind::NetworkRebuild;
+        luling::app::SettingsControllerTestPeer::Start(lifecycle, std::move(task),
+            [](const luling::app::SettingsTask&, std::wstring&) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 return true;
-            }, [&](pulse::app::SettingsTaskResult) { lifecycle_completed = true; });
+            }, [&](luling::app::SettingsTaskResult) { lifecycle_completed = true; });
     }
     passed &= Report("settings controller joins tasks during destruction",
         lifecycle_completed);
@@ -1872,9 +1872,9 @@ int wmain(int argc, wchar_t** argv) {
     passed &= TestShellWindowPlan();
     passed &= TestThisPc();
     passed &= Report("menu row height follows list density (28/34/40 -> 30/36/40, clamped)",
-        pulse::app::MenuRowHeightDip(28) == 30 && pulse::app::MenuRowHeightDip(34) == 36 &&
-        pulse::app::MenuRowHeightDip(40) == 40 && pulse::app::MenuRowHeightDip(24) == 28 &&
-        pulse::app::MenuRowHeightDip(48) == 40);
+        luling::app::MenuRowHeightDip(28) == 30 && luling::app::MenuRowHeightDip(34) == 36 &&
+        luling::app::MenuRowHeightDip(40) == 40 && luling::app::MenuRowHeightDip(24) == 28 &&
+        luling::app::MenuRowHeightDip(48) == 40);
 
     std::printf("\n== app controller tests: %s ==\n", passed ? "PASS" : "FAIL");
     return passed ? 0 : 1;

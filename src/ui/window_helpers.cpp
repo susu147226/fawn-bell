@@ -7,7 +7,7 @@
 #include <uxtheme.h>
 #include <windowsx.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 float ScaleDip(float scale, float value) { return value * scale; }
 
@@ -25,11 +25,11 @@ LRESULT BorderlessHitTest(HWND hwnd, LPARAM lparam, float title_height,
     POINT point{ GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam) };
     RECT window{};
     GetWindowRect(hwnd, &window);
-    const UINT dpi = pulse::compat::WindowDpi(hwnd);
-    const int frame_x = pulse::compat::SystemMetricsForDpi(SM_CXSIZEFRAME, dpi)
-                      + pulse::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
-    const int frame_y = pulse::compat::SystemMetricsForDpi(SM_CYSIZEFRAME, dpi)
-                      + pulse::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+    const UINT dpi = luling::compat::WindowDpi(hwnd);
+    const int frame_x = luling::compat::SystemMetricsForDpi(SM_CXSIZEFRAME, dpi)
+                      + luling::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+    const int frame_y = luling::compat::SystemMetricsForDpi(SM_CYSIZEFRAME, dpi)
+                      + luling::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
     const bool left = point.x < window.left + frame_x;
     const bool right = point.x >= window.right - frame_x;
     const bool top = point.y < window.top + frame_y;
@@ -179,4 +179,4 @@ void EndSurface(Compositor& compositor) {
     compositor.Present();
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -4,7 +4,7 @@
 #include <iostream>
 
 int main() {
-    using namespace pulse;
+    using namespace luling;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     int failures = 0;
@@ -20,7 +20,7 @@ int main() {
     WNDCLASSW wc{};
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpfnWndProc = DefWindowProcW;
-    wc.lpszClassName = L"PulseGlobalSearchSettingsFixture";
+    wc.lpszClassName = L"LulingGlobalSearchSettingsFixture";
     RegisterClassW(&wc);
     s.hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW,
         0, 0, 1100, 900, nullptr, nullptr, wc.hInstance, nullptr);

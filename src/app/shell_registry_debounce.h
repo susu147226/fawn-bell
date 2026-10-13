@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 
 class ShellRegistryDebounce {
 public:
@@ -47,4 +47,4 @@ private:
     uint64_t last_ = 0;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

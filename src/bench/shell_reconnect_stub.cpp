@@ -3,7 +3,7 @@
 #include <filesystem>
 
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::ipc;
+    using namespace luling::ipc;
     if (argc != 2) return 2;
     const DWORD parent_pid = wcstoul(argv[1], nullptr, 10);
     HANDLE parent = OpenProcess(SYNCHRONIZE, FALSE, parent_pid);

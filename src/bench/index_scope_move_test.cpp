@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <cstdio>
 #include <algorithm>
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static bool Fixture(Engine& e, const std::wstring& path) {
         Engine::Store s;
@@ -42,7 +42,7 @@ struct EngineTestAccess {
 };
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     namespace fs = std::filesystem;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; };

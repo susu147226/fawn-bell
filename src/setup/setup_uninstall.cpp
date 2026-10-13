@@ -12,13 +12,13 @@
 
 #include <algorithm>
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 // Files of an installation that predates the manifest ([Files] in the iss).
 constexpr const wchar_t* kKnownFiles[] = {
-    L"pulse.exe", L"lumatext.dll", L"pdfium.dll", L"Pulse.Index.exe", L"Pulse.Document.exe",
-    L"Pulse.Preview.exe", L"pulse_shell.exe", L"pulse_elevated.exe", L"pulse_integration.exe",
+    L"luling.exe", L"lumatext.dll", L"pdfium.dll", L"Luling.Index.exe", L"Luling.Document.exe",
+    L"Luling.Preview.exe", L"luling_shell.exe", L"luling_elevated.exe", L"luling_integration.exe",
     L"msvcp140.dll", L"msvcp140_atomic_wait.dll", L"vcruntime140.dll", L"vcruntime140_1.dll",
     L"uninstall.exe",
 };
@@ -38,23 +38,23 @@ bool EndsWith(const std::wstring& s, const wchar_t* suffix) {
     return s.size() >= n && s.compare(s.size() - n, n, suffix) == 0;
 }
 
-// ---- data cleanup (CleanupPulseData and friends) -----------------------
+// ---- data cleanup (CleanupLulingData and friends) -----------------------
 
-bool IsPulseIndexArtifact(const std::wstring& name) {
+bool IsLulingIndexArtifact(const std::wstring& name) {
     const std::wstring n = Lower(name);
-    return n == L"pulse-index.bin" || n == L"pulse-index.bin.tmp" || n == L"pulse-index.dlt" ||
-           (n.rfind(L"pulse-index-", 0) == 0 && EndsWith(n, L".dlt"));
+    return n == L"luling-index.bin" || n == L"luling-index.bin.tmp" || n == L"luling-index.dlt" ||
+           (n.rfind(L"luling-index-", 0) == 0 && EndsWith(n, L".dlt"));
 }
 
-void DeletePulseIndexArtifacts(const std::wstring& dir) {
+void DeleteLulingIndexArtifacts(const std::wstring& dir) {
     if (dir.empty() || !DirExists(dir)) return;
     WIN32_FIND_DATAW fd;
     HANDLE h = FindFirstFileW((dir + L"\\*").c_str(), &fd);
     if (h != INVALID_HANDLE_VALUE) {
         do {
-            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && IsPulseIndexArtifact(fd.cFileName)) {
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && IsLulingIndexArtifact(fd.cFileName)) {
                 const std::wstring path = dir + L"\\" + fd.cFileName;
-                if (!DeleteFileW(path.c_str())) Log(L"Could not delete Pulse index artifact: " + path);
+                if (!DeleteFileW(path.c_str())) Log(L"Could not delete Luling index artifact: " + path);
             }
         } while (FindNextFileW(h, &fd));
         FindClose(h);
@@ -76,16 +76,16 @@ bool ReadJsonBool(const std::string& json, const char* key, bool fallback) {
     return fallback;
 }
 
-std::wstring LocalPulseDir() { return KnownFolder(FOLDERID_LocalAppData) + L"\\Pulse"; }
+std::wstring LocalLulingDir() { return KnownFolder(FOLDERID_LocalAppData) + L"\\Luling"; }
 
 bool RemovePreviewPacksOnUninstall() {
     std::string json;
-    if (!ReadWholeFile(LocalPulseDir() + L"\\packs\\packs.json", json)) return true;
+    if (!ReadWholeFile(LocalLulingDir() + L"\\packs\\packs.json", json)) return true;
     return ReadJsonBool(json, "remove_on_uninstall", true);
 }
 
 void DeleteLocalDataKeepingPacks() {
-    const std::wstring root = LocalPulseDir();
+    const std::wstring root = LocalLulingDir();
     WIN32_FIND_DATAW fd;
     HANDLE h = FindFirstFileW((root + L"\\*").c_str(), &fd);
     if (h == INVALID_HANDLE_VALUE) return;
@@ -99,25 +99,25 @@ void DeleteLocalDataKeepingPacks() {
     FindClose(h);
 }
 
-void CleanupPulseData(const std::wstring& index_path) {
-    const std::wstring program_data = KnownFolder(FOLDERID_ProgramData) + L"\\Pulse";
+void CleanupLulingData(const std::wstring& index_path) {
+    const std::wstring program_data = KnownFolder(FOLDERID_ProgramData) + L"\\Luling";
     if (!index_path.empty() && !SameDirectory(index_path, program_data + L"\\Index"))
-        DeletePulseIndexArtifacts(NormalizeDir(index_path));
-    if (RemovePreviewPacksOnUninstall()) RemoveTree(LocalPulseDir());
+        DeleteLulingIndexArtifacts(NormalizeDir(index_path));
+    if (RemovePreviewPacksOnUninstall()) RemoveTree(LocalLulingDir());
     else DeleteLocalDataKeepingPacks();
     RemoveTree(program_data);
-    Log(L"Removed Pulse settings, caches and index data");
+    Log(L"Removed Luling settings, caches and index data");
 }
 
-// File Explorer "Pulse tags" submenu (shell_tag_menu.cpp) and its dot icons.
+// File Explorer "Luling tags" submenu (shell_tag_menu.cpp) and its dot icons.
 void DeleteShellTagMenu() {
-    for (const wchar_t* key : {L"Software\\Classes\\*\\shell\\PulseTags", L"Software\\Classes\\Directory\\shell\\PulseTags",
+    for (const wchar_t* key : {L"Software\\Classes\\*\\shell\\LulingTags", L"Software\\Classes\\Directory\\shell\\LulingTags",
                                L"Software\\Classes\\CLSID\\{A2D41CF7-62E1-49F4-BCE9-3624D44FB779}"})
     {
         RegDeleteTreeW(HKEY_CURRENT_USER, key);
         RegDeleteKeyW(HKEY_CURRENT_USER, key);
     }
-    RemoveTree(LocalPulseDir() + L"\\tagicons");
+    RemoveTree(LocalLulingDir() + L"\\tagicons");
 }
 
 // ---- installed files ----------------------------------------------------
@@ -182,8 +182,8 @@ bool WriteFileManifest(const std::wstring& app_dir, const std::vector<std::wstri
     return WriteWholeFile(app_dir + L"\\" + kFileManifestName, data.data(), data.size());
 }
 
-bool IsPulseInstallDir(const std::wstring& app_dir) {
-    return FileExists(app_dir + L"\\pulse.exe") || FileExists(app_dir + L"\\" + kFileManifestName);
+bool IsLulingInstallDir(const std::wstring& app_dir) {
+    return FileExists(app_dir + L"\\luling.exe") || FileExists(app_dir + L"\\" + kFileManifestName);
 }
 
 bool IndexServiceInstalled() { return ServiceExists(kServiceName); }
@@ -191,34 +191,34 @@ bool IndexServiceInstalled() { return ServiceExists(kServiceName); }
 UninstallResult RunUninstall(const UninstallRequest& req, const UninstallCallbacks& cb) {
     const Options& o = req.options;
     const bool real = !o.test;
-    const bool upgrade = o.pulse_upgrade;
+    const bool upgrade = o.luling_upgrade;
     const std::wstring app = NormalizeDir(req.app_dir);
     UninstallResult result;
     auto progress = [&](int percent, const std::wstring& item) {
         if (cb.progress) cb.progress(percent, item);
     };
-    Log(L"Uninstalling Pulse from " + app + (upgrade ? L" (upgrade, keeping data)" : L"") +
+    Log(L"Uninstalling Luling from " + app + (upgrade ? L" (upgrade, keeping data)" : L"") +
         (o.test ? L" (test mode)" : L"") + (req.cleanup_data ? L"; removing user data" : L""));
-    if (app.size() < 4 || !IsPulseInstallDir(app)) {
+    if (app.size() < 4 || !IsLulingInstallDir(app)) {
         result.exit_code = kExitPrepareFailed;
         result.nothing_changed = true;
-        result.error = L"This folder does not contain a Pulse installation: " + app;
+        result.error = L"This folder does not contain a Luling installation: " + app;
         Log(result.error);
         return result;
     }
     // InitializeUninstall reads it before the service (and its config) goes away.
     const std::wstring index_path = real ? ConfiguredIndexPath() : std::wstring();
 
-    // 1. Close Pulse with the same idle handshake as an upgrade.
-    progress(3, L"pulse.exe");
+    // 1. Close Luling with the same idle handshake as an upgrade.
+    progress(3, L"luling.exe");
     const std::vector<std::wstring> dirs{app};
-    CloseState state = ClosePulseForUpdate(dirs, false);
-    while (state == CloseState::Busy && cb.busy && cb.busy()) state = ClosePulseForUpdate(dirs, false);
+    CloseState state = CloseLulingForUpdate(dirs, false);
+    while (state == CloseState::Busy && cb.busy && cb.busy()) state = CloseLulingForUpdate(dirs, false);
     if (state != CloseState::Done) {
         result.exit_code = kExitPrepareFailed;
         result.nothing_changed = true;
-        result.error = state == CloseState::Busy ? L"Pulse is still copying or moving files."
-                                                 : L"Pulse could not be closed.";
+        result.error = state == CloseState::Busy ? L"Luling is still copying or moving files."
+                                                 : L"Luling could not be closed.";
         Log(result.error);
         return result;
     }
@@ -227,21 +227,21 @@ UninstallResult RunUninstall(const UninstallRequest& req, const UninstallCallbac
     progress(10, kServiceName);
     if (real) {
         const DWORD stop = StopService(kServiceName, 15000);
-        if (stop != ERROR_SUCCESS) Log(L"Stopping PulseIndex: " + Win32Error(stop));
-        const std::wstring index_exe = app + L"\\Pulse.Index.exe";
+        if (stop != ERROR_SUCCESS) Log(L"Stopping LulingIndex: " + Win32Error(stop));
+        const std::wstring index_exe = app + L"\\Luling.Index.exe";
         if (FileExists(index_exe)) {
             const auto r = RunProcess(index_exe, L"--uninstall", true);
-            Log(L"Pulse.Index.exe --uninstall: " + std::to_wstring(r.exit_code));
+            Log(L"Luling.Index.exe --uninstall: " + std::to_wstring(r.exit_code));
         }
     }
-    StopPulseHosts(dirs, real);
-    WaitUntilImageGone(L"Pulse.Index.exe", dirs, 10000);
+    StopLulingHosts(dirs, real);
+    WaitUntilImageGone(L"Luling.Index.exe", dirs, 10000);
 
     // 3. usUninstall: give file associations back (not when only moving the install).
     if (real && !upgrade) {
-        progress(18, L"pulse_integration.exe");
-        const auto r = RunProcess(app + L"\\pulse_integration.exe",
-                                  L"--restore --exe " + Quote(app + L"\\pulse.exe"), true);
+        progress(18, L"luling_integration.exe");
+        const auto r = RunProcess(app + L"\\luling_integration.exe",
+                                  L"--restore --exe " + Quote(app + L"\\luling.exe"), true);
         result.restore_result = r.started ? static_cast<int>(r.exit_code) : 3;
         Log(L"Integration restore: " + std::to_wstring(result.restore_result));
     }
@@ -249,7 +249,7 @@ UninstallResult RunUninstall(const UninstallRequest& req, const UninstallCallbac
     // 4. Installed files, then the directories they leave empty.
     std::vector<std::wstring> files = ReadFileManifest(app);
     if (files.empty()) {
-        Log(L"No file manifest; removing the known Pulse files");
+        Log(L"No file manifest; removing the known Luling files");
         for (const wchar_t* f : kKnownFiles) files.push_back(f);
         CollectTree(app, L"licenses", files);
     }
@@ -271,18 +271,18 @@ UninstallResult RunUninstall(const UninstallRequest& req, const UninstallCallbac
         return a.size() > b.size();
     });
     for (const auto& d : subdirs) RemoveDirectoryW((app + L"\\" + d).c_str());
-    for (const wchar_t* work : {L"\\.pulse-setup", L"\\.pulse-staging"}) RemoveTree(app + work);
+    for (const wchar_t* work : {L"\\.luling-setup", L"\\.luling-staging"}) RemoveTree(app + work);
     if (!result.schedule_self_delete && FileExists(app + L"\\uninstall.exe")) result.schedule_self_delete = true;
 
     // 5. Shortcuts ([Icons]); the Start-menu group goes once it is empty.
     progress(80, L"Start menu");
     const std::wstring group = KnownFolder(real ? FOLDERID_CommonPrograms : FOLDERID_Programs) +
-                               (real ? L"\\Pulse" : L"\\Pulse Test");
-    for (const wchar_t* name : {L"\\Pulse.lnk", L"\\卸载 Pulse.lnk", L"\\解除安裝 Pulse.lnk", L"\\Uninstall Pulse.lnk"})
+                               (real ? L"\\Luling" : L"\\Luling Test");
+    for (const wchar_t* name : {L"\\Luling.lnk", L"\\卸载 鹿铃.lnk", L"\\解除安裝 鹿鈴.lnk", L"\\Uninstall Luling.lnk"})
         DeleteShortcut(group + name);
     RemoveDirectoryW(group.c_str());
     DeleteShortcut(KnownFolder(real ? FOLDERID_PublicDesktop : FOLDERID_Desktop) +
-                   (real ? L"\\Pulse.lnk" : L"\\Pulse Test.lnk"));
+                   (real ? L"\\Luling.lnk" : L"\\Luling Test.lnk"));
 
     // 6. Registry: uninstall entry, startup value, Explorer tag menu (usPostUninstall).
     progress(88, L"Registry");
@@ -298,12 +298,12 @@ UninstallResult RunUninstall(const UninstallRequest& req, const UninstallCallbac
         Log(L"Uninstall entry removed: " + std::to_wstring(s));
     }
     if (real) {
-        DeleteValue(HKEY_CURRENT_USER, 0, kRunKey, L"Pulse");
+        DeleteValue(HKEY_CURRENT_USER, 0, kRunKey, L"Luling");
         DeleteShellTagMenu();
         // 7. User data: explicit choice, otherwise only the preview-pack setting.
-        progress(94, L"%LOCALAPPDATA%\\Pulse");
-        if (req.cleanup_data) CleanupPulseData(index_path);
-        else if (!upgrade && RemovePreviewPacksOnUninstall()) RemoveTree(LocalPulseDir() + L"\\packs");
+        progress(94, L"%LOCALAPPDATA%\\Luling");
+        if (req.cleanup_data) CleanupLulingData(index_path);
+        else if (!upgrade && RemovePreviewPacksOnUninstall()) RemoveTree(LocalLulingDir() + L"\\packs");
     }
     progress(100, L"");
     result.exit_code = kExitOk;
@@ -332,4 +332,4 @@ void ScheduleSelfDelete(const std::wstring& self_path, const std::wstring& app_d
     }
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

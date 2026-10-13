@@ -43,4 +43,4 @@ jobs:
           if-no-files-found: error
 # Candidate artifacts only. Publish/install catalog entries only after verified
 # LZMS payloads and their source-pinned hashes exist; never advertise this job as
-# an available downloadable Pulse release.
+# an available downloadable Luling release.

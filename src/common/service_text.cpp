@@ -1,5 +1,5 @@
-// service_text.cpp — Display-time localization of text produced by Pulse's
-// helper processes (index service, network agent, pulse_shell, preview host).
+// service_text.cpp — Display-time localization of text produced by Luling's
+// helper processes (index service, network agent, luling_shell, preview host).
 //
 // Those processes do not know the signed-in user's UI language, so they report
 // Simplified Chinese as the canonical protocol text. The UI converts it here:
@@ -15,7 +15,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::l10n {
+namespace luling::l10n {
 namespace {
 
 struct ServicePhrase {
@@ -31,9 +31,9 @@ constexpr ServicePhrase kServiceExact[] = {
      L"Choose a separate index folder. It can't contain or be inside the current location, and it can't be a "
      L"linked folder. If you choose a drive root, its Index folder is used."},
     {L"正在等待索引服务…", L"Waiting for the index service…"},
-    {L"找不到 Pulse.Index.exe", L"Pulse.Index.exe not found"},
-    {L"索引进程版本过旧，请重启 Pulse 和索引服务以启用实时搜索",
-     L"The index service is out of date. Restart Pulse and the index service to enable live search"},
+    {L"找不到 Luling.Index.exe", L"Luling.Index.exe not found"},
+    {L"索引进程版本过旧，请重启 鹿铃 和索引服务以启用实时搜索",
+     L"The index service is out of date. Restart Luling and the index service to enable live search"},
     {L"索引连接已断开，正在重新连接…", L"Index connection lost, reconnecting…"},
     {L"已取消索引迁移，原位置保持不变。", L"Index move canceled. The original location is unchanged."},
     {L"另一项索引设置正在处理，请完成后重试。",
@@ -122,7 +122,7 @@ constexpr ServicePhrase kServiceExact[] = {
     {L"已保留索引", L"Index kept"},
     {L"无法访问", L"Not accessible"},
 
-    // pulse_shell (shell host) and its client
+    // luling_shell (shell host) and its client
     {L"没有权限在此位置新建", L"You don't have permission to create items here"},
     {L"目标文件夹不存在", L"The target folder doesn't exist"},
     {L"已存在同名项目", L"An item with the same name already exists"},
@@ -135,11 +135,11 @@ constexpr ServicePhrase kServiceExact[] = {
     {L"还原失败", L"Restore failed"},
     {L"回收站中未找到该项", L"The item was not found in the Recycle Bin"},
     {L"部分项目未能还原", L"Some items could not be restored"},
-    {L"找不到 pulse_shell.exe（需与 Pulse 放在同一目录）",
-     L"pulse_shell.exe not found (it must be in the same folder as Pulse)"},
-    {L"pulse_shell.exe 管道忙碌", L"pulse_shell.exe pipe is busy"},
-    {L"pulse_shell.exe 启动后立即退出", L"pulse_shell.exe exited right after starting"},
-    {L"pulse_shell.exe 未响应管道", L"pulse_shell.exe did not respond on its pipe"},
+    {L"找不到 luling_shell.exe（需与 鹿铃 放在同一目录）",
+     L"luling_shell.exe not found (it must be in the same folder as Luling)"},
+    {L"luling_shell.exe 管道忙碌", L"luling_shell.exe pipe is busy"},
+    {L"luling_shell.exe 启动后立即退出", L"luling_shell.exe exited right after starting"},
+    {L"luling_shell.exe 未响应管道", L"luling_shell.exe did not respond on its pipe"},
 
     // preview host property labels
     {L"尺寸", L"Dimensions"},
@@ -173,7 +173,7 @@ constexpr ServicePhrase kServicePatterns[] = {
     {L"保存索引配置失败（{n}）", L"Could not save the index configuration ({n})"},
     {L"无法创建索引目录（{n}）：{}", L"Could not create the index folder ({n}): {}"},
     {L"无法创建索引目录（{n}）", L"Could not create the index folder ({n})"},
-    {L"无法启动 pulse_shell.exe（错误 {n}）", L"Could not start pulse_shell.exe (error {n})"},
+    {L"无法启动 luling_shell.exe（错误 {n}）", L"Could not start luling_shell.exe (error {n})"},
     {L"错误 {n}：{}", L"Error {n}: {}"},
     {L"错误 {n}", L"Error {n}"},
     {L"{n} 项", L"{n} items"},
@@ -324,4 +324,4 @@ std::wstring ServiceErrorText(std::wstring_view text) {
     return out;
 }
 
-} // namespace pulse::l10n
+} // namespace luling::l10n

@@ -2,7 +2,7 @@
 #include <windowsx.h>
 #include "../ui/preview_grab_cursor.h"
 
-namespace pulse {
+namespace luling {
 bool HandleDetailsPreviewPointer(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (!s) return false;
     const float x = static_cast<float>(GET_X_LPARAM(lParam));
@@ -45,4 +45,4 @@ bool HandleDetailsPreviewPointer(AppState* s, HWND hwnd, UINT msg, WPARAM wParam
     InvalidateRect(hwnd, nullptr, FALSE);
     return true;
 }
-} // namespace pulse
+} // namespace luling

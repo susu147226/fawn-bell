@@ -1,8 +1,8 @@
 // P0 bootstrapper: console extractor used to validate the payload format and
 // measure the final setup size. Replaced by the windowed setup in P2.
 //
-//   PulseSetup-P0.exe --info
-//   PulseSetup-P0.exe --extract <folder>
+//   LulingSetup-P0.exe --info
+//   LulingSetup-P0.exe --extract <folder>
 
 #include <windows.h>
 
@@ -25,7 +25,7 @@ std::wstring SelfPath() {
 
 int wmain(int argc, wchar_t** argv) {
     SetConsoleOutputCP(CP_UTF8);
-    pulse::setup::Payload payload;
+    luling::setup::Payload payload;
     std::wstring error;
     const ULONGLONG t0 = GetTickCount64();
     if (!payload.Open(SelfPath(), error)) { fwprintf(stderr, L"error: %ls\n", error.c_str()); return 2; }
@@ -35,7 +35,7 @@ int wmain(int argc, wchar_t** argv) {
             info.version.c_str(), info.files.size(), info.total_bytes, info.payload_size, t1 - t0);
     if (argc >= 3 && std::wstring(argv[1]) == L"--extract") {
         int last = -1;
-        const bool ok = payload.ExtractTo(argv[2], [&](const pulse::setup::ExtractProgress& p) {
+        const bool ok = payload.ExtractTo(argv[2], [&](const luling::setup::ExtractProgress& p) {
             const int pct = p.total_bytes ? static_cast<int>(p.done_bytes * 100 / p.total_bytes) : 0;
             if (pct != last && pct % 10 == 0) { wprintf(L"  %3d%%  %ls\n", pct, p.current->path.c_str()); last = pct; }
             return true;

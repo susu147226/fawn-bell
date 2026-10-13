@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -926,4 +926,4 @@ bool ReadWordModel(const std::wstring& path, DocModel& model, std::wstring* erro
     return false;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

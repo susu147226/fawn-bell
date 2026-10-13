@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 struct UdfEntry {
     std::wstring path;
     uint64_t size = 0;
@@ -33,4 +33,4 @@ struct UdfListing {
 // file remains owned by caller. Limits are checked before every physical read.
 bool ReadUdfListing(HANDLE file, uint64_t file_size, UdfListing& out,
                     const UdfLimits& limits = {});
-} // namespace pulse::preview
+} // namespace luling::preview

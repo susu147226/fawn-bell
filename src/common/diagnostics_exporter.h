@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace pulse::diagnostics {
+namespace luling::diagnostics {
 
 struct ExportOptions {
     std::wstring source_root;
@@ -14,4 +14,4 @@ struct ExportOptions {
 bool Export(const ExportOptions& options, std::wstring* error = nullptr);
 bool ClearCrashReports(const std::wstring& source_root, std::wstring* error = nullptr);
 
-} // namespace pulse::diagnostics
+} // namespace luling::diagnostics

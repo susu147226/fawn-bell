@@ -1,6 +1,6 @@
 @echo off
-rem Build Release binaries, then pack dist\PulseSetup-<version>.exe
-rem (Pulse setup; see scripts\pack_setup.bat).
+rem Build Release binaries, then pack dist\LulingSetup-<version>.exe
+rem (Luling setup; see scripts\pack_setup.bat).
 setlocal
 cd /d "%~dp0"
 

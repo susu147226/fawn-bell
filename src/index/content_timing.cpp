@@ -7,7 +7,7 @@
 #include <psapi.h>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 constexpr size_t kLanes = static_cast<size_t>(ContentTimingLane::Count);
 constexpr size_t kStages = static_cast<size_t>(ContentTimingStage::Count);
@@ -109,11 +109,11 @@ std::wstring Environment(const wchar_t* name) {
     return value;
 }
 std::wstring LogPath() {
-    auto directory = Environment(L"PULSE_CONTENT_TIMING_DIR");
+    auto directory = Environment(L"LULING_CONTENT_TIMING_DIR");
     if (directory.empty()) {
         directory = Environment(L"LOCALAPPDATA");
         if (directory.empty()) return {};
-        directory += L"\\Pulse\\logs";
+        directory += L"\\Luling\\logs";
     }
     std::error_code error;
     std::filesystem::create_directories(directory, error);

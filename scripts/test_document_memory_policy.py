@@ -14,8 +14,8 @@ binary = base / 'bin'
 slots = base / 'slots'
 binary.mkdir(parents=True)
 slots.mkdir()
-shutil.copy2(root / 'build_realtime/pulse_pdf_bench.exe', binary / 'pulse_pdf_bench.exe')
-shutil.copy2(root / 'build_realtime/pulse_document_failure_fixture.exe', binary / 'Pulse.Document.exe')
+shutil.copy2(root / 'build_realtime/luling_pdf_bench.exe', binary / 'luling_pdf_bench.exe')
+shutil.copy2(root / 'build_realtime/luling_document_failure_fixture.exe', binary / 'Luling.Document.exe')
 checks, results = [], []
 
 def run(mode, cancel_ms=0, engine="pdfium"):
@@ -25,8 +25,8 @@ def run(mode, cancel_ms=0, engine="pdfium"):
     path.write_bytes(b'%PDF-1.7 generated isolated fixture\n')
     before = path.stat()
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    env = dict(os.environ, PULSE_DOCUMENT_ADMISSION_DIR=str(slots), PULSE_DOCUMENT_FAILURE_FIXTURE=mode)
-    process = subprocess.run([str(binary / 'pulse_pdf_bench.exe'), engine, str(path), '', str(cancel_ms)],
+    env = dict(os.environ, LULING_DOCUMENT_ADMISSION_DIR=str(slots), LULING_DOCUMENT_FAILURE_FIXTURE=mode)
+    process = subprocess.run([str(binary / 'luling_pdf_bench.exe'), engine, str(path), '', str(cancel_ms)],
                              env=env, capture_output=True, timeout=34)
     header, body = process.stdout.split(b'\n', 1)
     value = json.loads(header)

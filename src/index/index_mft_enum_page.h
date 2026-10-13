@@ -7,7 +7,7 @@
 #include <cstring>
 #include <span>
 
-namespace pulse::index {
+namespace luling::index {
 
 struct MftEnumPage {
     uint64_t next_cursor = 0;
@@ -48,4 +48,4 @@ inline bool ParseMftEnumPage(std::span<const BYTE> bytes, uint64_t cursor,
     return true;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

@@ -8,7 +8,7 @@
 #include <map>
 #include <wrl/client.h>
 
-using namespace pulse::ui;
+using namespace luling::ui;
 namespace {
 int failures = 0;
 void Check(bool ok, const char* name) {
@@ -82,7 +82,7 @@ int main() {
     Check(NormalizePickerInput(L"\\\\?\\UNC\\server\\share\\file") == L"\\\\server\\share\\file", "UNC extended prefix normalization");
     Check(PickerParent(L"\\\\server\\share") == L"", "UNC share root parent");
 
-    const auto base = std::filesystem::temp_directory_path() / (L"pulse-picker-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+    const auto base = std::filesystem::temp_directory_path() / (L"luling-picker-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
     std::filesystem::create_directories(base / L"folder");
     struct Cleanup { std::filesystem::path path; ~Cleanup() { std::error_code error; std::filesystem::remove_all(path, error); } } cleanup{std::filesystem::path(L"\\\\?\\" + base.wstring())};
     std::ofstream(base / L"a file.txt") << "hello";
@@ -99,11 +99,11 @@ int main() {
         loader.Validate(201, base.wstring(), {L"folder"}, PickerMode::Folder);
         result = WaitValidation(window);
         Check(result && result->paths.size() == 1 && result->navigate.empty(), "folder mode confirms directory");
-        SetEnvironmentVariableW(L"PULSE_PICKER_TEST_ROOT", base.c_str());
-        loader.Validate(202, L"", {L"%PULSE_PICKER_TEST_ROOT%\\LICENSE"}, PickerMode::File);
+        SetEnvironmentVariableW(L"LULING_PICKER_TEST_ROOT", base.c_str());
+        loader.Validate(202, L"", {L"%LULING_PICKER_TEST_ROOT%\\LICENSE"}, PickerMode::File);
         result = WaitValidation(window);
         Check(result && result->paths.size() == 1, "environment path expansion");
-        SetEnvironmentVariableW(L"PULSE_PICKER_TEST_ROOT", nullptr);
+        SetEnvironmentVariableW(L"LULING_PICKER_TEST_ROOT", nullptr);
         auto long_path = base;
         for (int part = 0; part < 6; ++part) {
             long_path /= std::wstring(48, L'x') + std::to_wstring(part);

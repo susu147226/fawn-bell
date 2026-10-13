@@ -1,5 +1,5 @@
 #pragma once
-namespace pulse::app {
+namespace luling::app {
 bool RunRenameEditorTest();
 bool RunAddressEditorTest();
 }

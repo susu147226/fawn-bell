@@ -9,9 +9,9 @@ try {
     if ($WaitForBuildPid -and (Get-Process -Id $WaitForBuildPid -ErrorAction SilentlyContinue)) {
         Wait-Process -Id $WaitForBuildPid -Timeout 1800
     }
-    & cmd.exe /d /c "call scripts\vcvars.bat && cmake --build build_st --target pulse pulse_review_security_test pulse_network_agent_client_test pulse_index_migration_test -j 4 > `"$run\build.log`" 2>&1"
+    & cmd.exe /d /c "call scripts\vcvars.bat && cmake --build build_st --target luling luling_review_security_test luling_network_agent_client_test luling_index_migration_test -j 4 > `"$run\build.log`" 2>&1"
     if ($LASTEXITCODE) { throw 'Security targets did not build; see build.log' }
-    foreach ($name in @('pulse_review_security_test','pulse_network_agent_client_test','pulse_index_migration_test')) {
+    foreach ($name in @('luling_review_security_test','luling_network_agent_client_test','luling_index_migration_test')) {
         $p = New-Object System.Diagnostics.Process
         $p.StartInfo.FileName = "$root\build_st\$name.exe"
         $p.StartInfo.WorkingDirectory = $root

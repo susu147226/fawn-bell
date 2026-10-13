@@ -10,16 +10,16 @@
 #include <shlobj.h>
 #include <algorithm>
 
-namespace pulse {
+namespace luling {
 namespace {
 
 // Shot and test runs stay out of the real shell. Selftest builds can opt an
 // isolated instance in (`variable` set) for real-shell tests; it never
-// touches the user's Pulse, but it does take part in the shell.
+// touches the user's Luling, but it does take part in the shell.
 bool ShellIntegrationAllowed(const AppState& s, const wchar_t* variable) {
     if (s.shot.active || s.menushot) return false;
     if (!s.isolatedTest) return true;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     return GetEnvironmentVariableW(variable, nullptr, 0) > 0;
 #else
     (void)variable;
@@ -28,12 +28,12 @@ bool ShellIntegrationAllowed(const AppState& s, const wchar_t* variable) {
 }
 
 bool ShellWindowsEnabled(const AppState& s) {
-    if (s.isolatedTest) return ShellIntegrationAllowed(s, L"PULSE_TEST_SHELL_WINDOWS");
-    return ShellIntegrationAllowed(s, nullptr) && s.appPrefs.integration_enabled && s.appPrefs.open_folders_in_pulse;
+    if (s.isolatedTest) return ShellIntegrationAllowed(s, L"LULING_TEST_SHELL_WINDOWS");
+    return ShellIntegrationAllowed(s, nullptr) && s.appPrefs.integration_enabled && s.appPrefs.open_folders_in_luling;
 }
 
 bool ExplorerTakeoverEnabled(const AppState& s) {
-    if (s.isolatedTest) return ShellIntegrationAllowed(s, L"PULSE_TEST_EXPLORER_TAKEOVER");
+    if (s.isolatedTest) return ShellIntegrationAllowed(s, L"LULING_TEST_EXPLORER_TAKEOVER");
     return ShellIntegrationAllowed(s, nullptr) && s.appPrefs.integration_enabled && s.appPrefs.take_over_explorer_windows;
 }
 
@@ -168,7 +168,7 @@ void HandleShellSelect(AppState& s, const app::ShellSelectRequest& request) {
         tab = ActiveTab(s);
         if (!tab) return;
     }
-    // SVSI_EDIT (rename) still only selects: Pulse never starts a rename
+    // SVSI_EDIT (rename) still only selects: Luling never starts a rename
     // on another program's behalf.
     if (request.flags & SVSI_DESELECTOTHERS) SelectNameInTab(s, *tab, leaf);
     else AddNameToSelection(s, *tab, leaf);
@@ -229,4 +229,4 @@ void CompleteExplorerNavigation(app::Tab& tab, uint64_t generation, bool success
     lease->Complete(tab.current_path, generation, true, std::move(selected), GetTickCount64());
 }
 
-} // namespace pulse
+} // namespace luling

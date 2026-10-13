@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "../app/app_internal.h"
 #include <filesystem>
 #include <fstream>
@@ -7,10 +7,10 @@
 #include <cstdio>
 namespace {
 LRESULT CALLBACK TrayTagsWindow(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    auto* state = reinterpret_cast<pulse::AppState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (msg == pulse::WM_TAG_ADS_DISCOVERED) {
-        std::unique_ptr<std::vector<pulse::TagAdsDiscovery>> rows(reinterpret_cast<std::vector<pulse::TagAdsDiscovery>*>(lp));
-        if (state && rows) pulse::ApplyTagAdsDiscoveries(*state, *rows);
+    auto* state = reinterpret_cast<luling::AppState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (msg == luling::WM_TAG_ADS_DISCOVERED) {
+        std::unique_ptr<std::vector<luling::TagAdsDiscovery>> rows(reinterpret_cast<std::vector<luling::TagAdsDiscovery>*>(lp));
+        if (state && rows) luling::ApplyTagAdsDiscoveries(*state, *rows);
         return 0;
     }
     return DefWindowProcW(hwnd, msg, wp, lp);
@@ -35,7 +35,7 @@ struct Probe {
 };
 }
 bool RunTrayTagsUiTest() {
-    using namespace pulse;
+    using namespace luling;
     std::filesystem::create_directories(L"bench_data");
     FILE* log = nullptr; _wfopen_s(&log, L"bench_data/m18034_tray_tags_test.log", L"w");
     if (!log) return false;
@@ -57,7 +57,7 @@ bool RunTrayTagsUiTest() {
     s.isolatedTest = true; s.shot.active = true;
     s.appPrefs.persist = s.searchHistory.persist = s.ctxMenuPrefs.persist = s.places.persist = false;
     s.appPrefs.tray_dests.clear();
-    WNDCLASSW wc{}; wc.lpfnWndProc = TrayTagsWindow; wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"PulseTrayTagsPrivateTest";
+    WNDCLASSW wc{}; wc.lpfnWndProc = TrayTagsWindow; wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"LulingTrayTagsPrivateTest";
     RegisterClassW(&wc);
     s.hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_POPUP, 0, 0, 1000, 640, nullptr, nullptr, wc.hInstance, nullptr);
     SetWindowLongPtrW(s.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&s));

@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <winnetwk.h>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 #pragma pack(push, 1)
@@ -551,12 +551,12 @@ bool LoadNetworkRootsFile(const std::wstring& path, std::vector<std::wstring>& r
     std::vector<uint8_t> bytes;
     if (!ReadBytes(path, bytes, error)) return false;
     std::wstring json;
-    if (!pulse::DecodeUtf8Bytes(bytes, json)) {
+    if (!luling::DecodeUtf8Bytes(bytes, json)) {
         SetError(error, L"网络索引配置不是有效的 UTF-8 文件");
         return false;
     }
     std::vector<std::wstring> raw_roots;
-    if (!pulse::json::ConfigSyntax(json, false).StringArrayMember(L"roots", raw_roots)) {
+    if (!luling::json::ConfigSyntax(json, false).StringArrayMember(L"roots", raw_roots)) {
         SetError(error, L"网络索引配置已损坏");
         return false;
     }
@@ -589,14 +589,14 @@ bool SaveNetworkRootsFile(const std::wstring& path, const std::vector<std::wstri
     std::wstring json = L"{\n  \"version\":1,\n  \"roots\":[";
     for (size_t i = 0; i < roots.size(); ++i) {
         std::wstring escaped;
-        pulse::json::Escape(roots[i], escaped);
+        luling::json::Escape(roots[i], escaped);
         if (i) json += L",";
         json += L"\n    \"" + escaped + L"\"";
     }
     if (!roots.empty()) json += L"\n  ";
     json += L"]\n}\n";
     std::vector<uint8_t> bytes;
-    if (!pulse::EncodeUtf8Bytes(json, bytes)) {
+    if (!luling::EncodeUtf8Bytes(json, bytes)) {
         SetError(error, L"无法将网络索引配置编码为 UTF-8");
         return false;
     }
@@ -1947,9 +1947,9 @@ SearchResult MergeSearchResults(const Query& query, SearchResult local,
     return result;
 }
 
-} // namespace pulse::index
+} // namespace luling::index
 
-namespace pulse::index {
+namespace luling::index {
 void LiveNetworkWalk(const std::wstring& folder, const std::wstring& needle, bool folders_only,
     LiveNetworkMatches& out, std::mutex& mutex, const std::function<bool()>& cancelled,
     const std::function<void()>& progress, const Query* selection) {

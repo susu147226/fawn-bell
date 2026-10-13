@@ -1,7 +1,7 @@
 #include "index_engine.h"
 #include <algorithm>
 
-namespace pulse::index {
+namespace luling::index {
 FolderSizeIndex::Item Engine::FolderSizeItem(int32_t id) const {
     if (id < 0 || id >= LiveCount() || IsTomb(id)) return {};
     const auto n = NodeAt(id);

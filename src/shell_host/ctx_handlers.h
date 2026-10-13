@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::shell {
+namespace luling::shell {
 
 struct CtxHandlerDesc {
     CLSID clsid{};
@@ -72,4 +72,4 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
 uint32_t FindItemId(const std::vector<CtxItemOut>& items, uint32_t id,
                     const std::wstring& verb, const std::wstring& text);
 
-} // namespace pulse::shell
+} // namespace luling::shell

@@ -7,7 +7,7 @@
 #include <array>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 struct Api {
     HMODULE module = nullptr;

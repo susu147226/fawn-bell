@@ -7,7 +7,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 enum class FolderSizeState { Manual, Calculating, Ready, Updating, Partial, Unavailable, Cached, Indexed };
 enum class FolderSizeSource { Unknown, Scan, Index };
 enum class FolderSizeActivity { Idle, Queued, Scanning, Deferred, Failed, Cancelled };

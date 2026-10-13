@@ -27,7 +27,7 @@
 #include <cwctype>
 #include <thread>
 
-namespace pulse {
+namespace luling {
 namespace {
 using Microsoft::WRL::ComPtr;
 using l10n::StringId;
@@ -428,7 +428,7 @@ struct GlobalSearchWindow::Impl {
         Label(text, rect, 12, color, false, L"Segoe UI", false, DWRITE_TEXT_ALIGNMENT_CENTER);
     }
     // Returns the left edge of what was drawn. With handoff_only (the result
-    // list is truncated) only the "continue in Pulse" hint is shown.
+    // list is truncated) only the "continue in Luling" hint is shown.
     float DrawKeys(float bottom, UINT32 color, UINT32 accent, bool handoff_only) {
         const std::wstring keys[] = {L"↑", L"↓", L"Enter", L"Ctrl + Enter", L"Shift + Enter"};
         const std::wstring actions[] = {L"", Text(StringId::GlobalSearchSelect), Text(StringId::Open),
@@ -737,10 +737,10 @@ struct GlobalSearchWindow::Impl {
         if (!hwnd) {
             WNDCLASSEXW cls{sizeof(cls)}; cls.style = CS_DBLCLKS;
             cls.lpfnWndProc = WindowProc; cls.hInstance = GetModuleHandleW(nullptr);
-            cls.hCursor = LoadCursorW(nullptr, IDC_ARROW); cls.lpszClassName = L"Pulse.GlobalSearch";
+            cls.hCursor = LoadCursorW(nullptr, IDC_ARROW); cls.lpszClassName = L"Luling.GlobalSearch";
             RegisterClassExW(&cls);
             // A hidden owner would hide/minimize this window too; the owner only chooses the monitor.
-            if (!CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOREDIRECTIONBITMAP, cls.lpszClassName, L"Pulse Search", WS_POPUP | WS_CLIPCHILDREN,
+            if (!CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOREDIRECTIONBITMAP, cls.lpszClassName, L"Luling Search", WS_POPUP | WS_CLIPCHILDREN,
                 0, 0, Px(780), Px(488), nullptr, nullptr, cls.hInstance, this)) return false;
             edit = ui::CreateChildEdit(hwnd);
             if (!edit) { DestroyWindow(hwnd); hwnd = nullptr; return false; }

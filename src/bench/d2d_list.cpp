@@ -1,5 +1,5 @@
 #include "../common/windows_compat.h"
-// d2d_list.cpp — Pulse Stage 0: Direct2D virtual list visual/perf sample.
+// d2d_list.cpp — Luling Stage 0: Direct2D virtual list visual/perf sample.
 // Fluent details view: 100k fake rows, Mica, rounded corners, Snap Layouts.
 #include <windows.h>
 #include <windowsx.h>
@@ -726,7 +726,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(s));
         s->hwnd = hwnd;
 
-        s->dpiX = s->dpiY = pulse::compat::WindowDpi(hwnd);
+        s->dpiX = s->dpiY = luling::compat::WindowDpi(hwnd);
         s->scale = (float)s->dpiX / 96.0f;
 
         s->accentColor = GetAccentColor();
@@ -747,7 +747,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         s->clientH = rc.bottom;
 
         if (!InitD3D(*s) || !CreateSwapChain(*s)) {
-            MessageBoxW(hwnd, L"Failed to initialize D3D/D2D/DWrite", L"Pulse", MB_OK);
+            MessageBoxW(hwnd, L"Failed to initialize D3D/D2D/DWrite", L"Luling", MB_OK);
             return -1;
         }
         ResizeSwapChain(*s);
@@ -948,7 +948,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 // Entry point
 // ---------------------------------------------------------------------------
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
 
     // Parse command line.
     const wchar_t* shotPath = nullptr;
@@ -968,7 +968,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     wc.hInstance = hInstance;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
-    wc.lpszClassName = L"PulseD2DList";
+    wc.lpszClassName = L"LulingD2DList";
     RegisterClassExW(&wc);
 
     AppState state;
@@ -977,7 +977,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     HWND hwnd = CreateWindowExW(
         WS_EX_NOREDIRECTIONBITMAP,
         wc.lpszClassName,
-        L"Pulse — D2D Virtual List",
+        L"Luling — D2D Virtual List",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
         (int)(1600 * state.scale), (int)(960 * state.scale),

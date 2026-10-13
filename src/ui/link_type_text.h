@@ -2,7 +2,7 @@
 #include "../fs/fs_enum.h"
 #include "../common/localization.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 inline std::wstring LinkTypeText(fs::LinkKind kind) {
     if (kind == fs::LinkKind::SymbolicLink) return l10n::Pick(L"符号链接", L"Symbolic link");
@@ -10,4 +10,4 @@ inline std::wstring LinkTypeText(fs::LinkKind kind) {
     return {};
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -1,4 +1,4 @@
-// Isolated queue and overlapped-I/O regressions; never opens a volume or Pulse service.
+// Isolated queue and overlapped-I/O regressions; never opens a volume or Luling service.
 #include "../index/usn_stream.h"
 #include "../index/index_memory_probe.h"
 #include <algorithm>
@@ -33,7 +33,7 @@ void operator delete[](void* p) noexcept { Release(p); }
 void operator delete(void* p, size_t) noexcept { Release(p); }
 void operator delete[](void* p, size_t) noexcept { Release(p); }
 
-namespace pulse::index {
+namespace luling::index {
 struct UsnStreamTestAccess {
     static std::unique_ptr<UsnStream> Make(HANDLE signal) {
         return std::unique_ptr<UsnStream>(new UsnStream(signal));
@@ -42,7 +42,7 @@ struct UsnStreamTestAccess {
     static void Fail(UsnStream& s, DWORD error) { s.Failed(error); }
 };
 }
-using namespace pulse::index;
+using namespace luling::index;
 namespace {
 int passes = 0, failures = 0;
 void Check(bool ok, const char* name) {
@@ -210,7 +210,7 @@ struct Pipe {
     }
     bool Open(int id) {
         wchar_t name[128]{};
-        swprintf_s(name, L"\\\\.\\pipe\\pulse-usn-regression-%lu-%llu-%d", GetCurrentProcessId(), GetTickCount64(), id);
+        swprintf_s(name, L"\\\\.\\pipe\\luling-usn-regression-%lu-%llu-%d", GetCurrentProcessId(), GetTickCount64(), id);
         server = CreateNamedPipeW(name, PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
             PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 64, 64, 0, nullptr);
         if (server == INVALID_HANDLE_VALUE || !stop || !completed) return false;

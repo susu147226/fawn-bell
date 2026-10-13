@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 enum class DocAlign { Left, Center, Right, Justify };
 
@@ -45,4 +45,4 @@ bool ReadDocxModel(const std::wstring& path, DocModel& model, std::wstring* erro
 bool ReadXlsxModel(const std::wstring& path, int rows, int cols, SheetModel& model,
                    std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

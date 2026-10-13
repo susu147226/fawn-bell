@@ -18,10 +18,10 @@ std::string Read(const std::filesystem::path& path) {
 }
 
 int RunFilePickerOperationsTest() {
-    const auto desktop_name = L"PulsePickerOps_" + std::to_wstring(GetCurrentProcessId());
+    const auto desktop_name = L"LulingPickerOps_" + std::to_wstring(GetCurrentProcessId());
     HDESK desktop = CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
     if (!desktop || !SetThreadDesktop(desktop)) return 2;
-    using namespace pulse;
+    using namespace luling;
     setvbuf(stdout, nullptr, _IONBF, 0);
     OleInitialize(nullptr);
     l10n::Initialize(GetModuleHandleW(nullptr), L"en-US");
@@ -122,6 +122,6 @@ int RunFilePickerOperationsTest() {
     return failures ? 1 : 0;
 }
 
-#if defined(PULSE_FILE_PICKER_OPERATIONS_STANDALONE)
+#if defined(LULING_FILE_PICKER_OPERATIONS_STANDALONE)
 int main() { return RunFilePickerOperationsTest(); }
 #endif

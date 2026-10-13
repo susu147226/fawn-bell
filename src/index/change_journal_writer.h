@@ -6,7 +6,7 @@
 #include <ostream>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 // Same little-endian / UTF-16 layout as PayloadWriter, without a journal-sized
 // staging vector. Existing readers and the atomic temp-file replacement stay unchanged.
 class ChangeJournalWriter {

@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdio>
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static bool Load(Engine& engine) { return engine.TryLoadCache(); }
     static void Add(Engine& engine, const std::wstring& root, const std::wstring& relative, DWORD action = FILE_ACTION_ADDED) {
@@ -23,7 +23,7 @@ struct EngineTestAccess {
 };
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     namespace fs = std::filesystem;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); fflush(stdout); failures += !ok; };

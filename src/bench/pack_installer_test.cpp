@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-using namespace pulse;
-using namespace pulse::app;
+using namespace luling;
+using namespace luling::app;
 
 namespace {
 int g_failed = 0, g_passed = 0;
@@ -79,7 +79,7 @@ struct Fixture {
             x = x * 1664525u + 1013904223u;
             big[i] = (i / 4096) % 2 ? static_cast<uint8_t>(x >> 24) : static_cast<uint8_t>(i / 4096);
         }
-        const std::string note = "Pulse FFmpeg preview pack\r\nLicense: LGPL-2.1\r\n";
+        const std::string note = "Luling FFmpeg preview pack\r\nLicense: LGPL-2.1\r\n";
         plain = {big, std::vector<uint8_t>(note.begin(), note.end())};
         names = {L"ffmpeg.exe", L"SOURCE.txt"};
         for (size_t i = 0; i < plain.size(); ++i) {
@@ -117,7 +117,7 @@ struct Fixture {
 std::wstring MakeRoot() {
     wchar_t tmp[MAX_PATH];
     GetTempPathW(MAX_PATH, tmp);
-    std::wstring root = std::wstring(tmp) + L"pulse_pack_installer_test_" + std::to_wstring(GetCurrentProcessId());
+    std::wstring root = std::wstring(tmp) + L"luling_pack_installer_test_" + std::to_wstring(GetCurrentProcessId());
     RemovePackTree(root);
     CreateDirectoryW(root.c_str(), nullptr);
     return root;
@@ -203,7 +203,7 @@ int wmain(int argc, wchar_t** argv) {
     if (argc == 4 && !wcscmp(argv[1], L"--catalog-assets")) return OnlineInstall(argv[3], argv[2]);
     if (argc == 3 && !wcscmp(argv[1], L"--online")) return OnlineInstall(argv[2]);
     if (argc != 1) {
-        std::printf("Usage: pulse_pack_installer_test [--online <new-isolated-root> | --catalog-assets <downloads> <new-isolated-root>]\n");
+        std::printf("Usage: luling_pack_installer_test [--online <new-isolated-root> | --catalog-assets <downloads> <new-isolated-root>]\n");
         return 2;
     }
     const auto defaults = packs::ParsePackSettings(L"{}");
@@ -214,7 +214,7 @@ int wmain(int argc, wchar_t** argv) {
     const auto roundtrip = packs::ParsePackSettings(packs::SerializePackSettings(settings));
     Check(!roundtrip.enabled[2] && !roundtrip.enabled[3] && roundtrip.enabled[0] && roundtrip.enabled[1],
           "RAW and archive enable states round-trip independently");
-    Check(std::wstring(packs::PackMainTool(packs::PackId::Raw)) == L"pulse-rawpack.exe" &&
+    Check(std::wstring(packs::PackMainTool(packs::PackId::Raw)) == L"luling-rawpack.exe" &&
           std::wstring(packs::PackMainTool(packs::PackId::Archives)) == L"7z.exe", "new pack tool routing");
 
     const std::wstring root = MakeRoot();

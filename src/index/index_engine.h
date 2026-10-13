@@ -34,7 +34,7 @@
 #include <windows.h>
 #include <winioctl.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 inline constexpr size_t kSearchPageCap = 100000;
 inline constexpr size_t kSearchUiPageSize = 2048;
@@ -507,4 +507,4 @@ private:
     mutable MatchSet cache_set_;
 };
 
-} // namespace pulse::index
+} // namespace luling::index

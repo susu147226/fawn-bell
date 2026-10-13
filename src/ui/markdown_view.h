@@ -15,7 +15,7 @@
 #include "FluentTokens.h"
 #include "markdown_image_metadata.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class ThumbnailCache;
 struct DocumentImageSession;
@@ -182,4 +182,4 @@ private:
     bool brushes_dark_ = false;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

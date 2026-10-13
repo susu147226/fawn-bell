@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-testable, no OLE).
@@ -29,7 +29,7 @@ std::wstring VolumeRoot(const std::wstring& path);
 // Explorer modifier semantics. allowed is the DoDragDrop dwOKEffects mask and
 // preferred_effect the source's Preferred DropEffect (0 when it sets none).
 // Modifiers win. With no modifier, a source that asks for exactly COPY or
-// exactly MOVE gets it; COPY|MOVE ("either is fine", which Pulse's own drags
+// exactly MOVE gets it; COPY|MOVE ("either is fine", which Luling's own drags
 // publish) keeps the same-volume default.
 DWORD ComputeDropEffect(DWORD key_state, const std::wstring& source_sample,
                         const std::wstring& dest_dir, DWORD allowed,
@@ -151,4 +151,4 @@ private:
     DWORD preferred_ = 0;               // source's Preferred DropEffect, from DragEnter
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

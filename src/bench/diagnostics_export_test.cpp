@@ -30,10 +30,10 @@ std::string Read(const fs::path& path) {
 
 bool Export(const fs::path& source, const fs::path& destination, std::wstring* error = nullptr) {
     fs::create_directories(destination);
-    pulse::diagnostics::ExportOptions options;
+    luling::diagnostics::ExportOptions options;
     options.source_root = source.wstring();
     options.destination = destination.wstring();
-    return pulse::diagnostics::Export(options, error);
+    return luling::diagnostics::Export(options, error);
 }
 
 bool Symlink(const fs::path& link, const fs::path& target, bool directory) {
@@ -69,7 +69,7 @@ void Run(const fs::path& root) {
     Write(runtime / L"app-101.jsonl.2", "private");
     Write(source / L"preferences.json", "private");
     Write(source / L"index.db", "private");
-    Write(source / L"pulse_shell_host.log", "legacy\n");
+    Write(source / L"luling_shell_host.log", "legacy\n");
     fs::create_directories(source / L"Diagnostics" / L"Crashes");
     Write(source / L"Diagnostics" / L"Crashes" / L"report.json", "{}");
     Write(source / L"Diagnostics" / L"Crashes" / L"report.dmp", "dump");
@@ -124,14 +124,14 @@ void Run(const fs::path& root) {
         CloseHandle(writer);
     }
 
-    HANDLE blocked = CreateFileW((source / L"pulse_shell_host.log").c_str(), GENERIC_READ,
+    HANDLE blocked = CreateFileW((source / L"luling_shell_host.log").c_str(), GENERIC_READ,
         0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     Check(blocked != INVALID_HANDLE_VALUE, "open exclusive file fixture");
     if (blocked != INVALID_HANDLE_VALUE) {
         const auto partial = root / L"partial";
         Check(!Export(source, partial, &error), "copy failure reports unsuccessful export");
         const auto partial_manifest = Read(partial / L"diagnostics-manifest.json");
-        Check(partial_manifest.find("\"name\":\"pulse_shell_host.log\",\"bytes\":0,\"error_code\":32") != std::string::npos &&
+        Check(partial_manifest.find("\"name\":\"luling_shell_host.log\",\"bytes\":0,\"error_code\":32") != std::string::npos &&
               partial_manifest.find("\"complete\":false") != std::string::npos &&
               fs::exists(partial / L"Runtime" / L"app-101.jsonl") && !error.empty(),
               "partial failure preserves manifest error and continues other files");

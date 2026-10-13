@@ -1,14 +1,14 @@
 #pragma once
 // Replaces installed files as one unit. New files are extracted to
-// <app>\.pulse-setup\staging first; Commit() then moves each old file to
-// <app>\.pulse-setup\backup and the new one into place, journaling every step
+// <app>\.luling-setup\staging first; Commit() then moves each old file to
+// <app>\.luling-setup\backup and the new one into place, journaling every step
 // so a failure — or a crash/power loss on the next run — restores the
 // previous installation.
 
 #include <string>
 #include <vector>
 
-namespace pulse::setup {
+namespace luling::setup {
 
 class FileTransaction {
 public:
@@ -34,4 +34,4 @@ private:
     std::vector<Step> steps_;
 };
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

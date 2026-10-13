@@ -7,12 +7,12 @@
 #include "../common/current_user_security.h"
 #include "default_file_manager.h"
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
-constexpr wchar_t kMutexName[] = L"Local\\Pulse.Singleton";
-constexpr wchar_t kWindowClass[] = L"PulseMainWindow";
-constexpr wchar_t kPrimaryProperty[] = L"Pulse.Singleton.PrimaryPid";
+constexpr wchar_t kMutexName[] = L"Local\\Luling.Singleton";
+constexpr wchar_t kWindowClass[] = L"LulingMainWindow";
+constexpr wchar_t kPrimaryProperty[] = L"Luling.Singleton.PrimaryPid";
 constexpr ULONG_PTR kOpenPathMessage = 0x50554C53; // 'PULS'
 constexpr ULONG_PTR kOpenRequestMessage = 0x50554C32; // 'PUL2'
 constexpr size_t kMaxForwardedPathChars = 32768;
@@ -93,7 +93,7 @@ void SingleInstanceCoordinator::Release() {
 bool SingleInstanceCoordinator::NormalizeLaunchPath(const std::wstring& input, std::wstring& output) {
     output.clear();
     if (input.find(L'\0') != std::wstring::npos || input.size() >= 32768) return false;
-    if (input.empty() || input.starts_with(L"pulse:") || IsThisPcArgument(input)) {
+    if (input.empty() || input.starts_with(L"luling:") || IsThisPcArgument(input)) {
         output = input; return true;
     }
     auto path = input;
@@ -271,4 +271,4 @@ ULONG_PTR SingleInstanceCoordinator::OpenPathMessageId() noexcept {
     return kOpenPathMessage;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

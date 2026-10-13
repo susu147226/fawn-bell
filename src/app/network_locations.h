@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 inline std::wstring NetworkLocationKey(std::wstring path) {
     std::replace(path.begin(), path.end(), L'/', L'\\');
@@ -39,4 +39,4 @@ NetworkLocationScan ReadNetworkLocations(const std::wstring& root = {},
 std::vector<NetworkLocation> MergeNetworkLocations(const std::vector<NetworkLocation>& pinned,
     const std::vector<NetworkLocation>& system);
 
-} // namespace pulse::app
+} // namespace luling::app

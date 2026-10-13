@@ -26,7 +26,7 @@
 
 #include "../ipc/preview_protocol.h"
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Reads up to max_bytes of a text file and decodes it (BOM, UTF-8, else the
 // ANSI code page). cut: the file is longer; the text then ends at a line break.
@@ -42,4 +42,4 @@ bool MakeCsvTable(const std::wstring& path, std::wstring_view extension, std::ws
 bool MakeXlsxTable(const std::wstring& path, std::wstring& payload, uint32_t& bytes_read,
                    uint32_t sheet_index = 0);
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

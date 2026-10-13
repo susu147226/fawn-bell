@@ -3,7 +3,7 @@
 #include <commctrl.h>
 #include <cstdio>
 #include <thread>
-namespace pulse::ui {
+namespace luling::ui {
 struct QuickPreviewAuditTest {
     static bool Check(bool ok,const char* label){printf("[%s] %s\n",ok?"PASS":"FAIL",label);fflush(stdout);return ok;}
     static void Pump(unsigned ms){const auto end=GetTickCount64()+ms;do{MSG msg{};while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){TranslateMessage(&msg);DispatchMessageW(&msg);}Sleep(5);}while(GetTickCount64()<end);}
@@ -22,7 +22,7 @@ struct QuickPreviewAuditTest {
         {
             QuickPreviewWindow q;ok &= Check(q.Initialize(owner,WM_APP+201,WM_APP+202),"initialize private Quick Look window");
             q.thumbnails_.running_=true;
-            QuickPreviewItem item;item.path=L"C:\\PulseAuditFixtures\\workbook.xlsx";item.name=L"workbook.xlsx";item.modified=2;item.size=3;
+            QuickPreviewItem item;item.path=L"C:\\LulingAuditFixtures\\workbook.xlsx";item.name=L"workbook.xlsx";item.modified=2;item.size=3;
             q.Show(item,false,WindowEffect::None,true);
             ThumbnailCache::Item workbook;workbook.kind=ipc::PreviewContentKind::Table;
             workbook.text=L"PULSETBL\t1\nW\t2\t1\t0\nS\txlsx\tSheet1\t1\t1\t0\t\t0\nR\tvalue\nS\txlsx\tSheet2\t0\t0\t0\tnot-loaded\t0\n";
@@ -55,12 +55,12 @@ struct QuickPreviewAuditTest {
             ok &= Check(q.table_.SelectedSheetIndex()==1 && !q.table_.IsSheetRequestPending() &&
                 q.preview_text_.find(L"recovered")!=std::wstring::npos,
                 "revisiting failed worksheet accepts successful retry through Render");
-            item.path=L"C:\\PulseAuditFixtures\\retry.tiff";item.name=L"retry.tiff";q.Update(item);
+            item.path=L"C:\\LulingAuditFixtures\\retry.tiff";item.name=L"retry.tiff";q.Update(item);
             ThumbnailCache::Item retry;retry.failed=retry.transient=true;retry.retry_at=GetTickCount64()+150;Store(q,0,std::move(retry));q.Render();
             Pump(350);
             bool queued=false;{std::lock_guard lock(q.thumbnails_.mutex_);queued=!q.thumbnails_.queue_.empty();}
             ok &= Check(queued,"ordinary idle message loop wakes transient preview retry without manual paint");
-            item.path=L"C:\\PulseAuditFixtures\\unicode.txt";item.name=L"unicode.txt";q.Update(item);
+            item.path=L"C:\\LulingAuditFixtures\\unicode.txt";item.name=L"unicode.txt";q.Update(item);
             const std::wstring unicode=L"A\U0001f600\U00020bb7e\u0301Z \u05d0\u05d1\u05d2";
             for (const float scale : {1.0f,1.5f,2.0f}) {
                 q.scale_=scale;
@@ -100,7 +100,7 @@ struct QuickPreviewAuditTest {
 };
 }
 int RunQuickPreviewAuditTest(){
-    const auto name=L"PulseQuickPreviewAudit-"+std::to_wstring(GetCurrentProcessId());
+    const auto name=L"LulingQuickPreviewAudit-"+std::to_wstring(GetCurrentProcessId());
     HDESK desktop=CreateDesktopW(name.c_str(),nullptr,nullptr,0,GENERIC_ALL,nullptr);if(!desktop)return 1;
-    bool ok=false;std::thread worker([&]{if(SetThreadDesktop(desktop))ok=pulse::ui::QuickPreviewAuditTest::Run();});worker.join();CloseDesktop(desktop);return ok?0:1;
+    bool ok=false;std::thread worker([&]{if(SetThreadDesktop(desktop))ok=luling::ui::QuickPreviewAuditTest::Run();});worker.join();CloseDesktop(desktop);return ok?0:1;
 }

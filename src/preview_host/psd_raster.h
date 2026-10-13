@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Decodes a PSD/PSB into 32bpp premultiplied BGRA, longest edge <= max_edge.
 //
@@ -22,4 +22,4 @@ bool RasterizePsdFile(const std::wstring& path, UINT max_edge, bool prefer_embed
                       UINT& stride, UINT& source_width, UINT& source_height,
                       std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

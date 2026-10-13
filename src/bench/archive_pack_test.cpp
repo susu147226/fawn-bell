@@ -10,7 +10,7 @@ void Check(bool ok, const char* name) {
 }
 }
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     if (argc > 2 && std::wstring(argv[1]) == L"l") {
         const std::wstring mode = argv[argc - 1];
         if (mode == L"test-helper-timeout") { Sleep(10000); return 0; }

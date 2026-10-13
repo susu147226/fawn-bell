@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Renders one page (page_index, clamped; 0 = first) of a PDF document (Illustrator files saved with PDF
 // compatibility are PDF documents too) into opaque 32bpp BGRA pixels on a white
@@ -25,4 +25,4 @@ bool RasterizePdfFile(const std::wstring& path, UINT max_edge,
                       std::wstring* error, UINT page_index = 0,
                       UINT* page_count = nullptr, bool thumbnail = false);
 
-} // namespace pulse::preview
+} // namespace luling::preview

@@ -46,7 +46,7 @@ DWORD WINAPI Attributes(LPCWSTR path) {
 #undef GetTickCount64
 #undef GetFileAttributesW
 int main() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; };
     const DWORD bits[] = {FILE_ATTRIBUTE_OFFLINE, FILE_ATTRIBUTE_RECALL_ON_OPEN, FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, FILE_ATTRIBUTE_PINNED};
@@ -55,7 +55,7 @@ int main() {
         for (unsigned i = 0; i < 4; ++i) if (mask & (1u << i)) attrs |= bits[i];
         check(IsOfflinePlaceholder(attrs) == ((mask & 7) != 0), "offline/recall/pinned truth table");
     }
-    const std::wstring root = L"\\\\?\\C:\\pulse-synthetic-enumeration";
+    const std::wstring root = L"\\\\?\\C:\\luling-synthetic-enumeration";
     auto reset = [&] { fixture::dirs.clear(); fixture::now = fixture::cost = 0; fixture::opens = fixture::closes = 0; fixture::dirs[root + L"\\*"]; };
     auto row = [](std::wstring name, DWORD attrs = FILE_ATTRIBUTE_NORMAL) { WIN32_FIND_DATAW fd{}; wcscpy_s(fd.cFileName, name.c_str()); fd.dwFileAttributes = attrs; fd.nFileSizeLow = 7; return fd; };
     std::wstring payload;
@@ -85,7 +85,7 @@ int main() {
     check(run(35, false) && status().loaded == 0 && status().state == IntegrityState::Partial, "root open time is part of budget");
     for (bool long_names : {false, true}) {
         reset(); for (int i = 0; i < 4100; ++i) fixture::dirs[root + L"\\*"].rows.push_back(row((long_names ? std::wstring(240, L'x') : L"file") + std::to_wstring(i)));
-        check(run() && status().reason == IntegrityReason::Limit && status().total == 4100 && status().loaded <= 4000 && status().loaded < status().total && payload.size() < pulse::ipc::kPreviewMaxArchiveChars, "display clipping keeps accurate scanned total and bounded payload");
+        check(run() && status().reason == IntegrityReason::Limit && status().total == 4100 && status().loaded <= 4000 && status().loaded < status().total && payload.size() < luling::ipc::kPreviewMaxArchiveChars, "display clipping keeps accurate scanned total and bounded payload");
     }
     reset(); fixture::dirs[root + L"\\*"].rows = {row(L"junction", FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT), row(L"cloud", FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_OFFLINE)};
     check(run() && fixture::opens == 1 && status().loaded == 2 && status().total == 0 && status().state == IntegrityState::Partial, "junction and offline folder are listed without traversal or a fabricated subtree total");

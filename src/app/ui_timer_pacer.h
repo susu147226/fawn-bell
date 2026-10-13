@@ -11,7 +11,7 @@
 #pragma once
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 
 class UiTimerPacer {
 public:
@@ -44,4 +44,4 @@ private:
     ULONGLONG active_until_ = 0;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

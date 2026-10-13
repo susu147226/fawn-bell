@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 using Error = MathParseErrorCode;
 enum class TokenKind { Character, Command, Space, Open, Close };
@@ -406,4 +406,4 @@ MathMacroExpansion ExpandMathMacros(std::wstring_view source, bool (*is_builtin)
     return Expander(source, is_builtin).Run();
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

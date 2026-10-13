@@ -3,7 +3,7 @@
 #include <cstdio>
 
 int main() {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label);

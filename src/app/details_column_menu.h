@@ -1,6 +1,6 @@
 // details_column_menu.h — Column header right-click menu (#26, #36).
 //
-// File Explorer opens a column chooser on the Details header; Pulse does the
+// File Explorer opens a column chooser on the Details header; Luling does the
 // same with one checked row per optional column plus "Reset columns". The
 // choice is global (AppPrefs::details_columns). The builder and the toggle
 // are windowless so the self-test can check them without a GUI.
@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace pulse {
+namespace luling {
 struct AppState;
 
 namespace app {
@@ -32,4 +32,4 @@ uint32_t ApplyDetailsColumnCommand(uint32_t mask, int command);
 
 void ShowDetailsColumnMenu(AppState& s, POINT screen_pt, uint32_t visible, bool search);
 
-} // namespace pulse
+} // namespace luling

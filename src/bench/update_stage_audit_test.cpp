@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <winioctl.h>
-using namespace pulse::app;
+using namespace luling::app;
 static int failures;
 static void Check(bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; }
 static bool Junction(const std::filesystem::path& path, const std::filesystem::path& target) {
@@ -35,7 +35,7 @@ static int RunningInstallerStage(const std::filesystem::path& root) {
         return 1;
     }
     wchar_t self[32768]{};
-    const std::wstring event_name = L"Local\\PulseStageAudit-" + std::to_wstring(GetCurrentProcessId());
+    const std::wstring event_name = L"Local\\LulingStageAudit-" + std::to_wstring(GetCurrentProcessId());
     HANDLE exit_event = CreateEventW(nullptr, TRUE, FALSE, event_name.c_str());
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION child{};
@@ -91,18 +91,18 @@ int wmain(int argc, wchar_t** argv) {
     CloseHandle(executing);
     SweepUpdateStages(root.wstring());
     Check(!std::filesystem::exists(directory), "later startup removes abandoned payload and its owned directory");
-    const auto foreign = root / L"Pulse" / L"UpdateStaging" / std::wstring(32, L'a');
+    const auto foreign = root / L"Luling" / L"UpdateStaging" / std::wstring(32, L'a');
     std::filesystem::create_directories(foreign);
-    { std::ofstream output(foreign / L"PulseSetup.exe"); output << "user data"; }
+    { std::ofstream output(foreign / L"LulingSetup.exe"); output << "user data"; }
     SweepUpdateStages(root.wstring());
-    Check(std::filesystem::exists(foreign / L"PulseSetup.exe"), "matching directory name without ownership marker is never removed");
+    Check(std::filesystem::exists(foreign / L"LulingSetup.exe"), "matching directory name without ownership marker is never removed");
     Check(CreateUpdateStage(root.wstring(), directory, file, lease), "create second isolated stage");
     { std::ofstream output(std::filesystem::path(directory) / L"notes.txt"); output << "user addition"; }
     CloseHandle(lease); SweepUpdateStages(root.wstring());
     Check(std::filesystem::exists(std::filesystem::path(directory) / L"notes.txt"), "unexpected user file prevents cleanup of whole stage");
     const auto target = root / L"outside";
     std::filesystem::create_directories(target);
-    const auto link = root / L"Pulse" / L"UpdateStaging" / std::wstring(32, L'b');
+    const auto link = root / L"Luling" / L"UpdateStaging" / std::wstring(32, L'b');
     if (Junction(link, target)) {
         SweepUpdateStages(root.wstring());
         Check(std::filesystem::exists(target) && (GetFileAttributesW(link.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT), "reparse stage is skipped without touching its target");

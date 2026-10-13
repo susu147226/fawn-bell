@@ -2,12 +2,12 @@
 
 // Image preview pack: HEIC / AVIF / JPEG XL without the Store extensions, and
 // OpenEXR, Radiance HDR and QOI, which Windows never reads. The decoder is
-// pulse-imgpack.exe (packs/images); the wire format is in
+// luling-imgpack.exe (packs/images); the wire format is in
 // common/image_pack_protocol.h.
 //
 // Performance rules (see docs/design/preview_packs_plan.md):
 //  - Windows' own codecs and thumbnail cache go first wherever they exist;
-//  - one short-lived pulse-imgpack per picture, below-normal priority, two
+//  - one short-lived luling-imgpack per picture, below-normal priority, two
 //    decode threads, in a kill-on-close Job Object with a memory cap;
 //  - at most a few run at once however many thumbnails a folder asks for;
 //  - the pack scales while decoding (HEIF's own thumbnails, EXR in bands), so
@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Every extension the pack reads (lower case, with the dot).
 bool IsImagePackExtension(std::wstring_view extension);
@@ -55,11 +55,11 @@ bool LooksLikeImagePackFile(const std::wstring& path);
 
 // First bytes -> format name ("HEIF", "JPEG XL", "OpenEXR", ...), empty if none.
 std::wstring_view SniffImagePackFormat(const uint8_t* bytes, size_t size);
-// pulse-imgpack decode output -> frame; false on any inconsistency.
+// luling-imgpack decode output -> frame; false on any inconsistency.
 bool ParseImagePackFrame(const std::vector<uint8_t>& output, UINT cap, ImagePackFrame& frame);
-// pulse-imgpack probe output ("key=value" lines) -> display rows.
+// luling-imgpack probe output ("key=value" lines) -> display rows.
 std::vector<PreviewPropertyValue> ParseImagePackProbe(std::string_view output);
 // How many decoders may run at once on a machine with `cpus` logical CPUs.
 unsigned ImagePackConcurrency(unsigned cpus);
 
-} // namespace pulse::preview
+} // namespace luling::preview

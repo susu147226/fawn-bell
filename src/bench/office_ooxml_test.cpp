@@ -70,9 +70,9 @@ int wmain() {
         const auto path = directory / (std::to_wstring(GetTickCount64()) + L"-" + std::to_wstring(failed) + L".zip");
         const HRESULT created = Package(path, parts);
         std::wstring output = L"previous output";
-        pulse::index::DocumentReadMetrics metrics;
+        luling::index::DocumentReadMetrics metrics;
         metrics.filter_us = 123; // The OOXML call must clear stale data from a previous document.
-        const HRESULT hr = SUCCEEDED(created) ? pulse::index::ExtractOfficeOpenXml(path.native(), output, {}, false, &metrics) : created;
+        const HRESULT hr = SUCCEEDED(created) ? luling::index::ExtractOfficeOpenXml(path.native(), output, {}, false, &metrics) : created;
         bool pass = SUCCEEDED(created) && (success ? SUCCEEDED(hr) : FAILED(hr) && output.empty());
         pass = pass && metrics.filter_us == 0;
         if (success) pass = pass && metrics.stream_reads > 0 && metrics.stream_bytes > 0 &&
@@ -134,7 +134,7 @@ int wmain() {
         compound_written == sizeof(compound_header);
     if (compound_file != INVALID_HANDLE_VALUE) CloseHandle(compound_file);
     std::wstring compound_output = L"previous output";
-    const HRESULT compound_hr = pulse::index::ExtractOfficeOpenXml(compound.native(), compound_output);
+    const HRESULT compound_hr = luling::index::ExtractOfficeOpenXml(compound.native(), compound_output);
     const bool compound_pass = made_compound && FAILED(compound_hr) && compound_output.empty();
     std::cout << (compound_pass ? "[PASS] " : "[FAIL] ") << "encrypted Office compound-container signature rejected\n";
     if (!compound_pass) ++failed;
@@ -143,7 +143,7 @@ int wmain() {
     const HRESULT created_truncated = Package(truncated, {{L"/word/document.xml", kWord, Word("<w:p/>")}});
     if (SUCCEEDED(created_truncated)) std::filesystem::resize_file(truncated, 20);
     std::wstring truncated_output = L"previous output";
-    const HRESULT truncated_hr = pulse::index::ExtractOfficeOpenXml(truncated.native(), truncated_output);
+    const HRESULT truncated_hr = luling::index::ExtractOfficeOpenXml(truncated.native(), truncated_output);
     const bool truncated_pass = SUCCEEDED(created_truncated) && FAILED(truncated_hr) && truncated_output.empty();
     std::cout << (truncated_pass ? "[PASS] " : "[FAIL] ") << "truncated ZIP rejected\n";
     if (!truncated_pass) ++failed;
@@ -151,14 +151,14 @@ int wmain() {
     const auto large = directory / L"large.docx";
     HANDLE file = CreateFileW(large.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
     LARGE_INTEGER size{};
-    size.QuadPart = pulse::index::document::kMaximumFileBytes + 1;
+    size.QuadPart = luling::index::document::kMaximumFileBytes + 1;
     DWORD returned = 0;
     const bool sparse = file != INVALID_HANDLE_VALUE &&
         DeviceIoControl(file, FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0, &returned, nullptr);
     const bool made_large = sparse && SetFilePointerEx(file, size, nullptr, FILE_BEGIN) && SetEndOfFile(file);
     if (file != INVALID_HANDLE_VALUE) CloseHandle(file);
     std::wstring output = L"previous output";
-    const HRESULT large_hr = pulse::index::ExtractOfficeOpenXml(large.native(), output);
+    const HRESULT large_hr = luling::index::ExtractOfficeOpenXml(large.native(), output);
     const bool large_pass = made_large && large_hr == HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE) && output.empty();
     std::cout << (large_pass ? "[PASS] " : "[FAIL] ") << "package input limit\n";
     if (!large_pass) ++failed;

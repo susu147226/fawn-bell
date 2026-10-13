@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 inline constexpr uint32_t kFolderSizeRequest = 9, kFolderSizeResponse = 109;
 inline constexpr size_t kFolderSizeBatch = 128;
 struct IndexedFolderSize { bool available = false; uint64_t bytes = 0; };

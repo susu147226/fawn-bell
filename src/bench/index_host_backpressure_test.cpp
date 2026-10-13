@@ -9,12 +9,12 @@
 #include <string>
 #include <vector>
 
-using namespace pulse::index;
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using namespace luling::index;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 
 namespace {
 
@@ -115,8 +115,8 @@ bool WaitForSearch(HANDLE pipe, uint32_t wanted_id, DWORD timeout_ms,
 int wmain() {
     std::wcout << std::unitbuf;
     const auto token = std::to_wstring(GetCurrentProcessId()) + L"-backpressure-" + std::to_wstring(GetTickCount64());
-    const auto name = L"\\\\.\\pipe\\PulseIndex.Test." + token;
-    const auto exe = SiblingExecutable(L"Pulse.Index.exe");
+    const auto name = L"\\\\.\\pipe\\LulingIndex.Test." + token;
+    const auto exe = SiblingExecutable(L"Luling.Index.exe");
     std::wstring command = L"\"" + exe + L"\" --test-host " + token;
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION process{};
@@ -148,8 +148,8 @@ int wmain() {
             WaitForSearch(normal, 2, 1500), L"normal search completes while slow response remains blocked");
         std::wcout << L"[INFO] normal query latency " << GetTickCount64() - start << L" ms\n";
         HWND window = nullptr;
-        for (HWND candidate = FindWindowExW(HWND_MESSAGE, nullptr, L"PulseIndexHost", nullptr);
-             candidate; candidate = FindWindowExW(HWND_MESSAGE, candidate, L"PulseIndexHost", nullptr)) {
+        for (HWND candidate = FindWindowExW(HWND_MESSAGE, nullptr, L"LulingIndexHost", nullptr);
+             candidate; candidate = FindWindowExW(HWND_MESSAGE, candidate, L"LulingIndexHost", nullptr)) {
             DWORD pid = 0; GetWindowThreadProcessId(candidate, &pid);
             if (pid == process.dwProcessId) { window = candidate; break; }
         }

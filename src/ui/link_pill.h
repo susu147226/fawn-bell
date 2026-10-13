@@ -2,7 +2,7 @@
 #include "ui_motion.h"
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 inline bool IsShortcutName(const std::wstring& name) {
     return name.size() >= 4 &&
         (_wcsicmp(name.c_str() + name.size() - 4, L".lnk") == 0 ||
@@ -61,4 +61,4 @@ inline D2D1_RECT_F LinkPillRect(const D2D1_RECT_F& artwork, float diameter,
     return {artwork.left, std::max(artwork.top, artwork.bottom - diameter),
             artwork.left + width, artwork.bottom};
 }
-} // namespace pulse::ui
+} // namespace luling::ui

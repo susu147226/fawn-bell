@@ -11,7 +11,7 @@
 #include <functional>
 
 namespace {
-using namespace pulse::fs;
+using namespace luling::fs;
 std::filesystem::path directory;
 int failures = 0;
 void Check(bool ok, const char* label) {
@@ -29,7 +29,7 @@ std::map<std::wstring, std::shared_ptr<Gate>> gates;
 std::shared_ptr<Gate> commit_gate;
 std::atomic<uint64_t> blocked_generation{0};
 constexpr UINT kProbe = WM_APP + 7;
-pulse::app::UncProbeScheduler scheduler;
+luling::app::UncProbeScheduler scheduler;
 std::map<std::wstring, NetStatus> status;
 std::vector<UncProbeResult> received;
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -79,7 +79,7 @@ bool CompleteSnapshot(const SnapshotPtr& snapshot, int count) {
     return true;
 }
 }
-namespace pulse::fs {
+namespace luling::fs {
 std::wstring NetCacheDirectoryForTest() { return directory.wstring(); }
 DWORD ProbeTimeoutForTest() { return 30; }
 unsigned ActiveUncProbesForTest();
@@ -101,9 +101,9 @@ void BeforeNetSnapshotCommitForTest(uint64_t generation) {
 }
 }
 int wmain() {
-    using namespace pulse::fs;
+    using namespace luling::fs;
     wchar_t temp[MAX_PATH]{}; GetTempPathW(MAX_PATH, temp);
-    directory = std::filesystem::path(temp) / (L"PulseNetAudit-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+    directory = std::filesystem::path(temp) / (L"LulingNetAudit-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
     std::filesystem::create_directory(directory);
     const std::wstring unc = L"\\\\audit-host\\share\\folder";
     auto a = BeginNetSnapshotWrite(unc);
@@ -139,7 +139,7 @@ int wmain() {
     Check(saved > 0 && CompleteSnapshot(loaded, 4000), "overlapping large writes publish one complete snapshot, never mixed bytes");
     Check(!SaveNetSnapshot(unc, Snapshot(L"invalid:", 500001), concurrent), "writer enforces reader entry bound before replacing cache");
 
-    WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr); wc.lpfnWndProc = WindowProc; wc.lpszClassName = L"PulseNetAudit";
+    WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr); wc.lpfnWndProc = WindowProc; wc.lpszClassName = L"LulingNetAudit";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
     const std::wstring path = L"probe:ordered";

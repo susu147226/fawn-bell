@@ -4,7 +4,7 @@
 #include "../common/localization.h"
 #include <algorithm>
 
-namespace pulse {
+namespace luling {
 struct NetworkLocationLoad {
     std::atomic<bool> cancelled{false};
     std::mutex mutex;
@@ -34,7 +34,7 @@ void RequestNetworkLocations(AppState& state) {
     std::wstring fixture;
     if (state.isolatedTest) {
         wchar_t path[32768]{};
-        const DWORD length = GetEnvironmentVariableW(L"PULSE_TEST_NETWORK_LOCATIONS", path, ARRAYSIZE(path));
+        const DWORD length = GetEnvironmentVariableW(L"LULING_TEST_NETWORK_LOCATIONS", path, ARRAYSIZE(path));
         if (length && length < ARRAYSIZE(path)) fixture.assign(path, length);
     }
     state.worker.EnqueueIo([load, hwnd, fixture = std::move(fixture)] {
@@ -134,4 +134,4 @@ bool OpenSystemNetworkShortcut(AppState& state, const std::wstring& path) {
     }
     return false;
 }
-} // namespace pulse
+} // namespace luling

@@ -1,7 +1,7 @@
-// shell_window_plan.h — Which Pulse panes the shell sees as folder windows
+// shell_window_plan.h — Which Luling panes the shell sees as folder windows
 // (B站 #1 phase 2a), and what has to change when panes navigate or close.
 //
-// With Pulse as the default file manager, "open file location" in other
+// With Luling as the default file manager, "open file location" in other
 // programs (SHOpenFolderAndSelectItems) looks up IShellWindows for a window
 // showing the folder and asks it to select the item. ShellWindowRegistry
 // registers each pane there; this header holds the pure planning part.
@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct ShellWindowEntry {
     uint64_t key = 0;      // pane identity
@@ -27,7 +27,7 @@ struct ShellWindowAction {
     bool operator==(const ShellWindowAction&) const = default;
 };
 
-// A drive or UNC folder, or This PC (empty). Pulse's own views (pulse:…
+// A drive or UNC folder, or This PC (empty). Luling's own views (luling:…
 // search, settings, recycle bin) have no shell folder to report. Expects the
 // plain form: strip \\?\ first (path::StripExtendedPathPrefix).
 bool IsShellWindowPath(const std::wstring& path);
@@ -49,7 +49,7 @@ struct ShellSelectRequest {
 // a parent folder.
 bool SplitShellItemPath(const std::wstring& path, std::wstring& folder, std::wstring& leaf);
 
-// B站 #1 phase 2b: a File Explorer window opened behind Pulse's back
+// B站 #1 phase 2b: a File Explorer window opened behind Luling's back
 // (explorer.exe /select,… run directly). What one poll of it found:
 struct ExplorerWindowProbe {
     unsigned age_ms = 0;          // since the window registered
@@ -67,4 +67,4 @@ constexpr unsigned kExplorerSelectionGraceMs = 400;   // /select applies after t
 // alone, and give /select a moment to arrive before taking the window.
 ExplorerTakeoverStep DecideExplorerTakeover(const ExplorerWindowProbe& probe);
 
-} // namespace pulse::app
+} // namespace luling::app

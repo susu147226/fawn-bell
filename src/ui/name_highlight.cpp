@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 std::vector<NameMatchRange> RangesFromMask(const std::vector<bool>& mask) {
     std::vector<NameMatchRange> ranges;

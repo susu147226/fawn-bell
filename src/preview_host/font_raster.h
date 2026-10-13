@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Renders a specimen page for a TrueType / OpenType font file (.ttf .otf
 // .ttc .otc) without installing it: family name, format and glyph count, the
@@ -16,4 +16,4 @@ bool RasterizeFontFile(const std::wstring& path, UINT max_edge,
                        std::vector<unsigned char>& pixels, UINT& width, UINT& height,
                        UINT& stride, std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

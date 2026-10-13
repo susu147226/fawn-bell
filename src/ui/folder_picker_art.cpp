@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 bool CanPickerThumbnailName(std::wstring_view name) {
     const auto dot = name.find_last_of(L'.');
     if (dot == std::wstring_view::npos) return false;

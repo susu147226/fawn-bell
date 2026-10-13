@@ -2,7 +2,7 @@
 #include "../common/path_utils.h"
 #include <cwctype>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 namespace {
 
@@ -25,7 +25,7 @@ std::wstring ExtensionOf(const std::wstring& path) {
 }
 
 std::wstring ShellPath(const std::wstring& path) {
-    return pulse::path::StripExtendedPathPrefix(path);
+    return luling::path::StripExtendedPathPrefix(path);
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

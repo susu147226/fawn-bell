@@ -5,7 +5,7 @@
 #include <memory>
 #include <string_view>
 
-namespace pulse::index {
+namespace luling::index {
 enum class ContentTimingLane : uint32_t { Pdf, Office, Text, Count };
 enum class ContentTimingStage : uint32_t {
     CacheWait, MetadataPrepare, FeedEnumerate, QueueWait, MetadataIo, Extract, Match, Count

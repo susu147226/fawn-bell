@@ -4,17 +4,17 @@
 #include <cstdio>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 // Explicit, bounded diagnostic only. Sampling and writing do not allocate from
 // the parser heap, so tracing near the job limit cannot itself throw bad_alloc.
 class DocumentMemoryTrace {
 public:
     DocumentMemoryTrace() noexcept {
         try {
-            const DWORD count = GetEnvironmentVariableW(L"PULSE_DOCUMENT_DIAGNOSTICS_DIR", nullptr, 0);
+            const DWORD count = GetEnvironmentVariableW(L"LULING_DOCUMENT_DIAGNOSTICS_DIR", nullptr, 0);
             if (!count || count > 32768) return;
             std::wstring directory(count, L'\0');
-            const DWORD read = GetEnvironmentVariableW(L"PULSE_DOCUMENT_DIAGNOSTICS_DIR", directory.data(), count);
+            const DWORD read = GetEnvironmentVariableW(L"LULING_DOCUMENT_DIAGNOSTICS_DIR", directory.data(), count);
             if (!read || read >= count) return;
             directory.resize(read);
             const auto attributes = GetFileAttributesW(directory.c_str());

@@ -2,7 +2,7 @@
 #include "../index/content_search_session.h"
 #include "../index/content_result_store.h"
 #include <cstdio>
-namespace pulse::index {
+namespace luling::index {
 struct ContentRefreshTestPeer {
     static ContentSearchRequest Queue(ContentSearchRequest request, ContentAgentMode mode, bool persistent = true) {
         ContentSearchClient client;
@@ -17,7 +17,7 @@ struct ContentRefreshTestPeer {
 };
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; };
     auto row = [](const std::shared_ptr<ContentResultStore>& store, size_t at, ContentResultStore::Row& output) {

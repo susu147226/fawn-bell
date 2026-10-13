@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::fs {
+namespace luling::fs {
 namespace {
 
 std::wstring FileNameOf(const std::wstring& path) {
@@ -60,8 +60,8 @@ bool ReadRecycleIndex(const std::wstring& index_path, RecycleItem& out) {
     if (name.size() < 3 || name[0] != L'$' || (name[1] != L'I' && name[1] != L'i'))
         return false;
     out.index_path = index_path;
-    pulse::recycle::IndexRecord record;
-    if (!pulse::recycle::ReadIndex(index_path, record)) return false;
+    luling::recycle::IndexRecord record;
+    if (!luling::recycle::ReadIndex(index_path, record)) return false;
     out.original_path = std::move(record.original_path);
     out.size = record.size;
     out.deleted = record.deleted;
@@ -136,4 +136,4 @@ void EnumerateRecycleBin(std::vector<DirEntry>& out, RecycleBinInfo* info) {
     }
 }
 
-} // namespace pulse::fs
+} // namespace luling::fs

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace pulse::index {
+namespace luling::index {
 
 // Brent's cycle detector bounds parent walks without allocating per USN record.
 class ParentChainGuard {
@@ -24,4 +24,4 @@ private:
     uint64_t distance_ = 1;
 };
 
-} // namespace pulse::index
+} // namespace luling::index

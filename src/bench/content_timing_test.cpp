@@ -9,9 +9,9 @@
 #include <vector>
 
 namespace {
-using pulse::index::ContentTiming;
-using pulse::index::ContentTimingLane;
-using pulse::index::ContentTimingStage;
+using luling::index::ContentTiming;
+using luling::index::ContentTimingLane;
+using luling::index::ContentTimingStage;
 int failures = 0;
 void Check(bool ok, const char* name) { std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", name); if (!ok) ++failures; }
 std::string Read(const std::filesystem::path& path) {
@@ -23,15 +23,15 @@ struct Fixture {
     std::wstring old_environment;
     Fixture() {
         wchar_t previous[32768]{};
-        const DWORD length = GetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", previous, 32768);
+        const DWORD length = GetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", previous, 32768);
         if (length && length < 32768) old_environment.assign(previous, length);
         directory = std::filesystem::absolute(std::filesystem::path(L"bench_data") /
             (L"content_timing_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64())));
         std::filesystem::create_directories(directory);
-        SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", directory.c_str());
+        SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", directory.c_str());
     }
     ~Fixture() {
-        SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", old_environment.empty() ? nullptr : old_environment.c_str());
+        SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", old_environment.empty() ? nullptr : old_environment.c_str());
         std::error_code error;
         std::filesystem::remove_all(directory, error);
     }
@@ -87,7 +87,7 @@ int main() {
               "slow active worker shows stage, age and escaped bounded path");
         timing.FileStage(token, ContentTimingStage::Match);
         timing.RecordReadBytes(token, 4096);
-        pulse::index::DocumentReadMetrics metrics;
+        luling::index::DocumentReadMetrics metrics;
         metrics.package_us = 7; metrics.stream_bytes = 1024; metrics.filter_us = 11;
         metrics.pdf_load_us = 13; metrics.pdf_page_us = 17; metrics.pdf_text_us = 19;
         metrics.pdf_pages = 23; metrics.pdf_fallbacks = 1;
@@ -103,7 +103,7 @@ int main() {
         timing.RecordDocumentMetrics(token, metrics);
         timing.EndFile(token, false, ERROR_BAD_FORMAT);
         const auto failed = timing.BeginFile(ContentTimingLane::Pdf, L"fast-pipe-failure.pdf", timing.Enqueue(ContentTimingLane::Pdf));
-        pulse::index::DocumentReadMetrics failure;
+        luling::index::DocumentReadMetrics failure;
         failure.child_failure_stage = 2; failure.child_exit_known = 1; failure.child_exit_code = 0xe1234567;
         failure.child_memory_known = 1; failure.child_peak_private_bytes = 33554432;
         failure.read_attempts = 1;
@@ -165,7 +165,7 @@ int main() {
     {
         ContentTiming timing(704);
         const auto token = timing.BeginFile(ContentTimingLane::Pdf, L"recovered-filter.pdf", timing.Enqueue(ContentTimingLane::Pdf));
-        pulse::index::DocumentReadMetrics recovered;
+        luling::index::DocumentReadMetrics recovered;
         recovered.child_failure_stage = 4; recovered.child_exit_known = 1; recovered.child_exit_code = STILL_ACTIVE;
         recovered.read_attempts = 2; recovered.fresh_filter_fallbacks = 1; recovered.fresh_filter_recoveries = 1;
         recovered.fresh_filter_first_error = ERROR_NOT_ENOUGH_MEMORY;
@@ -196,7 +196,7 @@ int main() {
     {
         const auto impossible = fixture.directory / L"regular-file";
         { std::ofstream file(impossible); file << "file"; }
-        SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", impossible.c_str());
+        SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", impossible.c_str());
         ContentTiming disabled(703);
         const auto token = disabled.BeginFile(ContentTimingLane::Pdf, L"unwritable-log.pdf", disabled.Enqueue(ContentTimingLane::Pdf));
         disabled.FileStage(token, ContentTimingStage::Extract);

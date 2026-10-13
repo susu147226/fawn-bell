@@ -3,7 +3,7 @@
 #include <functional>
 #include <memory>
 
-namespace pulse::index {
+namespace luling::index {
 struct TaskTextMetadata {
     uint64_t size = 0, modified = 0;
     DWORD attributes = 0;

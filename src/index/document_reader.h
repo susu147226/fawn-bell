@@ -4,7 +4,7 @@
 #include <functional>
 #include <memory>
 
-namespace pulse::index {
+namespace luling::index {
 class DocumentReadPool;
 // One query shares up to four warm parsers across its PDF/Office readers.
 std::shared_ptr<DocumentReadPool> CreateDocumentReadPool();

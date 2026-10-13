@@ -8,7 +8,7 @@
 #include <cwctype>
 #include <stdexcept>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 namespace fs = std::filesystem;
 std::wstring Lower(std::wstring value) {
@@ -56,8 +56,8 @@ bool Artifact(const fs::path& relative) {
     for (const auto& part : relative) parts.push_back(Lower(part.wstring()));
     if (parts.size() == 1) {
         const auto& n = parts[0];
-        return n == L"pulse-index.bin" || n == L"pulse-index.bin.tmp" || n == L"pulse-index.dlt" ||
-            (n.size() == 17 && n.starts_with(L"pulse-index-") && n.ends_with(L".dlt") &&
+        return n == L"luling-index.bin" || n == L"luling-index.bin.tmp" || n == L"luling-index.dlt" ||
+            (n.size() == 17 && n.starts_with(L"luling-index-") && n.ends_with(L".dlt") &&
              n[12] >= L'a' && n[12] <= L'z');
     }
     const bool shard = (parts.size() == 3 && (parts[0] == L"v9" || parts[0] == L"volumes") && HexDirectory(parts[1])) ||
@@ -109,7 +109,7 @@ DWORD CopyVerified(const fs::path& source, const fs::path& target, const Migrate
     HANDLE input = CreateFileW(source.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
     if (input == INVALID_HANDLE_VALUE) return GetLastError();
-    const fs::path temporary = target.wstring() + L".pulse-copy-" +
+    const fs::path temporary = target.wstring() + L".luling-copy-" +
         std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
     HANDLE output = CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, private_target ? attributes.get() : nullptr,
         CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);

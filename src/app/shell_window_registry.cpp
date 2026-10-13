@@ -15,11 +15,11 @@
 #include <mutex>
 #include <type_traits>
 #include <algorithm>
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
 #include "shell_window_registry_test.h"
 #endif
 
-namespace pulse::app {
+namespace luling::app {
 
 using Microsoft::WRL::ComPtr;
 
@@ -49,10 +49,10 @@ bool Disconnected(HRESULT hr) {
 } // namespace
 
 void TraceShellWindows(const wchar_t* format, ...) {
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     static const std::wstring path = [] {
         wchar_t buffer[MAX_PATH]{};
-        const DWORD length = GetEnvironmentVariableW(L"PULSE_TEST_SHELL_WINDOWS_LOG", buffer, MAX_PATH);
+        const DWORD length = GetEnvironmentVariableW(L"LULING_TEST_SHELL_WINDOWS_LOG", buffer, MAX_PATH);
         return length > 0 && length < MAX_PATH ? std::wstring(buffer) : std::wstring();
     }();
     if (path.empty()) return;
@@ -91,7 +91,7 @@ struct PidlDeleter {
 using UniquePidl = std::unique_ptr<std::remove_pointer_t<PIDLIST_ABSOLUTE>, PidlDeleter>;
 
 UniquePidl FolderPidl(const std::wstring& path) {
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
     return UniquePidl(ShellRegistryTestFolder(path));
 #else
     PIDLIST_ABSOLUTE pidl = nullptr;
@@ -347,7 +347,7 @@ public:
     IFACEMETHODIMP ClientToWindow(int*, int*) override { return E_NOTIMPL; }
     IFACEMETHODIMP PutProperty(BSTR, VARIANT) override { return E_NOTIMPL; }
     IFACEMETHODIMP GetProperty(BSTR, VARIANT*) override { return E_NOTIMPL; }
-    IFACEMETHODIMP get_Name(BSTR* out) override { return ReturnBstr(L"Pulse", out); }
+    IFACEMETHODIMP get_Name(BSTR* out) override { return ReturnBstr(L"Luling", out); }
     IFACEMETHODIMP get_HWND(SHANDLE_PTR* out) override {
         if (!out) return E_POINTER;
         *out = reinterpret_cast<SHANDLE_PTR>(window_);
@@ -420,7 +420,7 @@ public:
         if (!windows_ && (!wanted_.empty() || !registered_.empty())) {
             if (shared_.create) failure = shared_.create(&windows_);
             else {
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
             failure = ShellRegistryTestCreate(&windows_);
 #else
             failure = CoCreateInstance(CLSID_ShellWindows, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&windows_));
@@ -465,7 +465,7 @@ public:
             due_ = 0;
             retry_ms_ = kRetryFirstMs;
         }
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
         std::vector<ShellWindowEntry> acknowledged;
         for (const auto& [key, entry] : registered_)
             if (entry.ready) acknowledged.push_back({key, entry.path});
@@ -561,7 +561,7 @@ DWORD WINAPI RegistryThread(void* param) {
     HRESULT init = E_FAIL;
     DWORD init_delay = kRetryFirstMs;
     while (!shared->stopping) {
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
         init = ShellRegistryTestInitialize();
 #else
         init = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -623,7 +623,7 @@ void ShellWindowRegistry::EnsureRunning() {
     if (!shared_->wake) return;
     auto* param = new std::shared_ptr<Shared>(shared_);
     DWORD thread_id = 0;
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
     thread_ = ShellRegistryTestStart(&RegistryThread, param, &thread_id);
 #else
     thread_ = CreateThread(nullptr, 0, &RegistryThread, param, 0, &thread_id);
@@ -655,4 +655,4 @@ void ShellWindowRegistry::Stop(DWORD timeout_ms) {
     thread_ = nullptr;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

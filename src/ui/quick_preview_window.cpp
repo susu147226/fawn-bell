@@ -26,10 +26,10 @@
 
 #pragma comment(lib, "uxtheme.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
-constexpr wchar_t kWindowClass[] = L"Pulse.QuickPreview";
+constexpr wchar_t kWindowClass[] = L"Luling.QuickPreview";
 constexpr DWORD kRecallOnOpen = 0x00040000;
 constexpr DWORD kRecallOnData = 0x00400000;
 constexpr DWORD kPinned = 0x00080000;
@@ -168,7 +168,7 @@ bool QuickPreviewWindow::Initialize(HWND owner, UINT navigate_message, UINT open
         MAKEINTRESOURCEW(1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR));
     RegisterClassExW(&window_class);
     hwnd_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOREDIRECTIONBITMAP,
-        kWindowClass, pulse::l10n::Get(pulse::l10n::StringId::QuickPreview).c_str(),
+        kWindowClass, luling::l10n::Get(luling::l10n::StringId::QuickPreview).c_str(),
         WS_POPUP | WS_THICKFRAME | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT, 960, 680, owner, nullptr, window_class.hInstance, this);
     return hwnd_ != nullptr;
@@ -295,7 +295,7 @@ void QuickPreviewWindow::Show(const QuickPreviewItem& item, bool dark, WindowEff
     const int x = owner_rect.left + (owner_width - width) / 2;
     const int y = owner_rect.top + (owner_height - height) / 2;
     SetWindowTextW(hwnd_, item_.name.empty()
-        ? pulse::l10n::Get(pulse::l10n::StringId::QuickPreview).c_str() : item_.name.c_str());
+        ? luling::l10n::Get(luling::l10n::StringId::QuickPreview).c_str() : item_.name.c_str());
     // Zoom out of the item's icon. Only with a plain (None) window effect:
     // a DWM system backdrop would pop in at full size around the zooming
     // content. The DWM show transition is disabled while our zoom runs.
@@ -332,7 +332,7 @@ void QuickPreviewWindow::Update(const QuickPreviewItem& item) {
     handler_.Reset();
     BeginVideo();
     SetWindowTextW(hwnd_, item_.name.empty()
-        ? pulse::l10n::Get(pulse::l10n::StringId::QuickPreview).c_str() : item_.name.c_str());
+        ? luling::l10n::Get(luling::l10n::StringId::QuickPreview).c_str() : item_.name.c_str());
     InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
@@ -446,7 +446,7 @@ D2D1_RECT_F QuickPreviewWindow::ChromeButtonRect(ChromeButton button) const {
 }
 
 D2D1_RECT_F QuickPreviewWindow::MarkdownToggleRect(int segment) const {
-    const bool zh = pulse::l10n::IsChinese();
+    const bool zh = luling::l10n::IsChinese();
     const float inner = 2.0f * scale_;
     float w0 = zh ? 46.0f : 52.0f;  // "表格" / "Table"
     if (toggle_kind_ == ToggleKind::Markdown) w0 = zh ? 46.0f : 68.0f;
@@ -491,17 +491,17 @@ void QuickPreviewWindow::DrawMarkdownToggle(ID2D1DeviceContext* dc,
                                             ID2D1SolidColorBrush* text_brush) {
     IDWriteTextFormat* format = compositor_.SmallFormat();
     if (!dc || !text_brush || !format) return;
-    const wchar_t* labels[2] = {pulse::l10n::Pick(L"\x6E32\x67D3", L"Rendered"), pulse::l10n::Pick(L"\x6E90\x7801", L"Source")};
+    const wchar_t* labels[2] = {luling::l10n::Pick(L"\x6E32\x67D3", L"Rendered"), luling::l10n::Pick(L"\x6E90\x7801", L"Source")};
     if (toggle_kind_ == ToggleKind::TableSource || toggle_kind_ == ToggleKind::TableHandler)
-        labels[0] = pulse::l10n::Pick(L"\x8868\x683C", L"Table");
+        labels[0] = luling::l10n::Pick(L"\x8868\x683C", L"Table");
     else if (toggle_kind_ == ToggleKind::TreeSource)
-        labels[0] = pulse::l10n::Pick(L"\x6811", L"Tree");
+        labels[0] = luling::l10n::Pick(L"\x6811", L"Tree");
     else if (toggle_kind_ == ToggleKind::NotebookSource)
-        labels[0] = pulse::l10n::Pick(L"\x7B14\x8BB0\x672C", L"Notebook");
+        labels[0] = luling::l10n::Pick(L"\x7B14\x8BB0\x672C", L"Notebook");
     else if (toggle_kind_ == ToggleKind::DocHandler)
-        labels[0] = pulse::l10n::Pick(L"\x6B63\x6587", L"Document");
+        labels[0] = luling::l10n::Pick(L"\x6B63\x6587", L"Document");
     if (toggle_kind_ == ToggleKind::TableHandler || toggle_kind_ == ToggleKind::DocHandler)
-        labels[1] = pulse::l10n::Pick(L"\x7CFB\x7EDF\x9884\x89C8", L"System");
+        labels[1] = luling::l10n::Pick(L"\x7CFB\x7EDF\x9884\x89C8", L"System");
     D2D1_COLOR_F color = text_brush->GetColor();
     ComPtr<ID2D1SolidColorBrush> track, thumb, dim;
     color.a = dark_ ? 0.08f : 0.06f;
@@ -575,7 +575,7 @@ void QuickPreviewWindow::PostAction(QuickPreviewAction action, const QuickPrevie
     if (native_kind_ == NativeKind::Archive &&
         !CanApplyPreviewFileAction(archive_.IsFolderListing(), archive_.HasSelection())) {
         if (action == QuickPreviewAction::CopyPath || action == QuickPreviewAction::Copy)
-            pulse::ops::WriteClipboardText(archive_.SelectedPath());
+            luling::ops::WriteClipboardText(archive_.SelectedPath());
         return;
     }
     QuickPreviewCommand command;
@@ -796,12 +796,12 @@ void QuickPreviewWindow::DrawHud(ID2D1DeviceContext* dc, const D2D1_RECT_F& cont
     if (source_w_ && source_h_ &&
         (source_w_ != decoded_w_ || source_h_ != decoded_h_)) {
         wchar_t preview[64];
-        swprintf_s(preview, pulse::l10n::Get(pulse::l10n::StringId::PreviewDecodedFormat).c_str(),
+        swprintf_s(preview, luling::l10n::Get(luling::l10n::StringId::PreviewDecodedFormat).c_str(),
                    (std::max)(decoded_w_, decoded_h_));
         line += L" \x00B7 ";
         line += preview;
     }
-    const std::wstring size = pulse::format::ByteSize(item_.size, true);
+    const std::wstring size = luling::format::ByteSize(item_.size, true);
     if (!size.empty()) {
         line += L" \x00B7 ";
         line += size;
@@ -812,7 +812,7 @@ void QuickPreviewWindow::DrawHud(ID2D1DeviceContext* dc, const D2D1_RECT_F& cont
     }
     line += L" \x00B7 ";
     if (image_fit_) {
-        line += pulse::l10n::Get(pulse::l10n::StringId::PreviewFit);
+        line += luling::l10n::Get(luling::l10n::StringId::PreviewFit);
     } else {
         wchar_t percent[16];
         swprintf_s(percent, L"%.0f%%", image_zoom_ * 100.0f);
@@ -917,13 +917,13 @@ void QuickPreviewWindow::CopyTextSelection(bool require_selection) const {
     if (native_kind_ == NativeKind::Table) {
         // Cells as TSV (Excel pastes it back as a range).
         if (require_selection && !table_.HasSelection()) return;
-        pulse::ops::WriteClipboardText(table_.SelectionText());
+        luling::ops::WriteClipboardText(table_.SelectionText());
         return;
     }
     if (native_kind_ == NativeKind::Tree) {
         // The current node's value (a subtree as JSON/XML), else the source.
         if (require_selection && !tree_.HasCurrent()) return;
-        pulse::ops::WriteClipboardText(tree_.CurrentValue());
+        luling::ops::WriteClipboardText(tree_.CurrentValue());
         return;
     }
     if (preview_text_.empty()) return;
@@ -933,10 +933,10 @@ void QuickPreviewWindow::CopyTextSelection(bool require_selection) const {
     b = (std::min)(b, static_cast<uint32_t>(preview_text_.size()));
     if (b <= a) {
         if (require_selection) return;
-        pulse::ops::WriteClipboardText(preview_text_);
+        luling::ops::WriteClipboardText(preview_text_);
         return;
     }
-    pulse::ops::WriteClipboardText(preview_text_.substr(a, b - a));
+    luling::ops::WriteClipboardText(preview_text_.substr(a, b - a));
 }
 
 void QuickPreviewWindow::SelectAllText() {
@@ -1003,7 +1003,7 @@ bool QuickPreviewWindow::EnsureFindEdit() {
         find_edit_brush_ = CreateSolidBrush(FindEditBrushColor(dark_));
     SendMessageW(find_edit_, EM_SETLIMITTEXT, static_cast<WPARAM>(kFindQueryLimit), 0);
     SendMessageW(find_edit_, EM_SETCUEBANNER, TRUE,
-        reinterpret_cast<LPARAM>(pulse::l10n::Get(pulse::l10n::StringId::Search).c_str()));
+        reinterpret_cast<LPARAM>(luling::l10n::Get(luling::l10n::StringId::Search).c_str()));
     SetWindowSubclass(find_edit_, FindEditProc, 1, reinterpret_cast<DWORD_PTR>(this));
     return true;
 }
@@ -1214,7 +1214,7 @@ void QuickPreviewWindow::ShowContextMenu(POINT screen) {
     // System preview handlers (video, PDF, Office) sit in a topmost overlay
     // over the content area; a plain popup would open underneath it.
     text_menu_.SetTopmost(native_kind_ == NativeKind::None);
-    using pulse::l10n::StringId;
+    using luling::l10n::StringId;
     const bool text_kind = native_kind_ == NativeKind::Text || native_kind_ == NativeKind::Hex ||
                            native_kind_ == NativeKind::Markdown || native_kind_ == NativeKind::Table;
     const QuickPreviewItem target = ActionTarget();
@@ -1230,7 +1230,7 @@ void QuickPreviewWindow::ShowContextMenu(POINT screen) {
                          bool separator_after = false) {
         FluentMenuItem item;
         item.command = command;
-        item.text = pulse::l10n::Get(label);
+        item.text = luling::l10n::Get(label);
         item.glyph = glyph;
         item.shortcut = shortcut;
         item.enabled = enabled;
@@ -1242,7 +1242,7 @@ void QuickPreviewWindow::ShowContextMenu(POINT screen) {
     };
     if (archive_entry) {
         add(kArchiveCmdCopyPath, StringId::CopyPath, kLinkGlyph, L"Ctrl+Shift+C");
-        items.back().text = pulse::l10n::Pick(L"复制包内路径", L"Copy path inside archive");
+        items.back().text = luling::l10n::Pick(L"复制包内路径", L"Copy path inside archive");
     }
     if (text_kind) {
         // Text verbs keep their ids and order; file verbs follow below them.
@@ -1255,8 +1255,8 @@ void QuickPreviewWindow::ShowContextMenu(POINT screen) {
         if (line_toggle) {
             FluentMenuItem item;
             item.command = kTextCmdLineNumbers;
-            item.text = line_numbers_ ? (pulse::l10n::Pick(L"\x9690\x85CF\x884C\x53F7", L"Hide line numbers"))
-                                      : (pulse::l10n::Pick(L"\x663E\x793A\x884C\x53F7", L"Show line numbers"));
+            item.text = line_numbers_ ? (luling::l10n::Pick(L"\x9690\x85CF\x884C\x53F7", L"Hide line numbers"))
+                                      : (luling::l10n::Pick(L"\x663E\x793A\x884C\x53F7", L"Show line numbers"));
             item.glyph = L"\xE8FD";
             item.shortcut = L"";
             item.separator_after = file_verbs;
@@ -1274,7 +1274,7 @@ void QuickPreviewWindow::ShowContextMenu(POINT screen) {
         add(file_cmd(QuickPreviewAction::ToggleStar),
             target.starred ? StringId::Unstar : StringId::Star,
             target.starred ? kStarFilledGlyph : kStarGlyph, L"", true, true);
-        if (child) items.back().text = pulse::l10n::Pick(L"切换星标", L"Toggle star");
+        if (child) items.back().text = luling::l10n::Pick(L"切换星标", L"Toggle star");
         add(file_cmd(QuickPreviewAction::Rename), StringId::Rename, kRenameGlyph, L"F2", writable);
         add(file_cmd(QuickPreviewAction::Delete), StringId::Delete, kDeleteGlyph, L"Delete",
             writable, true);
@@ -1284,7 +1284,7 @@ void QuickPreviewWindow::ShowContextMenu(POINT screen) {
     if (items.empty()) return;
     const int cmd = text_menu_.TrackPopup(screen, std::move(items));
     if (cmd == kTextCmdCopy) CopyTextSelection(true);
-    else if (cmd == kArchiveCmdCopyPath) pulse::ops::WriteClipboardText(archive_path);
+    else if (cmd == kArchiveCmdCopyPath) luling::ops::WriteClipboardText(archive_path);
     else if (cmd == kTextCmdSelectAll) SelectAllText();
     else if (cmd == kTextCmdFind) OpenFind();
     else if (cmd == kTextCmdLineNumbers) {
@@ -1439,10 +1439,10 @@ void QuickPreviewWindow::DrawTextStatus(ID2D1DeviceContext* dc, const D2D1_RECT_
     if (!dc || !format || !compositor_.DwriteFactory()) return;
     std::vector<std::wstring> parts;
     if (hex) {
-        parts.push_back(pulse::l10n::Pick(L"\x5341\x516D\x8FDB\x5236", L"Hex"));
+        parts.push_back(luling::l10n::Pick(L"\x5341\x516D\x8FDB\x5236", L"Hex"));
     } else {
         parts.push_back(!syntax_language_.empty() ? syntax_language_
-                                                  : std::wstring(pulse::l10n::Pick(L"\x7EAF\x6587\x672C", L"Plain text")));
+                                                  : std::wstring(luling::l10n::Pick(L"\x7EAF\x6587\x672C", L"Plain text")));
         std::wstring name;
         switch (static_cast<ipc::PreviewTextEncoding>(encoding)) {
         case ipc::PreviewTextEncoding::Utf8: name = L"UTF-8"; break;
@@ -1464,9 +1464,9 @@ void QuickPreviewWindow::DrawTextStatus(ID2D1DeviceContext* dc, const D2D1_RECT_
         if (!name.empty()) parts.push_back(std::move(name));
     }
     std::wstring size = hex ? std::wstring() : std::to_wstring(text_line_count_) +
-        (pulse::l10n::Pick(L" \x884C \x00B7 ", L" lines \x00B7 "));
-    size += pulse::format::ByteSize(bytes_read, true);
-    if (truncated) size += pulse::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
+        (luling::l10n::Pick(L" \x884C \x00B7 ", L" lines \x00B7 "));
+    size += luling::format::ByteSize(bytes_read, true);
+    if (truncated) size += luling::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
     parts.push_back(std::move(size));
     DrawStatusPill(dc, content, parts, text_brush);
 }
@@ -1758,7 +1758,7 @@ void QuickPreviewWindow::Render() {
     std::wstring status;
     if (offline) {
         native_kind_ = NativeKind::None;
-        status = pulse::l10n::Get(pulse::l10n::StringId::PreviewCloudOnly);
+        status = luling::l10n::Get(luling::l10n::StringId::PreviewCloudOnly);
     } else if (video_.active()) {
         native_kind_ = NativeKind::None;
         const auto video = video_.Snapshot();
@@ -1775,17 +1775,17 @@ void QuickPreviewWindow::Render() {
             status = video.unsupported_audio
                 ? l10n::HantText(l10n::Pick(L"系统无法解码此音频，请用默认应用打开。",
                                           L"Windows cannot decode this audio. Open it in the default app."))
-                : pulse::l10n::Get(pulse::l10n::StringId::PreviewCannotRender);
+                : luling::l10n::Get(luling::l10n::StringId::PreviewCannotRender);
         else if (!video.ready && !audio)
-            status = pulse::l10n::Get(pulse::l10n::StringId::PreviewLoading);
+            status = luling::l10n::Get(luling::l10n::StringId::PreviewLoading);
     } else if (use_handler) {
         native_kind_ = NativeKind::None;
         const auto state = handler_.state();
         if (state == PreviewHandlerHost::State::Loading ||
             state == PreviewHandlerHost::State::Idle)
-            status = pulse::l10n::Get(pulse::l10n::StringId::PreviewLoading);
+            status = luling::l10n::Get(luling::l10n::StringId::PreviewLoading);
         else if (state == PreviewHandlerHost::State::Failed)
-            status = pulse::l10n::Get(pulse::l10n::StringId::PreviewHostUnavailable);
+            status = luling::l10n::Get(luling::l10n::StringId::PreviewHostUnavailable);
         if (markdown_shown_) DrawMarkdownToggle(dc, text_brush.get());
     } else if (pages_count_ > 1) {
         native_kind_ = NativeKind::Pages;
@@ -1964,34 +1964,34 @@ void QuickPreviewWindow::Render() {
                                     ? std::wstring(L"Jupyter")
                                     : L"Jupyter \x00B7 " + markdown_.NotebookKernel());
                 parts.push_back(std::to_wstring(markdown_.NotebookCells()) +
-                                (pulse::l10n::Pick(L" \x4E2A\x5355\x5143\x683C", L" cells")));
-                std::wstring size = pulse::format::ByteSize(bytes_read, true);
-                if (truncated) size += pulse::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
+                                (luling::l10n::Pick(L" \x4E2A\x5355\x5143\x683C", L" cells")));
+                std::wstring size = luling::format::ByteSize(bytes_read, true);
+                if (truncated) size += luling::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
                 parts.push_back(std::move(size));
                 DrawStatusPill(dc, content, parts, text_brush.get());
             } else if (markdown_.DocFormat() == L"docx") {
                 // Word 文档  |  约 1,240 字  |  38 KB
-                const bool zh = pulse::l10n::IsChinese();
+                const bool zh = luling::l10n::IsChinese();
                 std::vector<std::wstring> parts;
-                parts.push_back(pulse::l10n::Pick(L"Word \x6587\x6863", L"Word document"));
+                parts.push_back(luling::l10n::Pick(L"Word \x6587\x6863", L"Word document"));
                 const std::wstring words = GroupedNumber(markdown_.WordCount());
-                parts.push_back(zh ? pulse::l10n::Cn(L"\x7EA6 ") + words + pulse::l10n::Cn(L" \x5B57") : L"about " + words + L" words");
-                std::wstring size = pulse::format::ByteSize(item_.size ? item_.size : bytes_read, true);
-                if (truncated) size += pulse::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
+                parts.push_back(zh ? luling::l10n::Cn(L"\x7EA6 ") + words + luling::l10n::Cn(L" \x5B57") : L"about " + words + L" words");
+                std::wstring size = luling::format::ByteSize(item_.size ? item_.size : bytes_read, true);
+                if (truncated) size += luling::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
                 parts.push_back(std::move(size));
                 DrawStatusPill(dc, content, parts, text_brush.get());
             } else if (markdown_.DocFormat() == L"epub") {
                 // EPUB  |  第 1 / 27 章  |  author
-                const bool zh = pulse::l10n::IsChinese();
+                const bool zh = luling::l10n::IsChinese();
                 std::vector<std::wstring> parts;
                 parts.push_back(L"EPUB");
                 const int count = (std::max)(1, markdown_.SectionCount());
                 const std::wstring at = std::to_wstring(markdown_.SectionIndex() + 1) + L" / " + std::to_wstring(count);
-                parts.push_back(zh ? pulse::l10n::Cn(L"\x7B2C ") + at + pulse::l10n::Cn(L" \x7AE0") : L"Chapter " + at);
+                parts.push_back(zh ? luling::l10n::Cn(L"\x7B2C ") + at + luling::l10n::Cn(L" \x7AE0") : L"Chapter " + at);
                 std::wstring who = markdown_.DocAuthor();
                 if (who.size() > 40) who = who.substr(0, 39) + L"\x2026";
                 if (!who.empty()) parts.push_back(std::move(who));
-                if (truncated) parts.push_back(pulse::l10n::Pick(L"\x5DF2\x622A\x65AD", L"truncated"));
+                if (truncated) parts.push_back(luling::l10n::Pick(L"\x5DF2\x622A\x65AD", L"truncated"));
                 DrawStatusPill(dc, content, parts, text_brush.get());
             }
         } else if (result == PreviewDrawResult::Markdown && markdown_.SetPayload(text, item_.path)) {
@@ -2062,7 +2062,7 @@ void QuickPreviewWindow::Render() {
                     std::vector<std::wstring> parts;
                     parts.push_back(tree_.IsXml() ? L"XML" : L"JSON");
                     parts.push_back(tree_.ErrorText());
-                    parts.push_back(pulse::format::ByteSize(bytes_read, true));
+                    parts.push_back(luling::format::ByteSize(bytes_read, true));
                     DrawStatusPill(dc, content, parts, text_brush.get());
                 } else {
                     DrawTextStatus(dc, content, false, bytes_read, truncated, text_encoding,
@@ -2083,8 +2083,8 @@ void QuickPreviewWindow::Render() {
                                      i == find_index_});
                 tree_.Draw(dc, compositor_.DwriteFactory(), content, CurrentTheme(), dark_, scale_, marks);
                 auto parts = tree_.StatusParts();
-                std::wstring size = pulse::format::ByteSize(bytes_read, true);
-                if (truncated) size += pulse::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
+                std::wstring size = luling::format::ByteSize(bytes_read, true);
+                if (truncated) size += luling::l10n::Pick(L" \x00B7 \x5DF2\x622A\x65AD", L" \x00B7 truncated");
                 parts.push_back(std::move(size));
                 DrawStatusPill(dc, content, parts, text_brush.get());
             }
@@ -2103,7 +2103,7 @@ void QuickPreviewWindow::Render() {
             table_.Draw(dc, compositor_.DwriteFactory(), content, CurrentTheme(), dark_, scale_, background, {});
         } else if (result == PreviewDrawResult::Pending && !animation_started_) {
             native_kind_ = NativeKind::None;
-            status = pulse::l10n::Get(pulse::l10n::StringId::PreviewLoading);
+            status = luling::l10n::Get(luling::l10n::StringId::PreviewLoading);
         } else if (result == PreviewDrawResult::Failed && kImageExtras &&
                    error.rfind(L"image-codec-missing:", 0) == 0) {
             native_kind_ = NativeKind::None;
@@ -2113,9 +2113,9 @@ void QuickPreviewWindow::Render() {
             DrawImageCodecCard(dc, content, L"pack", text_brush.get());
         } else if (result == PreviewDrawResult::Failed) {
             native_kind_ = NativeKind::None;
-            status = pulse::l10n::Get(error == L"path-unavailable"
-                ? pulse::l10n::StringId::PreviewFileUnavailable
-                : pulse::l10n::StringId::PreviewCannotRender);
+            status = luling::l10n::Get(error == L"path-unavailable"
+                ? luling::l10n::StringId::PreviewFileUnavailable
+                : luling::l10n::StringId::PreviewCannotRender);
         }
         dc->PopAxisAlignedClip();
         if (markdown_shown_) DrawMarkdownToggle(dc, text_brush.get());
@@ -2214,7 +2214,7 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
         break;
     }
     case WM_CREATE:
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
+        scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
         if (!compositor_.Init(hwnd_)) return -1;
         compositor_.RecreateTextFormats(scale_);
         RecreateFormats();
@@ -2716,7 +2716,7 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
         if (native_kind_ == NativeKind::Tree && !find_open_ && ctrl && shift && wparam == 'C' &&
             tree_.HasCurrent()) {
             // The node's path ($.items[3].name) rather than the file's.
-            pulse::ops::WriteClipboardText(tree_.CurrentPath());
+            luling::ops::WriteClipboardText(tree_.CurrentPath());
             return 0;
         }
         if (!find_open_ && command_message_) {
@@ -2861,4 +2861,4 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
     return DefWindowProcW(hwnd_, message, wparam, lparam);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

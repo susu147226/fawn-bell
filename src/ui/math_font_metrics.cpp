@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace pulse::ui::math {
+namespace luling::ui::math {
 namespace {
 uint16_t U16(std::span<const uint8_t> data, size_t at) noexcept {
     return static_cast<uint16_t>((static_cast<uint16_t>(data[at]) << 8) | data[at + 1]);

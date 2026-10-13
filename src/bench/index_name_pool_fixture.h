@@ -1,7 +1,7 @@
 #pragma once
 #include "../index/index_name_pool.h"
 
-namespace pulse::index {
+namespace luling::index {
 bool EngineTestAccess::NamePoolFixture() {
     bool ok = true;
     auto check = [&](bool passed, const char* label) {
@@ -194,7 +194,7 @@ bool EngineTestAccess::NamePoolFixture() {
         e.merge_retry_after_tick_ = now + 10000;
         check(e.MaintenanceMergeReason(now, 64ull << 20) == nullptr, "full merge failure backoff remains effective");
         e.filename_timing_.Flush(true);
-        std::ifstream timing(data / L"pulse-index-timing.jsonl");
+        std::ifstream timing(data / L"luling-index-timing.jsonl");
         const std::string line((std::istreambuf_iterator<char>(timing)), std::istreambuf_iterator<char>());
         check(line.find("\"maintenance\":") != std::string::npos && line.find("\"name_pool_compact\":") != std::string::npos &&
             line.find("\"reclaimed_chars\":") != std::string::npos, "bounded timing log includes maintenance counters and pool sizes");

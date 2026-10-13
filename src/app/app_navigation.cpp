@@ -53,9 +53,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-using namespace pulse;
+using namespace luling;
 
-namespace pulse {
+namespace luling {
 std::vector<std::wstring> CollectPanePaths(const AppState& s) {
     std::vector<std::wstring> out;
     if (!Root(s)) return out;
@@ -633,7 +633,7 @@ void ApplyContentSearchUpdate(AppState& s, index::ContentSearchUpdate update) {
         if (!tab || (tab->pending_generation != update.progress.generation &&
             tab->search_live_generation != update.progress.generation)) return;
         std::wstring kind, rest;
-        if (!app::ParsePulsePath(tab->current_path, &kind, &rest)) return;
+        if (!app::ParseLulingPath(tab->current_path, &kind, &rest)) return;
         if (kind != L"saved-search" && kind != L"search") return;
         if (kind == L"saved-search") {
             wchar_t* end = nullptr;
@@ -710,7 +710,7 @@ void ApplyContentSearchUpdate(AppState& s, index::ContentSearchUpdate update) {
     swprintf_s(item_count, l10n::Get(l10n::StringId::ItemsCountFormat).c_str(),
                static_cast<int>(target->search_total));
     std::wstring rest;
-    app::ParsePulsePath(target->current_path, nullptr, &rest);
+    app::ParseLulingPath(target->current_path, nullptr, &rest);
     if (!update.progress.done && target->search_total == 0) {
         const auto needle = search_kind == L"saved-search"
             ? s.savedSearches.items()[saved_index].name : app::SearchDisplayNeedle(rest);
@@ -782,7 +782,7 @@ void DeliverIndexSearchResult(AppState& s, uint32_t id,
         app::Tab* tab = pane.ActiveTab();
         if (!tab || (tab->pending_generation != id && tab->filename_live_generation != id)) return;
         std::wstring kind, rest;
-        app::ParsePulsePath(tab->current_path, &kind, &rest);
+        app::ParseLulingPath(tab->current_path, &kind, &rest);
         if (kind == L"search") {
             ApplySearchHits(*tab, rest, std::move(result));
         } else if (kind == L"saved-search") {
@@ -832,7 +832,7 @@ void MaybePrefetchSearchPage(AppState& s) {
         tab->search_next_offset >= tab->search_total ||
         tab->search_awaiting_content || tab->search_content_active) return;
     std::wstring kind, rest;
-    if (!app::ParsePulsePath(tab->current_path, &kind, &rest) ||
+    if (!app::ParseLulingPath(tab->current_path, &kind, &rest) ||
         (kind != L"search" && kind != L"saved-search")) return;
     const D2D1_RECT_F list = ListRect(s);
     const float view_h = std::max(0.0f, list.bottom - list.top);
@@ -869,7 +869,7 @@ void CancelActiveContentSearch(AppState& s, app::Tab& tab) {
     tab.pending_generation = 0;
     MarkContentSearchStopped(tab);
     std::wstring kind, rest;
-    if (app::ParsePulsePath(tab.current_path, &kind, &rest) && kind == L"search")
+    if (app::ParseLulingPath(tab.current_path, &kind, &rest) && kind == L"search")
         SetQuerySearchTitle(tab, rest, tab.search_total);
     if(tab.content_results) {tab.content_revision=UINT64_MAX;RefreshContentResults(s);}
 }
@@ -879,7 +879,7 @@ static void CancelUnsharedDirectoryRequest(AppState& s, app::Tab& tab) {
     if (!generation) return;
     if (fs::IsVirtualPath(tab.current_path)) {
         std::wstring kind;
-        app::ParsePulsePath(tab.current_path, &kind, nullptr);
+        app::ParseLulingPath(tab.current_path, &kind, nullptr);
         // Search and other virtual providers own separate generation spaces.
         // Only these views dispatch independent WorkerPool::LoadPaths jobs.
         if (kind == L"tag" || kind == L"starred" || kind == L"recent")
@@ -910,7 +910,7 @@ void LoadVirtualView(AppState& s, app::Tab& tab, const std::wstring& path, PathL
     SyncVisibleWatches(s);
 
     std::wstring kind, rest;
-    app::ParsePulsePath(path, &kind, &rest);
+    app::ParseLulingPath(path, &kind, &rest);
     if (kind == L"changes") {
         LoadChangeView(s, tab, rest);
         return;
@@ -1253,7 +1253,7 @@ void ApplyWorkerResult(AppState& s, app::WorkResult& res) {
                 }
             }
             std::wstring virtual_kind;
-            if (res.snapshot && app::ParsePulsePath(
+            if (res.snapshot && app::ParseLulingPath(
                     tab->current_path, &virtual_kind, nullptr) &&
                 (virtual_kind == L"starred" || virtual_kind == L"recent")) {
                 for (const auto& entry : *res.snapshot) {
@@ -2037,7 +2037,7 @@ void SetSort(AppState& s, ui::SortColumn col, ui::SortDirection direction) {
     app::Tab* tab = ActiveTab(s);
     if (!tab) return;
     std::wstring kind;
-    if (app::ParsePulsePath(tab->current_path, &kind, nullptr) &&
+    if (app::ParseLulingPath(tab->current_path, &kind, nullptr) &&
         (kind == L"starred" || kind == L"recent")) {
         return;
     }
@@ -2070,11 +2070,11 @@ void SetGroupBy(AppState& s, int group_by) {
     app::Tab* tab = ActiveTab(s);
     if (!tab || tab->content_results) return;
     std::wstring kind;
-    const bool pulse_view = app::ParsePulsePath(tab->current_path, &kind, nullptr);
-    const bool recent = pulse_view && kind == L"recent";
+    const bool luling_view = app::ParseLulingPath(tab->current_path, &kind, nullptr);
+    const bool recent = luling_view && kind == L"recent";
     // Search results and tag views span folders: they group by Location.
     // The recycle bin groups by deleted date (mtime) or original folder.
-    const bool multi = pulse_view && (kind == L"search" || kind == L"saved-search" || kind == L"tag" ||
+    const bool multi = luling_view && (kind == L"search" || kind == L"saved-search" || kind == L"tag" ||
                                       kind == L"recycle");
     if (!recent && !multi && (tab->current_path.empty() || fs::IsVirtualPath(tab->current_path))) return;
     const app::GroupBy by = app::GroupByFromInt(group_by);
@@ -2214,7 +2214,7 @@ void GoForward(AppState& s) {
 bool IsSettingsTab(const app::Tab* tab) {
     if (!tab) return false;
     std::wstring kind;
-    return app::ParsePulsePath(tab->current_path, &kind, nullptr) && kind == L"settings";
+    return app::ParseLulingPath(tab->current_path, &kind, nullptr) && kind == L"settings";
 }
 
 std::wstring NewTabPath(const AppState& s) {
@@ -2452,4 +2452,4 @@ bool ActivateExistingFolderTab(AppState& s, const std::wstring& path) {
     return true;
 }
 
-} // namespace pulse
+} // namespace luling

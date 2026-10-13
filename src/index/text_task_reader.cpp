@@ -5,7 +5,7 @@
 #include <cwchar>
 #include <limits>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 constexpr size_t kChunk = 64 * 1024;
 constexpr size_t kContext = 160;

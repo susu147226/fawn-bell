@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 inline HCURSOR PreviewGrabCursor(bool dragging) {
     struct Cursors {
@@ -79,4 +79,4 @@ inline HCURSOR PreviewGrabCursor(bool dragging) {
     return cursor ? cursor : LoadCursorW(nullptr, IDC_SIZEALL);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

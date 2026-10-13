@@ -13,7 +13,7 @@
 #include <cmath>
 #include <cwchar>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 constexpr float kStripWidth = 104.0f;       // DIP
 constexpr float kStripMinWindow = 560.0f;   // narrower windows hide the strip
@@ -421,4 +421,4 @@ void QuickPreviewWindow::DrawPages(ID2D1DeviceContext* dc, ID2D1SolidColorBrush*
     dc->PopAxisAlignedClip();
 }
 
-}  // namespace pulse::ui
+}  // namespace luling::ui

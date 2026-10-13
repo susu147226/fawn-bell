@@ -4,7 +4,7 @@
 #pragma once
 #include <string>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct DetailsMeta {
     std::wstring owner;        // 所有者 ("DOMAIN\\user"); empty = failed
@@ -19,4 +19,4 @@ DetailsMeta FetchDetailsMeta(const std::wstring& path);
 // Pure: access mask -> Chinese summary ("完全控制", "读取和执行、读取", ...).
 std::wstring FormatAccessMask(unsigned int mask, bool is_dir);
 
-} // namespace pulse::app
+} // namespace luling::app

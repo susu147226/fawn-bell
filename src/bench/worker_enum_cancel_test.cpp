@@ -2,8 +2,8 @@
 #include <cstdio>
 static HANDLE blocked, release_io, delivered;
 static std::atomic<int> block_count{0}, callbacks{0};
-namespace pulse::fs {
-bool IsVirtualPath(const std::wstring& p) { return p.starts_with(L"pulse:"); }
+namespace luling::fs {
+bool IsVirtualPath(const std::wstring& p) { return p.starts_with(L"luling:"); }
 bool IsUncPath(const std::wstring& p) { return p.starts_with(L"\\\\"); }
 DWORD ReadReparseTag(const std::wstring&) { return 0; }
 void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>&, const std::atomic_bool*) {
@@ -18,7 +18,7 @@ bool QueryDirectoryIdentity(const std::wstring&, DirectoryIdentity&) { return tr
 NetSnapshotWrite BeginNetSnapshotWrite(const std::wstring&) { return {}; }
 bool SaveNetSnapshot(const NetSnapshotWrite&, const SnapshotPtr&) { return true; }
 }
-namespace pulse::app {
+namespace luling::app {
 std::wstring FindGitRoot(const std::wstring&) { return {}; }
 void ResolveLinksInPlace(const std::wstring&, std::vector<fs::DirEntry>&, const std::function<bool()>&) {}
 ScopedEntryGrouping::ScopedEntryGrouping(int, const std::wstring&) {}
@@ -29,17 +29,17 @@ void SortEntries(std::vector<fs::DirEntry>& entries, ui::SortColumn col, ui::Sor
     std::sort(entries.begin(), entries.end(), [&](const fs::DirEntry& a, const fs::DirEntry& b) { if (tick) tick(); return EntryLess(a, b, col, dir); });
 }
 }
-namespace pulse::diagnostics::runtime {
+namespace luling::diagnostics::runtime {
 void Event(const char*, std::initializer_list<Field>) noexcept {}
 }
 static int failures = 0;
 static void Check(bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; }
 static bool Drained() {
-    for (int i = 0; i < 1000 && pulse::fs::active_network_enumerations; ++i) Sleep(2);
-    return pulse::fs::active_network_enumerations == 0;
+    for (int i = 0; i < 1000 && luling::fs::active_network_enumerations; ++i) Sleep(2);
+    return luling::fs::active_network_enumerations == 0;
 }
 int main() {
-    using namespace pulse;
+    using namespace luling;
     blocked = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     release_io = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     delivered = CreateEventW(nullptr, TRUE, FALSE, nullptr);

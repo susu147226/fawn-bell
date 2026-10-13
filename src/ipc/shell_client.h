@@ -1,6 +1,6 @@
-// shell_client.h — Async client for pulse_shell.exe (UI-process side).
+// shell_client.h — Async client for luling_shell.exe (UI-process side).
 //
-// Owns the child process lifetime: pipe connects to \\.\pipe\pulse_shell_<pid>;
+// Owns the child process lifetime: pipe connects to \\.\pipe\luling_shell_<pid>;
 // on send/receive failure the child is restarted (CreateProcess) and the
 // in-flight request is retried exactly once, then reported as failed.
 // Callbacks run on the reader or synchronously on submit failure. A caller
@@ -18,10 +18,10 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::ipc {
+namespace luling::ipc {
 
 // One Explorer verb from a host-side IContextMenu session (already filtered
-// by pulse_shell; see ctx_menu_util.h). Software-owned submenus arrive as a
+// by luling_shell; see ctx_menu_util.h). Software-owned submenus arrive as a
 // has_children header followed by its child rows (one level).
 struct CtxMenuItem {
     uint32_t id = 0;              // host menu command id; pass back to Invoke
@@ -79,10 +79,10 @@ public:
     void CloseContextMenu(uint32_t session_id);
 
 private:
-#ifdef PULSE_SHELL_CLIENT_TEST
+#ifdef LULING_SHELL_CLIENT_TEST
     friend struct ShellClientTestAccess;
 #endif
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     friend struct ShellClientReviewTestAccess;
 #endif
     ShellClient() = default;
@@ -135,4 +135,4 @@ private:
     std::atomic<uint32_t> next_id_{1};
 };
 
-} // namespace pulse::ipc
+} // namespace luling::ipc

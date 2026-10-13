@@ -5,7 +5,7 @@
 #include <mutex>
 #include <optional>
 
-namespace pulse {
+namespace luling {
 struct ContentSelectionAction {
     std::weak_ptr<index::ContentResultStore> store;
     std::vector<int> indices;
@@ -52,7 +52,7 @@ struct ContentSelectionRestore {
 };
 namespace {
 void ContentTitle(AppState& s, app::Tab& tab) {
-    std::wstring kind,raw; app::ParsePulsePath(tab.current_path,&kind,&raw);
+    std::wstring kind,raw; app::ParseLulingPath(tab.current_path,&kind,&raw);
     std::wstring name=app::SearchDisplayNeedle(raw);
     if(kind==L"saved-search") {
         const auto i=static_cast<size_t>(wcstoull(raw.c_str(),nullptr,10));
@@ -261,4 +261,4 @@ void CompleteContentSelection(AppState& s) {
         if(current==tab) { current->content_action_rows.clear(); current->content_action_ready=false; }
     });
 }
-} // namespace pulse
+} // namespace luling

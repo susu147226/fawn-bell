@@ -4,10 +4,10 @@
 #include <algorithm>
 #include <string>
 
-namespace pulse::app {
+namespace luling::app {
 
 std::wstring FolderPrefKey(const std::wstring& path) {
-    if (path.empty() || path.starts_with(L"pulse:")) return {};
+    if (path.empty() || path.starts_with(L"luling:")) return {};
     std::wstring key = path::StripExtendedPathPrefix(path);
     std::replace(key.begin(), key.end(), L'/', L'\\');
     // Accept only absolute filesystem paths; virtual views have separate rules.
@@ -92,4 +92,4 @@ void FolderViewPrefs::ReadJson(const std::wstring& input) {
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

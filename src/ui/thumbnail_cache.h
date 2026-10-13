@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace pulse::ui {
+namespace luling::ui {
 // Archive: `text` carries the archive tree payload for ArchivePreview.
 enum class PreviewDrawResult { Pending, Bitmap, Text, Hex, Failed, Archive, Markdown, Table, Tree };
 
@@ -91,7 +91,7 @@ public:
     bool Palette(const std::wstring& path, uint32_t pixel_size, uint64_t modified,
                  uint64_t size, CoverPalette& palette);
 private:
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     friend struct QuickPreviewAuditTest;
 #endif
     friend struct PreviewDeadlineProbe;
@@ -186,4 +186,4 @@ private:
     std::atomic<uint32_t> epoch_{1};
     std::thread worker_;
 };
-} // namespace pulse::ui
+} // namespace luling::ui

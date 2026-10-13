@@ -23,7 +23,7 @@ Get-ChildItem -LiteralPath $crt.FullName -Filter '*.dll' -File | ForEach-Object 
 }
 $pending = [Collections.Generic.Queue[string]]::new()
 . "$PSScriptRoot/release_payload.ps1"
-foreach ($binary in $PulseReleasePayload) {
+foreach ($binary in $LulingReleasePayload) {
     $pending.Enqueue((Join-Path $BuildDir $binary))
 }
 $required = @{}

@@ -1,7 +1,7 @@
 // A context-menu handler that never returns from QueryContextMenu (#65): the
-// menu still settles, the handler is reported as timed out, and pulse_shell
+// menu still settles, the handler is reported as timed out, and luling_shell
 // recycles itself once idle instead of leaking the stuck thread for good.
-// Drives the real pulse_shell.exe next to this test through ShellClient.
+// Drives the real luling_shell.exe next to this test through ShellClient.
 #include "../ipc/shell_client.h"
 
 #include <windows.h>
@@ -18,7 +18,7 @@
 namespace {
 
 constexpr wchar_t kStuckHandler[] = L"{50554C53-4500-4D41-4E47-000000000065}";
-constexpr wchar_t kStuckVariable[] = L"PULSE_SHELL_TEST_STUCK_HANDLER";
+constexpr wchar_t kStuckVariable[] = L"LULING_SHELL_TEST_STUCK_HANDLER";
 
 int g_passed = 0;
 int g_failed = 0;
@@ -51,7 +51,7 @@ Session Snapshot(uint32_t id) {
     return g_sessions[id];
 }
 
-// The pulse_shell.exe this process started (ShellClient spawns it lazily).
+// The luling_shell.exe this process started (ShellClient spawns it lazily).
 HANDLE HostProcess() {
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) return nullptr;
@@ -60,7 +60,7 @@ HANDLE HostProcess() {
     for (BOOL more = Process32FirstW(snapshot, &entry); more && !found;
          more = Process32NextW(snapshot, &entry)) {
         if (entry.th32ParentProcessID == GetCurrentProcessId() &&
-            _wcsicmp(entry.szExeFile, L"pulse_shell.exe") == 0)
+            _wcsicmp(entry.szExeFile, L"luling_shell.exe") == 0)
             found = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
                                 entry.th32ProcessID);
     }
@@ -74,7 +74,7 @@ int wmain() {
     SetConsoleOutputCP(CP_UTF8);
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(MAX_PATH, temp);
-    const std::wstring dir = std::wstring(temp) + L"pulse_shell_recycle_test_" +
+    const std::wstring dir = std::wstring(temp) + L"luling_shell_recycle_test_" +
                              std::to_wstring(GetCurrentProcessId());
     // Menus for hang.txt get a handler that never returns; menu.txt is the control.
     const std::wstring hang = dir + L"\\hang.txt";
@@ -86,8 +86,8 @@ int wmain() {
     }
     SetEnvironmentVariableW(kStuckVariable, L"hang.txt"); // inherited by every host
 
-    pulse::ipc::ShellClient::Callbacks callbacks;
-    callbacks.ctx_items = [](uint32_t id, std::vector<pulse::ipc::CtxMenuItem> items, bool partial,
+    luling::ipc::ShellClient::Callbacks callbacks;
+    callbacks.ctx_items = [](uint32_t id, std::vector<luling::ipc::CtxMenuItem> items, bool partial,
                              std::vector<std::wstring> slow) {
         std::lock_guard<std::mutex> lock(g_mutex);
         Session& s = g_sessions[id];
@@ -97,7 +97,7 @@ int wmain() {
         g_cv.notify_all();
     };
     callbacks.done = [](uint32_t, uint32_t, bool, std::wstring) {};
-    auto& client = pulse::ipc::ShellClient::Instance();
+    auto& client = luling::ipc::ShellClient::Instance();
     client.Start(std::move(callbacks));
 
     // --- a handler hangs ----------------------------------------------------

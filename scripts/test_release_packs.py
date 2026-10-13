@@ -42,10 +42,10 @@ class ReleaseGate(unittest.TestCase):
 
     def test_catalog_is_complete_and_tag_bound(self):
         header = Path(__file__).resolve().parents[1] / 'src/app/pack_catalog_generated.h'
-        packs = catalog(header, 'jimmgreen/pulse', 'v1.0.53')
+        packs = catalog(header, 'susu147226/fawn-bell', 'v1.0.53')
         self.assertEqual(sum(len(p['files']) for p in packs), 17)
         with self.assertRaises(ValueError):
-            catalog(header, 'jimmgreen/pulse', 'wrong-tag')
+            catalog(header, 'susu147226/fawn-bell', 'wrong-tag')
 
     def test_new_draft_can_copy_verified_published_bundle(self):
         ensure(self.packs, 'test/repo', 'v1', 'source', gh=self.gh)

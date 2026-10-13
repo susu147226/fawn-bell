@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <cstdint>
 
-namespace pulse::index {
+namespace luling::index {
 struct DocumentReadMetrics {
     uint64_t package_us = 0, enumerate_us = 0, parts_inclusive_us = 0, part_open_us = 0;
     uint64_t stream_read_us = 0, stream_bytes = 0, stream_reads = 0;

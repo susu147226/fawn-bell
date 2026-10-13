@@ -5,7 +5,7 @@
 #include <cstring>
 #include <cstddef>
 
-namespace pulse::index {
+namespace luling::index {
 // FSCTL_ENUM_USN_DATA begins with the next FRN cursor, not a USN_RECORD.
 // Validate a whole page before consumers publish any of its records.
 template<class Emit>

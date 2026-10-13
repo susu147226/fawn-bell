@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 void SetError(std::wstring* error, const wchar_t* text) { if (error) *error = text; }
 bool EnsureDirectory(const std::wstring& path) {
@@ -22,7 +22,7 @@ std::wstring Hex(uint64_t value) {
 }
 std::wstring ManifestJson(const ShardManifest& v) {
     std::wstring id;
-    pulse::json::Escape(v.source_id, id);
+    luling::json::Escape(v.source_id, id);
     return L"{\n  \"version\":" + std::to_wstring(v.version) +
            L",\n  \"generation\":" + std::to_wstring(v.generation) +
            L",\n  \"active_built\":" + std::to_wstring(v.active_built) +
@@ -35,7 +35,7 @@ std::wstring ManifestJson(const ShardManifest& v) {
 }
 
 uint64_t ReadU64(const std::wstring& text, const wchar_t* key) {
-    size_t pos = pulse::json::ValuePosition(text, key);
+    size_t pos = luling::json::ValuePosition(text, key);
     if (pos == std::wstring::npos || pos >= text.size() || text[pos] < L'0' || text[pos] > L'9')
         return 0;
     uint64_t value = 0;
@@ -129,15 +129,15 @@ bool LoadShardManifest(const std::wstring& path, ShardManifest& out, std::wstrin
     }
     CloseHandle(h);
     if (json.find(L'{') == std::wstring::npos) { SetError(error, L"分片清单损坏"); return false; }
-    out.version = static_cast<uint32_t>(std::max<int64_t>(1, pulse::json::ExtractInt(json, L"version", 1)));
+    out.version = static_cast<uint32_t>(std::max<int64_t>(1, luling::json::ExtractInt(json, L"version", 1)));
     out.generation = ReadU64(json, L"generation");
     out.active_built = ReadU64(json, L"active_built");
     out.active_wal_bytes = ReadU64(json, L"active_wal_bytes");
-    out.active_slot = static_cast<uint8_t>(std::clamp<int64_t>(pulse::json::ExtractInt(json, L"active_slot", 0), 0, 1));
-    out.previous_slot = static_cast<uint8_t>(std::clamp<int64_t>(pulse::json::ExtractInt(json, L"previous_slot", 1), 0, 1));
+    out.active_slot = static_cast<uint8_t>(std::clamp<int64_t>(luling::json::ExtractInt(json, L"active_slot", 0), 0, 1));
+    out.previous_slot = static_cast<uint8_t>(std::clamp<int64_t>(luling::json::ExtractInt(json, L"previous_slot", 1), 0, 1));
     out.active_bytes = ReadU64(json, L"active_bytes");
     out.active_crc64 = ReadU64(json, L"active_crc64");
-    out.source_id = pulse::json::ExtractString(json, L"source_id", L"");
+    out.source_id = luling::json::ExtractString(json, L"source_id", L"");
     return true;
 }
 
@@ -301,4 +301,4 @@ bool PublishShardBase(const ShardPaths& paths, const std::wstring& temp_path,
     published = next;
     return true;
 }
-} // namespace pulse::index
+} // namespace luling::index

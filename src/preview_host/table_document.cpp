@@ -16,7 +16,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr size_t kMaxCsvBytes = 8u * 1024u * 1024u;
@@ -832,4 +832,4 @@ bool MakeXlsxTable(const std::wstring& path, std::wstring& payload, uint32_t& by
     return true;
 }
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

@@ -26,7 +26,7 @@ double NowMsExact() {
 }
 
 // Pumps kFrame messages for `ms`; consume=false leaves them queued.
-std::vector<double> Collect(pulse::app::FramePump& pump, HWND hwnd, double ms, bool consume) {
+std::vector<double> Collect(luling::app::FramePump& pump, HWND hwnd, double ms, bool consume) {
     std::vector<double> times;
     const double end = NowMsExact() + ms;
     while (NowMsExact() < end) {
@@ -50,7 +50,7 @@ int CountQueued(HWND hwnd) {
 }
 // kTimerUi period policy: fast while active, slow once quiet, slower hidden.
 void TestUiTimerPacer() {
-    using pulse::app::UiTimerPacer;
+    using luling::app::UiTimerPacer;
     UiTimerPacer pacer;
     UINT period = 0;
     Check(pacer.Current() == UiTimerPacer::kActiveMs, L"pacer starts at the display-rate period");
@@ -82,7 +82,7 @@ int wmain() {
         std::vector<uint64_t> seen;
         const double end = NowMsExact() + 40.0;
         while (NowMsExact() < end) {
-            const uint64_t t = pulse::ui::motion::NowMs();
+            const uint64_t t = luling::ui::motion::NowMs();
             if (seen.empty() || seen.back() != t) seen.push_back(t);
         }
         bool monotonic = std::is_sorted(seen.begin(), seen.end());
@@ -95,7 +95,7 @@ int wmain() {
     // used to stay true for ever, keeping the frame pump (and a full-window
     // repaint) running at 60 Hz until the next hover.
     {
-        namespace motion = pulse::ui::motion;
+        namespace motion = luling::ui::motion;
         motion::RectMotion plate;
         const D2D1_RECT_F row_a = D2D1::RectF(0, 0, 100, 20), row_b = D2D1::RectF(0, 40, 100, 60);
         plate.Update(1, 1, row_a, 1, 1000, 100);
@@ -120,7 +120,7 @@ int wmain() {
     // View-mode morph (grid -> list): shared-element travel, spring timing,
     // time-bounded, cheap enough for every visible item every frame.
     {
-        namespace motion = pulse::ui::motion;
+        namespace motion = luling::ui::motion;
         using VM = motion::ViewMorphMotion;
         const bool animations = motion::SystemAnimationsEnabled();
         auto same = [](const D2D1_RECT_F& a, const D2D1_RECT_F& b) {
@@ -269,7 +269,7 @@ int wmain() {
                      gaps.empty() ? 0.0 : gaps[gaps.size() / 2]);
     }
 
-    pulse::app::FramePump pump;
+    luling::app::FramePump pump;
     Check(pump.Start(hwnd, kFrame), L"pump starts");
     std::wprintf(L"[INFO] clock: %ls\n", pump.ClockName());
     DEVMODEW mode{};

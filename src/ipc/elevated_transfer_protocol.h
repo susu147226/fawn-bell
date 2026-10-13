@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace pulse::elevated {
+namespace luling::elevated {
 inline constexpr uint32_t kMagic = 0x45504c53;
 inline constexpr uint16_t kVersion = 3;
 inline constexpr uint32_t kMaxPayload = 1024 * 1024;
@@ -18,7 +18,7 @@ inline constexpr uint32_t kMaxString = 32760;
 // v3 Transfer appends an explicit single-root Move leaf name (empty = basename).
 // Old peers fail the version handshake; never reinterpret a different payload.
 inline bool SafeTransferName(const std::wstring& name, size_t count, bool move) {
-    return name.empty() || (move && count == 1 && name.size() <= kMaxString && pulse::IsRenameFilename(name));
+    return name.empty() || (move && count == 1 && name.size() <= kMaxString && luling::IsRenameFilename(name));
 }
 using Nonce = std::array<unsigned char, 16>;
 enum class Kind : uint16_t { Hello = 1, Transfer, Cancel, Pause, Resume, ConflictReply, Progress, Conflict, CompletedItem, Result, Shutdown, RecycleDelete, PermanentDelete, DeletedItem };

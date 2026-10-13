@@ -5,10 +5,10 @@
 #include <filesystem>
 #include <fstream>
 
-#ifdef PULSE_WITH_SELFTEST
-namespace pulse { bool TestSettingsFilter(const std::wstring&, l10n::StringId); }
-int RunQuickLookSettingsTest(pulse::AppState& s, const wchar_t* output) {
-    using namespace pulse;
+#ifdef LULING_WITH_SELFTEST
+namespace luling { bool TestSettingsFilter(const std::wstring&, l10n::StringId); }
+int RunQuickLookSettingsTest(luling::AppState& s, const wchar_t* output) {
+    using namespace luling;
     using H = ui::HitTestResult;
     const auto folder = std::filesystem::path(output).parent_path();
     std::filesystem::create_directories(folder);
@@ -28,7 +28,7 @@ int RunQuickLookSettingsTest(pulse::AppState& s, const wchar_t* output) {
     const auto original_path = active ? active->current_path : std::wstring{};
     check((ui::kSettingsDefaultExpandedMask & 4u) != 0, "format disclosure starts expanded by default");
     if (active) {
-        active->current_path = L"pulse:settings:packs";
+        active->current_path = L"luling:settings:packs";
         s.settings.SelectPage(5); s.settingsExpanded |= 4u;
         ui::fluent::Painter click_painter(&s.compositor); click_painter.SetScale(s.scale);
         const auto click_rect = D2D1::RectF(0, 0, static_cast<float>(s.compositor.Width()), static_cast<float>(s.compositor.Height()));
@@ -82,7 +82,7 @@ int RunQuickLookSettingsTest(pulse::AppState& s, const wchar_t* output) {
         ui::WindowViewModel vm;
         vm.settings_open = true; vm.settings_page = 5; vm.settings_ui_font_scale = font;
         vm.settings_version = L"test";
-        vm.settings_pack_root = L"C:\\Users\\Example\\AppData\\Local\\Pulse\\packs";
+        vm.settings_pack_root = L"C:\\Users\\Example\\AppData\\Local\\Luling\\packs";
         vm.settings_pack_media_available = vm.settings_pack_images_available = true;
         vm.settings_pack_raw_available = vm.settings_pack_archive_available = true;
         log << "case language=" << (language[0] == L'z' ? "zh" : "en") << " font=" << font

@@ -13,19 +13,19 @@
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "version.lib")
 
-using pulse::ipc::CleanMenuText;
-using pulse::ipc::IsBuiltinContextVerb;
-using pulse::ipc::IsDisabledHandler;
-using pulse::ipc::IsDroppedContextSubmenu;
-using pulse::ipc::KeepFlyoutParentWithoutLeaves;
-using pulse::ipc::kMaxSubmenuChildren;
-using pulse::ipc::ToLowerVerb;
+using luling::ipc::CleanMenuText;
+using luling::ipc::IsBuiltinContextVerb;
+using luling::ipc::IsDisabledHandler;
+using luling::ipc::IsDroppedContextSubmenu;
+using luling::ipc::KeepFlyoutParentWithoutLeaves;
+using luling::ipc::kMaxSubmenuChildren;
+using luling::ipc::ToLowerVerb;
 
-namespace pulse::shell {
+namespace luling::shell {
 namespace {
 
 std::wstring ToParsingPath(std::wstring path) {
-    return pulse::path::StripExtendedPathPrefix(path);
+    return luling::path::StripExtendedPathPrefix(path);
 }
 
 std::wstring ClsidText(const CLSID& clsid) {
@@ -509,7 +509,7 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
         const std::wstring title = MenuItemText(slot.hmenu, static_cast<UINT>(i));
         if (!slot.send_to_title.empty() && title != slot.send_to_title &&
             !(mii.hSubMenu &&
-              pulse::ipc::ToLowerVerb(CtxVerbOf(slot.menu, mii.wID, slot.id_first)) == L"sendto"))
+              luling::ipc::ToLowerVerb(CtxVerbOf(slot.menu, mii.wID, slot.id_first)) == L"sendto"))
             continue;
         if (mii.hSubMenu) {
             const std::wstring parent_verb = slot.send_to_title.empty()
@@ -522,7 +522,7 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
             // the default menu, so slower flyouts above it could use up the
             // shared budget and leave it empty (#77). It gets its own.
             const bool send_to = !slot.send_to_title.empty() ||
-                                 pulse::ipc::ToLowerVerb(parent_verb) == L"sendto";
+                                 luling::ipc::ToLowerVerb(parent_verb) == L"sendto";
             std::vector<CtxItemOut> kids;
             CollectSubmenuLeaves(slot.menu, slot.menu2, slot.menu3, mii.hSubMenu,
                                  static_cast<UINT>(i), background, slot.id_first, enabled, 0,
@@ -584,4 +584,4 @@ uint32_t FindItemId(const std::vector<CtxItemOut>& items, uint32_t id,
     return 0;
 }
 
-} // namespace pulse::shell
+} // namespace luling::shell

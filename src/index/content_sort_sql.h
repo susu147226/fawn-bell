@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <string_view>
 #include "../../third_party/sqlite/sqlite3.h"
-namespace pulse::index {
+namespace luling::index {
 inline int OrdinalCollation(void*, int an, const void* a, int bn, const void* b) {
     const int result = CompareStringOrdinal(static_cast<const wchar_t*>(a), an / 2, static_cast<const wchar_t*>(b), bn / 2, TRUE);
     return result == CSTR_LESS_THAN ? -1 : result == CSTR_GREATER_THAN ? 1 : 0;

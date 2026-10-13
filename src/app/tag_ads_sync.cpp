@@ -8,7 +8,7 @@
 #include <cwctype>
 #include <set>
 #include <memory>
-namespace pulse::app {
+namespace luling::app {
 namespace {
 std::mutex mutex;
 std::wstring loaded_dir;
@@ -34,7 +34,7 @@ bool Field(std::wstring_view text, size_t& position, std::wstring& value) {
     value.assign(text.substr(position, size)); position += size; return true;
 }
 void Load() {
-    const auto dir = GetPulseDataDir();
+    const auto dir = GetLulingDataDir();
     if (loaded_dir == dir && !loaded_dir.empty()) return;
     loaded_dir = dir; pending.clear(); readable = false; load_error = ERROR_INVALID_DATA;
     if (dir.empty()) return;
@@ -44,7 +44,7 @@ void Load() {
         if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) { readable = true; return; }
     }
     std::wstring text;
-    constexpr std::wstring_view prefix = L"PULSE_ADS_PENDING_1\n";
+    constexpr std::wstring_view prefix = L"LULING_ADS_PENDING_1\n";
     SetLastError(ERROR_SUCCESS);
     if (!ReadUtf8File(file,text)) { load_error = GetLastError(); return; }
     if (!text.starts_with(prefix)) return;
@@ -62,7 +62,7 @@ void Load() {
     readable = true;
 }
 bool Save(const std::map<std::wstring, TagAdsUpdate>& records) {
-    std::wstring text = L"PULSE_ADS_PENDING_1\n";
+    std::wstring text = L"LULING_ADS_PENDING_1\n";
     auto field = [&](const std::wstring& value) { text += std::to_wstring(value.size()) + L":" + value; };
     for (const auto& [key,update] : records) {
         field(update.path); text += std::to_wstring(update.tags.size()) + L":";

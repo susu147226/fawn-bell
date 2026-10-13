@@ -6,7 +6,7 @@
 #include <memory>
 #include <windows.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Preview providers own HWNDs in other processes. Observe only left-button
 // gestures over this host; never subclass or synchronously call provider windows.
@@ -354,4 +354,4 @@ private:
     Axis vertical_;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

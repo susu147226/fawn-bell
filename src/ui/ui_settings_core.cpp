@@ -4,7 +4,7 @@
 #include "bloom_accent_picker.h"
 #include "../common/localization.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     using I = l10n::StringId;
     using H = HitTestResult;
@@ -325,11 +325,11 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
             : lay.wallpaper_choose.left - 12.0f * scale_;
         MakeBrush(dc, theme.text, brText_);
         DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::SettingsWallpaper),
+                     luling::l10n::Get(luling::l10n::StringId::SettingsWallpaper),
                      text_left, lay.wallpaper_card.top + 18.0f * scale_,
                      (std::max)(40.0f * scale_, text_right - text_left), 22.0f * scale_);
         const std::wstring wallpaper_desc = vm.background_image.empty()
-            ? pulse::l10n::Get(pulse::l10n::StringId::SettingsWallpaperDesc)
+            ? luling::l10n::Get(luling::l10n::StringId::SettingsWallpaperDesc)
             : FileNameOf(vm.background_image);
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
         DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(), wallpaper_desc,
@@ -338,13 +338,13 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
         fluent::ControlState choose{};
         choose.hovered = IsHovered(vm, HitTestResult::SettingsWallpaper, 0);
         painter_.DrawButton({ lay.wallpaper_choose,
-                              pulse::l10n::Get(pulse::l10n::StringId::ChooseImage), {},
+                              luling::l10n::Get(luling::l10n::StringId::ChooseImage), {},
                               fluent::ButtonKind::Standard, choose });
         fluent::ControlState clear{};
         clear.enabled = !vm.background_image.empty();
         clear.hovered = clear.enabled && IsHovered(vm, HitTestResult::SettingsWallpaper, 1);
         painter_.DrawButton({ lay.wallpaper_clear,
-                              pulse::l10n::Get(pulse::l10n::StringId::Clear), {},
+                              luling::l10n::Get(luling::l10n::StringId::Clear), {},
                               fluent::ButtonKind::Standard, clear });
 
 
@@ -404,4 +404,4 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
         }
     }
 }
-} // namespace pulse::ui
+} // namespace luling::ui

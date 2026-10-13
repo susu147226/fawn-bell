@@ -13,10 +13,10 @@ import zipfile
 
 root = Path(__file__).resolve().parent.parent
 base = root / 'bench_data/document-pool-comparison'
-env = dict(os.environ, PULSE_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), PULSE_PDF_ENGINE='pdfium')
+env = dict(os.environ, LULING_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), LULING_PDF_ENGINE='pdfium')
 manifest = base / 'original-pdfs.txt'
-before = base / 'before/pulse_document_pool_bench.exe'
-after = base / 'after/pulse_document_pool_bench.exe'
+before = base / 'before/luling_document_pool_bench.exe'
+after = base / 'after/luling_document_pool_bench.exe'
 checks = []
 
 def check(ok, name):
@@ -70,7 +70,7 @@ cancelled = run('cancelled', command(cancel=100))
 check(cancelled['remaining_children'] == 0 and cancelled['elapsed_us'] < 1100000 and
       any(item['error'] == 1223 for item in cancelled['results']),
       'cancelled readers and pool waiters release processes within one second')
-two_pools = run('two-pools-first-cancelled', command(cancel=100), {'PULSE_POOL_BENCH_SECOND_POOL': '1'})
+two_pools = run('two-pools-first-cancelled', command(cancel=100), {'LULING_POOL_BENCH_SECOND_POOL': '1'})
 expected = signatures(baseline[0])
 check(two_pools['remaining_children'] == 0 and two_pools['peak_children'] <= 4 and
       any(item['error'] == 1223 for item in two_pools['results']) and
@@ -102,7 +102,7 @@ def child_count(parents):
     handles = []
     found = kernel.Process32FirstW(snapshot, c.byref(entry))
     while found:
-        if entry.parent in parents and entry.exe.lower() == 'pulse.document.exe':
+        if entry.parent in parents and entry.exe.lower() == 'luling.document.exe':
             handle = kernel.OpenProcess(0x101000, False, entry.pid)
             if handle:
                 handles.append(handle)
@@ -136,7 +136,7 @@ check(peak <= 4 and all(child.returncode == 0 for child in children) and
 ready = base / 'idle-ready.txt'
 ready.unlink(missing_ok=True)
 holder = subprocess.Popen(command(threads=4, rounds=1), env=dict(env,
-    PULSE_POOL_BENCH_READY_FILE=str(ready), PULSE_POOL_BENCH_HOLD_MS='3000'), stdout=subprocess.PIPE)
+    LULING_POOL_BENCH_READY_FILE=str(ready), LULING_POOL_BENCH_HOLD_MS='3000'), stdout=subprocess.PIPE)
 deadline = time.monotonic() + 30
 while not ready.exists() and holder.poll() is None and time.monotonic() < deadline:
     time.sleep(.01)

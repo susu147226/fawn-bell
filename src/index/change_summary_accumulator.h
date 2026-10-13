@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 // Scratch state for one file identity. Most files touch only a few ancestors;
 // long move histories switch to hashing instead of quadratic vector searches.
 class ChangeSummaryAccumulator {

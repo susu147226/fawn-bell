@@ -4,7 +4,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace pulse {
+namespace luling {
 struct LiveNetworkSearch {
     index::Query query;
     uint64_t session_id = 0;
@@ -43,4 +43,4 @@ public:
 private:
     std::unordered_map<uint64_t, std::shared_ptr<LiveNetworkSearch>> sessions_;
 };
-} // namespace pulse
+} // namespace luling

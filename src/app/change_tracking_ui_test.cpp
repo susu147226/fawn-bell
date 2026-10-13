@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "change_tracking_ui_test.h"
 #include "../common/windows_compat.h"
 #include "../ui/ui_renderer.h"
@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <filesystem>
 
-using namespace pulse::ui;
+using namespace luling::ui;
 
 namespace {
 bool Check(bool value, const char* name) {
@@ -64,14 +64,14 @@ bool DrawShot(Compositor& compositor, MainRenderer& renderer, WindowViewModel& v
 }
 }
 
-bool pulse::app::RunChangeTrackingUiTest() {
+bool luling::app::RunChangeTrackingUiTest() {
     if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return false;
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
     const auto instance = GetModuleHandleW(nullptr);
     WNDCLASSW wc{};
     wc.hInstance = instance;
     wc.lpfnWndProc = DefWindowProcW;
-    wc.lpszClassName = L"PulseChangeTrackingUiTest";
+    wc.lpszClassName = L"LulingChangeTrackingUiTest";
     RegisterClassW(&wc);
     const auto hwnd = CreateWindowExW(0, wc.lpszClassName, L"Tracking test", WS_OVERLAPPEDWINDOW,
         0, 0, 1440, 1080, nullptr, nullptr, instance, nullptr);
@@ -84,8 +84,8 @@ bool pulse::app::RunChangeTrackingUiTest() {
         std::filesystem::create_directories(L"bench_data/change-ui");
         FILE* log = nullptr;
         if (fopen_s(&log, "bench_data/change-ui/results.log", "w") == 0 && log) std::fclose(log);
-        ok &= Check(!pulse::l10n::Get(pulse::l10n::StringId::ChangeView).empty() &&
-            !pulse::l10n::Get(pulse::l10n::StringId::SettingsChangeTracking).empty(),
+        ok &= Check(!luling::l10n::Get(luling::l10n::StringId::ChangeView).empty() &&
+            !luling::l10n::Get(luling::l10n::StringId::SettingsChangeTracking).empty(),
             "tracking action and settings labels are available");
         for (const float scale : {1.0f, 1.5f, 2.0f}) {
             compositor.Resize(static_cast<int>(1100 * scale), static_cast<int>(740 * scale));
@@ -181,31 +181,31 @@ bool pulse::app::RunChangeTrackingUiTest() {
             changes.is_changes = true;
             changes.is_search = true;
             changes.header_text = L"Project files - changes";
-            changes.change_time_label = pulse::l10n::Get(pulse::l10n::StringId::ChangeLast7Days);
-            changes.change_type_label = pulse::l10n::Get(pulse::l10n::StringId::ChangeAll);
+            changes.change_time_label = luling::l10n::Get(luling::l10n::StringId::ChangeLast7Days);
+            changes.change_type_label = luling::l10n::Get(luling::l10n::StringId::ChangeAll);
             changes.change_has_more = true;
             changes.change_badges.clear();
             changes.title_change_badge = {};
-            changes.banner_message = pulse::l10n::Get(pulse::l10n::StringId::ChangeScope);
-            changes.change_status_text = pulse::l10n::Get(pulse::l10n::StringId::ChangeRefreshFailed);
+            changes.banner_message = luling::l10n::Get(luling::l10n::StringId::ChangeScope);
+            changes.change_status_text = luling::l10n::Get(luling::l10n::StringId::ChangeRefreshFailed);
             changes.entries[3].name = L"deleted-report.docx";
             changes.entries[3].record_only = true;
             changes.entries[3].is_dir = false;
-            changes.entries[3].type_text = pulse::l10n::Get(pulse::l10n::StringId::ChangeDeleted);
+            changes.entries[3].type_text = luling::l10n::Get(luling::l10n::StringId::ChangeDeleted);
             changes.entries[3].path = L"Z:\\tracking-fixture\\deleted-report.docx";
             const auto results_path = L"bench_data/change-ui/results-" + std::to_wstring(static_cast<int>(scale * 100)) + L".png";
             ok &= Check(DrawShot(compositor, renderer, vm, bounds, results_path.c_str(), true), "change results screenshot");
             changes.change_status_text.clear();
             const auto saved_entries = changes.entries;
             changes.entries.clear();
-            changes.change_empty_text = pulse::l10n::Get(pulse::l10n::StringId::ChangeReadFailed);
+            changes.change_empty_text = luling::l10n::Get(luling::l10n::StringId::ChangeReadFailed);
             vm.pane_slots.front().rect.right = vm.pane_slots.front().rect.left + 330 * scale;
             const float wrapped = PaneBannerHeight(changes, 330 * scale, scale, &compositor);
             ok &= Check(wrapped > 36 * scale, "narrow changes scope wraps and grows above controls");
             const auto empty_path = L"bench_data/change-ui/empty-error-" + std::to_wstring(static_cast<int>(scale * 100)) + L".png";
             ok &= Check(DrawShot(compositor, renderer, vm, bounds, empty_path.c_str(), true), "change read failure empty state screenshot");
             changes.loading = true;
-            changes.change_empty_text = pulse::l10n::Get(pulse::l10n::StringId::ChangeScanning);
+            changes.change_empty_text = luling::l10n::Get(luling::l10n::StringId::ChangeScanning);
             const auto loading_path = L"bench_data/change-ui/empty-loading-" + std::to_wstring(static_cast<int>(scale * 100)) + L".png";
             ok &= Check(DrawShot(compositor, renderer, vm, bounds, loading_path.c_str(), true), "first change load shows scanning text without loading skeleton");
             changes.loading = false;

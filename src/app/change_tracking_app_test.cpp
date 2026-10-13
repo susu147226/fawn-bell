@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "change_tracking_app_test.h"
 #include "app_internal.h"
 #include "change_time.h"
@@ -6,7 +6,7 @@
 #include "../bench/change_tracking_menu_test.h"
 #include <cstdio>
 
-namespace pulse::app {
+namespace luling::app {
 bool RunChangeTrackingAppTest() {
     bool passed = true;
     FILE* log = nullptr;
@@ -40,7 +40,7 @@ bool RunChangeTrackingAppTest() {
     state->appPrefs.persist = false;
     state->appPrefs.change_tracking_enabled = true;
     state->changes.enabled = true;
-    state->window_tabs.NewTab(L"pulse:changes:C:\\fixture");
+    state->window_tabs.NewTab(L"luling:changes:C:\\fixture");
     state->pane = state->window_tabs.Active()->panes.front().get();
     auto& tab = *state->pane->ActiveTab();
     index::ChangeResponse result;

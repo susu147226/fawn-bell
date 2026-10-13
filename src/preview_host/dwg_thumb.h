@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // AutoCAD stores a small preview picture (a BMP DIB, or PNG since R2013) in
 // every R13+ drawing it saves. This reads it straight from the file header -
@@ -20,4 +20,4 @@ bool ExtractDwgThumbnail(const std::wstring& path, UINT max_edge,
                          UINT& source_width, UINT& source_height,
                          std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

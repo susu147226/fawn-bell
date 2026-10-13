@@ -2,7 +2,7 @@
 #include "../common/path_utils.h"
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 bool Space(wchar_t c) { return c == L' ' || c == L'\t'; }
 bool ResolveExecutable(std::wstring candidate, std::wstring& resolved) {
@@ -50,7 +50,7 @@ ShellCommandResult LaunchShellCommand(const std::wstring& command, const std::ws
     STARTUPINFOW startup{sizeof(startup)};
     startup.dwFlags = STARTF_USESHOWWINDOW; startup.wShowWindow = SW_SHOWNORMAL;
     PROCESS_INFORMATION process{};
-    const auto working = pulse::path::StripExtendedPathPrefix(directory);
+    const auto working = luling::path::StripExtendedPathPrefix(directory);
     const wchar_t* working_ptr = working.empty() ? nullptr : working.c_str();
     if (api.create_process(nullptr, buffer.data(), nullptr, nullptr, FALSE, 0, nullptr, working_ptr, &startup, &process)) {
         if (process.hThread) CloseHandle(process.hThread);
@@ -76,7 +76,7 @@ ShellCommandResult LaunchShellCommand(const std::wstring& command, const std::ws
 TerminalLaunchResult LaunchTerminal(const std::wstring& executable, const std::wstring& arguments,
     const std::wstring& directory, HWND owner, const ShellCommandApi& api) {
     if (executable.empty()) return {ERROR_INVALID_PARAMETER, ERROR_INVALID_PARAMETER, false};
-    const auto working = pulse::path::StripExtendedPathPrefix(directory);
+    const auto working = luling::path::StripExtendedPathPrefix(directory);
     SHELLEXECUTEINFOW execute{sizeof(execute)};
     execute.fMask = SEE_MASK_NOASYNC | SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
     execute.hwnd = owner;
@@ -124,7 +124,7 @@ std::wstring QuoteWindowsArgument(std::wstring_view value) {
 }
 
 std::wstring TerminalCommandLine(const std::wstring& dir) {
-    return L"-d " + QuoteWindowsArgument(pulse::path::StripExtendedPathPrefix(dir));
+    return L"-d " + QuoteWindowsArgument(luling::path::StripExtendedPathPrefix(dir));
 }
 
 }

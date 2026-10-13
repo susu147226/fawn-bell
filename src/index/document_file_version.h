@@ -1,7 +1,7 @@
 #pragma once
 #include "document_protocol.h"
 
-namespace pulse::index::document {
+namespace luling::index::document {
 inline bool QueryFileVersion(HANDLE file, const BY_HANDLE_FILE_INFORMATION& info, FileVersion& version) noexcept {
     FILE_BASIC_INFO basic{};
     if (!GetFileInformationByHandleEx(file, FileBasicInfo, &basic, sizeof(basic))) return false;

@@ -3,7 +3,7 @@
 #include "../index/index_query.h"
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 inline constexpr float kNameHighlightPaddingDip = 2.0f;
 
 struct NameMatchRange {

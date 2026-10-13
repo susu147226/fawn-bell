@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::path {
+namespace luling::path {
 
 // Presentation only: preserve the original paths used for filesystem operations.
 inline std::wstring FriendlyPathText(std::wstring_view text) {
@@ -31,4 +31,4 @@ inline std::wstring FriendlyPathText(std::wstring_view text) {
     return result;
 }
 
-} // namespace pulse::path
+} // namespace luling::path

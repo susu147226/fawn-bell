@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::shell {
+namespace luling::shell {
 
 struct PackagedCtxVerb {
     CLSID clsid{};
@@ -47,4 +47,4 @@ bool PackagedRowsDuplicate(const std::vector<std::wstring>& packaged_rows,
 HRESULT CreateExplorerCommandMenu(IExplorerCommand* command, IShellItemArray* items,
                                   IContextMenu** out);
 
-} // namespace pulse::shell
+} // namespace luling::shell

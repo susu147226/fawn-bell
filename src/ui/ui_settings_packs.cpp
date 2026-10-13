@@ -3,7 +3,7 @@
 #include "ui_renderer_internal.h"
 #include "../common/localization.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Settings > 快速预览 (page 5). Geometry: LayoutSettingsPacks; texts:
 // pack_text (settings_layout_sections.h); clicks: SettingsPackAction.
@@ -323,4 +323,4 @@ void MainRenderer::DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_
                                 lay.pack_note.right - lay.pack_note.left - 8*s, theme.text_secondary);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

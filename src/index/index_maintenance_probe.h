@@ -3,7 +3,7 @@
 #include <cstring>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 // Worker-owned snapshots and cumulative counters, emitted by the existing
 // bounded, once-per-minute timing log; never log individual filenames.
 struct IndexMaintenanceProbe {

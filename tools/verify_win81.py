@@ -8,11 +8,11 @@ import sys
 import time
 import uuid
 
-NAMES = ['pulse_index_migration_test', 'pulse_preview_test', 'pulse_ops_test', 'pulse_localization_test', 'pulse_crash_test',
-         'pulse_index_test', 'pulse_index_engine_test', 'pulse_content_search_test',
-         'pulse_duplicate_scan_test', 'pulse_saved_search_test', 'pulse_search_query_test',
-         'pulse_update_test', 'pulse_shell_icons_test',
-         'pulse_material_test', 'pulse_app_controllers_test', 'pulse_index_host_stress', 'pulse']
+NAMES = ['luling_index_migration_test', 'luling_preview_test', 'luling_ops_test', 'luling_localization_test', 'luling_crash_test',
+         'luling_index_test', 'luling_index_engine_test', 'luling_content_search_test',
+         'luling_duplicate_scan_test', 'luling_saved_search_test', 'luling_search_query_test',
+         'luling_update_test', 'luling_shell_icons_test',
+         'luling_material_test', 'luling_app_controllers_test', 'luling_index_host_stress', 'luling']
 
 
 def fingerprint(path):
@@ -31,7 +31,7 @@ def run_tests(root, selected=(), runner=subprocess.run, names=NAMES):
     run_dir = out / ('run-' + uuid.uuid4().hex)
     profile = run_dir / 'profile'
     profile.mkdir(parents=True)
-    env = dict(os.environ, PULSE_TEST_DATA_DIR=str(profile), PULSE_TEST_HIDDEN_SHOT='1')
+    env = dict(os.environ, LULING_TEST_DATA_DIR=str(profile), LULING_TEST_HIDDEN_SHOT='1')
     startup = None
     if os.name == 'nt':
         startup = subprocess.STARTUPINFO()
@@ -54,7 +54,7 @@ def run_tests(root, selected=(), runner=subprocess.run, names=NAMES):
         results.append(row)
         save()
         start = time.monotonic()
-        args = [str(executable)] + (['--selftest'] if name == 'pulse' else [])
+        args = [str(executable)] + (['--selftest'] if name == 'luling' else [])
         with (run_dir / (name + '.log')).open('wb') as log:
             try:
                 row['sha256'] = fingerprint(executable)

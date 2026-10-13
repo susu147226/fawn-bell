@@ -9,7 +9,7 @@
 #include <optional>
 #include <thread>
 #include <map>
-namespace pulse::index {
+namespace luling::index {
 // A long-lived user-mode index agent serves cached TEXT queries. Explicit
 // transient scans and duplicate scans retain the isolated per-request agent.
 // Cancel/SearchAsync only signal and enqueue; neither joins a thread on the UI.
@@ -83,4 +83,4 @@ private:
     std::mutex updates_mu_;
     std::deque<ContentSearchUpdate> updates_;
 };
-} // namespace pulse::index
+} // namespace luling::index

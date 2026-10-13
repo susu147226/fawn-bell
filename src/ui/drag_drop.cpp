@@ -11,7 +11,7 @@
 #include <cwctype>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -116,7 +116,7 @@ DWORD ComputeDropEffect(DWORD key_state, const std::wstring& source_sample,
         // No modifier: a source that names exactly one of copy/move gets it.
         // Browser download lists, Electron-style staged drags and archive
         // tools offer COPY|MOVE but ask for COPY; moving those deletes the
-        // user's original. COPY|MOVE itself means "either is fine" (Pulse's
+        // user's original. COPY|MOVE itself means "either is fine" (Luling's
         // own drags publish it), so it keeps Explorer's same-volume default.
         const DWORD preferred = preferred_effect & (DROPEFFECT_COPY | DROPEFFECT_MOVE);
         if (preferred == DROPEFFECT_COPY || preferred == DROPEFFECT_MOVE) {
@@ -635,4 +635,4 @@ HRESULT WindowDropTarget::Drop(IDataObject* obj, DWORD key_state, POINTL pt, DWO
     return S_OK;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -35,7 +35,7 @@ HANDLE WINAPI ConfigFindFirst(LPCWSTR path, FINDEX_INFO_LEVELS level, LPVOID dat
     return FindFirstFileExW(path, level, data, operation, filter, flags);
 }
 }
-namespace pulse::index { std::wstring ConfigTestUserIndexRoot() { return fixture_directory; } }
+namespace luling::index { std::wstring ConfigTestUserIndexRoot() { return fixture_directory; } }
 #define UserIndexRoot ConfigTestUserIndexRoot
 #define CreateFileW ConfigCreateFile
 #define FindFirstFileExW ConfigFindFirst
@@ -55,14 +55,14 @@ std::string Read(const std::filesystem::path& path) {
 }
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     int failures = 0;
     const auto check = [&](bool ok, const char* name) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n';
         failures += !ok;
     };
     const auto temp = std::filesystem::temp_directory_path();
-    const auto fixture = temp / (L"pulse-network-config-test-" + std::to_wstring(GetCurrentProcessId()) +
+    const auto fixture = temp / (L"luling-network-config-test-" + std::to_wstring(GetCurrentProcessId()) +
                                 L"-" + std::to_wstring(GetTickCount64()));
     std::error_code ec;
     if (!std::filesystem::create_directory(fixture, ec)) return 1;
@@ -110,7 +110,7 @@ int main() {
           roots.front() == L"\\\\server\\share\\中\xD83D\xDE00",
           "Unicode key, path escapes and surrogate pairs decode correctly");
     std::vector<std::wstring> escaped;
-    check(pulse::json::ConfigSyntax(LR"({"roots":["\"\\\/\b\f\n\r\t"]})", false).StringArrayMember(L"roots", escaped) &&
+    check(luling::json::ConfigSyntax(LR"({"roots":["\"\\\/\b\f\n\r\t"]})", false).StringArrayMember(L"roots", escaped) &&
           escaped == std::vector<std::wstring>{L"\"\\/\b\f\n\r\t"},
           "strict reader decodes every standard one-character JSON escape");
     Write(config, R"({"roots":[]})");
@@ -138,9 +138,9 @@ int main() {
               LoadNetworkRootsFile(config.wstring(), roots, &error) && roots.size() == 1 && roots.front() == L"\\\\server\\new",
               "remove succeeds after config recovery");
     }
-    check(pulse::json::ValidConfigObject(L"{\"color\":0xAABBCC}", true) &&
-          !pulse::json::ValidConfigObject(L"{\"color\":0xAABBCC}") &&
-          pulse::json::ValidConfigObject(L"{\"unknown\":\"\\uD800\"}"),
+    check(luling::json::ValidConfigObject(L"{\"color\":0xAABBCC}", true) &&
+          !luling::json::ValidConfigObject(L"{\"color\":0xAABBCC}") &&
+          luling::json::ValidConfigObject(L"{\"unknown\":\"\\uD800\"}"),
           "existing syntax-only validation and legacy hex behavior remain unchanged");
     check(blocked_network_io == 0, "configuration failure never starts network I/O; guard blocks regressions");
     std::error_code guard_error;
@@ -148,7 +148,7 @@ int main() {
     const auto status = std::filesystem::symlink_status(fixture, ec);
     const bool owned = parent_matches && !guard_error && !ec &&
         status.type() == std::filesystem::file_type::directory &&
-        fixture.filename().wstring().starts_with(L"pulse-network-config-test-");
+        fixture.filename().wstring().starts_with(L"luling-network-config-test-");
     if (owned) std::filesystem::remove_all(fixture, ec);
     check(owned && !ec && !std::filesystem::exists(fixture), "private config fixture removed");
     return failures ? 1 : 0;

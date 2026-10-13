@@ -9,7 +9,7 @@
 
 struct IPropertyStore;
 
-namespace pulse::preview {
+namespace luling::preview {
 
 struct PreviewPropertyValue { std::wstring label, value; };
 
@@ -21,4 +21,4 @@ std::vector<PreviewPropertyValue> ReadProperties(const std::wstring& path);
 // chip); 0 for other types or when the property is unavailable.
 uint32_t ReadMediaDurationMs(const std::wstring& path);
 
-} // namespace pulse::preview
+} // namespace luling::preview

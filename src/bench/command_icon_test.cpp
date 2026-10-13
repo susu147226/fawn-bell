@@ -54,7 +54,7 @@ Pixels Inspect(IWICBitmap* bitmap,D2D1_COLOR_F background,D2D1_RECT_F bounds) {
 }
 
 void Gallery(IWICImagingFactory* wic, ID2D1Factory* factory, const wchar_t* filename) {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     using namespace command_icons;
     constexpr const wchar_t* names[] = {
         L"Add",L"Close",L"Minimize",L"Maximize",L"Restore",L"Back",L"Forward",L"Up",
@@ -93,7 +93,7 @@ void Gallery(IWICImagingFactory* wic, ID2D1Factory* factory, const wchar_t* file
         brush->SetColor(theme.surface_card);
         target->FillRectangle({0,top,1100,top+640},brush.value);
         brush->SetColor(theme.text_secondary);
-        const wchar_t* title=theme_index==0 ? L"PULSE  /  DARK  /  18, 24 & 32 px" : L"PULSE  /  LIGHT  /  18, 24 & 32 px";
+        const wchar_t* title=theme_index==0 ? L"LULING  /  DARK  /  18, 24 & 32 px" : L"LULING  /  LIGHT  /  18, 24 & 32 px";
         target->DrawText(title,static_cast<UINT32>(wcslen(title)),format.value,{0,top+12,1100,top+36},brush.value);
         for (int i=0;i<static_cast<int>(std::size(names));++i) {
             const float x=static_cast<float>(i%11)*100, y=top+42+static_cast<float>(i/11)*98;
@@ -121,7 +121,7 @@ void Gallery(IWICImagingFactory* wic, ID2D1Factory* factory, const wchar_t* file
 }
 
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     using namespace command_icons;
     Apartment apartment;
     Check(SUCCEEDED(apartment.result),"COM initialization");

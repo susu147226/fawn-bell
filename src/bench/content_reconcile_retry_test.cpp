@@ -7,7 +7,7 @@
 #include <thread>
 
 int wmain() {
-    using namespace pulse::index;
+    using namespace luling::index;
     namespace fs = std::filesystem;
     int failures = 0;
     const auto check = [&](bool ok, const char* label) {
@@ -25,7 +25,7 @@ int wmain() {
     std::ofstream(existing) << "old";
     std::ofstream(fresh) << "new";
     std::ofstream(child) << "child";
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", (base / L"logs").c_str());
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", (base / L"logs").c_str());
     {
         ContentIndex index((base / L"profile" / L"content.sqlite").wstring(), ContentAgentMode::Instant);
         ContentIndexConfig config; config.roots = {{root.wstring()}};
@@ -112,8 +112,8 @@ int wmain() {
                     "permanent failure uses exactly three bounded attempts");
                 check(paused.subscription_failure == (scenario == 2 ? ContentSubscriptionFailure::Metadata :
                     ContentSubscriptionFailure::DirectoryEnumeration), "pause reports the failing reconciliation stage");
-                pulse::ipc::PayloadWriter writer; content::PutSubscriptionStatus(writer, paused);
-                pulse::ipc::PayloadReader reader(writer.data().data(), writer.data().size());
+                luling::ipc::PayloadWriter writer; content::PutSubscriptionStatus(writer, paused);
+                luling::ipc::PayloadReader reader(writer.data().data(), writer.data().size());
                 ContentSearchProgress decoded;
                 check(content::GetSubscriptionStatus(reader, decoded) && decoded.subscription_failure == paused.subscription_failure,
                     "new failure source round-trips through the production protocol");

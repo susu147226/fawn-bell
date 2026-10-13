@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-using namespace pulse::diagnostics::runtime;
+using namespace luling::diagnostics::runtime;
 namespace {
 std::string Read(const std::filesystem::path& file) {
     std::ifstream stream(file, std::ios::binary);
@@ -58,10 +58,10 @@ int main() {
         text.find("\"session\":") != std::string::npos, "records identify time, build and process session");
     const auto exported = root / L"export";
     std::filesystem::create_directory(exported);
-    pulse::diagnostics::ExportOptions export_options;
+    luling::diagnostics::ExportOptions export_options;
     export_options.source_root = root.wstring(); export_options.destination = exported.wstring();
     export_options.include_dumps = false;
-    check(pulse::diagnostics::Export(export_options) && Read(exported / L"Runtime" / file.filename()) == text,
+    check(luling::diagnostics::Export(export_options) && Read(exported / L"Runtime" / file.filename()) == text,
         "real runtime records survive the existing diagnostics export pipeline");
     const auto rotated = root / L"rotation";
     std::filesystem::create_directory(rotated);

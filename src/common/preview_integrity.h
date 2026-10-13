@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace pulse::preview {
+namespace luling::preview {
 // Complete describes the declared scope (for example, a page), not fidelity
 // to every capability of the originating application. Unknown is deliberate
 // for opaque Shell providers. Zero totals mean unknown, never an empty file.

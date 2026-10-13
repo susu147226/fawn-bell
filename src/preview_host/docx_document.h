@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 bool IsDocxExtension(std::wstring_view extension);
 
@@ -24,4 +24,4 @@ bool MakeDocxDocument(const std::wstring& path, std::wstring& payload, uint32_t&
 // runs of letters and digits.
 size_t CountWords(std::wstring_view text);
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

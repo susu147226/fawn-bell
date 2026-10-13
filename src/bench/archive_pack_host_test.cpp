@@ -7,10 +7,10 @@
 int wmain(int argc, wchar_t** argv) {
     if (argc != 3) { puts("Usage: archive_pack_host_test <7z.exe> <fixture.wim>"); return 2; }
     namespace fs = std::filesystem;
-    using namespace pulse;
+    using namespace luling;
     const std::wstring fixture = fs::absolute(argv[2]).wstring();
     const fs::path root = fs::current_path() / L"bench_data" / (L"archive-host-" + std::to_wstring(GetCurrentProcessId()));
-    const fs::path pack = root / L"Pulse/packs/archive/test";
+    const fs::path pack = root / L"Luling/packs/archive/test";
     fs::create_directories(pack);
     const fs::path tool(argv[1]);
     fs::copy_file(tool, pack / L"7z.exe");
@@ -22,9 +22,9 @@ int wmain(int argc, wchar_t** argv) {
     int failed = 0;
     auto check = [&](bool ok, const char* name) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", name); failed += !ok; };
     {
-        pulse_test::Host host;
+        luling_test::Host host;
         check(host.Start(), "preview host starts");
-        pulse_test::Result result;
+        luling_test::Result result;
         check(host.Request(fixture, result) && result.response.kind == ipc::PreviewContentKind::Archive &&
               result.text.find(L"hello.txt") != std::wstring::npos &&
               result.text.find(L"7-Zip") != std::wstring::npos, "WIM listing through archive pack IPC");
@@ -42,9 +42,9 @@ int wmain(int argc, wchar_t** argv) {
     settings.enabled[static_cast<size_t>(packs::PackId::Archives)] = false;
     check(packs::SavePackSettings(settings), "disable isolated archive pack");
     {
-        pulse_test::Host host;
+        luling_test::Host host;
         check(host.Start(), "disabled-pack host starts");
-        pulse_test::Result result;
+        luling_test::Result result;
         host.Request(fixture, result);
         check(result.text.find(L"7-Zip") == std::wstring::npos, "disabled pack is not selected");
     }

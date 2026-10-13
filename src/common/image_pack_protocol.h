@@ -1,10 +1,10 @@
-// image_pack_protocol.h - what the preview host and pulse-imgpack.exe (the
+// image_pack_protocol.h - what the preview host and luling-imgpack.exe (the
 // image preview pack, packs/images) agree on. Header-only, no dependencies:
 // the pack is built from this repository by its own CI job.
 //
-//   pulse-imgpack.exe decode <file> <cap>   stdout: FrameHeader + pixels
-//   pulse-imgpack.exe probe <file>          stdout: UTF-8 "key=value" lines
-//   pulse-imgpack.exe formats               stdout: supported extensions
+//   luling-imgpack.exe decode <file> <cap>   stdout: FrameHeader + pixels
+//   luling-imgpack.exe probe <file>          stdout: UTF-8 "key=value" lines
+//   luling-imgpack.exe formats               stdout: supported extensions
 //
 // Pixels are 32bpp premultiplied BGRA, top-down, scaled to fit cap x cap
 // (never enlarged). HDR pictures are tone-mapped to sRGB by the pack.
@@ -13,7 +13,7 @@
 #include <cwchar>
 #include <string_view>
 
-namespace pulse::imgpack {
+namespace luling::imgpack {
 
 inline constexpr uint32_t kMagic = 0x474D4950;   // "PIMG", little endian
 inline constexpr uint32_t kVersion = 1;
@@ -69,4 +69,4 @@ inline bool WindowsMayDecode(std::wstring_view ext) {
     return ext == L".heic" || ext == L".heif" || ext == L".hif" || ext == L".avif" || ext == L".jxl";
 }
 
-} // namespace pulse::imgpack
+} // namespace luling::imgpack

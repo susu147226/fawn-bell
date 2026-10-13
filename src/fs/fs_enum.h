@@ -8,7 +8,7 @@
 #include <vector>
 #include <functional>
 
-namespace pulse::fs {
+namespace luling::fs {
 
 enum class LinkKind { None, SymbolicLink, Junction };
 
@@ -32,7 +32,7 @@ struct DirEntry {
     bool cloud_recall = false;
     uint8_t drive_type = 0; // GetDriveTypeW for "This PC" rows, 0 otherwise
     std::wstring full_path; // set for virtual views (search/tag); empty = parent+name
-    std::wstring recycle_path; // $R payload when listing pulse:recycle; not a .lnk target
+    std::wstring recycle_path; // $R payload when listing luling:recycle; not a .lnk target
     bool change_record_only = false; // Historical deleted/moved-out item, never a file operation source.
     std::wstring change_type_text;
     std::wstring change_old_path;
@@ -51,7 +51,7 @@ struct DirEntry {
     uint64_t drive_free = 0;
 };
 
-// pulse:tag: / pulse:search: / pulse:workspace: — not filesystem paths.
+// luling:tag: / luling:search: / luling:workspace: — not filesystem paths.
 bool IsVirtualPath(const std::wstring& path);
 bool IsUncPath(const std::wstring& path);
 
@@ -77,4 +77,4 @@ void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>& out, co
 // Metadata-only lookup for worker-side updates; never follows the target.
 DWORD ReadReparseTag(const std::wstring& path);
 
-} // namespace pulse::fs
+} // namespace luling::fs

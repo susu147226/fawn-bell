@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 #include <string>
-namespace pulse::app {
+namespace luling::app {
 struct TrayMetadataKey {
     std::array<uint64_t, 2> ids{};
     std::array<std::wstring, 2> paths;

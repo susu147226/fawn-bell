@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-using pulse::app::TrayCompareMetadata;
+using luling::app::TrayCompareMetadata;
 static int failures;
 static void Check(bool value, const char* message) {
     printf("[%s] %s\n", value ? "PASS" : "FAIL", message); failures += !value;

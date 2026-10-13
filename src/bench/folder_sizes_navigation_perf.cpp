@@ -1,4 +1,4 @@
-#ifdef PULSE_FOLDER_SIZE_REFACTOR_BASELINE
+#ifdef LULING_FOLDER_SIZE_REFACTOR_BASELINE
 #include "../../bench_data/folder_size_refactor_baseline/folder_sizes.h"
 #else
 #include "../app/folder_sizes.h"
@@ -10,8 +10,8 @@
 #include <string>
 
 namespace {
-using State = pulse::app::FolderSizeState;
-bool WaitReady(pulse::app::FolderSizes& sizes, const std::wstring& path) {
+using State = luling::app::FolderSizeState;
+bool WaitReady(luling::app::FolderSizes& sizes, const std::wstring& path) {
     const auto deadline = GetTickCount64() + 30000;
     while (GetTickCount64() < deadline) {
         const auto value = sizes.Get(path);
@@ -25,15 +25,15 @@ bool WaitReady(pulse::app::FolderSizes& sizes, const std::wstring& path) {
 
 int wmain(int argc, wchar_t** argv) {
     if (argc != 3) return 2;
-    const auto root = pulse::fs::NormalizePath(argv[1]);
-    const auto child = pulse::fs::NormalizePath(argv[2]);
-    if (!child.starts_with(root + L"\\") || pulse::fs::IsUncPath(root)) return 2;
-    pulse::app::FolderSizes sizes;
+    const auto root = luling::fs::NormalizePath(argv[1]);
+    const auto child = luling::fs::NormalizePath(argv[2]);
+    if (!child.starts_with(root + L"\\") || luling::fs::IsUncPath(root)) return 2;
+    luling::app::FolderSizes sizes;
     sizes.SetIndexEnabled(false);
     int failures = 0;
     uint64_t original = 0;
     const auto measure = [&](const char* label, const std::wstring& path) {
-#ifndef PULSE_FOLDER_SIZE_REFACTOR_BASELINE
+#ifndef LULING_FOLDER_SIZE_REFACTOR_BASELINE
         const auto before = sizes.ReadStats();
 #endif
         const auto start = std::chrono::steady_clock::now();
@@ -43,7 +43,7 @@ int wmain(int argc, wchar_t** argv) {
         const auto value = sizes.Get(path);
         std::printf("[NAV] %s ready=%d bytes=%llu partial=%d elapsed_ms=%.3f\n", label, ready,
             static_cast<unsigned long long>(value.bytes), value.partial, elapsed);
-#ifndef PULSE_FOLDER_SIZE_REFACTOR_BASELINE
+#ifndef LULING_FOLDER_SIZE_REFACTOR_BASELINE
         const auto after = sizes.ReadStats();
         std::printf("[WORK] %s entries=%llu subtree_hits=%llu jobs=%llu verified=%d\n", label,
             static_cast<unsigned long long>(after.entries_scanned - before.entries_scanned),
@@ -64,7 +64,7 @@ int wmain(int argc, wchar_t** argv) {
         static_cast<unsigned long long>(child_bytes));
     if (!stable) ++failures;
     sizes.Stop();
-    pulse::app::FolderSizes reference;
+    luling::app::FolderSizes reference;
     reference.SetIndexEnabled(false);
     reference.Sync({{root}, {child}}, {});
     const bool agrees = WaitReady(reference, root) && WaitReady(reference, child) &&

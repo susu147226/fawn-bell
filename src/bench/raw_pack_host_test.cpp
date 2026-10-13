@@ -6,9 +6,9 @@
 int wmain(int argc, wchar_t** argv) {
     if (argc != 3) { puts("Usage: raw_pack_host_test <pack-directory> <fixture-directory>"); return 2; }
     namespace fs = std::filesystem;
-    using namespace pulse;
+    using namespace luling;
     const fs::path root = fs::current_path() / L"bench_data" / (L"raw-host-" + std::to_wstring(GetCurrentProcessId()));
-    const fs::path pack = root / L"Pulse/packs/raw/test";
+    const fs::path pack = root / L"Luling/packs/raw/test";
     const fs::path fixtures = fs::absolute(argv[2]);
     fs::create_directories(pack);
     for (const auto& file : fs::directory_iterator(argv[1])) {
@@ -22,9 +22,9 @@ int wmain(int argc, wchar_t** argv) {
     int failed = 0;
     auto check = [&](bool ok, const char* name) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", name); failed += !ok; };
     {
-        pulse_test::Host host;
+        luling_test::Host host;
         check(host.Start(), "RAW preview host starts");
-        pulse_test::Result result;
+        luling_test::Result result;
         check(host.Request((fixtures / L"synthetic-embedded.dng").wstring(), result, MAXDWORD, 128,
                            ipc::PreviewRequestKind::Content, ipc::kPreviewRequestFlagGrid) &&
               result.response.kind == ipc::PreviewContentKind::Bitmap && !result.pixels.empty(),

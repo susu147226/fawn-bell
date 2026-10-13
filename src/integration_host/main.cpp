@@ -21,7 +21,7 @@ int wmain(int argc, wchar_t** argv) {
     }
     if (exe.empty() || (!restore && !folders && !win_e && !this_pc && !directory && !drive) ||
         (restore && !previous_exe.empty())) return 2;
-    using namespace pulse::app;
+    using namespace luling::app;
     bool ok = true;
     auto apply = [&](ShellIntegrationKind kind) {
         if (prepare) return PrepareShellIntegrationUpgrade(kind, exe);

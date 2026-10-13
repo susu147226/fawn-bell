@@ -28,8 +28,8 @@ path = base / 'window-boundary.pdf'
 path.write_bytes(data)
 results = []
 for mode in ['single', 'cache', 'mapped']:
-    bench = base / ('single' if mode == 'single' else 'candidate') / 'pulse_pdf_bench.exe'
-    env = dict(os.environ, PULSE_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), PULSE_PDF_READ_MODE=mode)
+    bench = base / ('single' if mode == 'single' else 'candidate') / 'luling_pdf_bench.exe'
+    env = dict(os.environ, LULING_DOCUMENT_ADMISSION_DIR=str(base / 'slots'), LULING_PDF_READ_MODE=mode)
     run = subprocess.run([str(bench), 'pdfium', str(path), ''], env=env, capture_output=True, timeout=10)
     first, body = run.stdout.split(b'\n', 1)
     result = json.loads(first)

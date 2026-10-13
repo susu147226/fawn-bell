@@ -1,10 +1,10 @@
-# Pulse image preview pack: pulse-imgpack.exe plus the LGPL libheif /
+# Luling image preview pack: luling-imgpack.exe plus the LGPL libheif /
 # libde265 DLLs. Dependencies come from vcpkg (manifest in this directory,
 # overlay port + triplet next to it); build.ps1 installs them and points
 # CMAKE_PREFIX_PATH at the installed tree.
 cmake_minimum_required(VERSION 3.25)
 cmake_policy(SET CMP0091 NEW)
-project(pulse_imgpack LANGUAGES C CXX)
+project(luling_imgpack LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,29 +23,29 @@ foreach(lib jxl jxl_threads jxl_cms)
 endforeach()
 
 if(TARGET heif)
-    set(PULSE_HEIF_TARGET heif)
+    set(LULING_HEIF_TARGET heif)
 else()
-    set(PULSE_HEIF_TARGET libheif::heif)
+    set(LULING_HEIF_TARGET libheif::heif)
 endif()
 
 add_library(imgpack_pixels INTERFACE)
 target_include_directories(imgpack_pixels INTERFACE src ../../src/common)
 
-add_executable(pulse-imgpack src/imgpack.cpp)
-target_include_directories(pulse-imgpack PRIVATE ${JXL_INCLUDE_DIR})
-target_compile_definitions(pulse-imgpack PRIVATE
+add_executable(luling-imgpack src/imgpack.cpp)
+target_include_directories(luling-imgpack PRIVATE ${JXL_INCLUDE_DIR})
+target_compile_definitions(luling-imgpack PRIVATE
     UNICODE _UNICODE NOMINMAX
     JXL_STATIC_DEFINE JXL_THREADS_STATIC_DEFINE JXL_CMS_STATIC_DEFINE)
-target_compile_options(pulse-imgpack PRIVATE /W3 /EHsc /utf-8 /permissive- /Zc:__cplusplus)
-target_link_libraries(pulse-imgpack PRIVATE
+target_compile_options(luling-imgpack PRIVATE /W3 /EHsc /utf-8 /permissive- /Zc:__cplusplus)
+target_link_libraries(luling-imgpack PRIVATE
     imgpack_pixels
-    ${PULSE_HEIF_TARGET}
+    ${LULING_HEIF_TARGET}
     ${JXL_jxl_LIBRARY} ${JXL_jxl_threads_LIBRARY} ${JXL_jxl_cms_LIBRARY}
     hwy::hwy unofficial::brotli::brotlidec unofficial::brotli::brotlienc unofficial::brotli::brotlicommon
     lcms2::lcms2
     OpenEXR::OpenEXR)
 # No incremental thunks; static imports load only from the exe folder and System32.
-target_link_options(pulse-imgpack PRIVATE /INCREMENTAL:NO /OPT:REF /OPT:ICF /DEPENDENTLOADFLAG:0xA00)
+target_link_options(luling-imgpack PRIVATE /INCREMENTAL:NO /OPT:REF /OPT:ICF /DEPENDENTLOADFLAG:0xA00)
 
 add_executable(imgpack_test src/imgpack_test.cpp)
 target_link_libraries(imgpack_test PRIVATE imgpack_pixels)

@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <set>
 
-namespace pulse::app {
+namespace luling::app {
 struct TabControllerTestAccess {
     static void TogglePin(TabController& controller, WindowTabs& tabs, size_t index) {
         controller.TogglePin(tabs, static_cast<int>(index));
@@ -14,8 +14,8 @@ struct TabControllerTestAccess {
 }
 
 namespace {
-using pulse::app::LayoutTab;
-using pulse::app::WindowTabs;
+using luling::app::LayoutTab;
+using luling::app::WindowTabs;
 
 bool Prefix(const WindowTabs& tabs) {
     bool unpinned = false;
@@ -38,7 +38,7 @@ bool Groups(const WindowTabs& tabs) {
     }
     return true;
 }
-std::array<LayoutTab*, 5> Seed(pulse::AppState& state) {
+std::array<LayoutTab*, 5> Seed(luling::AppState& state) {
     state.window_tabs = WindowTabs{};
     std::array<LayoutTab*, 5> ids{};
     for (size_t i = 0; i < ids.size(); ++i) {
@@ -55,7 +55,7 @@ bool Order(const WindowTabs& tabs, std::initializer_list<LayoutTab*> expected) {
 }
 
 bool RunTabPinBoundaryTest() {
-    using namespace pulse;
+    using namespace luling;
     namespace fsys = std::filesystem;
     std::error_code error;
     fsys::create_directories(L"bench_data", error);
@@ -76,21 +76,21 @@ bool RunTabPinBoundaryTest() {
     for (size_t active = 0; active < 5; ++active) {
         auto ids = Seed(*state);
         tabs.SwitchTab(active);
-        CommitVerticalTabDrag(*state, L"pulse:tab:4", 0);
+        CommitVerticalTabDrag(*state, L"luling:tab:4", 0);
         check(Order(tabs, {ids[0], ids[1], ids[4], ids[2], ids[3]}) && Prefix(tabs),
               "vertical ordinary drag before fixed tabs stops at normal boundary");
         check(tabs.Active() == ids[active], "ordinary cross-boundary drag preserves active identity");
 
         ids = Seed(*state);
         tabs.SwitchTab(active);
-        CommitVerticalTabDrag(*state, L"pulse:tab:0", tabs.items.size());
+        CommitVerticalTabDrag(*state, L"luling:tab:0", tabs.items.size());
         check(Order(tabs, {ids[1], ids[0], ids[2], ids[3], ids[4]}) && Prefix(tabs),
               "vertical fixed drag after ordinary tabs stops at fixed boundary");
         check(tabs.Active() == ids[active], "fixed cross-boundary drag preserves active identity");
     }
     auto ids = Seed(*state);
-    CommitVerticalTabDrag(*state, L"pulse:tab:0", 2);
-    CommitVerticalTabDrag(*state, L"pulse:tab:4", 2);
+    CommitVerticalTabDrag(*state, L"luling:tab:0", 2);
+    CommitVerticalTabDrag(*state, L"luling:tab:4", 2);
     check(Order(tabs, {ids[1], ids[0], ids[4], ids[2], ids[3]}) && Prefix(tabs),
           "vertical intra-region moves remain available in both regions");
     ids = Seed(*state);
@@ -98,7 +98,7 @@ bool RunTabPinBoundaryTest() {
     tabs.tab_groups.emplace_back();
     tabs.tab_groups.back().id = 7;
     tabs.SwitchTab(3);
-    CommitVerticalTabDrag(*state, L"pulse:tab:3", 0);
+    CommitVerticalTabDrag(*state, L"luling:tab:3", 0);
     check(Prefix(tabs) && Groups(tabs) && tabs.Active() == ids[3] && tabs.tab_groups.size() == 1 &&
           Order(tabs, {ids[0], ids[1], ids[3], ids[2], ids[4]}),
           "group member drag respects fixed prefix and normalizes contiguous group without changing active tab");
@@ -131,7 +131,7 @@ bool RunTabPinBoundaryTest() {
     app::TabControllerTestAccess::TogglePin(controller, tabs, 4);
     check(Prefix(tabs) && ids[4]->tab_group == 0 && tabs.tab_groups.empty(),
           "pinning grouped tab removes membership and prunes empty group");
-    CommitVerticalTabDrag(*state, L"pulse:tab:4", 0);
+    CommitVerticalTabDrag(*state, L"luling:tab:4", 0);
     auto& created = tabs.NewTabAt(0, L"");
     check(Prefix(tabs) && !created.pinned && tabs.Active() == &created,
           "new tab insertion after vertical drag remains behind fixed prefix");
@@ -155,7 +155,7 @@ bool RunTabPinBoundaryTest() {
         if (vertical && group != vm.sidebar.end()) {
             size_t rows = 0;
             for (const auto& row : group->items) if (row.tab_row) {
-                rows_match = rows_match && row.path == L"pulse:tab:" + std::to_wstring(rows);
+                rows_match = rows_match && row.path == L"luling:tab:" + std::to_wstring(rows);
                 ++rows;
             }
             rows_match = rows_match && rows == tabs.items.size();

@@ -1,7 +1,7 @@
 #pragma once
 #include "app_model.h"
 
-namespace pulse::app {
+namespace luling::app {
 inline void ResizePaneColumn(Tab& tab, const ui::PaneViewModel& view,
                              const ui::MainRenderer& renderer, const D2D1_RECT_F& bounds,
                              int divider, float cursor_x) {

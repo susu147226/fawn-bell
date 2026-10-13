@@ -4,7 +4,7 @@ from pathlib import Path
 root=Path(__file__).resolve().parent.parent
 base=root/'bench_data/pdfium-text-fixtures'
 base.mkdir(parents=True,exist_ok=True)
-os.environ['PULSE_DOCUMENT_ADMISSION_DIR']=str(base)
+os.environ['LULING_DOCUMENT_ADMISSION_DIR']=str(base)
 def pdf(name,streams,font=None,extra=None,encrypted=False):
     objects=[b'<< /Type /Catalog /Pages 2 0 R >>',b'',font or b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
     kids=[]
@@ -25,7 +25,7 @@ def pdf(name,streams,font=None,extra=None,encrypted=False):
     output+=f'trailer\n<< /Root 1 0 R /Size {len(objects)+1} {encrypt_ref} >>\nstartxref\n{start}\n%%EOF\n'.encode()
     p=base/name;p.write_bytes(output);return p
 def run(path,needle=''):
-    bench=os.environ.get('PULSE_PDF_BENCH',str(root/'build_realtime/pulse_pdf_bench.exe'))
+    bench=os.environ.get('LULING_PDF_BENCH',str(root/'build_realtime/luling_pdf_bench.exe'))
     proc=subprocess.run([bench,'pdfium',str(path),needle],capture_output=True,timeout=35)
     head,body=proc.stdout.split(b'\n',1);return json.loads(head),body.decode('utf-8')
 checks=[]

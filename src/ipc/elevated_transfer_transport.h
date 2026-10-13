@@ -3,7 +3,7 @@
 #include <functional>
 #include <utility>
 
-namespace pulse::elevated {
+namespace luling::elevated {
 class Handle {
 public:
     Handle() = default;

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 struct ArchiveListingEntry {
     std::wstring path;
@@ -44,4 +44,4 @@ std::wstring SerializeArchiveEntries(std::vector<ArchiveListingEntry> entries,
 bool MakeArchiveListing(const std::wstring& path, std::wstring& text,
                         uint32_t& bytes_read, std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Renders a Windows metafile into 32bpp BGRA pixels. WIC only decodes metafiles
 // when its codec happens to be installed, and the shell exposes no thumbnail
@@ -19,4 +19,4 @@ bool RasterizeMetaFile(const std::wstring& path, UINT max_edge,
                        UINT& source_width, UINT& source_height,
                        std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

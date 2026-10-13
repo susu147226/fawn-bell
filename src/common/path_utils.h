@@ -6,7 +6,7 @@
 #include <string_view>
 #include <windows.h>
 
-namespace pulse::path {
+namespace luling::path {
 
 inline bool Exists(std::wstring_view p) {
     const std::wstring path(p);
@@ -29,4 +29,4 @@ inline std::wstring StripExtendedPathPrefix(std::wstring_view p) {
     return std::wstring(p);
 }
 
-} // namespace pulse::path
+} // namespace luling::path

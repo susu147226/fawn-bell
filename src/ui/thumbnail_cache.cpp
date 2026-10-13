@@ -8,7 +8,7 @@
 #include <memory>
 #include <psapi.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 uint64_t ThumbnailCache::TakeRetryDeadline() {
     std::lock_guard<std::mutex> lock(mutex_);
     const auto deadline = draw_retry_deadline_;
@@ -167,7 +167,7 @@ bool ThumbnailCache::Connect() {
     const std::wstring pipeName = ipc::PreviewPipeName(pipe_token_);
     wchar_t exe[MAX_PATH]{}; GetModuleFileNameW(nullptr, exe, ARRAYSIZE(exe));
     wchar_t* slash = wcsrchr(exe, L'\\'); if (!slash) return false; *(slash + 1) = 0;
-    std::wstring cmd = L"\"" + std::wstring(exe) + L"Pulse.Preview.exe\" " +
+    std::wstring cmd = L"\"" + std::wstring(exe) + L"Luling.Preview.exe\" " +
         std::to_wstring(pipe_token_);
     STARTUPINFOW si{sizeof(si)};
     si.dwFlags = STARTF_FORCEOFFFEEDBACK; // background helper: no AppStarting cursor
@@ -592,13 +592,13 @@ void ThumbnailCache::Worker() {
     // Explicit isolated-probe tracing; no file is opened in ordinary sessions.
     FILE* trace_file = nullptr;
     wchar_t trace_path[1024]{};
-    const bool general_trace = GetEnvironmentVariableW(L"PULSE_TEST_PREVIEW_TRACE", trace_path,
+    const bool general_trace = GetEnvironmentVariableW(L"LULING_TEST_PREVIEW_TRACE", trace_path,
         ARRAYSIZE(trace_path)) > 0;
     if (general_trace) {
         const auto file = std::wstring(trace_path) + (folder_thumbnail_ ? L".folder-" : L".ordinary-") +
             std::to_wstring(pipe_token_) + L".log";
         _wfopen_s(&trace_file, file.c_str(), L"a");
-    } else if (folder_thumbnail_ && GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_THUMB_TRACE", trace_path,
+    } else if (folder_thumbnail_ && GetEnvironmentVariableW(L"LULING_TEST_FOLDER_THUMB_TRACE", trace_path,
         ARRAYSIZE(trace_path)) > 0) _wfopen_s(&trace_file, trace_path, L"a");
     std::unique_ptr<FILE, decltype(&std::fclose)> trace(trace_file, &std::fclose);
     while (running_) {
@@ -608,7 +608,7 @@ void ThumbnailCache::Worker() {
         if (!FolderRequestCurrent(req)) continue;
         const auto request_start = GetTickCount64();
         std::vector<uint8_t> trace_path_bytes;
-        if (trace) pulse::EncodeUtf8Bytes(req.path, trace_path_bytes);
+        if (trace) luling::EncodeUtf8Bytes(req.path, trace_path_bytes);
         const std::string trace_request_path(trace_path_bytes.begin(), trace_path_bytes.end());
         const auto mark = [&](const char* stage, bool success, uint32_t status = 0) {
             if (!trace) return;
@@ -765,4 +765,4 @@ void ThumbnailCache::Worker() {
         if (!ok) StopChild();
     }
 }
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "../app/app_commands.h"
 #include "../ui/fluent_menu.h"
 #include <filesystem>
@@ -16,26 +16,26 @@ struct Environment {
     bool installed = false;
     explicit Environment(const std::wstring& path) {
         wchar_t value[32768]{};
-        const DWORD size = GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", value, 32768);
+        const DWORD size = GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", value, 32768);
         if (size && size < 32768) old.assign(value, size);
-        installed = SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", path.c_str()) != FALSE;
+        installed = SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", path.c_str()) != FALSE;
     }
-    ~Environment() { if (installed) SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", old.empty() ? nullptr : old.c_str()); }
+    ~Environment() { if (installed) SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", old.empty() ? nullptr : old.c_str()); }
 };
 struct PickerScope {
-    pulse::CreateTagPickerTestIo* previous;
-    explicit PickerScope(pulse::CreateTagPickerTestIo& io) : previous(pulse::SetCreateTagPickerTestIo(&io)) {}
-    ~PickerScope() { pulse::SetCreateTagPickerTestIo(previous); }
+    luling::CreateTagPickerTestIo* previous;
+    explicit PickerScope(luling::CreateTagPickerTestIo& io) : previous(luling::SetCreateTagPickerTestIo(&io)) {}
+    ~PickerScope() { luling::SetCreateTagPickerTestIo(previous); }
 };
 struct PaletteScope {
-    pulse::AppState& state;
+    luling::AppState& state;
     std::vector<uint32_t> previous;
-    explicit PaletteScope(pulse::AppState& s) : state(s), previous(pulse::TagColorPalette(s)) { pulse::TagColorPalette(s).clear(); }
-    ~PaletteScope() { pulse::TagColorPalette(state) = std::move(previous); }
+    explicit PaletteScope(luling::AppState& s) : state(s), previous(luling::TagColorPalette(s)) { luling::TagColorPalette(s).clear(); }
+    ~PaletteScope() { luling::TagColorPalette(state) = std::move(previous); }
 };
 }
 bool RunTagColorCommandTest() {
-    using namespace pulse;
+    using namespace luling;
     fixture_fs::create_directories(L"bench_data");
     FILE* log = nullptr;
     _wfopen_s(&log, L"bench_data/m12004_tag_color_command_test.log", L"w");

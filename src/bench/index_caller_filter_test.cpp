@@ -19,12 +19,12 @@
 
 #pragma comment(lib, "advapi32.lib")
 
-using namespace pulse::index;
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using namespace luling::index;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 namespace fs = std::filesystem;
 
 namespace {
@@ -214,10 +214,10 @@ int Perf(const std::wstring& dir, bool filter) {
     fs::create_directories(base / L"profile");
     fs::create_directories(base / L"cache");
     SetEnvironmentVariableW(L"LOCALAPPDATA", (base / L"profile").c_str());
-    SetEnvironmentVariableW(L"PULSE_INDEX_TEST_CALLER_FILTER", filter ? L"1" : L"0");
+    SetEnvironmentVariableW(L"LULING_INDEX_TEST_CALLER_FILTER", filter ? L"1" : L"0");
     const std::wstring token = L"cfp" + std::to_wstring(GetCurrentProcessId());
-    const std::wstring pipe_name = L"\\\\.\\pipe\\PulseIndex.Test." + token;
-    const std::wstring exe = Sibling(L"Pulse.Index.exe");
+    const std::wstring pipe_name = L"\\\\.\\pipe\\LulingIndex.Test." + token;
+    const std::wstring exe = Sibling(L"Luling.Index.exe");
     std::wstring command = L"\"" + exe + L"\" --test-host " + token + L" \"" + dir + L"\" \"" +
         (base / L"cache").wstring() + L"\"";
     STARTUPINFOW startup{sizeof(startup)};
@@ -268,7 +268,7 @@ int wmain(int argc, wchar_t** argv) {
     fs::create_directories(cache);
     for (const auto& file : {root / L"pulsecf_top.txt", open / L"pulsecf_open.txt",
                              secret / L"pulsecf_secret.txt", inner / L"pulsecf_inner.txt"})
-        std::ofstream(file) << "pulse caller filter";
+        std::ofstream(file) << "luling caller filter";
 
     // Root: owner/SYSTEM/admins full, Authenticated Users may read. "secret"
     // drops the Authenticated Users grant; "inner" gets it back explicitly,
@@ -288,10 +288,10 @@ int wmain(int argc, wchar_t** argv) {
     Check(restricted && !CanList(restricted, secret), "fixture: restricted caller cannot list secret");
 
     SetEnvironmentVariableW(L"LOCALAPPDATA", profile.c_str());
-    SetEnvironmentVariableW(L"PULSE_INDEX_TEST_CALLER_FILTER", L"1");
+    SetEnvironmentVariableW(L"LULING_INDEX_TEST_CALLER_FILTER", L"1");
     const std::wstring token = L"cf" + std::to_wstring(GetCurrentProcessId());
-    const std::wstring pipe_name = L"\\\\.\\pipe\\PulseIndex.Test." + token;
-    const std::wstring exe = Sibling(L"Pulse.Index.exe");
+    const std::wstring pipe_name = L"\\\\.\\pipe\\LulingIndex.Test." + token;
+    const std::wstring exe = Sibling(L"Luling.Index.exe");
     std::wstring command = L"\"" + exe + L"\" --test-host " + token + L" \"" + root.wstring() + L"\" \"" +
         cache.wstring() + L"\"";
     STARTUPINFOW startup{sizeof(startup)};

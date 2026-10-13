@@ -1,7 +1,7 @@
 {
-  "name": "pulse-imgpack",
+  "name": "luling-imgpack",
   "version-string": "1",
-  "description": "Decoders of Pulse's optional image preview pack",
+  "description": "Decoders of Luling's optional image preview pack",
   "dependencies": [
     { "name": "libheif", "default-features": false, "features": ["dav1d"] },
     { "name": "libjxl", "default-features": false },

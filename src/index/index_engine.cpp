@@ -33,7 +33,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace pulse::index {
+namespace luling::index {
 
 namespace {
 
@@ -87,7 +87,7 @@ std::wstring StatusDriveProgress(wchar_t letter, size_t count) {
 }
 
 std::wstring Display(std::wstring p) {
-    return pulse::path::StripExtendedPathPrefix(p);
+    return luling::path::StripExtendedPathPrefix(p);
 }
 
 bool IsAdmin() {
@@ -282,7 +282,7 @@ uint32_t PairBucket(std::wstring_view name) {
 }
 
 bool IsIndexArtifactName(std::wstring_view name) {
-    return IsChangeJournalName(name) || (name.size() >= 11 && _wcsnicmp(name.data(), L"pulse-index", 11) == 0);
+    return IsChangeJournalName(name) || (name.size() >= 11 && _wcsnicmp(name.data(), L"luling-index", 11) == 0);
 }
 
 uint64_t FileIndexFrn(const std::wstring& path) {
@@ -3091,7 +3091,7 @@ bool Engine::CatchUpVolume(VolState& v, bool* changed, bool* structural) {
 }
 
 bool Engine::IndexVolumeMft(const VolumeInfo& volume) {
-#ifdef PULSE_INDEX_VOLUME_FAULT_TEST
+#ifdef LULING_INDEX_VOLUME_FAULT_TEST
     using volume_fault_test::OpenVolume;
     using volume_fault_test::CloseHandle;
     using volume_fault_test::QueryJournal;
@@ -3466,7 +3466,7 @@ void Engine::WalkTree(int32_t parent, const std::wstring& dir, int depth) {
 }
 
 void Engine::FullRebuild(const char* reason) {
-#ifdef PULSE_INDEX_VOLUME_FAULT_TEST
+#ifdef LULING_INDEX_VOLUME_FAULT_TEST
     using volume_fault_test::ConfiguredVolumes;
     using volume_fault_test::IsAdmin;
 #endif
@@ -3482,7 +3482,7 @@ void Engine::FullRebuild(const char* reason) {
     if (MachineIndexScope() && !LoadMachineConfig(config, &config_error)) {
         SetStatus(config_error); PingNotify(true); return;
     }
-#ifdef PULSE_INDEX_VOLUME_FAULT_TEST
+#ifdef LULING_INDEX_VOLUME_FAULT_TEST
     const auto configured_volumes = ConfiguredVolumes();
 #else
     const auto configured_volumes = ConfiguredVolumes(config);
@@ -4154,4 +4154,4 @@ uint64_t Engine::ApplyNotifyLocked(const std::wstring& root, const BYTE* buf, DW
     return applied;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

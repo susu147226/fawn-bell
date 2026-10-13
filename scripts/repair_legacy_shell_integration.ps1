@@ -47,11 +47,11 @@ function Assert-DiagnosedState {
         $command = $verb + '\command'
         Assert-Value $command '' $false ''
         # Existing snapshots or legacy backups require the normal restore path.
-        $snapshot = $base.OpenSubKey('Software\Pulse\ShellIntegration\Backups\v1\' + $group.name, $false)
+        $snapshot = $base.OpenSubKey('Software\Luling\ShellIntegration\Backups\v1\' + $group.name, $false)
         if ($null -ne $snapshot) { $snapshot.Dispose(); throw "A restore snapshot now exists for $($group.name); refusing legacy repair." }
         foreach ($path in @($group.shell, $verb, $command)) {
-            Assert-Value $path 'PulseBackup' $false ''
-            Assert-Value $path 'PulseBackupDelegateExecute' $false ''
+            Assert-Value $path 'LulingBackup' $false ''
+            Assert-Value $path 'LulingBackupDelegateExecute' $false ''
         }
         if ($group.delegateAtVerb) { Assert-Value $command 'DelegateExecute' $false '' }
         else { Assert-Value $verb 'DelegateExecute' $false '' }
@@ -87,7 +87,7 @@ try {
     if (Test-Path -LiteralPath $destination) { throw "Backup already exists: $destination" }
     Add-Type -TypeDefinition @'
 using System.Runtime.InteropServices;
-public static class PulseLegacyRepairNotify {
+public static class LulingLegacyRepairNotify {
     [DllImport("shell32.dll")] public static extern void SHChangeNotify(uint e, uint f, System.IntPtr a, System.IntPtr b);
 }
 '@
@@ -131,10 +131,10 @@ public static class PulseLegacyRepairNotify {
             } catch { Write-Warning "Could not roll back $($target.path). The .reg backup remains available." }
             finally { if ($null -ne $key) { $key.Dispose() } }
         }
-        [PulseLegacyRepairNotify]::SHChangeNotify(0x08000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
+        [LulingLegacyRepairNotify]::SHChangeNotify(0x08000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
         throw $failure
     }
-    [PulseLegacyRepairNotify]::SHChangeNotify(0x08000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
+    [LulingLegacyRepairNotify]::SHChangeNotify(0x08000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
     Write-Output 'Repair complete. Test This PC and Win+E, then capture a new diagnostic report.'
 } finally {
     $base.Dispose()

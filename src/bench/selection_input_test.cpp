@@ -11,7 +11,7 @@ int main() {
     };
     const std::vector<std::wstring> names{L"Apple", L"Apricot", L"Banana", L"azure", L"中文"};
     const auto at = [&](int i) -> const std::wstring& { return names[i]; };
-    pulse::app::ListTypeAhead type;
+    luling::app::ListTypeAhead type;
     check(type.Find(L'a', 2000, -1, 5, at) == 0, "first letter selects first match");
     check(type.Find(L'A', 2100, 0, 5, at) == 1, "repeated letter cycles case-insensitively");
     check(type.Find(L'a', 2200, 1, 5, at) == 3, "cycle follows displayed order");
@@ -25,7 +25,7 @@ int main() {
     type = {};
     check(type.Find(L'a', 10000, 0, 5, at) == 1, "new search begins after current selection");
     check(type.Find(L'b', 10100, 3, 5, at) == 2, "external selection change clears prefix");
-    pulse::app::PreviewSelectionFollow follow;
+    luling::app::PreviewSelectionFollow follow;
     follow.Reset(L"a");
     check(!follow.Observe(L"a", 1000), "unchanged selection does not reset preview navigation");
     check(!follow.Observe(L"b", 1010) && !follow.Observe(L"b", 1129), "selection waits for debounce");

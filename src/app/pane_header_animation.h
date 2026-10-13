@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 struct PaneHeaderAnimation {
     float opacity = 0.0f;
     float from = 0.0f;

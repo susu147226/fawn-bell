@@ -7,7 +7,7 @@
 #include <mutex>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 // One queue per volume. Own exact-length copies; never retain the I/O buffer.
 class UsnPacketQueue {
 public:

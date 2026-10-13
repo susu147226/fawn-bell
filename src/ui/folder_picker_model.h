@@ -1,6 +1,6 @@
 #pragma once
 
-// Pure state of the Pulse folder / picture picker: paths, filtering, sorting
+// Pure state of the Luling folder / picture picker: paths, filtering, sorting
 // and what the primary button would pick. No windows, no file system calls.
 
 #include <windows.h>
@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 enum class PickerMode { Folder, Image, File };
 enum class PickerEntryKind { Folder, Image, Drive, File };
@@ -95,4 +95,4 @@ private:
     std::vector<std::wstring> forward_;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

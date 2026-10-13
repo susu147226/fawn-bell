@@ -13,7 +13,7 @@ bool Same(D2D1_RECT_F a, D2D1_RECT_F b) {
     return std::abs(a.left-b.left)<0.001f && std::abs(a.right-b.right)<0.001f &&
         std::abs(a.top-b.top)<0.001f && std::abs(a.bottom-b.bottom)<0.001f;
 }
-std::set<int> Intersections(const pulse::ui::ViewLayout& layout, D2D1_RECT_F box,
+std::set<int> Intersections(const luling::ui::ViewLayout& layout, D2D1_RECT_F box,
                             const std::vector<int>& sources) {
     std::set<int> result;
     const auto [first, last] = layout.VisibleRange();
@@ -27,8 +27,8 @@ std::set<int> Intersections(const pulse::ui::ViewLayout& layout, D2D1_RECT_F box
 }
 }
 int main() {
-    using namespace pulse::app;
-    using namespace pulse::ui;
+    using namespace luling::app;
+    using namespace luling::ui;
     // Opaque identities: geometry never dereferences Pane or starts providers.
     int identities[3]{};
     auto* a=reinterpret_cast<Pane*>(&identities[0]);

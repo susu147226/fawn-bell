@@ -14,7 +14,7 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 static_assert(document::kProcessSlots * document::kMemoryBytes <= 1024ull * 1024 * 1024);
 class Handle {
@@ -40,7 +40,7 @@ bool Equal(std::wstring_view a, std::wstring_view b) noexcept {
 }
 bool AdmissionDirectory(std::wstring& directory, DWORD& error) {
     wchar_t isolated[32768]{};
-    const DWORD isolated_length = GetEnvironmentVariableW(L"PULSE_DOCUMENT_ADMISSION_DIR", isolated, ARRAYSIZE(isolated));
+    const DWORD isolated_length = GetEnvironmentVariableW(L"LULING_DOCUMENT_ADMISSION_DIR", isolated, ARRAYSIZE(isolated));
     if (isolated_length >= ARRAYSIZE(isolated)) { error = ERROR_BAD_PATHNAME; return false; }
     std::wstring resolved;
     if (isolated_length) {
@@ -58,7 +58,7 @@ bool AdmissionDirectory(std::wstring& directory, DWORD& error) {
     if (FAILED(result)) { error = ERROR_PATH_NOT_FOUND; return false; }
     resolved = local;
     CoTaskMemFree(local);
-    for (const auto* part : {L"\\Pulse", L"\\document-slots-v1"}) {
+    for (const auto* part : {L"\\Luling", L"\\document-slots-v1"}) {
         resolved += part;
         if (!CreateDirectoryW(resolved.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
             error = GetLastError(); return false;
@@ -293,7 +293,7 @@ private:
         std::wstring exe(module, length);
         const auto slash = exe.find_last_of(L"\\/");
         if (slash == std::wstring::npos) { error = ERROR_BAD_PATHNAME; return false; }
-        exe.resize(slash + 1); exe += L"Pulse.Document.exe";
+        exe.resize(slash + 1); exe += L"Luling.Document.exe";
         SECURITY_ATTRIBUTES security{sizeof(security), nullptr, TRUE};
         Handle child_input, child_output;
         request_ready_.Reset(CreateEventW(&security, FALSE, FALSE, nullptr));

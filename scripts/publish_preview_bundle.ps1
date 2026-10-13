@@ -6,7 +6,7 @@ param(
     [switch]$ValidateOnly
 )
 $ErrorActionPreference = 'Stop'
-$repository = 'jimmgreen/pulse'
+$repository = 'susu147226/fawn-bell'
 $directory = (Resolve-Path -LiteralPath $AssetDirectory).Path
 $installerPath = (Resolve-Path -LiteralPath $Installer).Path
 $notesPath = (Resolve-Path -LiteralPath $Notes).Path
@@ -28,7 +28,7 @@ foreach ($asset in $manifest.assets) {
     $assets += $path
 }
 foreach ($key in 'ffmpeg', 'images', 'raw', 'archive') {
-    $packManifests = @(Get-ChildItem -LiteralPath $directory -Filter "pulse-pack-$key-*.json" -File)
+    $packManifests = @(Get-ChildItem -LiteralPath $directory -Filter "luling-pack-$key-*.json" -File)
     if ($packManifests.Count -ne 1) { throw "Expected one manifest for $key" }
     $pack = Get-Content -LiteralPath $packManifests[0].FullName -Raw | ConvertFrom-Json
     if ($pack.id -ne $key -or $pack.release_tag -ne $tag -or @($pack.files).Count -eq 0) { throw "Invalid manifest for $key" }
@@ -49,7 +49,7 @@ if ($LASTEXITCODE -eq 0) {
     if (-not ($existing | ConvertFrom-Json).isDraft) { throw 'Release is already public; choose a new tag' }
 } else {
     & gh release create $tag --repo $repository --target $Commit --draft --prerelease --latest=false `
-        --title 'Pulse preview packs test' --notes-file $notesPath
+        --title 'Luling preview packs test' --notes-file $notesPath
     if ($LASTEXITCODE -ne 0) { throw 'Could not create draft release' }
 }
 & gh release upload $tag --repo $repository @assets --clobber

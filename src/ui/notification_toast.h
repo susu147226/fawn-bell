@@ -1,7 +1,7 @@
 #pragma once
 #include "fluent_components.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 class NotificationToast {
 public:
     void Show(HWND owner, std::wstring title, std::wstring message, bool persistent = true, UINT action_message = 0);

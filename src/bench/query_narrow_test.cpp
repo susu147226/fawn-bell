@@ -2,13 +2,13 @@
 #include "../index/index_query.h"
 #include <algorithm>
 #include <cstdio>
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static void Clear(Engine& engine) { engine.InvalidateFilterLocked(); }
 };
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     int failed = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failed += !ok; };
     Engine engine;

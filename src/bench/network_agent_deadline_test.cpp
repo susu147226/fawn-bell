@@ -6,15 +6,15 @@
 #include <vector>
 
 int main() {
-    using namespace pulse;
+    using namespace luling;
     namespace fs = std::filesystem;
     const auto token = L"deadline-" + std::to_wstring(GetCurrentProcessId());
     const auto root = fs::absolute(fs::path("bench_data") / token);
     fs::create_directories(root);
     SetEnvironmentVariableW(L"LOCALAPPDATA", root.c_str());
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", root.c_str());
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", root.c_str());
     wchar_t module[32768]{}; GetModuleFileNameW(nullptr, module, ARRAYSIZE(module));
-    const auto executable = fs::path(module).parent_path() / L"Pulse.Index.exe";
+    const auto executable = fs::path(module).parent_path() / L"Luling.Index.exe";
     std::wstring command = L"\"" + executable.wstring() + L"\" --test-network-agent " + token;
     STARTUPINFOW startup{sizeof(startup)}; PROCESS_INFORMATION process{};
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,

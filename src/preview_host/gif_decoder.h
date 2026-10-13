@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 struct GifLimits {
     uint64_t file_bytes = 16ull * 1024 * 1024;
     uint64_t canvas_bytes = 8ull * 1024 * 1024;

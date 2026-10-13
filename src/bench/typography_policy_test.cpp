@@ -7,13 +7,13 @@
 #include <cstdio>
 #include <string>
 
-namespace pulse::ui::fluent {
+namespace luling::ui::fluent {
 struct PainterTestPeer {
     static IDWriteTextFormat* Body(const Painter& painter) { return painter.BodyFormat(); }
 };
 }
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FluentMenuTestPeer {
     static bool CheckSnapshotReplacement() {
         Compositor compositor;
@@ -74,7 +74,7 @@ void Check(bool ok, const char* label) {
 }
 
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     if (argc == 2 && std::wstring(argv[1]) == L"--menu-identity") {
         Check(FluentMenuTestPeer::CheckSnapshotReplacement(),
             "open flyout rejects swapped/shifted/reordered snapshots; reopen uses accepted IDs");
@@ -93,7 +93,7 @@ int wmain(int argc, wchar_t** argv) {
         FluentMenuModel model;
         model.SetItems({{1, L"Reusable menu command"}});
         typography::SetUiFontScale(100);
-        pulse::l10n::SetLanguage(L"zh-CN");
+        luling::l10n::SetLanguage(L"zh-CN");
         typography::InvalidateCaches();
         Check(painter.BeginFrame(theme), "warm painter frame initializes its own font cache");
         const float original_size = fluent::PainterTestPeer::Body(painter)->GetFontSize();
@@ -106,7 +106,7 @@ int wmain(int argc, wchar_t** argv) {
             fluent::PainterTestPeer::Body(painter)->GetFontSize(), original_width, model.WidthPx(), model.Truncated(0));
         Check(std::abs(fluent::PainterTestPeer::Body(painter)->GetFontSize() - original_size * 1.25f) < 0.01f &&
             model.WidthPx() > original_width, "warm painter and menu layout follow font scale without manual painter invalidation");
-        pulse::l10n::SetLanguage(L"zh-TW");
+        luling::l10n::SetLanguage(L"zh-TW");
         typography::InvalidateCaches(); // same language-change entry point as the application.
         Check(painter.BeginFrame(theme), "language painter frame refreshes its own font cache");
         wchar_t locale[32]{};
@@ -153,10 +153,10 @@ int wmain(int argc, wchar_t** argv) {
             Check(GetObjectW(handle, sizeof(font), &font) && font.lfHeight == -18,
                 "reused filter native font refreshes to 125 percent");
             FluentMenuTestPeer::Show(menu);
-            SetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_PRESENT_FAILURE", L"1");
+            SetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_PRESENT_FAILURE", L"1");
             SendMessageW(edit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"fallback 中文"));
-            SetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_PRESENT_FAILURE", nullptr);
-            Check(GetPropW(edit, L"Pulse.NativeEditFallback") != nullptr,
+            SetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_PRESENT_FAILURE", nullptr);
+            Check(GetPropW(edit, L"Luling.NativeEditFallback") != nullptr,
                 "real menu presentation failure selects persistent native fallback");
             SendMessageW(edit, EM_SETSEL, 0, 8);
             SendMessageW(edit, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"native"));
@@ -167,7 +167,7 @@ int wmain(int argc, wchar_t** argv) {
             GetWindowTextW(edit, text, 64);
             Check(std::wstring(text) == L"fallback 中文", "real menu native fallback preserves undo");
             FluentMenuTestPeer::Reopen(menu);
-            Check(GetPropW(edit, L"Pulse.NativeEditFallback") != nullptr,
+            Check(GetPropW(edit, L"Luling.NativeEditFallback") != nullptr,
                 "reopening the menu preserves the working native fallback");
         }
         typography::SetUiFontScale(100);

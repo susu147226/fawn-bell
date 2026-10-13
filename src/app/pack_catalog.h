@@ -1,5 +1,5 @@
 #pragma once
-// Preview pack releases this build of Pulse installs. Every file is pinned by
+// Preview pack releases this build of Luling installs. Every file is pinned by
 // size and SHA-256 here, so a download needs no signature or manifest: if the
 // bytes do not match, they are thrown away. scripts/package_preview_packs.py
 // generates the catalog and matching assets for a shared installer release.
@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <iterator>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct PackFile {
     const wchar_t* name;           // file name inside the pack directory
@@ -28,4 +28,4 @@ struct PackRelease {
 
 #include "pack_catalog_generated.h"
 
-} // namespace pulse::app
+} // namespace luling::app

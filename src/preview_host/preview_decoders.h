@@ -6,9 +6,9 @@
 
 #include "preview_router.h"
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Runs the decoder table for one Content request; true when a preview was made.
 bool DecodeContent(const DecodeRequest& request, DecodeResult& result);
 
-} // namespace pulse::preview
+} // namespace luling::preview

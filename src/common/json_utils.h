@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::json {
+namespace luling::json {
 
 inline void Escape(const std::wstring& input, std::wstring& output) {
     for (wchar_t c : input) {
@@ -258,4 +258,4 @@ bool ForEachMember(const std::wstring& object, Fn&& fn) {
     }
 }
 
-} // namespace pulse::json
+} // namespace luling::json

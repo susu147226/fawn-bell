@@ -1,9 +1,9 @@
 // image_pack_test - image preview pack: parsing units, pack resolution and an
-// end-to-end run of pulse-imgpack.exe, directly and through Pulse.Preview.exe.
+// end-to-end run of luling-imgpack.exe, directly and through Luling.Preview.exe.
 //
-// Integration needs a built pack (PULSE_TEST_IMGPACK=<folder holding
-// pulse-imgpack.exe>) and FFmpeg to generate fixtures (PULSE_TEST_FFMPEG, else
-// C:\ffmpeg\bin). HEIC fixtures are optional: PULSE_TEST_HEIC_DIR with
+// Integration needs a built pack (LULING_TEST_IMGPACK=<folder holding
+// luling-imgpack.exe>) and FFmpeg to generate fixtures (LULING_TEST_FFMPEG, else
+// C:\ffmpeg\bin). HEIC fixtures are optional: LULING_TEST_HEIC_DIR with
 // photo.heic (1600x1200, a 320 px thumbnail), alpha.heic, pq10.heic (10-bit
 // PQ). Missing pieces are skipped (reported, not failed). Everything runs
 // under a private LOCALAPPDATA, so the user's packs and settings are untouched.
@@ -23,7 +23,7 @@
 #include <vector>
 
 namespace fs = std::filesystem;
-using namespace pulse;
+using namespace luling;
 
 static int g_failures = 0;
 static int g_checks = 0;
@@ -140,10 +140,10 @@ static void ResolutionTests(const fs::path& profile) {
     using namespace packs;
     SetEnvironmentVariableW(L"LOCALAPPDATA", profile.c_str());
     Check(ResolvePackUncached(PackId::Images).source == ToolSource::None, "no image pack -> unavailable");
-    const fs::path base = profile / L"Pulse" / L"packs" / L"images";
+    const fs::path base = profile / L"Luling" / L"packs" / L"images";
     WriteBytes(base / L"installed.json", "{\"version\":\"1\",\"dir\":\"1\"}");
-    Check(!ReadInstalledPack(PackId::Images).present, "installed.json without pulse-imgpack.exe is not present");
-    WriteBytes(base / L"1" / L"pulse-imgpack.exe", "MZ");
+    Check(!ReadInstalledPack(PackId::Images).present, "installed.json without luling-imgpack.exe is not present");
+    WriteBytes(base / L"1" / L"luling-imgpack.exe", "MZ");
     Check(ResolvePackUncached(PackId::Images).source == ToolSource::Pack, "installed image pack resolves");
     PackSettings settings;
     settings.enabled[static_cast<uint32_t>(PackId::Images)] = false;
@@ -154,23 +154,23 @@ static void ResolutionTests(const fs::path& profile) {
     settings.enabled[static_cast<uint32_t>(PackId::Images)] = true;
     SavePackSettings(settings);
     Check(ResolvePackUncached(PackId::Images).directory == (base / L"1").wstring(), "custom FFmpeg does not redirect images");
-    fs::remove_all(profile / L"Pulse");
+    fs::remove_all(profile / L"Luling");
 }
 
 int wmain() {
     SetConsoleOutputCP(CP_UTF8);
-    const fs::path root = fs::temp_directory_path() / (L"pulse_image_pack_" + std::to_wstring(GetCurrentProcessId()));
+    const fs::path root = fs::temp_directory_path() / (L"luling_image_pack_" + std::to_wstring(GetCurrentProcessId()));
     fs::create_directories(root);
     const std::wstring saved_profile = Env(L"LOCALAPPDATA");
 
     UnitTests();
     ResolutionTests(root / L"profile_units");
 
-    const std::wstring pack_dir = Env(L"PULSE_TEST_IMGPACK");
-    std::wstring ffmpeg = Env(L"PULSE_TEST_FFMPEG");
+    const std::wstring pack_dir = Env(L"LULING_TEST_IMGPACK");
+    std::wstring ffmpeg = Env(L"LULING_TEST_FFMPEG");
     if (ffmpeg.empty() && packs::IsRegularFile(L"C:\\ffmpeg\\bin\\ffmpeg.exe")) ffmpeg = L"C:\\ffmpeg\\bin\\ffmpeg.exe";
-    if (pack_dir.empty() || !packs::IsRegularFile(pack_dir + L"\\pulse-imgpack.exe") || ffmpeg.empty()) {
-        printf("SKIP integration: set PULSE_TEST_IMGPACK (and PULSE_TEST_FFMPEG)\n");
+    if (pack_dir.empty() || !packs::IsRegularFile(pack_dir + L"\\luling-imgpack.exe") || ffmpeg.empty()) {
+        printf("SKIP integration: set LULING_TEST_IMGPACK (and LULING_TEST_FFMPEG)\n");
     } else {
         // Fixtures. A space and CJK in the folder name on purpose.
         const fs::path images = root / L"图片 dir";
@@ -202,7 +202,7 @@ int wmain() {
         // The pack, installed into the private profile like the installer does.
         const fs::path profile = root / L"profile";
         SetEnvironmentVariableW(L"LOCALAPPDATA", profile.c_str());
-        const fs::path installed = profile / L"Pulse" / L"packs" / L"images" / L"test";
+        const fs::path installed = profile / L"Luling" / L"packs" / L"images" / L"test";
         fs::create_directories(installed);
         for (const auto& entry : fs::directory_iterator(pack_dir))
             if (entry.is_regular_file()) fs::copy_file(entry.path(), installed / entry.path().filename());
@@ -214,14 +214,14 @@ int wmain() {
             {"qoi", qoi, 1280, 720, false}, {"hdr", hdr, 1280, 720, true}, {"exr", exr, 1280, 720, true}};
         if (have_avif) cases.push_back({"avif", avif, 1280, 720, false});
         if (have_jxl) cases.push_back({"jxl", jxl, 1280, 720, false});
-        const std::wstring heic_dir = Env(L"PULSE_TEST_HEIC_DIR");
+        const std::wstring heic_dir = Env(L"LULING_TEST_HEIC_DIR");
         const bool have_heic = !heic_dir.empty() && packs::IsRegularFile(heic_dir + L"\\photo.heic");
         if (have_heic) {
             cases.push_back({"heic", fs::path(heic_dir) / L"photo.heic", 1600, 1200, false});
             cases.push_back({"heic alpha", fs::path(heic_dir) / L"alpha.heic", 640, 480, false});
             cases.push_back({"heic pq", fs::path(heic_dir) / L"pq10.heic", 960, 540, true});
         } else {
-            printf("SKIP heic: set PULSE_TEST_HEIC_DIR\n");
+            printf("SKIP heic: set LULING_TEST_HEIC_DIR\n");
         }
         char what[160];
         for (const Case& c : cases) {
@@ -305,26 +305,26 @@ int wmain() {
 
         // End to end through the preview host and its decoder table.
         {
-            pulse_test::Host host;
+            luling_test::Host host;
             Check(host.Start(), "preview host starts with the image pack");
             const uint32_t grid = ipc::kPreviewRequestFlagGrid;
             for (const fs::path& file : {qoi, exr, hdr}) {
-                pulse_test::Result r;
+                luling_test::Result r;
                 snprintf(what, sizeof(what), "host: %ls grid thumbnail", file.filename().c_str());
                 Check(host.Request(file.wstring(), r, MAXDWORD, 256, ipc::PreviewRequestKind::Content, grid) &&
                       r.response.kind == ipc::PreviewContentKind::Bitmap && r.response.width == 256, what);
             }
             if (have_jxl) {
-                pulse_test::Result r;
+                luling_test::Result r;
                 Check(host.Request(jxl.wstring(), r, MAXDWORD, 1024, ipc::PreviewRequestKind::Content, 0) &&
                       r.response.kind == ipc::PreviewContentKind::Bitmap, "host: jxl quick look (WIC or pack)");
             }
             if (have_heic) {
-                pulse_test::Result r;
+                luling_test::Result r;
                 Check(host.Request(heic_dir + L"\\photo.heic", r, MAXDWORD, 256, ipc::PreviewRequestKind::Content, grid) &&
                       r.response.kind == ipc::PreviewContentKind::Bitmap, "host: heic grid thumbnail (WIC or pack)");
             }
-            pulse_test::Result r;
+            luling_test::Result r;
             Check(host.Request(exr.wstring(), r, MAXDWORD, 256, ipc::PreviewRequestKind::Properties) &&
                   std::any_of(r.properties.begin(), r.properties.end(), [](const auto& p) { return p.first == L"压缩"; }),
                   "host: exr details from the pack");
@@ -336,9 +336,9 @@ int wmain() {
         // Without the pack: Quick Look learns which pack would read the file.
         fs::remove(installed.parent_path() / L"installed.json");
         {
-            pulse_test::Host host;
+            luling_test::Host host;
             Check(host.Start(), "preview host starts without the image pack");
-            pulse_test::Result r;
+            luling_test::Result r;
             host.Request(exr.wstring(), r, MAXDWORD, 1024, ipc::PreviewRequestKind::Content, 0);
             Check(r.response.kind != ipc::PreviewContentKind::Bitmap && r.error == L"image-pack-missing",
                   "host: exr without the pack names the pack");

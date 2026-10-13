@@ -9,7 +9,7 @@
 #include <cwchar>
 #include <thread>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 std::wstring Utf8ToWide(std::string_view text) {
@@ -332,4 +332,4 @@ bool MediaPackProperties(const std::wstring& path, std::vector<PreviewPropertyVa
     return added;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

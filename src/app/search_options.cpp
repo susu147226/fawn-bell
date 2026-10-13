@@ -5,7 +5,7 @@
 #include "../common/localization.h"
 #include <algorithm>
 
-namespace pulse {
+namespace luling {
 namespace {
 using I = l10n::StringId;
 std::wstring NormalScope(std::wstring path) {
@@ -182,7 +182,7 @@ void ShowSearchOptions(AppState& s, bool management) {
         anchor.x -= ui::FluentMenu::kShadowMargin;
         anchor.y -= ui::FluentMenu::kShadowMargin;
         wchar_t debug_path[32768]{};
-        if (s.shot.active && s.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_OPTIONS_SHOT", debug_path, ARRAYSIZE(debug_path))) {
+        if (s.shot.active && s.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_OPTIONS_SHOT", debug_path, ARRAYSIZE(debug_path))) {
             s.menu->SetTheme(s.darkMode, s.accentColor);
             s.menu->SaveDebugSnapshot(debug_path, std::move(items));
             return;
@@ -201,7 +201,7 @@ void ShowSearchOptions(AppState& s, bool management) {
             if (search) {
                 if ((command == 3 || command == 4) && tab && IsAddressSearchResults(tab)) {
                     std::wstring rest;
-                    app::ParsePulsePath(tab->current_path, nullptr, &rest);
+                    app::ParseLulingPath(tab->current_path, nullptr, &rest);
                     RequestSearchPage(s, *tab, rest, true);
                 } else QueueAddressSearch(s);
             }
@@ -210,4 +210,4 @@ void ShowSearchOptions(AppState& s, bool management) {
         break;
     }
 }
-} // namespace pulse
+} // namespace luling

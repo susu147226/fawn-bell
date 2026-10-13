@@ -36,14 +36,14 @@ int main() {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n';
         if (!ok) ++failures;
     };
-    pulse::index::MftEnumPage result{};
+    luling::index::MftEnumPage result{};
     const auto first = MakePage(100, 2);
     const auto second = MakePage(300, 1);
     uint64_t cursor = 0;
     uint64_t count = 0;
     bool valid = true;
     for (const auto& bytes : {first, second}) {
-        if (!pulse::index::ParseMftEnumPage(bytes, cursor, result)) {
+        if (!luling::index::ParseMftEnumPage(bytes, cursor, result)) {
             valid = false;
             break;
         }
@@ -51,12 +51,12 @@ int main() {
         cursor = result.next_cursor;
     }
     check(valid && count == 3 && cursor == 300, "two pages count records and use header cursors");
-    check(pulse::index::ParseMftEnumPage(MakePage(500, 0), cursor, result) &&
+    check(luling::index::ParseMftEnumPage(MakePage(500, 0), cursor, result) &&
           result.records == 0 && result.next_cursor == 500, "header-only page advances");
 
     auto reject = [&](const std::vector<BYTE>& bytes, uint64_t start, const char* name) {
         result = {999, 999};
-        check(!pulse::index::ParseMftEnumPage(bytes, start, result) &&
+        check(!luling::index::ParseMftEnumPage(bytes, start, result) &&
               result.records == 0 && result.next_cursor == 0, name);
     };
     reject({}, 0, "zero-byte success is invalid");

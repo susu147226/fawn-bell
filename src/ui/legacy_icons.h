@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
-// Font-independent outlines for the PUA icons used by Pulse on pre-MDL2 Windows.
+namespace luling::ui {
+// Font-independent outlines for the PUA icons used by Luling on pre-MDL2 Windows.
 inline bool DrawLegacyIcon(ID2D1DeviceContext* dc, IDWriteFactory2* factory,
                            std::wstring_view glyph, const D2D1_RECT_F& bounds,
                            ID2D1Brush* brush, float nominal_size = 16.0f) {

@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui { struct ColumnStripView; }
+namespace luling::ui { struct ColumnStripView; }
 
-namespace pulse::app {
+namespace luling::app {
 
 struct Tab;
 
@@ -41,4 +41,4 @@ struct ColumnStripState {
 // Column view data for the renderer (cheap: shares snapshots and row lists).
 void FillColumnStripView(ui::ColumnStripView& out, const Tab& tab);
 
-} // namespace pulse::app
+} // namespace luling::app

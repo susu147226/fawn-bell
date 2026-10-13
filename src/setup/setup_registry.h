@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-namespace pulse::setup {
+namespace luling::setup {
 
 struct RegLocation {
     HKEY root = nullptr;
@@ -24,7 +24,7 @@ struct PreviousInstall {
     bool inno = false;              // written by Inno Setup (not by this setup)
 };
 
-// Looks in HKLM64, HKLM32, HKCU64, HKCU32 like PreviousPulseRoot in the iss.
+// Looks in HKLM64, HKLM32, HKCU64, HKCU32 like PreviousLulingRoot in the iss.
 std::optional<PreviousInstall> FindPreviousInstall(const wchar_t* key);
 
 struct UninstallEntry {
@@ -39,4 +39,4 @@ std::optional<std::wstring> ReadString(HKEY root, REGSAM view, const wchar_t* ke
 bool WriteString(HKEY root, REGSAM view, const wchar_t* key, const wchar_t* value, const std::wstring& data);
 bool DeleteValue(HKEY root, REGSAM view, const wchar_t* key, const wchar_t* value);
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

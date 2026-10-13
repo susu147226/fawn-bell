@@ -7,7 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 
-namespace pulse::review {
+namespace luling::review {
 bool short_read = false;
 DWORD RecycleReadAmountForReview(DWORD requested) {
     return short_read && requested > 2 ? requested - 2 : requested;
@@ -66,8 +66,8 @@ void RunMalformedMatrix(const files::path& root) {
     const auto v1 = Record(1, pair.target.wstring());
     const auto rejected_by_both = [&](const std::vector<BYTE>& bytes) {
         WriteBytes(pair.index, bytes);
-        pulse::fs::RecycleItem item; std::wstring path;
-        const bool listing = pulse::fs::ReadRecycleIndex(pair.index.wstring(), item);
+        luling::fs::RecycleItem item; std::wstring path;
+        const bool listing = luling::fs::ReadRecycleIndex(pair.index.wstring(), item);
         const bool restore = ReadRecycleOriginal(pair.index.wstring(), path);
         return !listing && !restore;
     };
@@ -109,11 +109,11 @@ void RunMalformedMatrix(const files::path& root) {
     }
     for (unsigned version : {1u, 2u}) {
         WriteBytes(pair.index, Record(version, pair.target.wstring()));
-        pulse::review::short_read = true;
-        pulse::fs::RecycleItem item; std::wstring path;
-        const bool listing = pulse::fs::ReadRecycleIndex(pair.index.wstring(), item);
+        luling::review::short_read = true;
+        luling::fs::RecycleItem item; std::wstring path;
+        const bool listing = luling::fs::ReadRecycleIndex(pair.index.wstring(), item);
         const bool restore = ReadRecycleOriginal(pair.index.wstring(), path);
-        pulse::review::short_read = false;
+        luling::review::short_read = false;
         Check(!listing && !restore, "M03-003 simulated short read cannot be repaired from unread zero-filled buffer bytes");
     }
     // Metadata parsing only, never connect to these UNC names or move to them.
@@ -121,8 +121,8 @@ void RunMalformedMatrix(const files::path& root) {
                             std::wstring(L"\\\\?\\") + pair.target.wstring(),
                             std::wstring(L"\\\\?\\UNC\\server\\share\\folder\\name.txt")}) {
         WriteBytes(pair.index, Record(2, path));
-        pulse::fs::RecycleItem item; std::wstring parsed;
-        Check(pulse::fs::ReadRecycleIndex(pair.index.wstring(), item) && item.original_path == path &&
+        luling::fs::RecycleItem item; std::wstring parsed;
+        Check(luling::fs::ReadRecycleIndex(pair.index.wstring(), item) && item.original_path == path &&
               ReadRecycleOriginal(pair.index.wstring(), parsed) && parsed == path,
               "M03-003 supported absolute and extended path data remain exact without network access");
     }
@@ -137,9 +137,9 @@ void RunCases(const files::path& root) {
     // Drop .jpg plus NUL, leaving another valid name in the same owned folder.
     bytes.resize(28 + (bad.target.wstring().size() - 4) * 2);
     WriteBytes(bad.index, bytes);
-    pulse::fs::RecycleItem item;
+    luling::fs::RecycleItem item;
     std::wstring original;
-    Check(!pulse::fs::ReadRecycleIndex(bad.index.wstring(), item),
+    Check(!luling::fs::ReadRecycleIndex(bad.index.wstring(), item),
           "M03-003 listing reader rejects a v2 path shorter than its declared length");
     Check(!ReadRecycleOriginal(bad.index.wstring(), original),
           "M03-003 restore reader rejects the same truncated v2 metadata");
@@ -166,7 +166,7 @@ void RunCases(const files::path& root) {
         const auto good = MakePair(root, L"valid" + std::to_wstring(version), version,
                                    L"合法 文件" + std::to_wstring(version) + L".txt");
         item = {}; original.clear();
-        Check(pulse::fs::ReadRecycleIndex(good.index.wstring(), item) && item.original_path == good.target.wstring() && item.size == sizeof(kBody) - 1,
+        Check(luling::fs::ReadRecycleIndex(good.index.wstring(), item) && item.original_path == good.target.wstring() && item.size == sizeof(kBody) - 1,
               "M03-003 valid v1 or v2 listing preserves exact Unicode path and size");
         Check(ReadRecycleOriginal(good.index.wstring(), original) && original == good.target.wstring(),
               "M03-003 valid v1 or v2 restore reader preserves the same exact path");
@@ -184,7 +184,7 @@ void RunCases(const files::path& root) {
     RunMalformedMatrix(root);
     const auto orphan = MakePair(root, L"orphan", 2, L"orphan.txt", false);
     item = {}; error.clear();
-    Check(!pulse::fs::ReadRecycleIndex(orphan.index.wstring(), item),
+    Check(!luling::fs::ReadRecycleIndex(orphan.index.wstring(), item),
           "M03-003 orphan index is not listed as a restorable item");
     Check(!RestoreSelectedRecyclePayload(orphan.content.wstring(), error) && files::exists(orphan.index) && !files::exists(orphan.target),
           "M03-003 missing payload cannot remove its index or create a target");

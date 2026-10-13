@@ -125,7 +125,7 @@ int main() {
         for (const auto* extension : {L".xlsx", L".xlsm"}) {
             const auto file = root / (L"sheets" + std::to_wstring(count) + extension);
             Check(Zip(file, entries), "write worksheet boundary fixture");
-            Check(pulse::preview::MakeXlsxTable(file.wstring(), payload, bytes), "read worksheet boundary fixture");
+            Check(luling::preview::MakeXlsxTable(file.wstring(), payload, bytes), "read worksheet boundary fixture");
             Check(Count(payload, L"\nS\txlsx\t") == count, "all workbook positions retained through sheet 100");
             Check(payload.find(L"W\t" + std::to_wstring(count) + L"\t1\t0\n") != std::wstring::npos &&
                 Count(payload, L"\nR\t") == 1 && payload.find(L"\nR\t1\n") != std::wstring::npos,
@@ -133,22 +133,22 @@ int main() {
             if (count >= 17)
                 Check(payload.find(L"S\txlsx\tSheet17\t0\t0\t0\tnot-loaded\t0\n") != std::wstring::npos,
                       "seventeenth sheet is deferred without claiming truncation");
-            Check(pulse::preview::MakeXlsxTable(file.wstring(), payload, bytes, static_cast<uint32_t>(count - 1)) &&
+            Check(luling::preview::MakeXlsxTable(file.wstring(), payload, bytes, static_cast<uint32_t>(count - 1)) &&
                 Count(payload, L"\nR\t") == 1 && payload.find(L"\nR\t" + std::to_wstring(count) + L"\n") != std::wstring::npos &&
                 payload.find(L"W\t" + std::to_wstring(count) + L"\t1\t" + std::to_wstring(count - 1) + L"\n") != std::wstring::npos,
                 "requested final sheet content loads beyond the former 16-sheet boundary");
-            Check(payload.size() <= pulse::ipc::kPreviewMaxTableChars, "workbook payload stays within protocol budget");
-            Check(!pulse::preview::MakeXlsxTable(file.wstring(), payload, bytes, static_cast<uint32_t>(count)) && payload.empty(),
+            Check(payload.size() <= luling::ipc::kPreviewMaxTableChars, "workbook payload stays within protocol budget");
+            Check(!luling::preview::MakeXlsxTable(file.wstring(), payload, bytes, static_cast<uint32_t>(count)) && payload.empty(),
                 "out-of-range sheet request is rejected without stale response content");
         }
     }
     const auto missing = root / L"missing.xlsx";
     Check(Zip(missing, {{"xl/workbook.xml", "<workbook><sheets><sheet name=\"Missing\" r:id=\"missing\"/><sheet name=\"Hidden\" state=\"hidden\" r:id=\"hidden\"/></sheets></workbook>"}}), "write missing and hidden sheet fixture");
-    Check(pulse::preview::MakeXlsxTable(missing.wstring(), payload, bytes) &&
+    Check(luling::preview::MakeXlsxTable(missing.wstring(), payload, bytes) &&
         payload.find(L"S\txlsx\tMissing\t0\t0\t1\tmissing-relationship") != std::wstring::npos &&
         payload.find(L"S\txlsx\tHidden\t0\t0\t1\thidden") != std::wstring::npos &&
         payload.find(L"W\t2\t0\t0\n") != std::wstring::npos, "missing references and hidden sheets keep their original positions");
-    Check(pulse::preview::MakeXlsxTable(missing.wstring(), payload, bytes, 1) &&
+    Check(luling::preview::MakeXlsxTable(missing.wstring(), payload, bytes, 1) &&
         payload.find(L"W\t2\t0\t1\n") != std::wstring::npos && Count(payload, L"\nR\t") == 0,
         "requesting a hidden sheet preserves the hidden-sheet policy");
     const auto broken = root / L"missing-entry.xlsx";
@@ -156,7 +156,7 @@ int main() {
         {"xl/workbook.xml", "<workbook><sheets><sheet name=\"Broken\" r:id=\"r1\"/></sheets></workbook>"},
         {"xl/_rels/workbook.xml.rels", "<Relationships><Relationship Id=\"r1\" Target=\"worksheets/missing.xml\"/></Relationships>"}}),
         "write missing worksheet member fixture");
-    Check(pulse::preview::MakeXlsxTable(broken.wstring(), payload, bytes) &&
+    Check(luling::preview::MakeXlsxTable(broken.wstring(), payload, bytes) &&
         payload.find(L"S\txlsx\tBroken\t0\t0\t1\tread-failed") != std::wstring::npos,
         "failed selected-sheet read retains its original position and an explicit reason");
 
@@ -171,61 +171,61 @@ int main() {
         {"page.svg", "<svg><text>Vector page</text></svg>"}
     };
     Check(Zip(epub, entries), "write EPUB missing/oversize/SVG fixture");
-    Check(pulse::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated), "read incomplete EPUB");
+    Check(luling::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated), "read incomplete EPUB");
     Check(truncated && Count(payload, L"\nP\t") == 5, "EPUB retains all five chapter positions and marks incomplete");
     Check(payload.find(L"Chapter manifest reference is missing") != std::wstring::npos &&
         payload.find(L"16 MiB preview limit") != std::wstring::npos && payload.find(L"SVG chapter") != std::wstring::npos,
         "EPUB placeholders explain missing, oversize and SVG chapters");
     Check(TocPointsTo(payload, 4, 1, L"last-marker"),
         "EPUB TOC resolves the actual second block after three unavailable chapters");
-    Check(payload.size() <= pulse::ipc::kPreviewMaxTableChars, "EPUB payload stays within protocol budget");
+    Check(payload.size() <= luling::ipc::kPreviewMaxTableChars, "EPUB payload stays within protocol budget");
     const std::string boundary_body = "<html><body><p>exact-boundary-marker</p></body></html><!--";
     entries[5].second = boundary_body + std::string(16u * 1024u * 1024u - boundary_body.size() - 3, 'x') + "-->";
-    Check(Zip(epub, entries) && pulse::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated) &&
+    Check(Zip(epub, entries) && luling::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated) &&
         payload.find(L"exact-boundary-marker") != std::wstring::npos && payload.find(L"16 MiB preview limit") == std::wstring::npos,
         "EPUB chapter exactly at 16 MiB remains readable");
     entries.erase(entries.begin() + 5);
-    Check(Zip(epub, entries) && pulse::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated) &&
+    Check(Zip(epub, entries) && luling::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated) &&
         Count(payload, L"\nP\t") == 5 && payload.find(L"Chapter content could not be read") != std::wstring::npos &&
         TocPointsTo(payload, 4, 1, L"last-marker"),
         "EPUB missing package entry keeps its chapter and following TOC index");
     entries[2].second = "<html><body>";
     for (size_t i = 0; i < 450; ++i) entries[2].second += "<p>" + std::string(5000, 'x') + "</p>";
     entries[2].second += "</body></html>";
-    Check(Zip(epub, entries) && pulse::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated) &&
-        truncated && Count(payload, L"\nP\t") == 5 && payload.size() <= pulse::ipc::kPreviewMaxTableChars &&
+    Check(Zip(epub, entries) && luling::preview::MakeEpubDocument(epub.wstring(), payload, bytes, truncated) &&
+        truncated && Count(payload, L"\nP\t") == 5 && payload.size() <= luling::ipc::kPreviewMaxTableChars &&
         payload.find(L"Preview size limit reached; this chapter was not loaded") != std::wstring::npos,
         "EPUB exhausted content budget retains all remaining chapter placeholders within protocol size");
 
     const auto docx = root / L"reading.docx";
     Check(Zip(docx, {{"word/document.xml", "<w:document><w:body><w:p><w:r><w:t>document-marker</w:t></w:r></w:p></w:body></w:document>"}}), "write DOCX reading fixture");
-    Check(pulse::preview::MakeDocxDocument(docx.wstring(), payload, bytes, truncated) &&
+    Check(luling::preview::MakeDocxDocument(docx.wstring(), payload, bytes, truncated) &&
         payload.find(L"Reading preview:") == std::wstring::npos && Count(payload, L"\nB\t") == 1 &&
         payload.find(L"document-marker") != std::wstring::npos, "DOCX body contains only document content, without injected notice blocks");
-    pulse_test::Host host;
+    luling_test::Host host;
     const bool started = host.Start();
     Check(started, "start preview host for document IPC checks");
     if (started) {
-        pulse_test::Result result;
+        luling_test::Result result;
         Check(host.Request(std::filesystem::absolute(root / L"sheets100.xlsx").wstring(), result, MAXDWORD, 1024,
-                pulse::ipc::PreviewRequestKind::Content, pulse::ipc::kPreviewRequestFlagRichText, 99) &&
-            result.response.kind == pulse::ipc::PreviewContentKind::Table && Count(result.text, L"\nR\t") == 1 &&
-            result.response.integrity.state == pulse::preview::IntegrityState::Partial &&
-            result.response.integrity.reason == pulse::preview::IntegrityReason::OnDemand &&
+                luling::ipc::PreviewRequestKind::Content, luling::ipc::kPreviewRequestFlagRichText, 99) &&
+            result.response.kind == luling::ipc::PreviewContentKind::Table && Count(result.text, L"\nR\t") == 1 &&
+            result.response.integrity.state == luling::preview::IntegrityState::Partial &&
+            result.response.integrity.reason == luling::preview::IntegrityReason::OnDemand &&
             result.response.integrity.loaded == 1 && result.response.integrity.total == 100 &&
             result.text.find(L"\nR\t100\n") != std::wstring::npos && result.text.find(L"W\t100\t1\t99\n") != std::wstring::npos,
             "spreadsheet RichText IPC frame index requests actual sheet 100 content");
         Check(host.Request(std::filesystem::absolute(docx).wstring(), result, MAXDWORD, 1024,
-                pulse::ipc::PreviewRequestKind::Content, pulse::ipc::kPreviewRequestFlagRichText) &&
-            result.response.kind == pulse::ipc::PreviewContentKind::Markdown && result.error == L"docx-reading" &&
+                luling::ipc::PreviewRequestKind::Content, luling::ipc::kPreviewRequestFlagRichText) &&
+            result.response.kind == luling::ipc::PreviewContentKind::Markdown && result.error == L"docx-reading" &&
             Count(result.text, L"\nB\t") == 1 && result.text.find(L"document-marker") != std::wstring::npos &&
             result.text.find(L"Reading preview:") == std::wstring::npos,
             "DOCX RichText IPC returns Markdown and fidelity metadata without changing body blocks");
         Check(host.Request(std::filesystem::absolute(epub).wstring(), result, MAXDWORD, 1024,
-                pulse::ipc::PreviewRequestKind::Content, pulse::ipc::kPreviewRequestFlagRichText) &&
-            result.response.kind == pulse::ipc::PreviewContentKind::Markdown &&
-            (result.response.flags & pulse::ipc::kPreviewFlagTruncated) != 0 && Count(result.text, L"\nP\t") == 5 &&
-            result.text.size() <= pulse::ipc::kPreviewMaxTableChars &&
+                luling::ipc::PreviewRequestKind::Content, luling::ipc::kPreviewRequestFlagRichText) &&
+            result.response.kind == luling::ipc::PreviewContentKind::Markdown &&
+            (result.response.flags & luling::ipc::kPreviewFlagTruncated) != 0 && Count(result.text, L"\nP\t") == 5 &&
+            result.text.size() <= luling::ipc::kPreviewMaxTableChars &&
             result.text.find(L"Preview size limit reached; this chapter was not loaded") != std::wstring::npos,
             "EPUB RichText IPC retains chapter placeholders and reports truncated content");
     }

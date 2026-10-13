@@ -6,9 +6,9 @@
 #include <functional>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 static std::wstring fixture;
-std::wstring GetPulseDataDir() { return fixture; }
+std::wstring GetLulingDataDir() { return fixture; }
 struct PlacesPersistenceAudit {
     static std::mutex& Io(PlacesCatalog& c) { return c.places_save_io_mutex_; }
     static uint64_t Revision(PlacesCatalog& c) {
@@ -24,8 +24,8 @@ struct PlacesPersistenceAudit {
     static void Stop(PlacesCatalog& c) { c.StopPlacesWriter(); }
 };
 }
-using namespace pulse;
-using namespace pulse::app;
+using namespace luling;
+using namespace luling::app;
 static int failures;
 static void Check(bool ok, const char* label) {
     printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); fflush(stdout); failures += !ok;
@@ -47,25 +47,25 @@ static void Menu() {
         c.MigrateSeenKeys();
         ContextMenuPrefs reloaded;
         Check(reloaded.FromJson(c.ToJson()) && reloaded.seen.size() == 1 &&
-            reloaded.seen.front().key == L"pulse:quick-access" &&
-            !reloaded.ItemEnabled(L"pulse:quick-access", ipc::CtxMenuCategory::Software, false),
+            reloaded.seen.front().key == L"luling:quick-access" &&
+            !reloaded.ItemEnabled(L"luling:quick-access", ipc::CtxMenuCategory::Software, false),
             "M09-003 legacy translated quick-access choice survives reload");
-        c.seen.push_back({L"pulse:quick-access", label});
+        c.seen.push_back({L"luling:quick-access", label});
         c.item_enabled[alias] = true;
-        c.item_enabled[L"pulse:quick-access"] = false;
+        c.item_enabled[L"luling:quick-access"] = false;
         c.MigrateSeenKeys();
-        Check(c.seen.size() == 1 && !c.item_enabled.at(L"pulse:quick-access"),
+        Check(c.seen.size() == 1 && !c.item_enabled.at(L"luling:quick-access"),
             "M09-003 stable explicit choice wins and duplicate aliases merge");
     }
     ContextMenuPrefs c;
     c.item_enabled[ipc::CatalogKey(L"固定到快速访问", false)] = false;
     c.item_enabled[ipc::CatalogKey(L"Pin to Quick access", false)] = true;
     c.MigrateSeenKeys();
-    Check(!c.item_enabled.at(L"pulse:quick-access"), "M09-003 conflicting legacy aliases deterministically preserve disable");
-    c.seen.push_back({L"pulse:future-command", L"translated display"});
+    Check(!c.item_enabled.at(L"luling:quick-access"), "M09-003 conflicting legacy aliases deterministically preserve disable");
+    c.seen.push_back({L"luling:future-command", L"translated display"});
     c.seen.push_back({L"h:{fixture}", L"extension display"});
     c.MigrateSeenKeys();
-    Check(c.seen[0].key == L"pulse:future-command" && c.seen[1].key == L"h:{fixture}",
+    Check(c.seen[0].key == L"luling:future-command" && c.seen[1].key == L"h:{fixture}",
         "M09-003 stable application and handler identities remain unchanged");
 }
 static void WorkspaceRoundTrip() {

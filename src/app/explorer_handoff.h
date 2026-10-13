@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class HandoffState { Pending, Ready, Cancelled, Expired, Closed };
 
@@ -63,4 +63,4 @@ struct ExplorerNavigationLease {
     ~ExplorerNavigationLease() { if (handoff) handoff->Cancel(); }
 };
 
-} // namespace pulse::app
+} // namespace luling::app

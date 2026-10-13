@@ -16,7 +16,7 @@
 #include <thread>
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 
 using TagId = std::wstring;
 
@@ -185,7 +185,7 @@ public:
 
 private:
     friend struct PlacesPersistenceAudit;
-#ifdef PULSE_PLACES_SAVE_TEST
+#ifdef LULING_PLACES_SAVE_TEST
     friend struct PlacesSaveTestAccess;
 #endif
     struct SaveSnapshot {
@@ -235,20 +235,20 @@ private:
     mutable uint64_t places_save_revision_ = 0;
 };
 
-inline std::wstring MakeStarredPath() { return L"pulse:starred"; }
-inline std::wstring MakeRecentPath() { return L"pulse:recent"; }
-inline std::wstring MakeRecyclePath() { return L"pulse:recycle"; }
-inline std::wstring MakeTagPath(const TagId& id) { return L"pulse:tag:" + id; }
-inline std::wstring MakeTagPath(int i) { return L"pulse:tag:" + std::to_wstring(i); }
-inline std::wstring MakeSearchPath(const std::wstring& q) { return L"pulse:search:" + q; }
-inline std::wstring MakeWorkspacePath(int i) { return L"pulse:workspace:" + std::to_wstring(i); }
+inline std::wstring MakeStarredPath() { return L"luling:starred"; }
+inline std::wstring MakeRecentPath() { return L"luling:recent"; }
+inline std::wstring MakeRecyclePath() { return L"luling:recycle"; }
+inline std::wstring MakeTagPath(const TagId& id) { return L"luling:tag:" + id; }
+inline std::wstring MakeTagPath(int i) { return L"luling:tag:" + std::to_wstring(i); }
+inline std::wstring MakeSearchPath(const std::wstring& q) { return L"luling:search:" + q; }
+inline std::wstring MakeWorkspacePath(int i) { return L"luling:workspace:" + std::to_wstring(i); }
 inline std::wstring MakeSettingsPath(std::wstring_view page = L"general") {
-    return L"pulse:settings:" + std::wstring(page);
+    return L"luling:settings:" + std::wstring(page);
 }
-bool ParsePulsePath(const std::wstring& path, std::wstring* kind, std::wstring* rest);
+bool ParseLulingPath(const std::wstring& path, std::wstring* kind, std::wstring* rest);
 
 bool WriteTagAdsV2(const std::wstring& path, const std::vector<TagAdsRecord>& tags);
 std::vector<std::wstring> ReadTagAds(const std::wstring& path);
 std::vector<TagAdsRecord> ReadTagAdsV2(const std::wstring& path);
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -13,7 +13,7 @@
 
 using Microsoft::WRL::ComPtr;
 namespace fs = std::filesystem;
-namespace ipc = pulse::ipc;
+namespace ipc = luling::ipc;
 using Clock = std::chrono::steady_clock;
 using Bytes = std::vector<unsigned char>;
 namespace {
@@ -36,7 +36,7 @@ public:
                         &main_thread_, 0, FALSE, DUPLICATE_SAME_ACCESS);
         wchar_t value[32]{};
         DWORD seconds = 120;
-        if (GetEnvironmentVariableW(L"PULSE_FOLDER_TEST_TIMEOUT_SECONDS", value, ARRAYSIZE(value))) {
+        if (GetEnvironmentVariableW(L"LULING_FOLDER_TEST_TIMEOUT_SECONDS", value, ARRAYSIZE(value))) {
             const auto requested = wcstoul(value, nullptr, 10);
             if (requested >= 5 && requested <= 3600) seconds = requested;
         }
@@ -108,12 +108,12 @@ bool Image(const fs::path& path, unsigned seed) {
     }
     return WritePng(path, width, height, width * 4, pixels);
 }
-bool Bitmap(const pulse_test::Result& result) {
+bool Bitmap(const luling_test::Result& result) {
     return result.response.kind == ipc::PreviewContentKind::Bitmap &&
            result.response.width == 256 && result.response.height == 256 &&
            result.response.stride == 256 * 4 && result.pixels.size() == 256 * 256 * 4;
 }
-bool TransparentArtwork(const pulse_test::Result& result) {
+bool TransparentArtwork(const luling_test::Result& result) {
     if (!Bitmap(result)) return false;
     size_t transparent = 0, visible = 0;
     for (size_t i = 3; i < result.pixels.size(); i += 4) {
@@ -122,7 +122,7 @@ bool TransparentArtwork(const pulse_test::Result& result) {
     }
     return transparent > 100 && visible > 100;
 }
-bool Request(pulse_test::Host& host, const fs::path& path, pulse_test::Result& result,
+bool Request(luling_test::Host& host, const fs::path& path, luling_test::Result& result,
              uint32_t extra_flags = 0, DWORD attrs = MAXDWORD) {
     return host.Request(path.wstring(), result, attrs, 256, ipc::PreviewRequestKind::Content,
                         ipc::kPreviewRequestFlagFolderThumbnail | ipc::kPreviewRequestFlagGrid | extra_flags);
@@ -143,9 +143,9 @@ int PathEquivalence(const fs::path& requested) {
     const fs::path extended = std::wstring(L"\\\\?\\") + normal_text;
     normal = normal_text;
     std::wprintf(L"[INFO] normal: %ls\n[INFO] extended: %ls\n", normal.c_str(), extended.c_str());
-    pulse_test::Host host;
+    luling_test::Host host;
     Check(host.Start(), "start dedicated host for path equivalence");
-    pulse_test::Result plain, prefixed, forced;
+    luling_test::Result plain, prefixed, forced;
     Check(Request(host, normal, plain) && TransparentArtwork(plain), "ordinary path returns folder artwork");
     Check(Request(host, extended, prefixed) && TransparentArtwork(prefixed), "extended path returns folder artwork");
     Check(Bitmap(plain) && Bitmap(prefixed) && plain.pixels == prefixed.pixels,
@@ -195,14 +195,14 @@ int wmain(int argc, wchar_t** argv) {
               "offline candidate fixture");
         fixtures = Image(root / L"mutation" / L"image.png", 1) && fixtures;
         Check(fixtures, "generated isolated image fixtures");
-        pulse_test::Host host;
+        luling_test::Host host;
         auto start = Clock::now();
         const bool started = host.Start();
         std::printf("[BENCH] host startup %.3f ms\n", Milliseconds(start));
         Check(started, "start dedicated preview host");
         if (!started || !fixtures) { CoUninitialize(); return 2; }
         for (const auto* name : {L"empty", L"nested", L"excluded"}) {
-            pulse_test::Result result;
+            luling_test::Result result;
             const bool ok = Request(host, root / name, result);
             Check(ok && result.response.kind == ipc::PreviewContentKind::Unsupported,
                   name == std::wstring(L"empty") ? "empty folder keeps ordinary folder icon" :
@@ -210,7 +210,7 @@ int wmain(int argc, wchar_t** argv) {
         }
         Bytes previous;
         for (const auto* name : {L"one", L"two", L"three", L"documents", L"corrupt", L"many"}) {
-            pulse_test::Result cold;
+            luling_test::Result cold;
             start = Clock::now();
             const bool ok = Request(host, root / name, cold);
             std::wprintf(L"[BENCH] %ls first request 256px %.3f ms\n", name, Milliseconds(start));
@@ -225,7 +225,7 @@ int wmain(int argc, wchar_t** argv) {
             std::vector<double> timings;
             bool stable = true;
             for (unsigned repeat = 0; repeat < 15; ++repeat) {
-                pulse_test::Result warm;
+                luling_test::Result warm;
                 start = Clock::now();
                 stable = Request(host, root / name, warm) && warm.response.kind == cold.response.kind &&
                          warm.pixels == cold.pixels && stable;
@@ -235,13 +235,13 @@ int wmain(int argc, wchar_t** argv) {
             std::wprintf(L"[BENCH] %ls warm n=15 median %.3f ms p95 %.3f ms\n", name, timings[7], timings[14]);
             Check(stable, "repeated requests preserve pixels and IPC framing");
         }
-        pulse_test::Result fan, single;
+        luling_test::Result fan, single;
         Check(Request(host, root / L"three", fan) &&
               Request(host, root / L"three", single, ipc::kPreviewRequestFlagFolderSingle) &&
               Bitmap(single) && single.pixels != fan.pixels, "single-card mode has distinct cache identity and artwork");
         if (Bitmap(single)) Check(WritePng(root / L"renders" / L"single.png", 256, 256, single.response.stride,
                                           single.pixels, true), "save single-card host artwork");
-        pulse_test::Result before, after;
+        luling_test::Result before, after;
         Check(Request(host, root / L"mutation", before) && Bitmap(before), "initial mutable folder artwork");
         Check(Image(root / L"mutation" / L"image.png", 8), "replace child image content");
         auto modified = fs::last_write_time(root / L"mutation" / L"image.png");
@@ -251,11 +251,11 @@ int wmain(int argc, wchar_t** argv) {
         const auto unchanged_mtime = fs::last_write_time(root / L"mutation" / L"image.png");
         Check(Image(root / L"mutation" / L"image.png", 11), "replace image for forced refresh");
         fs::last_write_time(root / L"mutation" / L"image.png", unchanged_mtime);
-        pulse_test::Result refreshed;
+        luling_test::Result refreshed;
         Check(Request(host, root / L"mutation", refreshed, ipc::kPreviewRequestFlagFolderRefresh) &&
               Bitmap(refreshed) && refreshed.pixels != after.pixels,
               "F5 refresh observes changed child content even with preserved mtime");
-        pulse_test::Result missing, recovered;
+        luling_test::Result missing, recovered;
         Check(Request(host, root / L"missing", missing, 0, FILE_ATTRIBUTE_DIRECTORY) &&
               missing.response.kind != ipc::PreviewContentKind::Bitmap, "missing folder fails without bitmap");
         Check(Request(host, root / L"three", recovered) && Bitmap(recovered), "host recovers after missing folder");

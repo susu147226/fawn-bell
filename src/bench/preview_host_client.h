@@ -1,6 +1,6 @@
-// preview_host_client.h - test-side client of Pulse.Preview.exe: starts the
+// preview_host_client.h - test-side client of Luling.Preview.exe: starts the
 // host next to the running executable and speaks the preview pipe protocol
-// (shared by pulse_preview_test's self test, --probe and --coverage).
+// (shared by luling_preview_test's self test, --probe and --coverage).
 #pragma once
 #include "../ipc/preview_protocol.h"
 #include <windows.h>
@@ -10,10 +10,10 @@
 #include <utility>
 #include <vector>
 
-namespace pulse_test {
+namespace luling_test {
 
 struct Result {
-    pulse::ipc::PreviewResponse response{};
+    luling::ipc::PreviewResponse response{};
     std::wstring text;
     std::wstring error;
     std::vector<std::pair<std::wstring, std::wstring>> properties;
@@ -32,12 +32,12 @@ public:
         if (!slash) return false;
         *(slash + 1) = 0;
         const DWORD owner = GetCurrentProcessId();
-        std::wstring command = L"\"" + std::wstring(exe) + L"Pulse.Preview.exe\" " +
+        std::wstring command = L"\"" + std::wstring(exe) + L"Luling.Preview.exe\" " +
                                std::to_wstring(owner);
         STARTUPINFOW si{sizeof(si)};
         if (!CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
                             nullptr, nullptr, &si, &process_)) return false;
-        const std::wstring pipeName = pulse::ipc::PreviewPipeName(owner);
+        const std::wstring pipeName = luling::ipc::PreviewPipeName(owner);
         const ULONGLONG deadline = GetTickCount64() + 3000;
         do {
             pipe_ = CreateFileW(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
@@ -62,10 +62,10 @@ public:
     ~Host() { Stop(); }
 
     bool Request(const std::wstring& path, Result& result, DWORD attrs_override = MAXDWORD,
-                 uint32_t pixel_size = pulse::ipc::kPreviewDefaultPixelSize,
-                 pulse::ipc::PreviewRequestKind kind = pulse::ipc::PreviewRequestKind::Content,
+                 uint32_t pixel_size = luling::ipc::kPreviewDefaultPixelSize,
+                 luling::ipc::PreviewRequestKind kind = luling::ipc::PreviewRequestKind::Content,
                  uint32_t flags = 0, uint32_t frame_index = 0) {
-        pulse::ipc::PreviewRequest request{};
+        luling::ipc::PreviewRequest request{};
         request.flags = flags;
         request.frame_index = frame_index;
         request.request_id = next_++;
@@ -75,27 +75,27 @@ public:
         request.attrs = attrs_override == MAXDWORD ? GetFileAttributesW(path.c_str())
                                                    : attrs_override;
         request.path_chars = static_cast<uint32_t>(path.size());
-        if (!pulse::ipc::WriteAll(pipe_, &request, sizeof(request)) ||
-            !pulse::ipc::WriteAll(pipe_, path.data(), request.path_chars * sizeof(wchar_t)) ||
-            !pulse::ipc::ReadAll(pipe_, &result.response, sizeof(result.response))) return false;
-        if (result.response.magic != pulse::ipc::kPreviewMagic ||
+        if (!luling::ipc::WriteAll(pipe_, &request, sizeof(request)) ||
+            !luling::ipc::WriteAll(pipe_, path.data(), request.path_chars * sizeof(wchar_t)) ||
+            !luling::ipc::ReadAll(pipe_, &result.response, sizeof(result.response))) return false;
+        if (result.response.magic != luling::ipc::kPreviewMagic ||
             result.response.request_id != request.request_id) return false;
         std::wstring mapping(result.response.mapping_chars, L'\0');
-        if (!mapping.empty() && !pulse::ipc::ReadAll(pipe_, mapping.data(),
+        if (!mapping.empty() && !luling::ipc::ReadAll(pipe_, mapping.data(),
             result.response.mapping_chars * sizeof(wchar_t))) return false;
         result.text.assign(result.response.text_chars, L'\0');
-        if (!result.text.empty() && !pulse::ipc::ReadAll(pipe_, result.text.data(),
+        if (!result.text.empty() && !luling::ipc::ReadAll(pipe_, result.text.data(),
             result.response.text_chars * sizeof(wchar_t))) return false;
         result.error.assign(result.response.error_chars, L'\0');
-        if (!result.error.empty() && !pulse::ipc::ReadAll(pipe_, result.error.data(),
+        if (!result.error.empty() && !luling::ipc::ReadAll(pipe_, result.error.data(),
             result.response.error_chars * sizeof(wchar_t))) return false;
         result.properties.clear();
         if (result.response.property_count > 6) return false;
         auto read_string = [&](std::wstring& value) {
             uint32_t count = 0;
-            if (!pulse::ipc::ReadAll(pipe_, &count, sizeof(count)) || count > 32768) return false;
+            if (!luling::ipc::ReadAll(pipe_, &count, sizeof(count)) || count > 32768) return false;
             value.assign(count, L'\0');
-            return count == 0 || pulse::ipc::ReadAll(pipe_, value.data(), count * sizeof(wchar_t));
+            return count == 0 || luling::ipc::ReadAll(pipe_, value.data(), count * sizeof(wchar_t));
         };
         for (uint32_t i = 0; i < result.response.property_count; ++i) {
             std::wstring label, value;
@@ -117,7 +117,7 @@ public:
                 CloseHandle(file_map);
             }
             const unsigned char ack = 1;
-            if (!pulse::ipc::WriteAll(pipe_, &ack, 1)) return false;
+            if (!luling::ipc::WriteAll(pipe_, &ack, 1)) return false;
         }
         return true;
     }
@@ -127,4 +127,4 @@ private:
     uint32_t next_ = 1;
 };
 
-} // namespace pulse_test
+} // namespace luling_test

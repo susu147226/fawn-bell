@@ -82,7 +82,7 @@ Result ReadResult(const fixture_fs::path& root, const wchar_t* role) {
 }
 void Scenario(const fixture_fs::path& root, unsigned mode, bool baseline) {
     fixture_fs::create_directories(root / L"temp");
-    const auto token = L"Local\\Pulse.CacheRace." + std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(mode) + L"." + std::to_wstring(GetTickCount64());
+    const auto token = L"Local\\Luling.CacheRace." + std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(mode) + L"." + std::to_wstring(GetTickCount64());
     Events a_events(token + L"A"), b_events(token + L"B");
     Process a, b;
     Check(a_events.reached_event && a_events.release_event && b_events.reached_event && b_events.release_event, "private stage events created");
@@ -110,7 +110,7 @@ void Scenario(const fixture_fs::path& root, unsigned mode, bool baseline) {
         Check(second.returned && second.complete, "second Store returns complete bytes immediately");
     }
     size_t finals = 0, partials = 0;
-    const auto cache = root / L"temp" / L"Pulse" / L"QuickLook";
+    const auto cache = root / L"temp" / L"Luling" / L"QuickLook";
     for (const auto* result : {&first, &second}) if (result->returned) {
         Check(!result->path.empty() && fixture_fs::path(result->path).parent_path().lexically_normal() == cache.lexically_normal(),
             "successful return names the shared private cache directory");
@@ -131,7 +131,7 @@ void Scenario(const fixture_fs::path& root, unsigned mode, bool baseline) {
     Check(reused.valid && reused.returned && reused.complete, "existing cache returns full bytes without write stages");
 }
 }
-namespace pulse::preview {
+namespace luling::preview {
 void PreviewImageCacheTestStage(unsigned stage) {
     if (stage != held_stage) return;
     SetEvent(reached);
@@ -151,7 +151,7 @@ int wmain(int argc, wchar_t** argv) {
             release = OpenEventW(SYNCHRONIZE, FALSE, (token + L"-release").c_str());
             if (!reached || !release) return 4;
         }
-        pulse::preview::PreviewImageCache cache;
+        luling::preview::PreviewImageCache cache;
         const auto result = cache.Store(Payload(), L".png"); SignalResult(root, argv[3], result);
         if (reached) CloseHandle(reached); if (release) CloseHandle(release);
         return 0;

@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace pulse::app {
+namespace luling::app {
 inline void CapturePendingListingSelection(Tab& tab) {
     tab.pending_selection_revision = tab.selection_revision;
     tab.pending_selected_names.clear();
@@ -111,4 +111,4 @@ inline void RestoreListingSelection(Tab& tab, const ListingSelectionRestore& res
     } else if (tab.snapshot && tab.EntryCount() != 0) tab.FocusFirstEntry();
     else tab.ClearSelection();
 }
-} // namespace pulse::app
+} // namespace luling::app

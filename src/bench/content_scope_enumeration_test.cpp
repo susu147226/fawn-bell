@@ -9,7 +9,7 @@
 #include <mutex>
 #include <set>
 
-using namespace pulse::index;
+using namespace luling::index;
 namespace {
 std::mutex listing_mutex;
 std::set<std::wstring> denied;
@@ -49,7 +49,7 @@ void Check(bool value, const char* text) {
     if (!value) ++failures;
 }
 }
-namespace pulse::index::content_listing {
+namespace luling::index::content_listing {
 HANDLE First(const std::wstring& query, WIN32_FIND_DATAW& data, DWORD flags) {
     const auto dir = Key(query.substr(0, query.size() - 2));
     std::lock_guard lock(listing_mutex);
@@ -85,15 +85,15 @@ int wmain() {
     // An absent, private endpoint makes accidental global-feed use fail promptly
     // without connecting to the user's index. Unconstrained shared scope must
     // still report the unavailable feed, rather than silently walk the disk.
-    const auto private_pipe = L"\\\\.\\pipe\\PulseContentScopeTest." +
+    const auto private_pipe = L"\\\\.\\pipe\\LulingContentScopeTest." +
         std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(GetTickCount64());
-    if (!SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", private_pipe.c_str())) return 1;
+    if (!SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", private_pipe.c_str())) return 1;
     for (int mode = 0; mode < 2; ++mode) {
     for (int scenario = 0; scenario < 18; ++scenario) {
         std::atomic<bool> cancelled{false};
         ContentIndexConfig config;
         config.shared_scope = mode != 0;
-        config.roots = {{base.wstring(), pulse::text::Encoding::Auto}};
+        config.roots = {{base.wstring(), luling::text::Encoding::Auto}};
         ContentSearchRequest request;
         request.needle = L"scope_marker"; request.root = wanted.wstring(); request.recursive = false;
         denied = {Key(outside.wstring()), Key(deep.wstring())};
@@ -106,12 +106,12 @@ int wmain() {
         case 1:
             request.recursive = true; denied.erase(Key(deep.wstring())); expected_open.insert(Key(deep.wstring())); expected_hits = 2; break;
         case 2:
-            config.roots = {{wanted.wstring(), pulse::text::Encoding::Auto}}; request.root = base.wstring(); request.recursive = true;
+            config.roots = {{wanted.wstring(), luling::text::Encoding::Auto}}; request.root = base.wstring(); request.recursive = true;
             denied.erase(Key(deep.wstring())); expected_open.insert(Key(deep.wstring())); expected_hits = 2; break;
         case 3:
-            config.roots = {{wanted.wstring(), pulse::text::Encoding::Auto}}; request.root = base.wstring(); expected_open.clear(); expected_hits = 0; break;
+            config.roots = {{wanted.wstring(), luling::text::Encoding::Auto}}; request.root = base.wstring(); expected_open.clear(); expected_hits = 0; break;
         case 4:
-            config.roots.push_back({wanted.wstring(), pulse::text::Encoding::Auto}); request.recursive = true;
+            config.roots.push_back({wanted.wstring(), luling::text::Encoding::Auto}); request.recursive = true;
             denied.erase(Key(deep.wstring())); expected_open.insert(Key(deep.wstring())); expected_hits = 2; break;
         case 5:
             request.recursive = true; request.roots = {deep.wstring(), outside.wstring()}; denied.erase(Key(deep.wstring()));
@@ -119,13 +119,13 @@ int wmain() {
         case 6:
             request.roots = {deep.wstring()}; expected_open.clear(); expected_hits = 0; break;
         case 7:
-            config.roots = {{outside.wstring(), pulse::text::Encoding::Auto}}; expected_open.clear(); expected_hits = 0; break;
+            config.roots = {{outside.wstring(), luling::text::Encoding::Auto}}; expected_open.clear(); expected_hits = 0; break;
         case 8:
             request.recursive = true; expected_open.insert(Key(deep.wstring())); expected_error = ERROR_ACCESS_DENIED; break;
         case 9:
             cancelled = true; expected_open.clear(); expected_hits = 0; expected_error = ERROR_CANCELLED; break;
         case 10:
-            config.roots.push_back({wanted.wstring(), pulse::text::Encoding::Auto}); request.root.clear();
+            config.roots.push_back({wanted.wstring(), luling::text::Encoding::Auto}); request.root.clear();
             denied.clear(); expected_open.insert(Key(base.wstring())); expected_open.insert(Key(deep.wstring()));
             expected_open.insert(Key(outside.wstring())); expected_hits = 4; break;
         case 11: request.roots = {wanted.wstring()}; break;
@@ -147,7 +147,7 @@ int wmain() {
         size_t hits = 0, terminals = 0;
         const bool ok = RunContentTaskSupplement(config, request, cancelled, cache, {}, 0,
             [&](const auto& progress, auto batch) { final = progress; hits += batch.size(); terminals += progress.done ? 1 : 0; return true; },
-            [](const auto&, uint64_t, std::wstring& body, uint64_t& bytes, DWORD*, pulse::text::Encoding, const auto&) {
+            [](const auto&, uint64_t, std::wstring& body, uint64_t& bytes, DWORD*, luling::text::Encoding, const auto&) {
                 body = L"scope_marker"; bytes = 12; return true;
             });
         const char* names[] = {"nonrecursive subdirectory avoids denied siblings and children", "recursive subdirectory avoids denied sibling",

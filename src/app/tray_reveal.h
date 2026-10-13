@@ -7,7 +7,7 @@
 #pragma once
 #include <string>
 
-namespace pulse {
+namespace luling {
 struct AppState;
 
 // The close button / WM_CLOSE path: hide to the tray and remember why.
@@ -23,4 +23,4 @@ void InstallTrayRevealHook(AppState& s);
 // the window is closed to it, or never).
 bool WantsTrayIcon(const AppState& s, bool window_hidden);
 
-} // namespace pulse
+} // namespace luling

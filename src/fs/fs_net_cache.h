@@ -6,7 +6,7 @@
 #include <string>
 #include <windows.h>
 
-namespace pulse::fs {
+namespace luling::fs {
 
 using UncProbeId = uint64_t;
 
@@ -46,4 +46,4 @@ std::wstring FormatCacheAge(uint64_t unix_sec);
 // the same probe ID.
 bool StartUncProbe(HWND hwnd, UINT msg, std::wstring unc, UncProbeId probe_id);
 
-} // namespace pulse::fs
+} // namespace luling::fs

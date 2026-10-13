@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct FluentMenuSwatch {
     int command = 0;
@@ -107,7 +107,7 @@ private:
 // The popup window. One instance per app, reused across invocations.
 class FluentMenu {
     friend struct FluentMenuTestPeer;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     friend struct P1MenuTestPeer;
 #endif
 public:
@@ -303,4 +303,4 @@ private:
     int sub_y_ = 0;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -14,14 +14,14 @@
 #include <thread>
 
 namespace fs = std::filesystem;
-namespace pulse::app {
+namespace luling::app {
 bool RunFolderSizeIndexClientTest(const fs::path& fixture, std::ofstream& log);
 int RunFolderSizeFakeIndexServer(const wchar_t* pipe_name);
 }
 namespace {
-using pulse::app::FolderSizes;
-using State = pulse::app::FolderSizeState;
-using Source = pulse::app::FolderSizeSource;
+using luling::app::FolderSizes;
+using State = luling::app::FolderSizeState;
+using Source = luling::app::FolderSizeSource;
 unsigned checks = 0, failures = 0;
 void Check(bool ok, const char* label) {
     ++checks;
@@ -196,7 +196,7 @@ void ManualMetadataRegression(const fs::path& fixture) {
     const auto wide = fixture / L"progress";
     fs::create_directories(wide);
     for (unsigned i = 0; i < 1500; ++i) File(wide / (std::to_wstring(i) + L".bin"), 13);
-    pulse::app::folder_size::Scan progress(wide.wstring(), 1, 1);
+    luling::app::folder_size::Scan progress(wide.wstring(), 1, 1);
     std::atomic<bool> keep_running{false};
     const auto lookup = [](const auto&) -> std::optional<uint64_t> { return std::nullopt; };
     const auto coverage = [](const auto&) -> uint64_t { return 0; };
@@ -244,7 +244,7 @@ void ManualMetadataRegression(const fs::path& fixture) {
     for (unsigned depth = 0; depth < 140; ++depth) leaf /= L"d";
     fs::create_directories(leaf);
     File(leaf / L"value.bin", 59);
-    pulse::app::folder_size::Scan scan(deep_root.wstring(), 1, 1, true);
+    luling::app::folder_size::Scan scan(deep_root.wstring(), 1, 1, true);
     std::atomic<bool> stopping{false};
     const auto deadline = GetTickCount64() + 6000;
     while (!scan.done && GetTickCount64() < deadline)
@@ -332,16 +332,16 @@ void ChildCalculationCancelsAncestor(const fs::path& fixture) {
 // for their first result must keep their revision, or the index answer already
 // on its way is dropped and the whole list waits for the next poll.
 void StoreArmReconcile() {
-    using pulse::app::folder_size::Key;
-    pulse::app::folder_size::Store store;
+    using luling::app::folder_size::Key;
+    luling::app::folder_size::Store store;
     const std::set<std::wstring> keep;
-    const auto root = Key(L"C:\\pulse-store-fixture");
-    auto* pending = store.Ensure(Key(L"C:\\pulse-store-fixture\\pending"), keep);
-    auto* scanned = store.Ensure(Key(L"C:\\pulse-store-fixture\\scanned"), keep);
-    auto* running = store.Ensure(Key(L"C:\\pulse-store-fixture\\running"), keep);
+    const auto root = Key(L"C:\\luling-store-fixture");
+    auto* pending = store.Ensure(Key(L"C:\\luling-store-fixture\\pending"), keep);
+    auto* scanned = store.Ensure(Key(L"C:\\luling-store-fixture\\scanned"), keep);
+    auto* running = store.Ensure(Key(L"C:\\luling-store-fixture\\running"), keep);
     if (!pending || !scanned || !running) { Check(false, "store fixture entries"); return; }
     scanned->value.has_value = true; scanned->value.source = Source::Scan; scanned->completed = 1;
-    running->work.activity = pulse::app::FolderSizeActivity::Scanning;
+    running->work.activity = luling::app::FolderSizeActivity::Scanning;
     pending->next_index_at = 99;
     const auto pending_revision = pending->revision, scanned_revision = scanned->revision;
     const auto running_epoch = running->request_epoch;
@@ -356,7 +356,7 @@ void StoreArmReconcile() {
 }
 int wmain(int argc, wchar_t** argv) {
     if (argc == 3 && std::wstring(argv[1]) == L"--serve-index")
-        return pulse::app::RunFolderSizeFakeIndexServer(argv[2]);
+        return luling::app::RunFolderSizeFakeIndexServer(argv[2]);
     Watchdog watchdog;
     const auto root = fs::current_path() / L"bench_data" /
         (L"folder_sizes_refactor_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
@@ -385,7 +385,7 @@ int wmain(int argc, wchar_t** argv) {
         File(root / L"nested" / L"a.bin", 1234);
         File(root / L"nested" / L"child" / L"b.bin", 12333);
         std::ofstream index_log(root / L"index-results.log");
-        Check(pulse::app::RunFolderSizeIndexClientTest(root, index_log), "real isolated index protocol regression group");
+        Check(luling::app::RunFolderSizeIndexClientTest(root, index_log), "real isolated index protocol regression group");
         index_log.close();
         if (argc == 2 && std::wstring(argv[1]) == L"--index-only") {
             std::wprintf(L"[INFO] retained isolated index fixtures: %ls\n", root.c_str());

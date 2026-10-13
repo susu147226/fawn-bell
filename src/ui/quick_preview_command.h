@@ -5,7 +5,7 @@
 #include <string>
 #include <utility>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct QuickPreviewItem {
     std::wstring path, name;
     DWORD attrs = 0;
@@ -86,4 +86,4 @@ inline QuickPreviewItem FolderPreviewTarget(const QuickPreviewItem& folder,
     target.read_only = folder.read_only;
     return target;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <d2d1.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct PreviewFooterLayout {
     D2D1_RECT_F caption{}, zoom{};
     D2D1_POINT_2F chevron{};
@@ -21,4 +21,4 @@ inline PreviewFooterLayout MakePreviewFooterLayout(const D2D1_RECT_F& bounds,
         std::max(left, result.chevron.x - 14 * scale), bounds.bottom);
     return result;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

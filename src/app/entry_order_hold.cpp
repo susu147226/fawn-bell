@@ -5,7 +5,7 @@
 #include <cwctype>
 #include <unordered_map>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -163,4 +163,4 @@ void PruneHeldRenames(std::vector<EntryRename>& renames, const std::vector<fs::D
         renames.erase(renames.begin(), renames.end() - kMaxHeldRenames);
 }
 
-} // namespace pulse::app
+} // namespace luling::app

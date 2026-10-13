@@ -1,7 +1,7 @@
 // ctx_menu_util.h — Shared context-menu verb filtering / text helpers.
 //
-// Used by pulse_shell.exe (filters QueryContextMenu output before it goes on
-// the wire) and by the pulse.exe self-test (the HMENU walk itself is host-only,
+// Used by luling_shell.exe (filters QueryContextMenu output before it goes on
+// the wire) and by the luling.exe self-test (the HMENU walk itself is host-only,
 // but the filtering rules are pure and asserted here). Header-only on purpose.
 #pragma once
 #include <cwctype>
@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ipc {
+namespace luling::ipc {
 
 inline std::wstring ToLowerVerb(std::wstring_view v) {
     std::wstring out(v);
@@ -17,7 +17,7 @@ inline std::wstring ToLowerVerb(std::wstring_view v) {
     return out;
 }
 
-// Canonical verbs Pulse already provides natively (or explicitly hides).
+// Canonical verbs Luling already provides natively (or explicitly hides).
 // These are dropped from the Explorer section so the merged menu has no
 // duplicates. `background` = folder background menu (paste/new-area rules).
 inline bool IsBuiltinContextVerb(std::wstring_view verb, bool background) {
@@ -44,7 +44,7 @@ inline bool IsBuiltinContextVerb(std::wstring_view verb, bool background) {
 }
 
 // Submenu parents that are dropped entirely (their content is provided by
-// Pulse from the registry instead, so flattening them would duplicate rows).
+// Luling from the registry instead, so flattening them would duplicate rows).
 inline bool IsDroppedContextSubmenu(std::wstring_view verb) {
     const std::wstring v = ToLowerVerb(verb);
     return v == L"openas" || v == L"open with";
@@ -391,4 +391,4 @@ inline CtxMenuCategory ClassifyExplorerItem(std::wstring_view verb,
     return CtxMenuCategory::Software;
 }
 
-} // namespace pulse::ipc
+} // namespace luling::ipc

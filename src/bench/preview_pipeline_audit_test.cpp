@@ -26,7 +26,7 @@ void Write(const std::filesystem::path& path,const Bytes& b) {
 }
 }
 int wmain() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
     const auto root=std::filesystem::absolute(std::filesystem::path(L"bench_data")/(L"pipeline-audit-"+std::to_wstring(GetCurrentProcessId())));
     std::filesystem::create_directories(root);
@@ -54,7 +54,7 @@ int wmain() {
     const auto flat=root/L"flat"; std::filesystem::create_directory(flat);
     for(int i=0;i<4001;++i) { std::ofstream file(flat/(std::to_wstring(i)+L".txt")); }
     Check(MakeFolderListing(flat.wstring(),3000,true,listing),"enumerate isolated flat directory");
-    DecodeResult result; result.kind=pulse::ipc::PreviewContentKind::Archive; result.text=listing;
+    DecodeResult result; result.kind=luling::ipc::PreviewContentKind::Archive; result.text=listing;
     const auto integrity=DescribeIntegrity(result,true);
     Check(integrity.state==IntegrityState::Partial && integrity.loaded==4000 && integrity.total==4001,
         "display-only clipping reports 4000 loaded / 4001 total without counting summary as entry");

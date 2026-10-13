@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "operation_toast_test.h"
 #include "app_internal.h"
 #include "../common/localization.h"
@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 LRESULT CALLBACK ToastOwner(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) {
     auto* state = reinterpret_cast<AppState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -47,7 +47,7 @@ bool RunOperationToastTest() {
     WNDCLASSW wc{};
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpfnWndProc = ToastOwner;
-    wc.lpszClassName = L"PulseOperationToastTest";
+    wc.lpszClassName = L"LulingOperationToastTest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP, wc.lpszClassName, L"", WS_POPUP,
         -30000, -30000, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);

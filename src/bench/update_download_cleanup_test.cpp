@@ -8,7 +8,7 @@
 #include <iostream>
 #include <thread>
 #include <cstdlib>
-using namespace pulse::app;
+using namespace luling::app;
 namespace {
 int failures = 0;
 void Check(bool ok, const char* label) { std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << '\n'; failures += !ok; }
@@ -74,7 +74,7 @@ bool Abandoned(const std::wstring& root, const std::wstring& manifest, UpdateDow
     if (!exited) return false;
     std::wifstream input{std::filesystem::path(manifest)}; std::wstring name; input >> name;
     if (name.size() != 32) return false;
-    package = {root, root + L"\\" + name, root + L"\\" + name + L"\\PulseSetup.exe"}; return Exists(package.file);
+    package = {root, root + L"\\" + name, root + L"\\" + name + L"\\LulingSetup.exe"}; return Exists(package.file);
 }
 }
 int wmain(int argc, wchar_t** argv) {
@@ -166,13 +166,13 @@ int wmain(int argc, wchar_t** argv) {
     Check(unsafe == INVALID_HANDLE_VALUE, "download writer also refuses a replaced package"); if (unsafe != INVALID_HANDLE_VALUE) CloseHandle(unsafe);
     const auto spoof = root + L"\\11111111111111111111111111111111";
     CreateDirectoryW(spoof.c_str(), nullptr);
-    CopyFileW((package.directory + L"\\receipt.dat").c_str(), (spoof + L"\\receipt.dat").c_str(), TRUE); Touch(spoof + L"\\PulseSetup.exe");
+    CopyFileW((package.directory + L"\\receipt.dat").c_str(), (spoof + L"\\receipt.dat").c_str(), TRUE); Touch(spoof + L"\\LulingSetup.exe");
     result = CollectUpdateDownloads(root, {1, 0, 0});
-    Check(result.rejected >= 2 && Exists(spoof + L"\\PulseSetup.exe"), "copied valid credential cannot authorize a different directory");
+    Check(result.rejected >= 2 && Exists(spoof + L"\\LulingSetup.exe"), "copied valid credential cannot authorize a different directory");
     const auto unknown = root + L"\\22222222222222222222222222222222";
-    CreateDirectoryW(unknown.c_str(), nullptr); Touch(unknown + L"\\PulseSetup.exe");
+    CreateDirectoryW(unknown.c_str(), nullptr); Touch(unknown + L"\\LulingSetup.exe");
     result = CollectUpdateDownloads(root, {1, 0, 0});
-    Check(Exists(unknown + L"\\PulseSetup.exe"), "lookalike directory without receipt is preserved");
+    Check(Exists(unknown + L"\\LulingSetup.exe"), "lookalike directory without receipt is preserved");
     const auto fake_root = (fixture / L"fake-root").wstring(); CreateDirectoryW(fake_root.c_str(), nullptr);
     CopyFileW((root + L"\\owner.dat").c_str(), (fake_root + L"\\owner.dat").c_str(), TRUE);
     UpdateDownloadPackage rejected;

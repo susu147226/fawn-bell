@@ -24,8 +24,8 @@ BOOL WINAPI FixtureAttributes(LPCWSTR path, GET_FILEEX_INFO_LEVELS, LPVOID outpu
 #include "../app/app_worker.cpp"
 #undef GetFileAttributesExW
 
-namespace pulse::fs {
-bool IsVirtualPath(const std::wstring& p) { return p.starts_with(L"pulse:"); }
+namespace luling::fs {
+bool IsVirtualPath(const std::wstring& p) { return p.starts_with(L"luling:"); }
 bool IsUncPath(const std::wstring& p) { return p.starts_with(L"\\\\"); }
 DWORD ReadReparseTag(const std::wstring&) { return 0; }
 void EnumerateDirectory(const std::wstring&, std::vector<DirEntry>&, const std::atomic_bool*) {}
@@ -34,7 +34,7 @@ bool QueryDirectoryIdentity(const std::wstring&, DirectoryIdentity&) { return tr
 NetSnapshotWrite BeginNetSnapshotWrite(const std::wstring&) { return {}; }
 bool SaveNetSnapshot(const NetSnapshotWrite&, const SnapshotPtr&) { return true; }
 }
-namespace pulse::app {
+namespace luling::app {
 std::wstring FindGitRoot(const std::wstring&) { return {}; }
 void ResolveLinksInPlace(const std::wstring&, std::vector<fs::DirEntry>&, const std::function<bool()>&) {}
 ScopedEntryGrouping::ScopedEntryGrouping(int, const std::wstring&) {}
@@ -47,11 +47,11 @@ void SortEntries(std::vector<fs::DirEntry>& entries, ui::SortColumn col, ui::Sor
     std::sort(entries.begin(), entries.end(), [&](const fs::DirEntry& a, const fs::DirEntry& b) { if (tick) tick(); return EntryLess(a, b, col, dir); });
 }
 }
-namespace pulse::diagnostics::runtime {
+namespace luling::diagnostics::runtime {
 void Event(const char*, std::initializer_list<Field>) noexcept {}
 }
 namespace {
-using namespace pulse;
+using namespace luling;
 struct Results {
     std::mutex mutex;
     std::condition_variable changed;
@@ -84,7 +84,7 @@ struct Results {
 };
 }
 int main() {
-    using namespace pulse;
+    using namespace luling;
     int failures = 0;
     const auto check = [&](bool ok, const char* name) {
         std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", name);
@@ -110,13 +110,13 @@ int main() {
             });
         }
         check(WaitForSingleObject(all_blocked, 2000) == WAIT_OBJECT_0, "all real worker threads paused before virtual submissions");
-        const auto first = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\a.txt"}, columns, ascending, true, {111});
-        const auto second = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\b.txt"}, columns, ascending, true, {222});
+        const auto first = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\a.txt"}, columns, ascending, true, {111});
+        const auto second = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\b.txt"}, columns, ascending, true, {222});
         SetEvent(release_workers);
         check(results.Wait(first) && results.Wait(second) && results.Item(first, L"a.txt", 111) &&
               results.Item(second, L"b.txt", 222),
               "same queued WorkKey delivers both consumers with distinct Recent payloads");
-        for (const auto* path : {L"pulse:starred", L"pulse:tag:fixture"}) {
+        for (const auto* path : {L"luling:starred", L"luling:tag:fixture"}) {
             block_attributes = true;
             ResetEvent(attribute_entered); ResetEvent(attribute_release);
             const auto early = worker.LoadPaths(path, {L"C:\\fixture\\blocked.txt"}, columns, ascending);
@@ -129,24 +129,24 @@ int main() {
         }
         block_attributes = true;
         ResetEvent(attribute_entered); ResetEvent(attribute_release);
-        const auto cancelled = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\blocked.txt"}, columns, ascending);
+        const auto cancelled = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\blocked.txt"}, columns, ascending);
         check(WaitForSingleObject(attribute_entered, 2000) == WAIT_OBJECT_0, "consumer to close reaches active barrier");
-        const auto survivor = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\survivor.txt"}, columns, ascending);
+        const auto survivor = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\survivor.txt"}, columns, ascending);
         worker.CancelGeneration(cancelled);
         const bool survived = results.Wait(survivor);
         SetEvent(attribute_release);
         block_attributes = false;
-        const auto grouped = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\grouped.txt"}, columns,
+        const auto grouped = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\grouped.txt"}, columns,
             ui::SortDirection::Desc, false, {}, 1);
         check(survived && results.Wait(grouped) && results.Item(survivor, L"survivor.txt") &&
               results.Item(grouped, L"grouped.txt"), "closing one consumer leaves peer and differently grouped request usable");
-        const auto empty = worker.LoadPaths(L"pulse:recent", {}, columns, ascending);
-        const auto missing = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\missing.txt"}, columns, ascending);
+        const auto empty = worker.LoadPaths(L"luling:recent", {}, columns, ascending);
+        const auto missing = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\missing.txt"}, columns, ascending);
         check(results.Wait(empty) && results.Wait(missing) && results.Empty(empty) && results.Item(missing, L"missing.txt"),
               "empty and metadata-failed payloads still deliver terminal snapshots");
-        const auto completed = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\completed.txt"}, columns, ascending);
+        const auto completed = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\completed.txt"}, columns, ascending);
         const bool first_done = results.Wait(completed);
-        const auto subsequent = worker.LoadPaths(L"pulse:recent", {L"C:\\fixture\\subsequent.txt"}, columns, ascending);
+        const auto subsequent = worker.LoadPaths(L"luling:recent", {L"C:\\fixture\\subsequent.txt"}, columns, ascending);
         check(first_done && results.Wait(subsequent) && results.Item(completed, L"completed.txt") &&
               results.Item(subsequent, L"subsequent.txt"), "request completed before next submission remains independently delivered");
         worker.Stop();

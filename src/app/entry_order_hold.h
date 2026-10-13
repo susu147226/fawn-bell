@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 // File Explorer keeps the rows on screen where they are while files change
 // underneath them (#13): a renamed or modified item stays in its row, a new
@@ -33,7 +33,7 @@ void InsertAtGroupEnd(std::vector<fs::DirEntry>& entries, fs::DirEntry entry,
 void PlaceEntryHeld(std::vector<fs::DirEntry>& entries, int slot, fs::DirEntry entry,
                     ui::SortColumn col, ui::SortDirection dir);
 
-// A rename Pulse issued and whose refresh may arrive before the watcher event.
+// A rename Luling issued and whose refresh may arrive before the watcher event.
 struct EntryRename {
     std::wstring old_name;
     std::wstring new_name;
@@ -59,4 +59,4 @@ void FollowHeldRenames(const std::vector<EntryRename>& renames,
 // name gone); the rest still wait for their refresh. Keeps the newest few.
 void PruneHeldRenames(std::vector<EntryRename>& renames, const std::vector<fs::DirEntry>& fresh);
 
-} // namespace pulse::app
+} // namespace luling::app

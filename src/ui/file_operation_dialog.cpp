@@ -13,11 +13,11 @@
 #include <deque>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
-constexpr wchar_t kTransferClass[] = L"PulseFileOperationWindow";
-constexpr wchar_t kConflictClass[] = L"PulseFileConflictWindow";
+constexpr wchar_t kTransferClass[] = L"LulingFileOperationWindow";
+constexpr wchar_t kConflictClass[] = L"LulingFileConflictWindow";
 constexpr UINT_PTR kRenderTimer = 1;
 constexpr float kDlgW = 460.0f;
 constexpr float kTitleH = 36.0f;
@@ -27,7 +27,7 @@ constexpr float kCollapsedH = 268.0f;
 constexpr float kGraphBlockH = 156.0f;
 constexpr float kDetailedH = kCollapsedH + kGraphBlockH;
 
-using pulse::ui::ScaleDip;
+using luling::ui::ScaleDip;
 
 struct TransferChrome {
     D2D1_RECT_F minimize{};
@@ -206,7 +206,7 @@ void DrawSpeedGraph(ID2D1DeviceContext* dc, const D2D1_RECT_F& plot,
 }
 
 D2D1_RECT_F Rect(float scale, float x, float y, float width, float height) {
-    return pulse::ui::DipRect(scale, x, y, width, height);
+    return luling::ui::DipRect(scale, x, y, width, height);
 }
 
 std::wstring LeafName(const std::wstring& path) {
@@ -231,12 +231,12 @@ std::wstring ParentName(const std::wstring& path) {
 // label in step with whichever unit the task actually tracks.
 std::wstring FormatSpeedText(ops::OpSpeedBasis basis, double value) {
     if (basis != ops::OpSpeedBasis::Items)
-        return pulse::format::ByteSize(static_cast<uint64_t>(value)) + L"/s";
+        return luling::format::ByteSize(static_cast<uint64_t>(value)) + L"/s";
     // Item rates are small: deleting a folder tree of many files reports one item per
     // several seconds, so rounding to whole items would print a flat "0 items/s" while
     // the graph visibly moves. Keep decimals below 10 and trim the trailing zeros.
     if (value >= 10.0)
-        return pulse::format::GroupedInt(static_cast<uint64_t>(value + 0.5)) + L" " +
+        return luling::format::GroupedInt(static_cast<uint64_t>(value + 0.5)) + L" " +
             l10n::Get(l10n::StringId::OpItemsPerSecond);
     wchar_t text[32]{};
     if (value >= 1.0) swprintf_s(text, L"%.1f", value);
@@ -270,7 +270,7 @@ public:
         conflict_.destination = path::FriendlyPathText(conflict_.destination);
         dark_ = dark;
         accent_ = accent;
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(owner)) / 96.0f;
+        scale_ = static_cast<float>(luling::compat::WindowDpi(owner)) / 96.0f;
 
         WNDCLASSEXW wc{ sizeof(wc) };
         wc.hInstance = GetModuleHandleW(nullptr);
@@ -287,7 +287,7 @@ public:
             CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr,
             wc.hInstance, this);
         if (!hwnd_) return result_;
-        pulse::ui::CenterOwnedWindow(hwnd_, owner_, width, height);
+        luling::ui::CenterOwnedWindow(hwnd_, owner_, width, height);
         EnableWindow(owner_, FALSE);
         ShowWindow(hwnd_, SW_SHOW);
         SetForegroundWindow(hwnd_);
@@ -323,11 +323,11 @@ private:
     D2D1_RECT_F CancelRect() const { return Rect(scale_, 362, details_ ? 482.0f : 370.0f, 98, 34); }
 
     int Hit(float x, float y) const {
-        if (pulse::ui::ContainsRect(CloseRect(), x, y)) return 7;
-        for (int i = 0; i < 3; ++i) if (pulse::ui::ContainsRect(CardRect(i), x, y)) return i + 1;
-        if (conflict_.remaining > 1 && pulse::ui::ContainsRect(CheckRect(), x, y)) return 4;
-        if (pulse::ui::ContainsRect(DetailRect(), x, y)) return 5;
-        if (pulse::ui::ContainsRect(CancelRect(), x, y)) return 6;
+        if (luling::ui::ContainsRect(CloseRect(), x, y)) return 7;
+        for (int i = 0; i < 3; ++i) if (luling::ui::ContainsRect(CardRect(i), x, y)) return i + 1;
+        if (conflict_.remaining > 1 && luling::ui::ContainsRect(CheckRect(), x, y)) return 4;
+        if (luling::ui::ContainsRect(DetailRect(), x, y)) return 5;
+        if (luling::ui::ContainsRect(CancelRect(), x, y)) return 6;
         return 0;
     }
 
@@ -384,7 +384,7 @@ private:
         if (!compositor_.Dc()) return;
         const bool high_contrast = IsHighContrast();
         const Theme theme = high_contrast ? MakeHighContrastTheme() : MakeTheme(dark_, accent_);
-        pulse::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
+        luling::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
                      scale_);
 
         painter_.DrawGlyph(L"\xE8C8", Rect(scale_, 14, 11, 22, 22), theme.accent);
@@ -445,10 +445,10 @@ private:
                               compositor_.SmallFormat(), theme.accent);
             painter_.DrawText(l10n::Get(l10n::StringId::OpExisting).c_str(), Rect(scale_, 252, top + 8, 190, 20),
                               compositor_.SmallFormat(), theme.text_secondary);
-            const std::wstring source_meta = pulse::format::ByteSize(conflict_.source_size) + L"  ·  "
-                                           + pulse::format::LocalFileTime(conflict_.source_modified, l10n::Get(l10n::StringId::OpUnknown).c_str());
-            const std::wstring target_meta = pulse::format::ByteSize(conflict_.destination_size) + L"  ·  "
-                                           + pulse::format::LocalFileTime(conflict_.destination_modified, l10n::Get(l10n::StringId::OpUnknown).c_str());
+            const std::wstring source_meta = luling::format::ByteSize(conflict_.source_size) + L"  ·  "
+                                           + luling::format::LocalFileTime(conflict_.source_modified, l10n::Get(l10n::StringId::OpUnknown).c_str());
+            const std::wstring target_meta = luling::format::ByteSize(conflict_.destination_size) + L"  ·  "
+                                           + luling::format::LocalFileTime(conflict_.destination_modified, l10n::Get(l10n::StringId::OpUnknown).c_str());
             painter_.DrawText(source_meta, Rect(scale_, 32, top + 30, 198, 20),
                               compositor_.SmallFormat(), theme.text);
             painter_.DrawText(target_meta, Rect(scale_, 252, top + 30, 196, 20),
@@ -461,14 +461,14 @@ private:
         // The paths are cut to their boxes; hovering one shows it whole (#55).
         SetPathTip(1, details_ ? Rect(scale_, 32, 326.0f + 55, 198, 38) : D2D1_RECT_F{});
         SetPathTip(2, details_ ? Rect(scale_, 252, 326.0f + 55, 196, 38) : D2D1_RECT_F{});
-        pulse::ui::EndSurface(compositor_);
+        luling::ui::EndSurface(compositor_);
     }
 
     LRESULT Handle(UINT message, WPARAM wparam, LPARAM lparam) {
         switch (message) {
         case WM_CREATE:
-            scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
-            backdrop_enabled_ = pulse::ui::ApplyBackdrop(hwnd_, dark_);
+            scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
+            backdrop_enabled_ = luling::ui::ApplyBackdrop(hwnd_, dark_);
             if (!compositor_.Init(hwnd_)) return -1;
             compositor_.RecreateTextFormats(scale_);
             painter_.SetCompositor(&compositor_);
@@ -478,7 +478,7 @@ private:
         case WM_NCCALCSIZE:
             return 0;
         case WM_NCHITTEST:
-            return pulse::ui::BorderlessHitTest(hwnd_, lparam, 44 * scale_, CloseRect());
+            return luling::ui::BorderlessHitTest(hwnd_, lparam, 44 * scale_, CloseRect());
         case WM_SIZE:
             if (compositor_.Dc()) compositor_.Resize(LOWORD(lparam), HIWORD(lparam));
             InvalidateRect(hwnd_, nullptr, FALSE);
@@ -651,7 +651,7 @@ bool FileOperationWindow::Create(HWND owner, FileOperationCallbacks callbacks) {
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
     if (!GetClassInfoExW(wc.hInstance, kTransferClass, &wc)) RegisterClassExW(&wc);
-    const UINT owner_dpi = pulse::compat::WindowDpi(owner_);
+    const UINT owner_dpi = luling::compat::WindowDpi(owner_);
     const int width = MulDiv(static_cast<int>(kDlgW), owner_dpi, 96);
     const int height = MulDiv(static_cast<int>(kCollapsedH), owner_dpi, 96);
     hwnd_ = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP, kTransferClass, l10n::Get(l10n::StringId::OpWindow).c_str(),
@@ -725,7 +725,7 @@ void FileOperationWindow::Show(bool activate) {
     if (!positioned_) {
         RECT rect{};
         GetWindowRect(hwnd_, &rect);
-        pulse::ui::CenterOwnedWindow(hwnd_, owner_, rect.right - rect.left, rect.bottom - rect.top);
+        luling::ui::CenterOwnedWindow(hwnd_, owner_, rect.right - rect.left, rect.bottom - rect.top);
         positioned_ = true;
     }
     if (IsIconic(hwnd_)) ShowWindow(hwnd_, SW_RESTORE);
@@ -746,7 +746,7 @@ bool FileOperationWindow::IsVisible() const {
 }
 
 void FileOperationWindow::ApplyWindowTheme() {
-    backdrop_enabled_ = pulse::ui::ApplyBackdrop(hwnd_, dark_);
+    backdrop_enabled_ = luling::ui::ApplyBackdrop(hwnd_, dark_);
 }
 
 void FileOperationWindow::ResizeForDetails(bool preserve_center) {
@@ -766,13 +766,13 @@ int FileOperationWindow::HitTestControl(float x, float y) const {
     const auto chrome = MakeTransferChrome(scale_,
         static_cast<float>(compositor_.Width()), static_cast<float>(compositor_.Height()),
         painter_, labels);
-    if (pulse::ui::ContainsRect(chrome.close, x, y)) return 1;
-    if (pulse::ui::ContainsRect(chrome.minimize, x, y)) return 2;
-    if (labels.show_retry && labels.actions_enabled && pulse::ui::ContainsRect(chrome.retry, x, y)) return 6;
-    if (labels.show_skip && labels.actions_enabled && pulse::ui::ContainsRect(chrome.skip, x, y)) return 7;
-    if (labels.show_pause && pulse::ui::ContainsRect(chrome.pause, x, y)) return 3;
-    if (pulse::ui::ContainsRect(chrome.cancel, x, y)) return 4;
-    if (labels.show_details && pulse::ui::ContainsRect(chrome.details, x, y)) return 5;
+    if (luling::ui::ContainsRect(chrome.close, x, y)) return 1;
+    if (luling::ui::ContainsRect(chrome.minimize, x, y)) return 2;
+    if (labels.show_retry && labels.actions_enabled && luling::ui::ContainsRect(chrome.retry, x, y)) return 6;
+    if (labels.show_skip && labels.actions_enabled && luling::ui::ContainsRect(chrome.skip, x, y)) return 7;
+    if (labels.show_pause && luling::ui::ContainsRect(chrome.pause, x, y)) return 3;
+    if (luling::ui::ContainsRect(chrome.cancel, x, y)) return 4;
+    if (labels.show_details && luling::ui::ContainsRect(chrome.details, x, y)) return 5;
     return 0;
 }
 
@@ -797,7 +797,7 @@ void FileOperationWindow::Render() {
     if (!compositor_.Dc()) return;
     const bool high_contrast = IsHighContrast();
     const Theme theme = high_contrast ? MakeHighContrastTheme() : MakeTheme(dark_, accent_);
-    pulse::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
+    luling::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
                  scale_);
     const float width = static_cast<float>(compositor_.Width());
     const float height = static_cast<float>(compositor_.Height());
@@ -889,7 +889,7 @@ void FileOperationWindow::Render() {
                                         : l10n::StringId::OpAuthorizationRequired);
         badge_kind = fluent::BadgeKind::Warning;
     } else if (failed) {
-        // pulse_shell errors are Simplified; known messages are localized and
+        // luling_shell errors are Simplified; known messages are localized and
         // file names are kept as they are on disk.
         file_line = status_.last_error.empty() ? l10n::Get(l10n::StringId::OpFailed)
                                                : l10n::ServiceErrorText(status_.last_error);
@@ -986,7 +986,7 @@ void FileOperationWindow::Render() {
         else if (status_.total_items == 0) items_text = l10n::Get(l10n::StringId::OpCalculating).c_str();
         else if (byte_basis && status_.total_bytes > 0)
             items_text = std::to_wstring(remain_items) + l10n::Get(l10n::StringId::OpCountBytes).c_str()
-                + pulse::format::ByteSize(remain_bytes) + L")";
+                + luling::format::ByteSize(remain_bytes) + L")";
         else items_text = std::to_wstring(remain_items) + l10n::Get(l10n::StringId::OpCountSuffix).c_str();
         const double live_speed = status_.speed_basis == ops::OpSpeedBasis::Items
             ? status_.items_per_second : status_.bytes_per_second;
@@ -1078,7 +1078,7 @@ void FileOperationWindow::Render() {
     cancel_state.pressed = pressed_ == 4;
     painter_.DrawButton({ chrome.cancel, labels.cancel, {},
                           fluent::ButtonKind::Standard, cancel_state });
-    pulse::ui::EndSurface(compositor_);
+    luling::ui::EndSurface(compositor_);
 }
 
 LRESULT CALLBACK FileOperationWindow::WndProc(HWND hwnd, UINT message,
@@ -1097,7 +1097,7 @@ LRESULT CALLBACK FileOperationWindow::WndProc(HWND hwnd, UINT message,
 LRESULT FileOperationWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) {
     switch (message) {
     case WM_CREATE:
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
+        scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
         ApplyWindowTheme();
         if (!compositor_.Init(hwnd_)) return -1;
         compositor_.RecreateTextFormats(scale_);
@@ -1117,7 +1117,7 @@ LRESULT FileOperationWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM l
         const auto chrome = MakeTransferChrome(scale_,
             static_cast<float>(compositor_.Width()), static_cast<float>(compositor_.Height()),
             painter_, labels);
-        return pulse::ui::BorderlessHitTest(hwnd_, lparam, ScaleDip(scale_, kTitleH),
+        return luling::ui::BorderlessHitTest(hwnd_, lparam, ScaleDip(scale_, kTitleH),
             D2D1::RectF(chrome.minimize.left, 0, chrome.close.right, chrome.close.bottom));
     }
     case WM_GETMINMAXINFO: {
@@ -1267,4 +1267,4 @@ ConflictDialogResult ShowFileConflictDialog(HWND owner,
 }
 
 
-} // namespace pulse::ui
+} // namespace luling::ui

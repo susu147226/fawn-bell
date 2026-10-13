@@ -3,7 +3,7 @@
 #include <optional>
 #include <cstdint>
 #include <string>
-namespace pulse {
+namespace luling {
 namespace app { struct Tab; }
 struct AppState;
 struct ContentSizeSummary;

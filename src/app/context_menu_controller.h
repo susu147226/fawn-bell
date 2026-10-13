@@ -12,7 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 class ContextMenuController {
 public:
@@ -114,4 +114,4 @@ private:
     ShellOperations operations_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -8,7 +8,7 @@
 #include <cmath>
 #include <thread>
 
-namespace pulse::ui {
+namespace luling::ui {
 bool TestAdvancedSearchDeviceRecovery(HWND host);
 bool TestColorPickerEditFallback(HWND host, Compositor& compositor);
 
@@ -42,16 +42,16 @@ bool Check(bool ok, const char* message) {
     return ok;
 }
 LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR data) {
-    auto& compositor = *reinterpret_cast<pulse::ui::Compositor*>(data);
+    auto& compositor = *reinterpret_cast<luling::ui::Compositor*>(data);
     const auto fg = D2D1::ColorF(1,1,1), bg = D2D1::ColorF(0,0,0);
     LRESULT result = 0;
-    if (pulse::ui::HandleChildEditMessage(compositor, compositor.TextFormat(), fg, bg, nullptr,
+    if (luling::ui::HandleChildEditMessage(compositor, compositor.TextFormat(), fg, bg, nullptr,
         hwnd, msg, wp, lp, result)) return result;
-    return pulse::ui::DefPresentedChildEditProc(compositor, compositor.TextFormat(), fg, bg, hwnd,msg,wp,lp);
+    return luling::ui::DefPresentedChildEditProc(compositor, compositor.TextFormat(), fg, bg, hwnd,msg,wp,lp);
 }
-bool Selection(HWND host, pulse::ui::Compositor& compositor) {
+bool Selection(HWND host, luling::ui::Compositor& compositor) {
     const std::wstring text = L"abcdefghijklmnopqrst";
-    HWND edit = pulse::ui::CreateChildEdit(host, text.c_str());
+    HWND edit = luling::ui::CreateChildEdit(host, text.c_str());
     if (!edit) return false;
     SetWindowSubclass(edit, EditProc, 1, reinterpret_cast<DWORD_PTR>(&compositor));
     SetWindowPos(edit, nullptr, 0,0,400,32,SWP_NOZORDER|SWP_NOACTIVATE|SWP_SHOWWINDOW);
@@ -104,7 +104,7 @@ bool Selection(HWND host, pulse::ui::Compositor& compositor) {
     return ok;
 }
 bool RunOnDesktop() {
-    using namespace pulse::ui;
+    using namespace luling::ui;
     CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
     HWND host = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP|WS_EX_NOACTIVATE,L"STATIC",L"",
         WS_POPUP,-30000,-30000,900,800,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
@@ -144,7 +144,7 @@ bool RunOnDesktop() {
 }
 
 int RunUiModuleAuditTest() {
-    const auto name = L"PulseUiAudit-" + std::to_wstring(GetCurrentProcessId());
+    const auto name = L"LulingUiAudit-" + std::to_wstring(GetCurrentProcessId());
     HDESK desktop = CreateDesktopW(name.c_str(),nullptr,nullptr,0,GENERIC_ALL,nullptr);
     if (!desktop) return Check(false,"create private test desktop") ? 0 : 1;
     bool ok = false;

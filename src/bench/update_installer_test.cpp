@@ -6,16 +6,16 @@
 #include <limits>
 
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::app;
+    using namespace luling::app;
     int failures = 0;
     const auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << '\n';
         if (!ok) ++failures;
     };
-    const auto parameters = UpdateInstallParameters(L"C:\\Program Files\\Pulse\\pulse.exe");
-    check(parameters == L"/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /PULSEUPDATE=1 /LOG /DIR=\"C:\\Program Files\\Pulse\"",
+    const auto parameters = UpdateInstallParameters(L"C:\\Program Files\\Luling\\luling.exe");
+    check(parameters == L"/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /PULSEUPDATE=1 /LOG /DIR=\"C:\\Program Files\\Luling\"",
         "update uses silent restart mode and quotes the existing installation directory");
-    check(UpdateInstallParameters(L"pulse.exe").empty() && UpdateInstallParameters(L"C:\\bad\"path\\pulse.exe").empty(),
+    check(UpdateInstallParameters(L"luling.exe").empty() && UpdateInstallParameters(L"C:\\bad\"path\\luling.exe").empty(),
         "invalid installer target cannot inject command switches");
     HWND window = CreateWindowExW(0, L"STATIC", L"Update test", 0, 0, 0, 0, 0, HWND_MESSAGE,
         nullptr, GetModuleHandleW(nullptr), nullptr);
@@ -142,13 +142,13 @@ int wmain(int argc, wchar_t** argv) {
         error = attempts == 1 ? ERROR_CONNECTION_ABORTED : ERROR_SUCCESS;
         return attempts != 1;
     };
-    check(ReadUpdateWithFallback(L"https://github.com/jimmgreen/pulse/releases/download/v1/test.exe", 100,
+    check(ReadUpdateWithFallback(L"https://github.com/susu147226/fawn-bell/releases/download/v1/test.exe", 100,
         cancelled, reset, write, category, error, reader) && clean_attempt && attempts == 2 && resets == 2 &&
         destination == "abc" && progress.received_bytes == 3 && progress.percent() == -1,
         "fallback resets partial bytes and previous source denominator before next attempt");
     cancelled = true;
     const auto before_attempts = attempts;
-    check(!ReadUpdateWithFallback(L"https://github.com/jimmgreen/pulse/releases/download/v1/test.exe", 100,
+    check(!ReadUpdateWithFallback(L"https://github.com/susu147226/fawn-bell/releases/download/v1/test.exe", 100,
         cancelled, reset, write, category, error, reader) && attempts == before_attempts && error == ERROR_CANCELLED,
         "cancellation prevents fallback and cannot revive prior progress");
     UpdateInstaller installer;

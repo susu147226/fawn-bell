@@ -45,9 +45,9 @@
 #include <thread>
 #include <unordered_set>
 
-using namespace pulse;
+using namespace luling;
 
-namespace pulse {
+namespace luling {
 bool HandleBrowserNavigation(AppState& s, LPARAM command) {
     switch (GET_APPCOMMAND_LPARAM(command)) {
     case APPCOMMAND_BROWSER_BACKWARD:
@@ -225,7 +225,7 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
         if (allowed & DROPEFFECT_COPY) return DROPEFFECT_COPY;
         return DROPEFFECT_NONE;
     } else if (hit.region == ui::HitTestResult::SidebarItem && !hit.path.empty()) {
-        if (hit.path.starts_with(L"pulse:tag:")) {
+        if (hit.path.starts_with(L"luling:tag:")) {
             if (!(allowed & DROPEFFECT_COPY)) return DROPEFFECT_NONE;
             s.dropDestDir = hit.path;
             s.dropSidebar = hit.index;
@@ -237,15 +237,15 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
             InvalidateRect(s.hwnd, nullptr, FALSE);
             return DROPEFFECT_COPY;
         }
-        if (hit.path.starts_with(L"pulse:workspace:")) {
+        if (hit.path.starts_with(L"luling:workspace:")) {
             std::wstring kind, rest;
-            app::ParsePulsePath(hit.path, &kind, &rest);
+            app::ParseLulingPath(hit.path, &kind, &rest);
             int wi = _wtoi(rest.c_str());
             if (wi >= 0 && wi < static_cast<int>(s.places.workspaces.size()))
                 s.dropDestDir = s.places.workspaces[static_cast<size_t>(wi)].root;
             else
                 s.dropDestDir.clear();
-        } else if (hit.path.starts_with(L"pulse:")) {
+        } else if (hit.path.starts_with(L"luling:")) {
             s.dropDestDir.clear();
         } else {
             s.dropDestDir = hit.path;
@@ -331,7 +331,7 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
     return effect;
 }
 
-// Pulse's own drag-out is running (StartDragOut): its sources are never an
+// Luling's own drag-out is running (StartDragOut): its sources are never an
 // archive manager's temporary extraction (#55).
 static bool g_internal_drag = false;
 
@@ -401,9 +401,9 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return DROPEFFECT_COPY;
     }
-    if (dest.starts_with(L"pulse:tag:")) {
+    if (dest.starts_with(L"luling:tag:")) {
         std::wstring kind, rest;
-        app::ParsePulsePath(dest, &kind, &rest);
+        app::ParseLulingPath(dest, &kind, &rest);
         const int ti = s.places.FindTagIndex(s.places.ResolveTagRef(rest));
         std::vector<app::TagAdsUpdate> ads_updates;
         s.places.SetTaggedBatch(ti, sources, true, &ads_updates);
@@ -929,7 +929,7 @@ void UpdateSmoothScroll(AppState& s) {
         s.scrollAnimating = false;
     } else {
         // Exponential response is independent of timer jitter and accepts a
-        // moving target without resetting its easing curve on every pulse.
+        // moving target without resetting its easing curve on every luling.
         const float response = 1.0f - static_cast<float>(
             std::exp(-elapsed / AppState::kScrollResponseMs));
         position += remaining * response;
@@ -960,7 +960,7 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
         }
 
-        // Pulse menu preview row held on the 右键菜单 page: follow the pointer.
+        // Luling menu preview row held on the 右键菜单 page: follow the pointer.
         if (s->settings.menu_drag_item() >= 0) {
             if (!(wParam & MK_LBUTTON)) {
                 s->settings.EndMenuDrag(); // capture lost without WM_LBUTTONUP
@@ -1960,7 +1960,7 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         if (app::Tab* tab = ActiveTab(*s); tab) {
             if (!tab->banner_message.empty()) extra = 36.0f * s->scale;
             std::wstring kind;
-            if (app::ParsePulsePath(tab->current_path, &kind, nullptr) && kind == L"recent")
+            if (app::ParseLulingPath(tab->current_path, &kind, nullptr) && kind == L"recent")
                 extra += 40.0f * s->scale;
         }
         float listTop = content.top + s->renderer.PaneHeaderHeight() + extra + s->renderer.ColumnHeaderHeight();
@@ -2790,7 +2790,7 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             }
         } else if (hit.region == ui::HitTestResult::SidebarItemAction) {
             std::wstring kind, rest;
-            if (app::ParsePulsePath(hit.path, &kind, &rest) && kind == L"workspace")
+            if (app::ParseLulingPath(hit.path, &kind, &rest) && kind == L"workspace")
                 s->places.UnpinWorkspace(_wtoi(rest.c_str()));
             InvalidateRect(hwnd, nullptr, FALSE);
         } else if (hit.region == ui::HitTestResult::SidebarItemExpand) {
@@ -2845,18 +2845,18 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 s->pinGapVisible = false;
                 s->pinGapLineY = 0.0f;
                 SetCapture(hwnd);
-            } else if (hit.path.starts_with(L"pulse:tag:")) {
+            } else if (hit.path.starts_with(L"luling:tag:")) {
                 // Tags defer navigation to release; a press may become a reorder drag.
                 s->tagDragPending = true;
                 s->tagDragStartPt = POINT{ mx, my };
                 s->tagDragPath = hit.path;
                 std::wstring kind, rest;
-                app::ParsePulsePath(hit.path, &kind, &rest);
+                app::ParseLulingPath(hit.path, &kind, &rest);
                 s->tagDragTag = s->places.FindTagIndex(s->places.ResolveTagRef(rest));
                 SetCapture(hwnd);
-            } else if (hit.path.starts_with(L"pulse:workspace:")) {
+            } else if (hit.path.starts_with(L"luling:workspace:")) {
                 std::wstring kind, rest;
-                app::ParsePulsePath(hit.path, &kind, &rest);
+                app::ParseLulingPath(hit.path, &kind, &rest);
                 OpenWorkspace(*s, _wtoi(rest.c_str()));
             } else if (!hit.path.empty()) {
                 NavigateTo(*s, hit.path);
@@ -2971,14 +2971,14 @@ LRESULT HandleLButtonDblClk(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPA
             return 0;
         }
         if (hit.region == ui::HitTestResult::SidebarItem &&
-            hit.path.starts_with(L"pulse:tag:")) {
+            hit.path.starts_with(L"luling:tag:")) {
             s->tagDragPending = false;
             s->tagDragActive = false;
             s->tagDragTag = -1;
             s->tagDragPath.clear();
             if (GetCapture() == hwnd) ReleaseCapture();
             std::wstring kind, rest;
-            app::ParsePulsePath(hit.path, &kind, &rest);
+            app::ParseLulingPath(hit.path, &kind, &rest);
             ShowTagRenameOverlay(*s, s->places.ResolveTagRef(rest));
         } else if (hit.region == ui::HitTestResult::Row && hit.index >= 0) {
             app::Tab* tab = ActiveTab(*s);
@@ -3454,7 +3454,7 @@ LRESULT HandleRButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         s->blankClickTab = nullptr;
         CancelRenameClick(*s);
         // Prefetch the Explorer verbs for the menu that WM_RBUTTONUP will
-        // open: pulse_shell builds the COM menu during the press + fade-in.
+        // open: luling_shell builds the COM menu during the press + fade-in.
         int mx = GET_X_LPARAM(lParam);
         int my = GET_Y_LPARAM(lParam);
         ui::WindowViewModel vm = BuildVm(*s);
@@ -3537,7 +3537,7 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
             InvalidateRect(hwnd, nullptr, FALSE);
             std::wstring virtual_kind;
-            const bool curated = tab && app::ParsePulsePath(
+            const bool curated = tab && app::ParseLulingPath(
                 tab->current_path, &virtual_kind, nullptr) &&
                 (virtual_kind == L"starred" || virtual_kind == L"recent");
             if (curated) {
@@ -3548,9 +3548,9 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
             shown = true;
         } else if (hit.region == ui::HitTestResult::SidebarItem &&
-                   hit.path.starts_with(L"pulse:tag:")) {
+                   hit.path.starts_with(L"luling:tag:")) {
             std::wstring kind, rest;
-            app::ParsePulsePath(hit.path, &kind, &rest);
+            app::ParseLulingPath(hit.path, &kind, &rest);
             const app::TagId id = s->places.ResolveTagRef(rest);
             if (!id.empty()) ShowTagSidebarMenu(*s, id, sp);
             shown = true;
@@ -3559,9 +3559,9 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             ShowRecyclePlaceMenu(*s, sp);
             shown = true;
         } else if (hit.region == ui::HitTestResult::SidebarItem &&
-                   hit.path.starts_with(L"pulse:workspace:")) {
+                   hit.path.starts_with(L"luling:workspace:")) {
             std::wstring kind, rest;
-            app::ParsePulsePath(hit.path, &kind, &rest);
+            app::ParseLulingPath(hit.path, &kind, &rest);
             ShowWorkspaceMenu(*s, _wtoi(rest.c_str()), sp);
             shown = true;
         } else if (HandleVerticalTabContextMenu(*s, hit, sp)) {
@@ -3751,7 +3751,7 @@ LRESULT HandleMouseWheel(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (!s) return DefWindowProcW(hwnd, msg, wParam, lParam);
         if (wParam == VK_ESCAPE && s->settings.menu_drag_item() >= 0) {
-            // Esc puts a dragged Pulse menu preview row back.
+            // Esc puts a dragged Luling menu preview row back.
             s->settings.EndMenuDrag();
             if (GetCapture() == hwnd) ReleaseCapture();
             InvalidateRect(hwnd, nullptr, FALSE);
@@ -3948,4 +3948,4 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-} // namespace pulse
+} // namespace luling

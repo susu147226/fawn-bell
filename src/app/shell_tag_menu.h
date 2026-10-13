@@ -1,5 +1,5 @@
 #pragma once
-// File Explorer "Pulse tags >" context submenu (static HKCU verbs).
+// File Explorer "Luling tags >" context submenu (static HKCU verbs).
 //
 // DelegateExecute supplies one complete Shell selection to the existing EXE.
 // The legacy --tag command remains a single-file operation; requests are never
@@ -14,11 +14,11 @@
 #include <string>
 #include <string_view>
 
-namespace pulse {
+namespace luling {
 struct AppState;
 }
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class ShellTagAction { Add, Remove };
 struct ShellTagRequest {
@@ -30,15 +30,15 @@ struct ShellTagRequest {
 
 // Parses --tag-add/--tag-remove <id> <path>; --tag is the legacy add alias.
 std::optional<ShellTagRequest> ParseShellTagArgs(int argc, wchar_t** argv);
-// Sends the request to the running Pulse window (waits briefly for it).
+// Sends the request to the running Luling window (waits briefly for it).
 bool ForwardShellTagRequest(const ShellTagRequest& request, std::wstring_view endpoint_name = {});
 std::wstring EncodeShellTagRequest(const ShellTagRequest& request);
 ULONG_PTR ShellTagMessageId();
 bool DecodeShellTagRequest(const COPYDATASTRUCT* data, ShellTagRequest& out);
 
-} // namespace pulse::app
+} // namespace luling::app
 
-namespace pulse {
+namespace luling {
 
 // headless_launch: this process was started only to apply the tag.
 void QueueShellTagRequest(AppState& s, app::ShellTagRequest request, bool headless_launch);
@@ -48,4 +48,4 @@ void BeginShellTagComLaunch();
 // sync with the tag list and the setting, and ends a headless launch.
 void TickShellTagMenu(AppState& s, ULONGLONG now);
 
-} // namespace pulse
+} // namespace luling

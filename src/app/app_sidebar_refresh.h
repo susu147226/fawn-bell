@@ -1,10 +1,10 @@
 #pragma once
 #include <windows.h>
 
-namespace pulse {
+namespace luling {
 struct AppState;
 struct SidebarRefreshLoad;
 void RequestSidebarRefresh(AppState& state, bool rebuild = false);
 bool TickSidebarRefresh(AppState& state, ULONGLONG now);
 void CancelSidebarRefresh(AppState& state);
-} // namespace pulse
+} // namespace luling

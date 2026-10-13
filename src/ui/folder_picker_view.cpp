@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 constexpr float kFieldH = 34.0f;
@@ -158,4 +158,4 @@ void DrawPickerChrome(Compositor& compositor, fluent::Painter& painter, const Th
     }
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

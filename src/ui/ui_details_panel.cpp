@@ -19,7 +19,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 D2D1_RECT_F MainRenderer::DetailsPanelRect(float w, float h) const {
     if (DetailsPanelWidth(w) <= 0.0f) return D2D1::RectF(0.0f, 0.0f, 0.0f, 0.0f);
@@ -165,11 +165,11 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             fluent::EmptyStateSpec empty;
             empty.bounds = content;
             empty.glyph = kIconFile;
-            empty.title = pulse::l10n::Get(pulse::l10n::StringId::DetailsNoSelection);
+            empty.title = luling::l10n::Get(luling::l10n::StringId::DetailsNoSelection);
             painter_.DrawEmptyState(empty);
             return;
         }
-        centeredText(pulse::l10n::Get(pulse::l10n::StringId::DetailsNoSelection),
+        centeredText(luling::l10n::Get(luling::l10n::StringId::DetailsNoSelection),
             D2D1::RectF(content.left, art.bottom + gap,
                         content.right, art.bottom + gap + titleHeight),
             compositor_->HeaderFormat(), theme.text_secondary);
@@ -264,9 +264,9 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             pageDelay == 0 && compositor_->DwriteFactory() && compositor_->SmallFormat()) {
             // PDF: the pane keeps its fast first page; the badge tells how many
             // pages Space opens.
-            const bool zh = pulse::l10n::IsChinese();
+            const bool zh = luling::l10n::IsChinese();
             const std::wstring label = zh
-                ? pulse::l10n::Cn(L"\x5171 ") + std::to_wstring(pageCount) + pulse::l10n::Cn(L" \x9875")
+                ? luling::l10n::Cn(L"\x5171 ") + std::to_wstring(pageCount) + luling::l10n::Cn(L" \x9875")
                 : std::to_wstring(pageCount) + L" pages";
             ComPtr<IDWriteTextLayout> badgeLayout;
             compositor_->DwriteFactory()->CreateTextLayout(label.data(),
@@ -318,7 +318,7 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             }
             if (previewText.empty()) {
                 details_viewport_.SetContent(contentRc, 0, 0, false);
-                text(pulse::l10n::Get(pulse::l10n::StringId::EmptyFile), contentRc,
+                text(luling::l10n::Get(luling::l10n::StringId::EmptyFile), contentRc,
                      compositor_->SmallFormat(), theme.text_secondary);
             } else if (preview_mono_format_.get()) {
                 MakeBrush(dc, theme.text, brText_);
@@ -344,10 +344,10 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
                     dc->PopAxisAlignedClip();
                 }
             }
-            std::wstring footer = pulse::l10n::Get(previewResult == PreviewDrawResult::Hex
-                ? pulse::l10n::StringId::HexPrefix : pulse::l10n::StringId::TextPrefix);
-            footer += pulse::format::ByteSize(bytesRead, true);
-            if (truncated) footer += pulse::l10n::Get(pulse::l10n::StringId::TruncatedSuffix);
+            std::wstring footer = luling::l10n::Get(previewResult == PreviewDrawResult::Hex
+                ? luling::l10n::StringId::HexPrefix : luling::l10n::StringId::TextPrefix);
+            footer += luling::format::ByteSize(bytesRead, true);
+            if (truncated) footer += luling::l10n::Get(luling::l10n::StringId::TruncatedSuffix);
             text(footer, D2D1::RectF(contentRc.left, contentRc.bottom - 18.0f * s,
                                      contentRc.right, contentRc.bottom),
                  compositor_->SmallFormat(), theme.text_secondary);
@@ -360,25 +360,25 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
                 {
                     wchar_t count[64]{};
                     swprintf_s(count,
-                        pulse::l10n::Get(pulse::l10n::StringId::ItemsCountFormat).c_str(),
+                        luling::l10n::Get(luling::l10n::StringId::ItemsCountFormat).c_str(),
                         d.multi_count);
                     state = count;
                 }
             else if ((d.attrs & (0x00040000u | 0x00400000u)) &&
                      !(d.attrs & 0x00080000u))
-                state = pulse::l10n::Get(pulse::l10n::StringId::OnlineToPreview);
+                state = luling::l10n::Get(luling::l10n::StringId::OnlineToPreview);
             else if (previewResult == PreviewDrawResult::Pending)
-                state = pulse::l10n::Get(pulse::l10n::StringId::PreviewLoading);
+                state = luling::l10n::Get(luling::l10n::StringId::PreviewLoading);
             else if (previewError == L"path-unavailable")
-                state = pulse::l10n::Get(pulse::l10n::StringId::PreviewMoved);
+                state = luling::l10n::Get(luling::l10n::StringId::PreviewMoved);
             else if (previewError == L"image-decode-failed")
-                state = pulse::l10n::Get(pulse::l10n::StringId::PreviewImageDecode);
+                state = luling::l10n::Get(luling::l10n::StringId::PreviewImageDecode);
             else if (previewError == L"provider-failed")
-                state = pulse::l10n::Get(pulse::l10n::StringId::PreviewNoSystemProvider);
+                state = luling::l10n::Get(luling::l10n::StringId::PreviewNoSystemProvider);
             else if (previewError == L"handler-failed")
-                state = pulse::l10n::Get(pulse::l10n::StringId::PreviewLoadFailed);
+                state = luling::l10n::Get(luling::l10n::StringId::PreviewLoadFailed);
             else
-                state = pulse::l10n::Get(pulse::l10n::StringId::PreviewUnsupported);
+                state = luling::l10n::Get(luling::l10n::StringId::PreviewUnsupported);
             if (filePlaceholder) {
                 centeredText(state, contentRc, compositor_->SmallFormat(),
                              theme.text_secondary);
@@ -490,7 +490,7 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
         if (d.multi_count > 1) {
             wchar_t selected[64]{};
             swprintf_s(selected,
-                pulse::l10n::Get(pulse::l10n::StringId::SelectedCountFormat).c_str(),
+                luling::l10n::Get(luling::l10n::StringId::SelectedCountFormat).c_str(),
                 d.multi_count);
             shown = selected;
         }
@@ -571,17 +571,17 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
                                    tl.get(), brText_.get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
             }
         };
-        rowButton(hit.open, L"\xE8B7", L"O", pulse::l10n::Get(kDetailsButtonLabels[0]).c_str(),
+        rowButton(hit.open, L"\xE8B7", L"O", luling::l10n::Get(kDetailsButtonLabels[0]).c_str(),
                   IsHovered(vm, HitTestResult::DetailsOpen), true);
-        rowButton(hit.new_tab, L"\xE8A7", L"\x2197", pulse::l10n::Get(kDetailsButtonLabels[1]).c_str(),
+        rowButton(hit.new_tab, L"\xE8A7", L"\x2197", luling::l10n::Get(kDetailsButtonLabels[1]).c_str(),
                   IsHovered(vm, HitTestResult::DetailsNewTab), false);
         const int64_t copied_ms = copy_feedback_.Elapsed(
             static_cast<int>(HitTestResult::DetailsCopyPath), 0, GetTickCount64());
         rowButton(hit.copy_path, L"\xE8C8", L"C",
-                  copied_ms >= 0 ? pulse::l10n::Get(pulse::l10n::StringId::CopiedShort).c_str()
-                                 : pulse::l10n::Get(kDetailsButtonLabels[2]).c_str(),
+                  copied_ms >= 0 ? luling::l10n::Get(luling::l10n::StringId::CopiedShort).c_str()
+                                 : luling::l10n::Get(kDetailsButtonLabels[2]).c_str(),
                   IsHovered(vm, HitTestResult::DetailsCopyPath), false, copied_ms);
-        rowButton(hit.more, L"\xE712", L"...", pulse::l10n::Get(kDetailsButtonLabels[3]).c_str(),
+        rowButton(hit.more, L"\xE712", L"...", luling::l10n::Get(kDetailsButtonLabels[3]).c_str(),
                   IsHovered(vm, HitTestResult::DetailsMore), false);
         y += 48.0f * s + 4.0f * s;
     }
@@ -597,13 +597,13 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
     };
 
     if (d.multi_count > 1) {
-        text(pulse::l10n::Get(pulse::l10n::StringId::Information),
+        text(luling::l10n::Get(luling::l10n::StringId::Information),
              D2D1::RectF(panel.left + 12.0f * s, y, panel.right - 12.0f * s,
                                           y + 20.0f * s),
              compositor_->SmallFormat(), theme.accent);
         float iy = y + 20.0f * s;
-        infoRow(pulse::l10n::Get(pulse::l10n::StringId::Location).c_str(), d.location_text, iy);
-        infoRow(pulse::l10n::Get(pulse::l10n::StringId::KnownSize).c_str(), d.size_text, iy);
+        infoRow(luling::l10n::Get(luling::l10n::StringId::Location).c_str(), d.location_text, iy);
+        infoRow(luling::l10n::Get(luling::l10n::StringId::KnownSize).c_str(), d.size_text, iy);
         y = iy + 8.0f * s;
     }
 
@@ -614,24 +614,24 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             MakeBrush(dc, theme.stroke_card, brStrokeCard_);
             FillRect(dc, brStrokeCard_.get(), panel.left + pad, y - 4.5f * s,
                      panel.right - panel.left - pad * 2.0f, 1.0f);
-            section(pulse::l10n::Get(def.label).c_str(), y, def.id);
+            section(luling::l10n::Get(def.label).c_str(), y, def.id);
             y += 28.0f * s;
             if ((d.collapsed_mask >> def.id) & 1u) { y += 6.0f * s; continue; }
             switch (def.id) {
             case 0: { // 基本信息
                 float iy = y;
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::Location).c_str(), d.location_text, iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::ColumnType).c_str(), !d.type_text.empty()
+                infoRow(luling::l10n::Get(luling::l10n::StringId::Location).c_str(), d.location_text, iy);
+                infoRow(luling::l10n::Get(luling::l10n::StringId::ColumnType).c_str(), !d.type_text.empty()
                             ? d.type_text : FormatListType(d.name, d.is_dir), iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::ColumnSize).c_str(),
-                        d.size_pending ? pulse::l10n::Get(pulse::l10n::StringId::Calculating)
+                infoRow(luling::l10n::Get(luling::l10n::StringId::ColumnSize).c_str(),
+                        d.size_pending ? luling::l10n::Get(luling::l10n::StringId::Calculating)
                                                 : d.size_text, iy);
-                if (d.is_dir) infoRow(pulse::l10n::Get(pulse::l10n::StringId::Contains).c_str(), d.contains_text, iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::Created).c_str(), d.created_text, iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::ModifiedTime).c_str(), d.modified_text, iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::LastAccessed).c_str(), d.accessed_text, iy);
+                if (d.is_dir) infoRow(luling::l10n::Get(luling::l10n::StringId::Contains).c_str(), d.contains_text, iy);
+                infoRow(luling::l10n::Get(luling::l10n::StringId::Created).c_str(), d.created_text, iy);
+                infoRow(luling::l10n::Get(luling::l10n::StringId::ModifiedTime).c_str(), d.modified_text, iy);
+                infoRow(luling::l10n::Get(luling::l10n::StringId::LastAccessed).c_str(), d.accessed_text, iy);
                 for (const auto& property : d.preview_properties)
-                    infoRow(pulse::l10n::ServiceText(property.label).c_str(), property.value, iy);
+                    infoRow(luling::l10n::ServiceText(property.label).c_str(), property.value, iy);
                 y = iy + 8.0f * s;
                 break;
             }
@@ -640,12 +640,12 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
                 roState.checked = (d.attrs & FILE_ATTRIBUTE_READONLY) != 0;
                 roState.hovered = IsHovered(vm, HitTestResult::DetailsAttrToggle, 0);
                 painter_.DrawCheckBox(hit.attr_readonly,
-                    pulse::l10n::Get(pulse::l10n::StringId::ReadOnly), roState);
+                    luling::l10n::Get(luling::l10n::StringId::ReadOnly), roState);
                 fluent::ControlState hidState;
                 hidState.checked = (d.attrs & FILE_ATTRIBUTE_HIDDEN) != 0;
                 hidState.hovered = IsHovered(vm, HitTestResult::DetailsAttrToggle, 1);
                 painter_.DrawCheckBox(hit.attr_hidden,
-                    pulse::l10n::Get(pulse::l10n::StringId::Hidden), hidState);
+                    luling::l10n::Get(luling::l10n::StringId::Hidden), hidState);
                 {
                     const bool hot = IsHovered(vm, HitTestResult::DetailsAttrToggle, 2);
                     const auto& rc = hit.attr_advanced;
@@ -663,7 +663,7 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
                         fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
                         MakeBrush(dc, theme.text, brText_);
                         DrawTextRect(dc, fmt, brText_.get(),
-                                     pulse::l10n::Get(pulse::l10n::StringId::Advanced),
+                                     luling::l10n::Get(luling::l10n::StringId::Advanced),
                                      rc.left, rc.top, rc.right - rc.left,
                                      rc.bottom - rc.top);
                         fmt->SetTextAlignment(old);
@@ -674,7 +674,7 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             }
             case 2: { // 标签: 添加标签 row + preset chips (toggle on click)
                 ghostButton(hit.tag_add, kIconAdd,
-                            pulse::l10n::Get(pulse::l10n::StringId::AddTag),
+                            luling::l10n::Get(luling::l10n::StringId::AddTag),
                             IsHovered(vm, HitTestResult::DetailsTagAdd));
                 for (size_t i = 0; i < hit.preset_chips.size(); ++i) {
                     const auto& rc = hit.preset_chips[i];
@@ -709,33 +709,33 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             }
             case 3: { // 安全
                 float iy = y;
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::Owner).c_str(),
-                        d.owner_text.empty() ? pulse::l10n::Get(pulse::l10n::StringId::LoadingEllipsis)
+                infoRow(luling::l10n::Get(luling::l10n::StringId::Owner).c_str(),
+                        d.owner_text.empty() ? luling::l10n::Get(luling::l10n::StringId::LoadingEllipsis)
                                              : d.owner_text, iy);
                 {
                     const bool hot = IsHovered(vm, HitTestResult::DetailsSecurityChange);
-                    text(pulse::l10n::Get(pulse::l10n::StringId::Change),
+                    text(luling::l10n::Get(luling::l10n::StringId::Change),
                          D2D1::RectF(hit.security_change.left, y,
                                      hit.security_change.right, y + 18.0f * s),
                          compositor_->SmallFormat(),
                          hot ? theme.accent_hover : theme.accent, true);
                 }
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::Permissions).c_str(),
-                        d.permissions_text.empty() ? pulse::l10n::Get(pulse::l10n::StringId::LoadingEllipsis)
+                infoRow(luling::l10n::Get(luling::l10n::StringId::Permissions).c_str(),
+                        d.permissions_text.empty() ? luling::l10n::Get(luling::l10n::StringId::LoadingEllipsis)
                                                    : d.permissions_text, iy);
                 y = iy + 8.0f * s;
                 break;
             }
             case 4: { // 其他
                 float iy = y;
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::Drive).c_str(),
-                        d.drive_text.empty() ? pulse::l10n::Get(pulse::l10n::StringId::LoadingEllipsis)
+                infoRow(luling::l10n::Get(luling::l10n::StringId::Drive).c_str(),
+                        d.drive_text.empty() ? luling::l10n::Get(luling::l10n::StringId::LoadingEllipsis)
                                              : d.drive_text, iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::FileSystem).c_str(),
-                        d.fs_text.empty() ? pulse::l10n::Get(pulse::l10n::StringId::LoadingEllipsis)
+                infoRow(luling::l10n::Get(luling::l10n::StringId::FileSystem).c_str(),
+                        d.fs_text.empty() ? luling::l10n::Get(luling::l10n::StringId::LoadingEllipsis)
                                           : d.fs_text, iy);
-                infoRow(pulse::l10n::Get(pulse::l10n::StringId::FreeSpace).c_str(),
-                        d.free_space_text.empty() ? pulse::l10n::Get(pulse::l10n::StringId::LoadingEllipsis)
+                infoRow(luling::l10n::Get(luling::l10n::StringId::FreeSpace).c_str(),
+                        d.free_space_text.empty() ? luling::l10n::Get(luling::l10n::StringId::LoadingEllipsis)
                                                   : d.free_space_text, iy);
                 y = iy + 8.0f * s;
                 break;
@@ -806,4 +806,4 @@ float MainRenderer::DetailsContentHeightDip(const WindowViewModel& vm, float w, 
     return hit.content_height_dip;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

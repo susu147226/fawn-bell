@@ -14,8 +14,8 @@
 #include <unordered_map>
 #include <utility>
 
-namespace pulse::fs {
-#if defined(PULSE_TEST_NET_CACHE)
+namespace luling::fs {
+#if defined(LULING_TEST_NET_CACHE)
 std::wstring NetCacheDirectoryForTest();
 BOOL ProbeAttributesForTest(const std::wstring& path);
 DWORD ProbeTimeoutForTest();
@@ -64,12 +64,12 @@ struct SnapshotTempFile {
 };
 
 std::wstring CacheDir() {
-#if defined(PULSE_TEST_NET_CACHE)
+#if defined(LULING_TEST_NET_CACHE)
     return NetCacheDirectoryForTest();
 #endif
     wchar_t path[MAX_PATH] = {};
     if (FAILED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, path))) return L"";
-    std::wstring dir = std::wstring(path) + L"\\Pulse";
+    std::wstring dir = std::wstring(path) + L"\\Luling";
     CreateDirectoryW(dir.c_str(), nullptr);
     dir += L"\\netcache";
     CreateDirectoryW(dir.c_str(), nullptr);
@@ -161,7 +161,7 @@ bool SaveNetSnapshot(const NetSnapshotWrite& request, const SnapshotPtr& snapsho
     if (fclose(std::exchange(tmp.stream, nullptr)) != 0 || !complete) return false;
     // Only background publishers take this lock. Request registration never
     // waits on disk I/O. A newer publisher cannot be overtaken by an old one.
-#if defined(PULSE_TEST_NET_CACHE)
+#if defined(LULING_TEST_NET_CACHE)
     BeforeNetSnapshotCommitForTest(request.generation_);
 #endif
     std::lock_guard lock(state->commit_mutex);
@@ -259,7 +259,7 @@ struct ProbeJob {
 DWORD WINAPI ProbeInner(LPVOID param) {
     auto* j = static_cast<ProbeJob*>(param);
     const ULONGLONG t0 = GetTickCount64();
-#if defined(PULSE_TEST_NET_CACHE)
+#if defined(LULING_TEST_NET_CACHE)
     j->ok = ProbeAttributesForTest(j->unc);
 #else
     WIN32_FILE_ATTRIBUTE_DATA fad{};
@@ -291,7 +291,7 @@ void PostProbe(const ProbeJob& job, bool completed, DWORD elapsed) noexcept {
 
 } // namespace
 
-#if defined(PULSE_TEST_NET_CACHE)
+#if defined(LULING_TEST_NET_CACHE)
 unsigned ActiveUncProbesForTest() { return active_probes.load(); }
 #endif
 
@@ -311,7 +311,7 @@ bool StartUncProbe(HWND hwnd, UINT msg, std::wstring unc, UncProbeId probe_id) {
         std::thread([job = std::move(job)] {
             job->thread = CreateThread(nullptr, 0, ProbeInner, job.get(), 0, nullptr);
             if (!job->thread) { job->ReleasePermit(); PostProbe(*job, true, 0); return; }
-#if defined(PULSE_TEST_NET_CACHE)
+#if defined(LULING_TEST_NET_CACHE)
             const DWORD timeout = ProbeTimeoutForTest();
 #else
             constexpr DWORD timeout = 1500;
@@ -328,9 +328,9 @@ bool StartUncProbe(HWND hwnd, UINT msg, std::wstring unc, UncProbeId probe_id) {
     return true;
 }
 
-} // namespace pulse::fs
+} // namespace luling::fs
 
-namespace pulse::fs {
+namespace luling::fs {
 bool SaveNetSnapshot(const std::wstring& path, const SnapshotPtr& snapshot, const NetSnapshotWrite& request) {
     return request.state_ && request.state_->path == NormalizePath(path) && SaveNetSnapshot(request, snapshot);
 }

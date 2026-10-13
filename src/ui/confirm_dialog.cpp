@@ -9,10 +9,10 @@
 #include <cmath>
 #include <cstring>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
-constexpr wchar_t kConfirmClass[] = L"PulseConfirmWindow";
+constexpr wchar_t kConfirmClass[] = L"LulingConfirmWindow";
 
 bool CopyTextToClipboard(HWND hwnd, const std::wstring& text) {
     if (!OpenClipboard(hwnd)) return false;
@@ -44,7 +44,7 @@ public:
         visual_.focus = ConfirmControlFor(spec_.default_choice, HasSecondary());
         // Any other default is not what the colours suggest, so show it at once.
         visual_.show_focus = visual_.focus != kConfirmPrimary;
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(owner ? owner : GetDesktopWindow()))
+        scale_ = static_cast<float>(luling::compat::WindowDpi(owner ? owner : GetDesktopWindow()))
                / 96.0f;
 
         WNDCLASSEXW wc{ sizeof(wc) };
@@ -158,7 +158,7 @@ private:
     LRESULT Handle(UINT message, WPARAM wparam, LPARAM lparam) {
         switch (message) {
         case WM_CREATE:
-            scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
+            scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
             backdrop_enabled_ = ApplyBackdrop(hwnd_, dark_);
             if (!compositor_.Init(hwnd_)) return -1;
             compositor_.RecreateTextFormats(scale_);
@@ -287,4 +287,4 @@ bool ShowConfirmDialog(HWND owner, const ConfirmDialogSpec& spec, bool dark,
     return ShowConfirmDialogEx(owner, spec, dark, accent) == ConfirmChoice::Confirm;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -8,7 +8,7 @@
 #include <vector>
 #include <windows.h>
 
-namespace pulse {
+namespace luling {
 
 // One byte-based contract for both directions, including multibyte UTF-8.
 // Larger tag catalogs written by earlier versions remain readable.
@@ -120,4 +120,4 @@ inline bool WriteUtf8FileAtomic(const std::wstring& path, const std::wstring& te
     return true;
 }
 
-} // namespace pulse
+} // namespace luling

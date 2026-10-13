@@ -17,7 +17,7 @@
 #include <fstream>
 #include <set>
 #include "../../third_party/sqlite/sqlite3.h"
-using namespace pulse;
+using namespace luling;
 namespace {
 int passed = 0, failed = 0;
 void Check(bool ok, const char* name) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", name); fflush(stdout); ++(ok ? passed : failed); }
@@ -312,8 +312,8 @@ int RunRecoveryTest(const std::filesystem::path& base) {
 int RunInternalPathTest(const std::filesystem::path& base) {
     const auto profile = base / L"profile";
     const auto previous_profile = base / L"previous-profile";
-    const auto internal = profile / L"Pulse";
-    const auto adjacent = profile / L"PulseDocuments";
+    const auto internal = profile / L"Luling";
+    const auto adjacent = profile / L"LulingDocuments";
     std::filesystem::create_directories(internal);
     std::filesystem::create_directories(adjacent);
     std::filesystem::create_directories(previous_profile);
@@ -801,7 +801,7 @@ int RunTaskLiveTest() {
     request.task_scan = true; request.maximum_hits = 0;
     std::atomic<bool> cancel{false};
     wchar_t seconds_text[16]{};
-    GetEnvironmentVariableW(L"PULSE_TEST_TASK_LIVE_SECONDS", seconds_text, ARRAYSIZE(seconds_text));
+    GetEnvironmentVariableW(L"LULING_TEST_TASK_LIVE_SECONDS", seconds_text, ARRAYSIZE(seconds_text));
     const uint64_t seconds = seconds_text[0] ? std::clamp(_wtoi(seconds_text), 15, 900) : 45;
     const uint64_t duration_ms = seconds * 1000;
     const auto start = GetTickCount64();
@@ -836,7 +836,7 @@ int RunTaskLiveTest() {
 
 int RunTaskManifestTest(const std::filesystem::path& base) {
     wchar_t manifest[32768]{};
-    GetEnvironmentVariableW(L"PULSE_TEST_TASK_MANIFEST", manifest, ARRAYSIZE(manifest));
+    GetEnvironmentVariableW(L"LULING_TEST_TASK_MANIFEST", manifest, ARRAYSIZE(manifest));
     std::wstring lines; uint64_t bytes = 0; DWORD error = 0;
     Check(text::ReadFile(manifest, 1024 * 1024, lines, bytes, &error), "read original-file manifest without copying documents");
     index::ContentSearchRequest request; request.generation = 1; request.needle = L"3d3s";
@@ -1161,7 +1161,7 @@ int RunSearchTaskTest(const std::filesystem::path& base) {
     const auto root=base/L"task-files";
     std::filesystem::create_directories(root/L"hidden");
     // Admission locks belong to this fixture, not the user's parser slots.
-    SetEnvironmentVariableW(L"PULSE_DOCUMENT_ADMISSION_DIR", base.c_str());
+    SetEnvironmentVariableW(L"LULING_DOCUMENT_ADMISSION_DIR", base.c_str());
     Write(root/L"cached.txt","task_marker"); Write(root/L"stale.txt","old_marker"); Write(root/L"removed.txt","task_marker");
     index::ContentIndex db((base/L"task.sqlite").wstring());
     index::ContentIndexConfig config; config.roots={{root.wstring(),text::Encoding::Auto}};
@@ -1175,18 +1175,18 @@ int RunSearchTaskTest(const std::filesystem::path& base) {
         PROCESS_INFORMATION process{};
         ~FeedHost() {
             if (!process.hProcess) return;
-            wchar_t pipe[256]{}; GetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE",pipe,256);
+            wchar_t pipe[256]{}; GetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE",pipe,256);
             HANDLE handle=CreateFileW(pipe,GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,0,nullptr);
             if(handle!=INVALID_HANDLE_VALUE) {const auto header=index::MakeIndexHdr(index::REQ_IDX_TEST_SHUTDOWN,0,0);DWORD written=0;WriteFile(handle,&header,sizeof(header),&written,nullptr);CloseHandle(handle);}
             if(WaitForSingleObject(process.hProcess,5000)!=WAIT_OBJECT_0) TerminateProcess(process.hProcess,ERROR_CANCELLED);
             CloseHandle(process.hThread);CloseHandle(process.hProcess);
         }
     } host;
-    if(GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_TASK_SHARED",nullptr,0)) {
+    if(GetEnvironmentVariableW(L"LULING_TEST_SEARCH_TASK_SHARED",nullptr,0)) {
         wchar_t module[MAX_PATH]{};GetModuleFileNameW(nullptr,module,MAX_PATH);
         const auto token=std::to_wstring(GetCurrentProcessId())+L"-task";
-        SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE",(L"\\\\.\\pipe\\PulseIndex.Test."+token).c_str());
-        const auto executable=std::filesystem::path(module).parent_path()/L"Pulse.Index.exe";
+        SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE",(L"\\\\.\\pipe\\LulingIndex.Test."+token).c_str());
+        const auto executable=std::filesystem::path(module).parent_path()/L"Luling.Index.exe";
         auto command=L"\""+executable.wstring()+L"\" --test-host "+token+L" \""+root.wstring()+L"\" \""+(base/L"task-feed").wstring()+L"\"";
         STARTUPINFOW startup{};startup.cb=sizeof(startup);
         const bool started=CreateProcessW(executable.c_str(),command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&host.process)!=FALSE;
@@ -1336,10 +1336,10 @@ int RunSharedFairnessTest(const std::filesystem::path& base) {
     seeded &= Write(fast / L"sentinel.txt", "fairness_fast_marker");
     Check(seeded, "seed independent shared roots");
     wchar_t module[32768]{}; GetModuleFileNameW(nullptr, module, ARRAYSIZE(module));
-    const auto exe = std::filesystem::path(module).parent_path() / L"Pulse.Index.exe";
+    const auto exe = std::filesystem::path(module).parent_path() / L"Luling.Index.exe";
     const auto token = std::to_wstring(GetCurrentProcessId()) + L"-fairness";
-    const auto pipe = L"\\\\.\\pipe\\PulseIndex.Test." + token;
-    SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", pipe.c_str());
+    const auto pipe = L"\\\\.\\pipe\\LulingIndex.Test." + token;
+    SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", pipe.c_str());
     std::wstring command = L"\"" + exe.wstring() + L"\" --test-host " + token + L" \"" + files.wstring() + L"\" \"" + cache.wstring() + L"\"";
     STARTUPINFOW startup{sizeof(startup)}; PROCESS_INFORMATION host{};
     Check(CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &host) != FALSE,
@@ -1401,9 +1401,9 @@ int RunZeroRevisionSubscriptionTest(const std::filesystem::path& base) {
             previous.resize(count < previous.size() ? count : 0);
         }
         ~RestoreEnvironment() { SetEnvironmentVariableW(name, previous.empty() ? nullptr : previous.c_str()); }
-    } restore_profile(L"LOCALAPPDATA"), restore_logs(L"PULSE_CONTENT_TIMING_DIR");
+    } restore_profile(L"LOCALAPPDATA"), restore_logs(L"LULING_CONTENT_TIMING_DIR");
     SetEnvironmentVariableW(L"LOCALAPPDATA", profile.c_str());
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", logs.c_str());
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", logs.c_str());
     index::ContentSearchClient client;
     client.Start(nullptr, 0);
     index::ContentIndexConfig config; config.roots = {{root.wstring(), text::Encoding::Auto}};
@@ -1425,7 +1425,7 @@ int RunZeroRevisionSubscriptionTest(const std::filesystem::path& base) {
     if (!ready) { client.Stop(); return 1; }
     // Schema initialization inserts a sentinel at sequence 1 even for an empty
     // root. Remove it only in this isolated fixture to exercise a real zero cursor.
-    const auto database = profile / L"Pulse" / L"ContentIndex" / L"content-v1.sqlite";
+    const auto database = profile / L"Luling" / L"ContentIndex" / L"content-v1.sqlite";
     sqlite3* raw = nullptr;
     bool seeded_zero = sqlite3_open16(database.c_str(), &raw) == SQLITE_OK;
     sqlite3_int64 before_sequence = -1;
@@ -1512,7 +1512,7 @@ int RunZeroRevisionSubscriptionTest(const std::filesystem::path& base) {
 
 int RunTaskTextIoBenchmark(const std::filesystem::path& base) {
     wchar_t input[32768]{};
-    const auto length = GetEnvironmentVariableW(L"PULSE_TEST_TASK_TEXT_BENCH_ROOT", input, ARRAYSIZE(input));
+    const auto length = GetEnvironmentVariableW(L"LULING_TEST_TASK_TEXT_BENCH_ROOT", input, ARRAYSIZE(input));
     if (!length || length >= ARRAYSIZE(input)) return 2;
     const auto root = std::filesystem::path(input);
     index::ContentSearchRequest request; request.needle = L"3d3s"; request.generation = 881001;
@@ -1744,46 +1744,46 @@ int wmain() {
         std::filesystem::path path;
         ~CleanupFixture() { std::error_code error; std::filesystem::remove_all(path, error); }
     } cleanup_fixture{base};
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SESSION_BATCH_AUDIT", nullptr, 0)) return RunSessionBatchAudit();
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_SCOPE_AUDIT", nullptr, 0)) return RunTaskScopeAudit(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_ENCODING_CACHE", nullptr, 0)) return RunEncodingCacheTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_TEXT_BENCH_ROOT", nullptr, 0)) return RunTaskTextIoBenchmark(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_DELTA_CACHE", nullptr, 0)) return RunDeltaCacheTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_RECONCILE_AUDIT", nullptr, 0)) return RunInstantReconcileAudit(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_GAPS", nullptr, 0)) return RunInstantGapTests(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_MODE", nullptr, 0)) return RunInstantLifecycleTests(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_ZERO_REVISION", nullptr, 0)) return RunZeroRevisionSubscriptionTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_LIVE", nullptr, 0)) return RunTaskLiveTest();
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_MMAP", nullptr, 0)) return RunTaskMmapTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_PREFETCH", nullptr, 0)) return RunTaskPrefetchTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_PRIORITY", nullptr, 0)) return RunTaskPriorityTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_BALANCE", nullptr, 0)) return RunTaskBalanceTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_ROOT_FAIRNESS", nullptr, 0)) return RunTaskRootFairnessTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_DIRECTORY_FAIRNESS", nullptr, 0)) return RunTaskRootFairnessTest(base, true);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_NONPDF_FIFO", nullptr, 0)) {
+    if (GetEnvironmentVariableW(L"LULING_TEST_SESSION_BATCH_AUDIT", nullptr, 0)) return RunSessionBatchAudit();
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_SCOPE_AUDIT", nullptr, 0)) return RunTaskScopeAudit(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_ENCODING_CACHE", nullptr, 0)) return RunEncodingCacheTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_TEXT_BENCH_ROOT", nullptr, 0)) return RunTaskTextIoBenchmark(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_DELTA_CACHE", nullptr, 0)) return RunDeltaCacheTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_INSTANT_RECONCILE_AUDIT", nullptr, 0)) return RunInstantReconcileAudit(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_INSTANT_GAPS", nullptr, 0)) return RunInstantGapTests(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_INSTANT_MODE", nullptr, 0)) return RunInstantLifecycleTests(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_ZERO_REVISION", nullptr, 0)) return RunZeroRevisionSubscriptionTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_LIVE", nullptr, 0)) return RunTaskLiveTest();
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_MMAP", nullptr, 0)) return RunTaskMmapTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_PREFETCH", nullptr, 0)) return RunTaskPrefetchTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_PRIORITY", nullptr, 0)) return RunTaskPriorityTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_BALANCE", nullptr, 0)) return RunTaskBalanceTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_ROOT_FAIRNESS", nullptr, 0)) return RunTaskRootFairnessTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_DIRECTORY_FAIRNESS", nullptr, 0)) return RunTaskRootFairnessTest(base, true);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_NONPDF_FIFO", nullptr, 0)) {
         const auto office = RunTaskRootFairnessTest(base / L"office", false, L".rtf");
         const auto plain = RunTaskRootFairnessTest(base / L"text", false, L".txt");
         return office || plain;
     }
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_MANIFEST", nullptr, 0)) return RunTaskManifestTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_METADATA", nullptr, 0)) return RunTaskMetadataTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_HINTS", nullptr, 0)) return RunTaskHintTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_TASK_LANES", nullptr, 0)) return RunTaskLaneTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_OBSERVER", nullptr, 0)) return RunObserverTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_TASK", nullptr, 0)) return RunSearchTaskTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_EXTRACTOR_UPGRADE", nullptr, 0)) return RunExtractorUpgradeTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SHARED_FAIRNESS", nullptr, 0)) return RunSharedFairnessTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_QUERY", nullptr, 0)) {
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_MANIFEST", nullptr, 0)) return RunTaskManifestTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_METADATA", nullptr, 0)) return RunTaskMetadataTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_HINTS", nullptr, 0)) return RunTaskHintTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_TASK_LANES", nullptr, 0)) return RunTaskLaneTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_CONTENT_OBSERVER", nullptr, 0)) return RunObserverTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_SEARCH_TASK", nullptr, 0)) return RunSearchTaskTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_EXTRACTOR_UPGRADE", nullptr, 0)) return RunExtractorUpgradeTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_SHARED_FAIRNESS", nullptr, 0)) return RunSharedFairnessTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_CONTENT_QUERY", nullptr, 0)) {
         wchar_t fixture[32768]{};
-        const auto n = GetEnvironmentVariableW(L"PULSE_TEST_QUERY_FIXTURE", fixture, ARRAYSIZE(fixture));
+        const auto n = GetEnvironmentVariableW(L"LULING_TEST_QUERY_FIXTURE", fixture, ARRAYSIZE(fixture));
         return RunQueryTaskTest(n && n < ARRAYSIZE(fixture) ? std::filesystem::path(fixture) : base);
     }
-    if (GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_LATENCY", nullptr, 0)) return RunLatencyTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_AVAILABILITY", nullptr, 0)) return RunAvailabilityTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_PARTIAL_ROOT", nullptr, 0)) return RunPartialRootTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SHARED_SCOPE", nullptr, 0)) return RunSharedScopeTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_RECOVERY", nullptr, 0)) return RunRecoveryTest(base);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_CONTENT_INTERNAL", nullptr, 0)) return RunInternalPathTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_CONTENT_LATENCY", nullptr, 0)) return RunLatencyTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_CONTENT_AVAILABILITY", nullptr, 0)) return RunAvailabilityTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_PARTIAL_ROOT", nullptr, 0)) return RunPartialRootTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_SHARED_SCOPE", nullptr, 0)) return RunSharedScopeTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_CONTENT_RECOVERY", nullptr, 0)) return RunRecoveryTest(base);
+    if (GetEnvironmentVariableW(L"LULING_TEST_CONTENT_INTERNAL", nullptr, 0)) return RunInternalPathTest(base);
     const auto root = base / L"files";
     std::filesystem::create_directories(root / L"node_modules");
     std::filesystem::create_directories(root / L"many");

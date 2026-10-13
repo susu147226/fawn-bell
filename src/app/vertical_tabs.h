@@ -5,7 +5,7 @@
 // tabs become the first sidebar section (rows reuse the sidebar row painter),
 // the address row moves up into the title bar, and Ctrl+B folds the sidebar
 // into its icon rail. Settings keeps the top strip so tabs stay reachable.
-namespace pulse {
+namespace luling {
 // Not a SidebarSectionId: the section is synthesized per frame and never
 // enters the persisted order. Its fold bit lives in sidebarCollapsedMask.
 inline constexpr int kVerticalTabsSectionId = 30;

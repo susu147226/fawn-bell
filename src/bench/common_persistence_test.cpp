@@ -7,13 +7,13 @@
 #include <cstdio>
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 static std::wstring fixture;
-std::wstring GetPulseDataDir() { return fixture; }
+std::wstring GetLulingDataDir() { return fixture; }
 }
 namespace {
-using namespace pulse;
-using namespace pulse::app;
+using namespace luling;
+using namespace luling::app;
 int failures = 0;
 void Check(bool ok, const char* label) {
     printf("[%s] %s\n", ok ? "PASS" : "FAIL", label);
@@ -112,7 +112,7 @@ void TestPlaces(const std::wstring& root) {
     WriteUtf8FileAtomic(tags_file, tags_json);
     const auto odd_file = fixture + L"\\odd.txt";
     WriteUtf8FileAtomic(odd_file, L"odd ADS");
-    HANDLE odd = CreateFileW((odd_file + L":Pulse.Tag").c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    HANDLE odd = CreateFileW((odd_file + L":Luling.Tag").c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
     DWORD written = 0; const char byte = 'x';
     Check(odd != INVALID_HANDLE_VALUE && WriteFile(odd, &byte, 1, &written, nullptr), "create odd-byte ADS fixture");
     if (odd != INVALID_HANDLE_VALUE) CloseHandle(odd);

@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Below this edge the shell icon is clearer than any sketch.
 constexpr UINT kOfficeSketchMinEdge = 64;
@@ -49,4 +49,4 @@ bool RenderOfficeSketch(const std::wstring& path, std::wstring_view extension, U
 // thumbnails; for Office files the sketch is then shown instead.
 bool IsBlankThumbnail(const std::vector<unsigned char>& pixels, UINT width, UINT height, UINT stride);
 
-} // namespace pulse::preview
+} // namespace luling::preview

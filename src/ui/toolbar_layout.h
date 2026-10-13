@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <array>
 
-namespace pulse::ui {
+namespace luling::ui {
 inline float NavigationStep(float available, float scale) {
     return (available < 500 * scale ? 26.0f : 34.0f) * scale;
 }

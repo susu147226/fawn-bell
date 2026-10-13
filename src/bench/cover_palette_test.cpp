@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <vector>
 
-using namespace pulse::ui;
+using namespace luling::ui;
 
 namespace {
 int g_failed = 0, g_passed = 0;

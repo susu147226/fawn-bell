@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "listing_selection_restore.h"
 #include "entry_order_hold.h"
 #include <cstdio>
@@ -6,7 +6,7 @@
 #include <set>
 
 bool RunListingSelectionRestoreTest() {
-    using namespace pulse;
+    using namespace luling;
     int failures = 0;
     std::filesystem::create_directories(L"bench_data");
     FILE* log = nullptr;

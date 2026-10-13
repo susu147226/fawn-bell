@@ -7,7 +7,7 @@
 #include <iostream>
 #include <aclapi.h>
 
-namespace pulse::ops {
+namespace luling::ops {
 std::function<void(OpsManager&, const std::wstring&)> review_scan_observer;
 std::function<void(OpsManager&, uint64_t)> review_start_observer;
 void ObserveTransferStartForReview(OpsManager& manager, uint64_t task) {
@@ -226,12 +226,12 @@ std::string Read(const fs::path& file) {
     return {std::istreambuf_iterator<char>(in), {}};
 }
 bool EqualPath(const std::wstring& actual, const fs::path& expected) {
-    return pulse::path::EqualInsensitive(pulse::path::StripExtendedPathPrefix(actual), expected.wstring());
+    return luling::path::EqualInsensitive(luling::path::StripExtendedPathPrefix(actual), expected.wstring());
 }
 }
 
 int RunReviewTransferTests() {
-    using namespace pulse::ops;
+    using namespace luling::ops;
     int failures = 0;
     const auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -732,7 +732,7 @@ int RunReviewTransferTests() {
     return failures ? 1 : 0;
 }
 int RunReviewTemplateTests() {
-    using namespace pulse::ops;
+    using namespace luling::ops;
     int failures = 0;
     const auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl; failures += !ok;
@@ -751,7 +751,7 @@ int RunReviewTemplateTests() {
             L"\\\\?\\UNC\\server\\share\\%L folder\\"};
         unsigned index = 0;
         for (const auto& path : values) {
-            const auto expected = pulse::path::StripExtendedPathPrefix(path);
+            const auto expected = luling::path::StripExtendedPathPrefix(path);
             OpsManager manager;
             // An independent expected command for the simple no-trailing-slash regression.
             if (index == 0) {
@@ -795,7 +795,7 @@ int RunReviewTemplateTests() {
     check(!error && !fs::exists(root), "M04-010 only the isolated argv recorder and its output fixtures are cleaned up");
     return failures ? 1 : 0;
 }
-namespace pulse::ipc {
+namespace luling::ipc {
 std::function<void(ShellClient&, uint32_t, uint32_t)> review_submit;
 bool InterceptShellSubmitForReview(ShellClient& client, uint32_t type, uint32_t id) {
     if (!review_submit) return false;
@@ -826,10 +826,10 @@ struct ShellClientReviewTestAccess {
 }
 namespace {
 struct RoutingFixture {
-    pulse::ops::OpsManager manager;
-    pulse::ipc::ShellClient& client = pulse::ipc::ShellClient::Instance();
+    luling::ops::OpsManager manager;
+    luling::ipc::ShellClient& client = luling::ipc::ShellClient::Instance();
     RoutingFixture() {
-        using namespace pulse;
+        using namespace luling;
         if (!ipc::ShellClientReviewTestAccess::IsIsolated(client)) ExitProcess(2);
         ops::review_shell_callbacks = [&](const ipc::ShellClient::Callbacks& cb) {
             ipc::ShellClientReviewTestAccess::Configure(client, cb);
@@ -838,13 +838,13 @@ struct RoutingFixture {
         ops::review_shell_callbacks = {};
     }
     ~RoutingFixture() {
-        pulse::ipc::review_submit = {};
-        pulse::ipc::ShellClientReviewTestAccess::Reset(client);
+        luling::ipc::review_submit = {};
+        luling::ipc::ShellClientReviewTestAccess::Reset(client);
     }
 };
 }
 int RunReviewRoutingTests() {
-    using namespace pulse;
+    using namespace luling;
     using A = ops::OpsManagerReviewTestAccess;
     using C = ipc::ShellClientReviewTestAccess;
     int failures = 0;

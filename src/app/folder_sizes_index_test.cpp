@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "folder_sizes.h"
 #include "../index/index_feed.h"
 #include <filesystem>
@@ -6,7 +6,7 @@
 #include <thread>
 #include <cstdio>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 class FolderSizePipeFixture {
 public:
@@ -15,17 +15,17 @@ public:
     std::atomic<unsigned> requests{0}, responses{0};
     explicit FolderSizePipeFixture(const wchar_t* pipe_name = nullptr) {
         wchar_t old[256]{};
-        const auto count = GetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", old, 256);
+        const auto count = GetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", old, 256);
         if (count && count < 256) previous_ = old;
-        name_ = pipe_name ? pipe_name : L"\\\\.\\pipe\\PulseFolderSizeTest-" + std::to_wstring(GetCurrentProcessId());
-        SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", name_.c_str());
+        name_ = pipe_name ? pipe_name : L"\\\\.\\pipe\\LulingFolderSizeTest-" + std::to_wstring(GetCurrentProcessId());
+        SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", name_.c_str());
         thread_ = std::thread([this] { Run(); });
         WaitForSingleObject(ready_, 3000);
     }
     ~FolderSizePipeFixture() {
         SetEvent(stop_); CancelSynchronousIo(thread_.native_handle()); thread_.join();
         CloseHandle(ready_); CloseHandle(stop_);
-        SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", previous_.empty() ? nullptr : previous_.c_str());
+        SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", previous_.empty() ? nullptr : previous_.c_str());
     }
 private:
     HANDLE ready_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);

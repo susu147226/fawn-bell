@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::text {
+namespace luling::text {
 namespace {
 
 constexpr DWORD kRecallOnOpen = 0x00040000;
@@ -142,4 +142,4 @@ bool ReadFile(const std::wstring& path, uint64_t maximum_bytes, std::wstring& ou
     return decoded;
 }
 
-} // namespace pulse::text
+} // namespace luling::text

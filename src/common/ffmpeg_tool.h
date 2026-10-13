@@ -10,7 +10,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::ffmpeg {
+namespace luling::ffmpeg {
 
 inline constexpr std::wstring_view kVideoExtensions[] = {
     L".mp4", L".m4v", L".mov", L".mkv", L".webm", L".avi", L".wmv", L".flv",
@@ -79,4 +79,4 @@ void ParseSampleAspect(std::string_view log, UINT& num, UINT& den);
 // ("(attached pic)") does not count as video.
 bool HasStream(std::string_view log, std::string_view kind);
 
-} // namespace pulse::ffmpeg
+} // namespace luling::ffmpeg

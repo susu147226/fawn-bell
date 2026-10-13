@@ -15,7 +15,7 @@ struct State {
     std::atomic<int> starts{0}, inits{0}, creates{0}, pendings{0}, binds{0}, navigates{0}, revokes{0};
     std::mutex mutex;
     std::set<long> cookies;
-    std::vector<pulse::app::ShellWindowEntry> acknowledged;
+    std::vector<luling::app::ShellWindowEntry> acknowledged;
     std::wstring last_navigate;
     long next_cookie = 1;
     void Thread() { if (GetCurrentThreadId() == ui) wrong_thread = true; }
@@ -29,7 +29,7 @@ int failures = 0;
 void Check(bool ok, const char* label) {
     std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok;
 }
-bool Wait(const std::function<bool()>& ready, pulse::app::ShellWindowRegistry* registry = nullptr) {
+bool Wait(const std::function<bool()>& ready, luling::app::ShellWindowRegistry* registry = nullptr) {
     const auto deadline = GetTickCount64() + 18000;
     while (GetTickCount64() < deadline) {
         if (registry) registry->EnsureRunning();
@@ -103,7 +103,7 @@ public:
     HRESULT STDMETHODCALLTYPE ProcessAttachDetach(VARIANT_BOOL) override { return S_OK; }
 };
 }
-namespace pulse::app {
+namespace luling::app {
 HRESULT ShellRegistryTestCreate(IShellWindows** out) {
     state.Thread(); ++state.creates; *out = nullptr;
     if (Fail(state.create_fail)) return E_FAIL;
@@ -135,7 +135,7 @@ void ShellRegistryTestApplied(const std::vector<ShellWindowEntry>& acknowledged)
 }
 }
 int main() {
-    using namespace pulse::app;
+    using namespace luling::app;
     setvbuf(stdout, nullptr, _IONBF, 0);
     ShellWindowRegistry registry(nullptr, WM_APP + 17);
     registry.Publish({{1, L"C:\\fake-A"}});

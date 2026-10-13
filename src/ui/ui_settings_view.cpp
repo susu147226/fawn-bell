@@ -18,7 +18,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     ID2D1DeviceContext* dc = compositor_->Dc();
@@ -36,16 +36,16 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     MakeBrush(dc, theme.stroke_divider, brStrokeDivider_);
     FillRect(dc, brStrokeDivider_.get(), lay.nav.left+16*scale_, lay.nav_row[3].top-12*scale_,
         lay.nav.right-lay.nav.left-32*scale_, 1);
-    if (!compact_nav) painter_.DrawText(L"Pulse " + vm.settings_version,
+    if (!compact_nav) painter_.DrawText(L"Luling " + vm.settings_version,
         D2D1::RectF(lay.nav.left+20*scale_,lay.nav.bottom-40*scale_,lay.nav.right-12*scale_,lay.nav.bottom-16*scale_),
         compositor_->SmallFormat(),theme.text_secondary);
 
-    static constexpr pulse::l10n::StringId kNav[] = {
-        pulse::l10n::StringId::SettingsGeneral,
-        pulse::l10n::StringId::SettingsSearchIndex,
-        pulse::l10n::StringId::SettingsContextMenu,
-        pulse::l10n::StringId::SettingsAboutDiagnostics,
-        pulse::l10n::StringId::SettingsDuplicates,
+    static constexpr luling::l10n::StringId kNav[] = {
+        luling::l10n::StringId::SettingsGeneral,
+        luling::l10n::StringId::SettingsSearchIndex,
+        luling::l10n::StringId::SettingsContextMenu,
+        luling::l10n::StringId::SettingsAboutDiagnostics,
+        luling::l10n::StringId::SettingsDuplicates,
     };
     static constexpr const wchar_t* kNavIcon[] = {
         kIconHome, kIconSearch, kIconSettings, kIconInfo, kIconCopy, L"\xE890"  // Quick Look
@@ -53,7 +53,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     static_assert(std::size(kNavIcon) == kSettingsNavCount);
     // Page 5 (快速预览) has no string-table entry; see pack_text.
     auto nav_label = [](int page) -> std::wstring {
-        return page == 5 ? std::wstring(pack_text::Title()) : pulse::l10n::Get(kNav[page]);
+        return page == 5 ? std::wstring(pack_text::Title()) : luling::l10n::Get(kNav[page]);
     };
     // Hover plate and selection pill glide between rows (ui_motion.h); the
     // accent bar travels with the pill.
@@ -97,11 +97,11 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     const float switch_h = 32.0f * scale_;
 
     const auto page_title_id = vm.settings_page == 0
-        ? pulse::l10n::StringId::SettingsGeneral
-        : vm.settings_page == 1 ? pulse::l10n::StringId::SettingsSearchIndex
-        : vm.settings_page == 2 ? pulse::l10n::StringId::SettingsContextMenu
-        : vm.settings_page == 4 ? pulse::l10n::StringId::SettingsDuplicates
-                                : pulse::l10n::StringId::SettingsAboutDiagnostics;
+        ? luling::l10n::StringId::SettingsGeneral
+        : vm.settings_page == 1 ? luling::l10n::StringId::SettingsSearchIndex
+        : vm.settings_page == 2 ? luling::l10n::StringId::SettingsContextMenu
+        : vm.settings_page == 4 ? luling::l10n::StringId::SettingsDuplicates
+                                : luling::l10n::StringId::SettingsAboutDiagnostics;
     MakeBrush(dc, theme.text, brText_);
     const std::wstring title = vm.settings_page == 5 ? std::wstring(pack_text::Title()) : l10n::Get(page_title_id);
     ComPtr<IDWriteTextLayout> title_layout;
@@ -137,19 +137,19 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         if (vm.settings_expanded & 2u) {
         fluent::InfoBarSpec info;
         info.bounds = lay.index_info;
-        info.title = pulse::l10n::Get((vm.settings_index_service || vm.settings_index_installed)
-            ? pulse::l10n::StringId::SettingsFullIndex
-            : pulse::l10n::StringId::SettingsUserIndex);
+        info.title = luling::l10n::Get((vm.settings_index_service || vm.settings_index_installed)
+            ? luling::l10n::StringId::SettingsFullIndex
+            : luling::l10n::StringId::SettingsUserIndex);
         info.message = vm.settings_index_service
-            ? pulse::l10n::Get(pulse::l10n::StringId::SettingsFullIndexDesc)
-            : pulse::l10n::Get(vm.settings_index_installed
-                ? pulse::l10n::StringId::SettingsServiceWaiting
-                : pulse::l10n::StringId::SettingsUserIndexDesc);
+            ? luling::l10n::Get(luling::l10n::StringId::SettingsFullIndexDesc)
+            : luling::l10n::Get(vm.settings_index_installed
+                ? luling::l10n::StringId::SettingsServiceWaiting
+                : luling::l10n::StringId::SettingsUserIndexDesc);
         info.kind = vm.settings_index_error.empty() ? fluent::InfoBarKind::Informational
                                                      : fluent::InfoBarKind::Error;
         if (!vm.settings_index_error.empty()) info.message = vm.settings_index_error;
         else if (vm.settings_index_migrating)
-            info.message = pulse::l10n::Get(pulse::l10n::StringId::IndexMigratingShort);
+            info.message = luling::l10n::Get(luling::l10n::StringId::IndexMigratingShort);
         info.show_close = false;
         painter_.DrawInfoBar(info);
 
@@ -157,7 +157,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         draw_card(lay.index_status);
         MakeBrush(dc, theme.text, brText_);
         DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::IndexStatus),
+                     luling::l10n::Get(luling::l10n::StringId::IndexStatus),
                      lay.index_status.left + 16.0f * scale_, lay.index_status.top + 12.0f * scale_,
                      lay.index_status.right - lay.index_status.left - 32.0f * scale_, 22.0f * scale_);
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
@@ -168,7 +168,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         draw_card(lay.index_path);
         MakeBrush(dc, theme.text, brText_);
         DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::IndexLocation),
+                     luling::l10n::Get(luling::l10n::StringId::IndexLocation),
                      lay.index_path.left + 16.0f * scale_, lay.index_path.top + 8.0f * scale_,
                      100.0f * scale_, 22.0f * scale_);
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
@@ -179,11 +179,11 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                          : lay.index_action[2].left - lay.index_path.left - 28.0f * scale_,
                      20.0f * scale_);
         const std::wstring actions[] = {
-            pulse::l10n::Get(pulse::l10n::StringId::Rebuild),
-            pulse::l10n::Get(pulse::l10n::StringId::OpenLocation),
-            pulse::l10n::Get(vm.settings_index_service
-                ? pulse::l10n::StringId::ChangeLocation
-                : pulse::l10n::StringId::InstallService),
+            luling::l10n::Get(luling::l10n::StringId::Rebuild),
+            luling::l10n::Get(luling::l10n::StringId::OpenLocation),
+            luling::l10n::Get(vm.settings_index_service
+                ? luling::l10n::StringId::ChangeLocation
+                : luling::l10n::StringId::InstallService),
         };
         for (int i = 0; i < 3; ++i) {
             fluent::ControlState st{};
@@ -199,7 +199,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             ? lay.index_path.bottom + 18.0f * scale_
             : lay.index_volume_rows.front().top - 30.0f * scale_;
         DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::LocalDrives),
+                     luling::l10n::Get(luling::l10n::StringId::LocalDrives),
                      lay.content.left + pad, header_y, 200.0f * scale_, 22.0f * scale_);
         for (size_t i = 0; i < vm.settings_index_volumes.size() && i < lay.index_volume_rows.size(); ++i) {
             const auto& volume = vm.settings_index_volumes[i];
@@ -242,7 +242,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
 
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
         DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::Exclusions),
+                     luling::l10n::Get(luling::l10n::StringId::Exclusions),
                      lay.content.left + pad, lay.index_exclude_action.top + 5.0f * scale_,
                      160.0f * scale_, 22.0f * scale_);
         fluent::ControlState add_exclude{};
@@ -250,7 +250,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         add_exclude.hovered = add_exclude.enabled &&
             IsHovered(vm, HitTestResult::SettingsIndexExcludeAction, 0);
         painter_.DrawButton({ lay.index_exclude_action,
-                              pulse::l10n::Get(pulse::l10n::StringId::AddFolder), {},
+                              luling::l10n::Get(luling::l10n::StringId::AddFolder), {},
                               fluent::ButtonKind::Primary, add_exclude });
         if (vm.settings_index_system_known &&
             lay.index_system_card.bottom > lay.index_system_card.top) {
@@ -295,11 +295,11 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             const float text_w = (std::max)(40.0f * scale_, row.right - text_left - 32.0f * scale_ - switch_w);
             MakeBrush(dc, service ? theme.text : theme.text_disabled, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::SettingsSystemFolders),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsSystemFolders),
                          text_left, row.top + 10.0f * scale_, text_w, 22.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::SettingsSystemFoldersDesc),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsSystemFoldersDesc),
                          text_left, row.top + 33.0f * scale_, text_w, 18.0f * scale_);
             fluent::ControlState sw{};
             sw.checked = on;
@@ -313,7 +313,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             for (int g = 0; g < 6; ++g) {
                 const auto& chip = lay.index_system_chip[g];
                 if (chip.right <= chip.left) continue;
-                painter_.DrawBadge({ chip, pulse::l10n::Get(SystemGroupLabel(g)),
+                painter_.DrawBadge({ chip, luling::l10n::Get(SystemGroupLabel(g)),
                                      on ? fluent::BadgeKind::Accent : fluent::BadgeKind::Neutral });
             }
             {
@@ -325,7 +325,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 }
                 MakeBrush(dc, theme.accent, brAccent_);
                 DrawTextRect(dc, compositor_->SmallFormat(), brAccent_.get(),
-                             pulse::l10n::Get(pulse::l10n::StringId::SettingsSystemCustomize),
+                             luling::l10n::Get(luling::l10n::StringId::SettingsSystemCustomize),
                              more.left + 6.0f * scale_, more.top + 5.0f * scale_,
                              more.right - more.left - 20.0f * scale_, 18.0f * scale_);
                 const float cx = more.right - 10.0f * scale_;
@@ -356,13 +356,13 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 painter_.DrawCheckBox(D2D1::RectF(group.left + 4.0f * scale_, group.top,
                                                   group.left + 36.0f * scale_, group.bottom), L"", check);
                 const float label_left = group.left + 44.0f * scale_;
-                const auto label = pulse::l10n::Get(SystemGroupLabel(g));
+                const auto label = luling::l10n::Get(SystemGroupLabel(g));
                 MakeBrush(dc, locked || !on ? theme.text_secondary : theme.text, brText_);
                 DrawTextRect(dc, compositor_->TextFormat(), brText_.get(), label,
                              label_left, group.top + 6.0f * scale_,
                              group.right - label_left - 8.0f * scale_, 22.0f * scale_);
                 if (locked) {
-                    const auto always = pulse::l10n::Get(pulse::l10n::StringId::SettingsSystemAlways);
+                    const auto always = luling::l10n::Get(luling::l10n::StringId::SettingsSystemAlways);
                     const float bw = painter_.MeasureBadgeWidth(always);
                     const float bx = group.right - 8.0f * scale_ - bw;
                     painter_.DrawBadge({ D2D1::RectF(bx, group.top + 15.0f * scale_, bx + bw,
@@ -395,7 +395,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 fluent::EmptyStateSpec fallback;
                 fallback.bounds = art;
                 fallback.glyph = L"\xE738";
-                fallback.title = pulse::l10n::Get(pulse::l10n::StringId::NoExcludedFolders);
+                fallback.title = luling::l10n::Get(luling::l10n::StringId::NoExcludedFolders);
                 painter_.DrawEmptyState(fallback);
             } else {
                 const D2D1_RECT_F caption = D2D1::RectF(
@@ -404,7 +404,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                     lay.index_exclude_empty.right - 16.0f * scale_,
                     lay.index_exclude_empty.bottom - 12.0f * scale_);
                 painter_.DrawText(
-                    pulse::l10n::Get(pulse::l10n::StringId::NoExcludedFoldersDesc),
+                    luling::l10n::Get(luling::l10n::StringId::NoExcludedFoldersDesc),
                     caption, compositor_->SmallFormat(), theme.text_secondary,
                     fluent::HorizontalAlignment::Center);
             }
@@ -430,18 +430,18 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             remove.hovered = remove.enabled &&
                 IsHovered(vm, HitTestResult::SettingsIndexExcludeRemove, static_cast<int>(i));
             painter_.DrawButton({ remove_rc,
-                                  pulse::l10n::Get(pulse::l10n::StringId::Remove), {},
+                                  luling::l10n::Get(luling::l10n::StringId::Remove), {},
                                   fluent::ButtonKind::Standard, remove });
         }
 
         const float network_header_y = lay.network_action[0].top + 5.0f * scale_;
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
         DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::ServerFolders),
+                     luling::l10n::Get(luling::l10n::StringId::ServerFolders),
                      lay.content.left + pad, network_header_y, 160.0f * scale_, 22.0f * scale_);
         const std::wstring network_actions[] = {
-            pulse::l10n::Get(pulse::l10n::StringId::AddFolder),
-            pulse::l10n::Get(pulse::l10n::StringId::Rescan),
+            luling::l10n::Get(luling::l10n::StringId::AddFolder),
+            luling::l10n::Get(luling::l10n::StringId::Rescan),
         };
         for (int i = 0; i < 2; ++i) {
             fluent::ControlState state{};
@@ -454,7 +454,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         if (vm.settings_network_roots.empty()) {
             const float empty_y = lay.network_action[0].bottom + 10.0f * scale_;
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::NoServerFoldersDesc),
+                         luling::l10n::Get(luling::l10n::StringId::NoServerFoldersDesc),
                          lay.content.left + pad, empty_y,
                          lay.content.right - lay.content.left - pad * 2, 22.0f * scale_);
         }
@@ -488,7 +488,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             remove.hovered = remove.enabled &&
                 IsHovered(vm, HitTestResult::SettingsNetworkRemove, static_cast<int>(i));
             painter_.DrawButton({ lay.network_remove[i],
-                                  pulse::l10n::Get(pulse::l10n::StringId::Remove), {},
+                                  luling::l10n::Get(luling::l10n::StringId::Remove), {},
                                   fluent::ButtonKind::Standard, remove });
         }
         }
@@ -511,11 +511,11 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             const float inner_w = card.right - card.left - 32.0f * scale_;
             MakeBrush(dc, theme.text, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::AboutPulse),
+                         luling::l10n::Get(luling::l10n::StringId::AboutLuling),
                          x0, card.top + 12.0f * scale_, inner_w, 24.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::AboutTagline),
+                         luling::l10n::Get(luling::l10n::StringId::AboutTagline),
                          x0, card.top + 38.0f * scale_, inner_w, 20.0f * scale_);
             const auto& rows = vm.settings_about_rows;
             const bool two_columns = AboutTwoColumns(card.right - card.left, scale_);
@@ -538,9 +538,9 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 DrawTextRect(dc, small_fmt, brText_.get(), FitEndEllipsis(rows[i].second, value_w, measure),
                              rx + label_w, ry, value_w, 22.0f * scale_);
             }
-            static constexpr pulse::l10n::StringId kAboutActions[] = {
-                pulse::l10n::StringId::AboutCopyInfo,
-                pulse::l10n::StringId::AboutHomepage,
+            static constexpr luling::l10n::StringId kAboutActions[] = {
+                luling::l10n::StringId::AboutCopyInfo,
+                luling::l10n::StringId::AboutHomepage,
             };
             for (int i = 0; i < 2; ++i) {
                 fluent::ControlState state{};
@@ -550,7 +550,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 const bool copied = copy_feedback_.Elapsed(
                     static_cast<int>(HitTestResult::SettingsAboutAction), i, GetTickCount64()) >= 0;
                 painter_.DrawButton({lay.about_action[i],
-                                     pulse::l10n::Get(copied ? pulse::l10n::StringId::CopiedShort
+                                     luling::l10n::Get(copied ? luling::l10n::StringId::CopiedShort
                                                              : kAboutActions[i]),
                                      copied ? std::wstring_view(L"\xE73E") : std::wstring_view{},
                                      fluent::ButtonKind::Standard, state});
@@ -564,20 +564,20 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             const float inner_w = card.right - card.left - 32.0f * scale_;
             MakeBrush(dc, theme.text, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::AboutMoreApps),
+                         luling::l10n::Get(luling::l10n::StringId::AboutMoreApps),
                          x0, card.top + 12.0f * scale_, inner_w, 24.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::AboutMoreAppsDesc),
+                         luling::l10n::Get(luling::l10n::StringId::AboutMoreAppsDesc),
                          x0, card.top + 38.0f * scale_, inner_w, 20.0f * scale_);
             struct RecommendedApp {
                 const wchar_t* glyph;
                 const wchar_t* name;
-                pulse::l10n::StringId description;
+                luling::l10n::StringId description;
             };
             static constexpr RecommendedApp kApps[] = {
-                {L"\uE8A5", L"LumenPDF", pulse::l10n::StringId::AboutLumenPdfDesc},
-                {L"\uE722", L"LumaShot", pulse::l10n::StringId::AboutLumaShotDesc},
+                {L"\uE8A5", L"LumenPDF", luling::l10n::StringId::AboutLumenPdfDesc},
+                {L"\uE722", L"LumaShot", luling::l10n::StringId::AboutLumaShotDesc},
             };
             IDWriteTextFormat* small_fmt = compositor_->SmallFormat();
             const auto measure = [&](const std::wstring& t) {
@@ -600,7 +600,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 DrawTextRect(dc, compositor_->TextFormat(), brText_.get(), kApps[i].name,
                              tx, row.top + 6.0f * scale_, tw, 22.0f * scale_);
                 DrawTextRect(dc, small_fmt, brTextSecondary_.get(),
-                             FitEndEllipsis(pulse::l10n::Get(kApps[i].description), tw, measure),
+                             FitEndEllipsis(luling::l10n::Get(kApps[i].description), tw, measure),
                              tx, row.top + 28.0f * scale_, tw, 20.0f * scale_);
                 painter_.DrawGlyph(L"\uE8A7",
                                    D2D1::RectF(row.right - 36.0f * scale_, row.top,
@@ -612,15 +612,15 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         draw_card(lay.diagnostics_card);
         MakeBrush(dc, theme.text, brText_);
         DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::Diagnostics),
+                     luling::l10n::Get(luling::l10n::StringId::Diagnostics),
                      lay.diagnostics_card.left + 16.0f * scale_,
                      lay.diagnostics_card.top + 12.0f * scale_,
                      lay.diagnostics_card.right - lay.diagnostics_card.left - 32.0f * scale_,
                      22.0f * scale_);
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
         const std::wstring diagnostics_status = vm.settings_diagnostics_exporting
-            ? pulse::l10n::Get(pulse::l10n::StringId::DiagnosticsExporting)
-            : pulse::l10n::Get(pulse::l10n::StringId::DiagnosticsDesc);
+            ? luling::l10n::Get(luling::l10n::StringId::DiagnosticsExporting)
+            : luling::l10n::Get(luling::l10n::StringId::DiagnosticsDesc);
         DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(), diagnostics_status,
                      lay.diagnostics_card.left + 16.0f * scale_,
                      lay.diagnostics_card.top + 40.0f * scale_,
@@ -636,12 +636,12 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             }
             MakeBrush(dc, theme.text, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::SettingsShowPerformance),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsShowPerformance),
                          row.left + 16.0f * scale_, row.top + 8.0f * scale_,
                          row.right - row.left - 80.0f * scale_, 22.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::SettingsShowPerformanceDesc),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsShowPerformanceDesc),
                          row.left + 16.0f * scale_, row.top + 30.0f * scale_,
                          row.right - row.left - 80.0f * scale_, 18.0f * scale_);
             fluent::ControlState st{};
@@ -653,10 +653,10 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                                             row.top + (56.0f * scale_ + switch_h) * 0.5f),
                                 L"", st);
         }
-        static constexpr pulse::l10n::StringId kDiagnosticsActions[] = {
-            pulse::l10n::StringId::OpenDiagnostics,
-            pulse::l10n::StringId::ClearDiagnostics,
-            pulse::l10n::StringId::ExportDiagnostics,
+        static constexpr luling::l10n::StringId kDiagnosticsActions[] = {
+            luling::l10n::StringId::OpenDiagnostics,
+            luling::l10n::StringId::ClearDiagnostics,
+            luling::l10n::StringId::ExportDiagnostics,
         };
         for (int i = 0; i < 3; ++i) {
             fluent::ControlState state{};
@@ -664,14 +664,14 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             state.hovered = state.enabled &&
                 IsHovered(vm, HitTestResult::SettingsDiagnosticsAction, i);
             painter_.DrawButton({lay.diagnostics_action[i],
-                pulse::l10n::Get(kDiagnosticsActions[i]), {},
+                luling::l10n::Get(kDiagnosticsActions[i]), {},
                 fluent::ButtonKind::Standard, state});
         }
 
         draw_card(lay.update_card);
         MakeBrush(dc, theme.text, brText_);
         DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                     pulse::l10n::Get(pulse::l10n::StringId::Update),
+                     luling::l10n::Get(luling::l10n::StringId::Update),
                      lay.update_card.left + 16.0f * scale_, lay.update_card.top + 12.0f * scale_,
                      lay.update_card.right - lay.update_card.left - 32.0f * scale_,
                      22.0f * scale_);
@@ -691,15 +691,15 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             !vm.settings_update_downloading && !vm.settings_update_installing;
         check.hovered = check.enabled && IsHovered(vm, HitTestResult::SettingsUpdateAction, 0);
         painter_.DrawButton({lay.update_action[0],
-            pulse::l10n::Get(pulse::l10n::StringId::CheckForUpdates), {},
+            luling::l10n::Get(luling::l10n::StringId::CheckForUpdates), {},
             fluent::ButtonKind::Standard, check});
         if (vm.settings_update_available) {
             fluent::ControlState download{};
             download.enabled = !vm.settings_update_installing;
             download.hovered = IsHovered(vm, HitTestResult::SettingsUpdateAction, 1);
             painter_.DrawButton({lay.update_action[1],
-                pulse::l10n::Get(vm.settings_update_downloading ? pulse::l10n::StringId::Cancel :
-                    pulse::l10n::StringId::DownloadUpdate), {},
+                luling::l10n::Get(vm.settings_update_downloading ? luling::l10n::StringId::Cancel :
+                    luling::l10n::StringId::DownloadUpdate), {},
                 fluent::ButtonKind::Primary, download});
         }
         if (lay.update_auto_row.bottom > lay.update_auto_row.top) {
@@ -714,12 +714,12 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             }
             MakeBrush(dc, theme.text, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::SettingsAutoUpdate),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsAutoUpdate),
                          row.left + 16.0f * scale_, row.top + 8.0f * scale_,
                          row.right - row.left - 80.0f * scale_, 22.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::SettingsAutoUpdateDesc),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsAutoUpdateDesc),
                          row.left + 16.0f * scale_, row.top + 30.0f * scale_,
                          row.right - row.left - 80.0f * scale_, 18.0f * scale_);
             fluent::ControlState st{};
@@ -746,16 +746,16 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             const float head_w = (std::max)(0.0f, lay.release_all.left - 12.0f * scale_ - x0);
             MakeBrush(dc, theme.text, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::ReleaseNotes),
+                         luling::l10n::Get(luling::l10n::StringId::ReleaseNotes),
                          x0, card.top + 12.0f * scale_, head_w, 22.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::ReleaseNotesDesc),
+                         luling::l10n::Get(luling::l10n::StringId::ReleaseNotesDesc),
                          x0, card.top + 38.0f * scale_, head_w, 22.0f * scale_);
             fluent::ControlState all{};
             all.enabled = true;
             all.hovered = IsHovered(vm, HitTestResult::SettingsAboutAction, 2);
-            painter_.DrawButton({lay.release_all, pulse::l10n::Get(pulse::l10n::StringId::ReleaseAll),
+            painter_.DrawButton({lay.release_all, luling::l10n::Get(luling::l10n::StringId::ReleaseAll),
                                  {}, fluent::ButtonKind::Standard, all});
             const auto* notes = vm.settings_release_notes;
             IDWriteTextFormat* small_fmt = compositor_->SmallFormat();
@@ -777,7 +777,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                                                    row.left + 26.0f * scale_, row.bottom),
                                        theme.text_secondary);
                     const float vx = row.left + kReleaseTextInsetDip * scale_;
-                    const std::wstring version_title = L"Pulse " + note.version;
+                    const std::wstring version_title = L"Luling " + note.version;
                     const float title_w = MeasureTextWidth(compositor_->DwriteFactory(),
                                                            compositor_->TextFormat(), version_title);
                     MakeBrush(dc, theme.text, brText_);
@@ -785,7 +785,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                                  vx, row.top + 7.0f * scale_, title_w + 4.0f * scale_, 22.0f * scale_);
                     float after = vx + title_w + 12.0f * scale_;
                     if (note.current) {
-                        const std::wstring badge = pulse::l10n::Get(pulse::l10n::StringId::ReleaseCurrent);
+                        const std::wstring badge = luling::l10n::Get(luling::l10n::StringId::ReleaseCurrent);
                         const float bw = painter_.MeasureBadgeWidth(badge);
                         fluent::BadgeSpec spec{};
                         spec.bounds = D2D1::RectF(after, row.top + 8.0f * scale_, after + bw,
@@ -843,10 +843,10 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(), vm.dup_hint,
                      lay.content.left + pad, origin + pad + 44.0f * scale_,
                      lay.content.right - lay.content.left - pad * 2, 28.0f * scale_);
-        static constexpr pulse::l10n::StringId kScope[] = {
-            pulse::l10n::StringId::DupScopeFolder,
-            pulse::l10n::StringId::DupScopeDrive,
-            pulse::l10n::StringId::DupScopeAll,
+        static constexpr luling::l10n::StringId kScope[] = {
+            luling::l10n::StringId::DupScopeFolder,
+            luling::l10n::StringId::DupScopeDrive,
+            luling::l10n::StringId::DupScopeAll,
         };
         for (int i = 0; i < 3; ++i) {
             fluent::SegmentedItemSpec segment;
@@ -856,7 +856,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             segment.bounds = D2D1::RectF(segment.bounds.left + 3 * scale_, segment.bounds.top + 3 * scale_,
                 segment.bounds.right - 3 * scale_, segment.bounds.bottom - 3 * scale_);
             segment.shared_track = true;
-            segment.text = pulse::l10n::Get(kScope[i]);
+            segment.text = luling::l10n::Get(kScope[i]);
             segment.position = i == 0 ? fluent::SegmentPosition::First
                              : i == 2 ? fluent::SegmentPosition::Last
                                       : fluent::SegmentPosition::Middle;
@@ -869,7 +869,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         if (vm.dup_scope == 0) {
             MakeBrush(dc, theme.text, brText_);
             const std::wstring folder = vm.dup_folder.empty()
-                ? pulse::l10n::Get(pulse::l10n::StringId::DupFolderPlaceholder)
+                ? luling::l10n::Get(luling::l10n::StringId::DupFolderPlaceholder)
                 : vm.dup_folder;
             DrawTextRect(dc, compositor_->SmallFormat(), brText_.get(), folder,
                          lay.content.left + pad + 16.0f * scale_, lay.dup_browse.top,
@@ -879,7 +879,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             browse.enabled = !vm.dup_scanning;
             browse.hovered = browse.enabled && IsHovered(vm, HitTestResult::SettingsDupBrowse);
             painter_.DrawButton({lay.dup_browse,
-                pulse::l10n::Get(pulse::l10n::StringId::DupBrowse), {},
+                luling::l10n::Get(luling::l10n::StringId::DupBrowse), {},
                 fluent::ButtonKind::Standard, browse});
         } else if (vm.dup_scope == 1) {
             for (size_t i = 0; i < vm.dup_drives.size() && i < lay.dup_drives.size(); ++i) {
@@ -893,21 +893,21 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                     fluent::ButtonKind::Toggle, chip});
             }
         }
-        static constexpr pulse::l10n::StringId kMin[] = {
-            pulse::l10n::StringId::DupMinSize1KB,
-            pulse::l10n::StringId::DupMinSize1MB,
-            pulse::l10n::StringId::DupMinSize10MB,
+        static constexpr luling::l10n::StringId kMin[] = {
+            luling::l10n::StringId::DupMinSize1KB,
+            luling::l10n::StringId::DupMinSize1MB,
+            luling::l10n::StringId::DupMinSize10MB,
         };
         {
             const float label_top = lay.dup_min_size[0].top - 40.0f * scale_;
             MakeBrush(dc, theme.text, brText_);
             DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::DupMinSize),
+                         luling::l10n::Get(luling::l10n::StringId::DupMinSize),
                          lay.content.left + pad + 16*scale_, label_top,
                          lay.content.right - lay.content.left - pad * 2, 20.0f * scale_);
             MakeBrush(dc, theme.text_secondary, brTextSecondary_);
             DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
-                         pulse::l10n::Get(pulse::l10n::StringId::DupMinSizeDesc),
+                         luling::l10n::Get(luling::l10n::StringId::DupMinSizeDesc),
                          lay.content.left + pad + 16*scale_, label_top + 20.0f * scale_,
                          lay.content.right - lay.content.left - pad * 2, 18.0f * scale_);
         }
@@ -919,7 +919,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             segment.bounds = D2D1::RectF(segment.bounds.left + 3 * scale_, segment.bounds.top + 3 * scale_,
                 segment.bounds.right - 3 * scale_, segment.bounds.bottom - 3 * scale_);
             segment.shared_track = true;
-            segment.text = pulse::l10n::Get(kMin[i]);
+            segment.text = luling::l10n::Get(kMin[i]);
             segment.position = i == 0 ? fluent::SegmentPosition::First
                              : i == 2 ? fluent::SegmentPosition::Last
                                       : fluent::SegmentPosition::Middle;
@@ -932,12 +932,12 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         fluent::ControlState scan{};
         scan.enabled = vm.dup_can_scan && !vm.dup_scanning;
         scan.hovered = scan.enabled && IsHovered(vm, HitTestResult::SettingsDupScan);
-        painter_.DrawButton({lay.dup_scan, pulse::l10n::Get(pulse::l10n::StringId::DupScan), {},
+        painter_.DrawButton({lay.dup_scan, luling::l10n::Get(luling::l10n::StringId::DupScan), {},
             fluent::ButtonKind::Primary, scan});
         fluent::ControlState cancel{};
         cancel.enabled = vm.dup_scanning;
         cancel.hovered = cancel.enabled && IsHovered(vm, HitTestResult::SettingsDupCancel);
-        painter_.DrawButton({lay.dup_cancel, pulse::l10n::Get(pulse::l10n::StringId::Cancel), {},
+        painter_.DrawButton({lay.dup_cancel, luling::l10n::Get(luling::l10n::StringId::Cancel), {},
             fluent::ButtonKind::Standard, cancel});
         if (vm.dup_show_progress) {
             draw_card(lay.dup_progress);
@@ -998,7 +998,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                     IsHovered(vm, HitTestResult::SettingsDupKeep, static_cast<int>(g),
                               static_cast<int>(f));
                 painter_.DrawRadioButton(keep_rc,
-                    pulse::l10n::Get(pulse::l10n::StringId::DupKeep), radio);
+                    luling::l10n::Get(luling::l10n::StringId::DupKeep), radio);
                 MakeBrush(dc, theme.text, brText_);
                 DrawTextRect(dc, compositor_->SmallFormat(), brText_.get(), file.name,
                              open_rc.left, open_rc.top, open_rc.right - open_rc.left,
@@ -1016,7 +1016,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 del.hovered = del.enabled &&
                     IsHovered(vm, HitTestResult::SettingsDupGroupDelete, static_cast<int>(g));
                 painter_.DrawButton({lay.dup_group_delete[g],
-                    pulse::l10n::Get(pulse::l10n::StringId::DupDeleteExtras), {},
+                    luling::l10n::Get(luling::l10n::StringId::DupDeleteExtras), {},
                     fluent::ButtonKind::Standard, del});
             }
         }
@@ -1119,4 +1119,4 @@ float MainRenderer::SettingsMaxScroll(const WindowViewModel& vm, float window_w,
     return (std::max)(0.0f, lay.content_h - view);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

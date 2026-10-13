@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cwctype>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 const wchar_t* ViewModeName(ViewMode mode) noexcept {
     switch (mode) {
@@ -359,4 +359,4 @@ int ViewLayout::PageDelta() const noexcept {
     return rows * metrics_.columns;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -2,7 +2,7 @@
 #include "../common/localization.h"
 #include "../common/runtime_log.h"
 
-namespace pulse::ops {
+namespace luling::ops {
 void OpsManager::ResolveAuthorization(uint64_t task_id, bool retry) {
     {
         std::lock_guard lock(transfer_control_mutex_);

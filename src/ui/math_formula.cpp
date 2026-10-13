@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 using Microsoft::WRL::ComPtr;
 
@@ -246,4 +246,4 @@ void DrawMathTextLayout(ID2D1DeviceContext* dc, IDWriteTextLayout* layout, D2D1_
     layout->Draw(&context, renderer.Get(), origin.x, origin.y);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

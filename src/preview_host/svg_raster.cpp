@@ -26,7 +26,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 // Refused above this size: the UI allows one second per request, and a
@@ -420,4 +420,4 @@ bool RasterizeSvgFile(const std::wstring& path, UINT max_edge,
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

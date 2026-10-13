@@ -15,7 +15,7 @@
 #include <memory>
 #include <set>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 bool ReadAll(HANDLE pipe, void* output, DWORD size) {
@@ -307,4 +307,4 @@ int RunPersistentContentAgent(const std::wstring& token, DWORD parent_pid, Conte
     CloseHandle(monitor_stop); CloseHandle(parent); if (accept_thread) CloseHandle(accept_thread);
     return 0;
 }
-} // namespace pulse::index
+} // namespace luling::index

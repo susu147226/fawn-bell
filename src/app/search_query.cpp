@@ -6,7 +6,7 @@
 #include <cwctype>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 void Trim(std::wstring& s) {
@@ -553,4 +553,4 @@ std::wstring ApplySearchEmptyAction(std::wstring_view raw, SearchEmptyAction act
     return CompileSearchQuery(spec);
 }
 
-} // namespace pulse::app
+} // namespace luling::app

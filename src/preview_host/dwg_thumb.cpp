@@ -18,7 +18,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr unsigned char kImageSentinel[16] = {
@@ -200,4 +200,4 @@ bool ExtractDwgThumbnail(const std::wstring& path, UINT max_edge,
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

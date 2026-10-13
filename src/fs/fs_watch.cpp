@@ -3,7 +3,7 @@
 #include "fs_enum.h"
 #include <algorithm>
 
-namespace pulse::fs {
+namespace luling::fs {
 
 namespace {
 
@@ -350,4 +350,4 @@ bool DirWatchSet::Armed(const std::wstring& path) const {
     return it != watches_.end() && it->second && it->second->Armed();
 }
 
-} // namespace pulse::fs
+} // namespace luling::fs

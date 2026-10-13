@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FileOperationWindowTestAccess {
     static HWND Handle(FileOperationWindow& window) { return window.hwnd_; }
     static void Size(FileOperationWindow& window, UINT dpi) {
@@ -44,16 +44,16 @@ void Check(bool pass, const char* label) {
     std::printf("[%s] %s\n", pass ? "PASS" : "FAIL", label);
     if (!pass) ++failures;
 }
-void Click(pulse::ui::FileOperationWindow& window, POINT point) {
+void Click(luling::ui::FileOperationWindow& window, POINT point) {
     if (point.x < 0) return;
-    const HWND hwnd = pulse::ui::FileOperationWindowTestAccess::Handle(window);
+    const HWND hwnd = luling::ui::FileOperationWindowTestAccess::Handle(window);
     SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(point.x, point.y));
     SendMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(point.x, point.y));
 }
 }
 
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse;
+    using namespace luling;
     using Access = ui::FileOperationWindowTestAccess;
     compat::EnableDpiAwareness();
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);

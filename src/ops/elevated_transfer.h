@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 enum class ShellCollisionPolicy { System, Replace, KeepBoth };
 struct ShellTransferResult {
     HRESULT hr = S_OK;
@@ -33,4 +33,4 @@ ShellTransferResult TransferWithShell(const std::vector<std::wstring>& sources,
     ShellTransferProgress progress = {});
 // Exposed for a noninteractive regression check of collision policy.
 DWORD ShellTransferFlags(ShellCollisionPolicy policy);
-} // namespace pulse::ops
+} // namespace luling::ops

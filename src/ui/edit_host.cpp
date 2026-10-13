@@ -2,13 +2,13 @@
 #include "typography.h"
 #include <commctrl.h>
 #include <algorithm>
-namespace pulse::ui {
+namespace luling::ui {
 constexpr UINT_PTR kEditCaretTimer = 71;
 namespace {
-constexpr wchar_t kNativeEdit[] = L"Pulse.NativeEditFallback";
-constexpr wchar_t kPolicyNative[] = L"Pulse.NativeEditPolicy";
-constexpr wchar_t kRestoreUploaded[] = L"Pulse.EditRestoreUploaded";
-constexpr wchar_t kMigrating[] = L"Pulse.EditMigrating";
+constexpr wchar_t kNativeEdit[] = L"Luling.NativeEditFallback";
+constexpr wchar_t kPolicyNative[] = L"Luling.NativeEditPolicy";
+constexpr wchar_t kRestoreUploaded[] = L"Luling.EditRestoreUploaded";
+constexpr wchar_t kMigrating[] = L"Luling.EditMigrating";
 void RestoreNativeCaret(HWND hwnd) {
     if (GetFocus() != hwnd) return;
     GUITHREADINFO info{sizeof(info)};
@@ -56,8 +56,8 @@ bool CustomEdit(Compositor& compositor, HWND hwnd) {
 bool PresentEdit(Compositor& compositor, HWND hwnd, IDWriteTextFormat* format,
     D2D1_COLOR_F foreground, D2D1_COLOR_F background) {
     bool force_failure = false;
-#ifdef PULSE_WITH_SELFTEST
-    force_failure = GetPropW(hwnd, L"Pulse.Test.LumaPresentFailure") != nullptr;
+#ifdef LULING_WITH_SELFTEST
+    force_failure = GetPropW(hwnd, L"Luling.Test.LumaPresentFailure") != nullptr;
 #endif
     if (!force_failure && compositor.PresentLumaEdit(hwnd, format, foreground, background)) return true;
     // Keep native EDIT input, selection and IME together if presentation fails.

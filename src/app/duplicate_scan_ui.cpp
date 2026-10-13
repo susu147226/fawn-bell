@@ -5,7 +5,7 @@
 
 #include <thread>
 
-namespace pulse {
+namespace luling {
 
 void PersistDuplicateScanPrefs(AppState& s) {
     s.appPrefs.duplicate_scan_scope = static_cast<int>(s.duplicateScan.scope);
@@ -102,4 +102,4 @@ void OpenDuplicateLocation(AppState& s, size_t group, size_t file) {
     if (!parent.empty()) NavigateTo(s, parent);
 }
 
-} // namespace pulse
+} // namespace luling

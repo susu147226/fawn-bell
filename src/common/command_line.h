@@ -2,7 +2,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse {
+namespace luling {
 inline std::wstring QuoteWindowsArgument(std::wstring_view value) {
     std::wstring result = L"\"";
     size_t slashes = 0;

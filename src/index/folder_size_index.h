@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 // Retain totals for directories only. File metadata stays in the existing MFT
 // index; an edit touches just the old and new ancestor chains.
 class FolderSizeIndex {

@@ -24,7 +24,7 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class LumaTextRenderer;
 struct LumaTextStats;
@@ -141,4 +141,4 @@ private:
     bool device_lost_ = false;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

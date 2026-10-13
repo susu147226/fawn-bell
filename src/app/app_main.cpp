@@ -8,7 +8,7 @@
 #include "filter_animation.h"
 #include "sidebar_resize.h"
 #include "ui_timer_pacer.h"
-// app_main.cpp — Pulse UI process entry point, window, input, shot mode.
+// app_main.cpp — Luling UI process entry point, window, input, shot mode.
 #include "../ui/ui_compositor.h"
 #include "../ui/lumatext_renderer.h"
 #include "../ui/ui_renderer.h"
@@ -25,7 +25,7 @@
 #include "../common/crash_reporter.h"
 #include "../common/diagnostics_exporter.h"
 #include "../common/localization.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include "../fs/fs_enum.h"
 #include "../fs/fs_recycle.h"
 #include "../fs/fs_snapshot.h"
@@ -64,7 +64,7 @@
 #include "../ui/color_picker.h"
 #include "../ui/bloom_accent_picker.h"
 #include "../ui/folder_picker_dialog.h"
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "selftest_1b2.h"
 #include "../bench/startup_rollback_test.h"
 #endif
@@ -125,7 +125,7 @@ void RegisterAssocChangeNotify(HWND hwnd) {
     if (FAILED(SHGetFolderLocation(nullptr, CSIDL_DESKTOP, nullptr, 0, &desktop))) return;
     SHChangeNotifyEntry entry{desktop, TRUE};
     g_assocNotify = SHChangeNotifyRegister(hwnd, SHCNRF_ShellLevel, SHCNE_ASSOCCHANGED,
-                                           pulse::WM_ASSOC_CHANGED, 1, &entry);
+                                           luling::WM_ASSOC_CHANGED, 1, &entry);
     CoTaskMemFree(desktop);
 }
 
@@ -146,7 +146,7 @@ void UnregisterAssocChangeNotify() {
 #include <commctrl.h>
 #include <dbt.h> // WM_DEVICECHANGE / DEV_BROADCAST_HDR
 
-using namespace pulse;
+using namespace luling;
 
 uint64_t FileTimeValue(const FILETIME& value) {
     ULARGE_INTEGER result{};
@@ -188,7 +188,7 @@ static bool IndexStatusVisible(AppState& s) {
     ForEachPane(s, [&](app::Pane& pane) {
         const app::Tab* tab = pane.ActiveTab();
         std::wstring kind;
-        if (tab && app::ParsePulsePath(tab->current_path, &kind, nullptr) &&
+        if (tab && app::ParseLulingPath(tab->current_path, &kind, nullptr) &&
             (kind == L"search" || kind == L"saved-search" || kind == L"settings"))
             visible = true;
     });
@@ -244,7 +244,7 @@ void Render(AppState& s) {
     const auto present_start = std::chrono::steady_clock::now();
     wchar_t hidden_frame[4]{};
     const bool hidden_capture = s.shot.active &&
-        GetEnvironmentVariableW(L"PULSE_TEST_HIDDEN_SHOT", hidden_frame, ARRAYSIZE(hidden_frame)) == 1 &&
+        GetEnvironmentVariableW(L"LULING_TEST_HIDDEN_SHOT", hidden_frame, ARRAYSIZE(hidden_frame)) == 1 &&
         hidden_frame[0] == L'1';
     // An occluded flip chain advances to an unpainted buffer after Present.
     if (!hidden_capture) s.compositor.Present();
@@ -266,7 +266,7 @@ void Render(AppState& s) {
     auto t1 = std::chrono::steady_clock::now();
     s.lastFrameMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
     // FPS = frames presented per second over a sliding ~1 s window of
-    // continuous rendering. Pulse paints on demand: 1/dt of two adjacent
+    // continuous rendering. Luling paints on demand: 1/dt of two adjacent
     // paints reported the idle gap as "1 FPS" and back-to-back paints as
     // thousands. An idle gap restarts the window instead of being averaged in,
     // and the value only updates once the window spans enough frames.
@@ -340,7 +340,7 @@ static bool SaveWindowSession(AppState& s, HWND hwnd, bool force) {
     return session_saved && prefs_saved;
 }
 
-bool pulse::PrepareSessionForUpdate(AppState& s) {
+bool luling::PrepareSessionForUpdate(AppState& s) {
     s.updateSessionPrepared = SaveWindowSession(s, s.hwnd, false);
     return s.updateSessionPrepared;
 }
@@ -427,34 +427,34 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         InstallTrayRevealHook(*s);
 
         s->scale = s->shot_scale_override > 0.0f
-            ? s->shot_scale_override : (float)pulse::compat::WindowDpi(hwnd) / 96.0f;
+            ? s->shot_scale_override : (float)luling::compat::WindowDpi(hwnd) / 96.0f;
         s->accentColor = ui::GetAccentColor();
         s->darkMode = ui::ShouldUseDarkMode(s->themeOverride);
         s->backdropActive = ui::ApplyWindowEffect(hwnd, ui::WindowEffect::MicaAlt, s->darkMode);
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         if (StartupRollbackFaultForTest(1)) return -1;
 #endif
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         // Fault injection is disabled unless all persistence is redirected.
         wchar_t startup_fault[32]{};
-        const bool startup_fixture = GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) > 0;
-        if (startup_fixture) GetEnvironmentVariableW(L"PULSE_TEST_STARTUP_FAIL", startup_fault, ARRAYSIZE(startup_fault));
+        const bool startup_fixture = GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) > 0;
+        if (startup_fixture) GetEnvironmentVariableW(L"LULING_TEST_STARTUP_FAIL", startup_fault, ARRAYSIZE(startup_fault));
         if (wcscmp(startup_fault, L"graphics") == 0) return -1;
 #endif
         if (!s->compositor.Init(hwnd)) {
             const std::wstring message = L"Failed to initialize D3D/D2D/DWrite\n\n" +
-                s->compositor.InitializationError() + L"\n\nLog: %LOCALAPPDATA%\\Pulse\\pulse_graphics.log";
-            MessageBoxW(hwnd, message.c_str(), L"Pulse", MB_OK | MB_ICONERROR);
+                s->compositor.InitializationError() + L"\n\nLog: %LOCALAPPDATA%\\Luling\\luling_graphics.log";
+            MessageBoxW(hwnd, message.c_str(), L"Luling", MB_OK | MB_ICONERROR);
             return -1;
         }
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         if (wcscmp(startup_fault, L"after-graphics") == 0) return -1;
 #endif
         s->compositor.RecreateTextFormats(s->scale);
         if (s->shot.active) {
             wchar_t toast_test[2]{};
-            if (GetEnvironmentVariableW(L"PULSE_TEST_TOAST", toast_test, 2) == 1 && toast_test[0] == L'1')
+            if (GetEnvironmentVariableW(L"LULING_TEST_TOAST", toast_test, 2) == 1 && toast_test[0] == L'1')
                 s->notification_toast.Show(hwnd,
                     l10n::Get(l10n::StringId::IndexMigrationIncomplete),
                     l10n::Get(l10n::StringId::IndexMigrationNoSpace));
@@ -468,7 +468,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
         s->window_tabs.EnsureDefault();
         BindCurrentLayout(*s);
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         if (StartupRollbackFaultForTest(2)) return -1;
 #endif
         s->tabs.SetCallbacks({
@@ -486,7 +486,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         });
         if (s->isolatedTest) {
             s->places.persist = false;
-            s->appPrefs.persist = s->isolatedTestPersist; // only into PULSE_TEST_DATA_DIR
+            s->appPrefs.persist = s->isolatedTestPersist; // only into LULING_TEST_DATA_DIR
             s->ctxMenuPrefs.persist = s->isolatedTestPersist;
         }
         s->savedSearches.Load();
@@ -498,14 +498,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             // GUI verification of the menu settings with a given hidden mask
             // (decimal), without touching the user's context_menu.json.
             wchar_t mask[16]{};
-            if (GetEnvironmentVariableW(L"PULSE_TEST_BUILTIN_HIDDEN", mask, ARRAYSIZE(mask)) > 0) {
+            if (GetEnvironmentVariableW(L"LULING_TEST_BUILTIN_HIDDEN", mask, ARRAYSIZE(mask)) > 0) {
                 s->ctxMenuPrefs.builtin_hidden = static_cast<uint32_t>(wcstoul(mask, nullptr, 10));
                 s->ctxMenuPrefs.persist = false;
             }
-            // PULSE_TEST_BUILTIN_ORDER0/1/2: comma-joined row keys per surface.
+            // LULING_TEST_BUILTIN_ORDER0/1/2: comma-joined row keys per surface.
             for (int surface = 0; surface < static_cast<int>(app::BuiltinMenuSurface::Count); ++surface) {
                 wchar_t name[32]{};
-                swprintf_s(name, L"PULSE_TEST_BUILTIN_ORDER%d", surface);
+                swprintf_s(name, L"LULING_TEST_BUILTIN_ORDER%d", surface);
                 wchar_t keys[512]{};
                 if (GetEnvironmentVariableW(name, keys, ARRAYSIZE(keys)) == 0) continue;
                 app::BuiltinMenuOrder order;
@@ -541,7 +541,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (s->shot.active) {
             // GUI verification of hidden / protected item styling (never persisted).
             wchar_t show_hidden[2]{};
-            if (GetEnvironmentVariableW(L"PULSE_TEST_SHOW_HIDDEN", show_hidden, 2) == 1 &&
+            if (GetEnvironmentVariableW(L"LULING_TEST_SHOW_HIDDEN", show_hidden, 2) == 1 &&
                 show_hidden[0] == L'1') {
                 s->appPrefs.show_hidden_files = true;
                 s->appPrefs.show_protected_os_files = true;
@@ -552,7 +552,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->update_result_ready = true;
             s->update_result.update_available = true;
             s->update_result.version = L"9.8.7";
-            s->update_result.download_page = L"https://updates.example.test/pulse";
+            s->update_result.download_page = L"https://updates.example.test/luling";
             s->update_result.installer_sha256 =
                 L"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         }
@@ -585,10 +585,10 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         ApplyAccentFromPrefs(*s, true);
         ApplyAppWindowChrome(*s);
         bool selection_fixture = false;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         wchar_t fixture_scope[32]{};
-        selection_fixture = s->isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) &&
-            GetEnvironmentVariableW(L"PULSE_TEST_P1_SCOPE", fixture_scope, ARRAYSIZE(fixture_scope)) &&
+        selection_fixture = s->isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) &&
+            GetEnvironmentVariableW(L"LULING_TEST_P1_SCOPE", fixture_scope, ARRAYSIZE(fixture_scope)) &&
             (wcscmp(fixture_scope, L"selection") == 0 || wcscmp(fixture_scope, L"menu") == 0 ||
              wcscmp(fixture_scope, L"layout") == 0);
 #endif
@@ -617,8 +617,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         };
         if (s->appPrefs.load_failed) {
             settings_callbacks.show_error(l10n::HantText(l10n::Pick(
-                L"原设置未能读取，已阻止覆盖。请关闭后重试打开 Pulse。",
-                L"The original settings could not be read. Saving is blocked to protect them. Restart Pulse to retry.")));
+                L"原设置未能读取，已阻止覆盖。请关闭后重试打开 鹿铃。",
+                L"The original settings could not be read. Saving is blocked to protect them. Restart Luling to retry.")));
         }
         settings_callbacks.integration_changed = [s] { SyncShellWindows(*s); };
         settings_callbacks.task_completion = SettingsCompletion(hwnd);
@@ -626,14 +626,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             ShellExecuteW(hwnd, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         };
         settings_callbacks.open_diagnostics = [hwnd] {
-            const std::wstring path = app::GetPulseDataDir() + L"\\Diagnostics";
-            CreateDirectoryW((app::GetPulseDataDir() + L"\\Diagnostics").c_str(), nullptr);
+            const std::wstring path = app::GetLulingDataDir() + L"\\Diagnostics";
+            CreateDirectoryW((app::GetLulingDataDir() + L"\\Diagnostics").c_str(), nullptr);
             CreateDirectoryW(path.c_str(), nullptr);
             ShellExecuteW(hwnd, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         };
         settings_callbacks.clear_diagnostics = [s](std::wstring& error) {
             if (!ConfirmClearDiagnostics(*s)) return true;
-            if (diagnostics::ClearCrashReports(app::GetPulseDataDir(), &error)) return true;
+            if (diagnostics::ClearCrashReports(app::GetLulingDataDir(), &error)) return true;
             error = l10n::Get(l10n::StringId::DiagnosticsClearFailed);
             return false;
         };
@@ -662,7 +662,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             if (!empty) return false;
 
             diagnostics::ExportOptions options;
-            options.source_root = app::GetPulseDataDir();
+            options.source_root = app::GetLulingDataDir();
             options.include_dumps = true;
             options.require_empty_destination = true;
             if (!include_service) {
@@ -693,14 +693,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         RequestNetworkLocations(*s);
 
         // Ops layer: queue worker + shell host IPC; notify repaints the status bar.
-        const std::wstring data_dir = app::GetPulseDataDir();
+        const std::wstring data_dir = app::GetLulingDataDir();
         if (!s->isolatedTest && !data_dir.empty())
             s->ops.SetJournalPath(data_dir + L"\\operations.json");
         s->ops.SetVerifyCopies(s->appPrefs.verify_copies);
-        // Shell dialogs (打开方式…/属性) must be owned by the Pulse window.
+        // Shell dialogs (打开方式…/属性) must be owned by the Luling window.
         s->ops.SetUiWindow(hwnd);
         s->ops.Start([hwnd] { PostMessageW(hwnd, WM_OPS_NOTIFY, 0, 0); });
-        // Drop stages of Pulse processes that are gone (#55).
+        // Drop stages of Luling processes that are gone (#55).
         app::SweepDropStages(app::DropStageRoot(), false);
         const ops::RecoverySnapshot recovery = s->isolatedTest
             ? ops::RecoverySnapshot{} : s->ops.PendingRecovery();
@@ -898,11 +898,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (!IsZoomed(hwnd)) {
             RECT wr{};
             GetWindowRect(hwnd, &wr);
-            const UINT dpi = pulse::compat::WindowDpi(hwnd);
-            const int frameX = pulse::compat::SystemMetricsForDpi(SM_CXSIZEFRAME, dpi)
-                             + pulse::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
-            const int frameY = pulse::compat::SystemMetricsForDpi(SM_CYSIZEFRAME, dpi)
-                             + pulse::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+            const UINT dpi = luling::compat::WindowDpi(hwnd);
+            const int frameX = luling::compat::SystemMetricsForDpi(SM_CXSIZEFRAME, dpi)
+                             + luling::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+            const int frameY = luling::compat::SystemMetricsForDpi(SM_CYSIZEFRAME, dpi)
+                             + luling::compat::SystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
             const bool left = screenPt.x >= wr.left && screenPt.x < wr.left + frameX;
             const bool right = screenPt.x < wr.right && screenPt.x >= wr.right - frameX;
             const bool top = screenPt.y >= wr.top && screenPt.y < wr.top + frameY;
@@ -999,7 +999,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (!s || !s->single_instance.OwnsEndpoint(hwnd)) return FALSE;
         auto* cds = reinterpret_cast<COPYDATASTRUCT*>(lParam);
         if (app::ShellTagRequest tag_request; s && app::DecodeShellTagRequest(cds, tag_request)) {
-            // Explorer "Pulse tags" verb: tag in place, never raise the window.
+            // Explorer "Luling tags" verb: tag in place, never raise the window.
             QueueShellTagRequest(*s, std::move(tag_request), false);
             return TRUE;
         }
@@ -1026,8 +1026,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return 0;
     }
 
-    case WM_EXIT_PULSE:
-        // Palette "Exit Pulse" (#57): the tray menu's full exit, reachable
+    case WM_EXIT_LULING:
+        // Palette "Exit Luling" (#57): the tray menu's full exit, reachable
         // when the icon is hidden. Posted so the palette unwinds first.
         DestroyWindow(hwnd);
         return 0;
@@ -1090,7 +1090,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (s && LOWORD(wParam) != WA_INACTIVE) {
             std::wstring kind, page;
             const auto* tab = ActiveTab(*s);
-            if (tab && app::ParsePulsePath(tab->current_path, &kind, &page) && kind == L"settings" &&
+            if (tab && app::ParseLulingPath(tab->current_path, &kind, &page) && kind == L"settings" &&
                 app::SettingsController::PageFromName(page) == 5)
                 ui::DetectPreviewCodecs(true, hwnd);
         }
@@ -1214,7 +1214,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 if (s->framePump.Running()) s->framePump.Arm();
                 else dirty = true;
             }
-            if (pulse::TickSidebarPeek(*s, now)) dirty = true;
+            if (luling::TickSidebarPeek(*s, now)) dirty = true;
             TickShellTagMenu(*s, now);
             if (s->detailsPreviewFoldStart) {
                 const float t = std::min(1.0f, static_cast<float>(now - s->detailsPreviewFoldStart) / 150.0f);
@@ -1320,7 +1320,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
             if (app::Tab* tab = ActiveTab(*s)) {
                 std::wstring kind, rest;
-                if (app::ParsePulsePath(tab->current_path, &kind, &rest) &&
+                if (app::ParseLulingPath(tab->current_path, &kind, &rest) &&
                     kind == L"settings") {
                     const int page = app::SettingsController::PageFromName(rest);
                     if (page == 0 && s->bloom_accent.Tick(0.016f)) dirty = true;
@@ -1337,7 +1337,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 dirty = !s->tooltipText.empty() || dirty;
             }
             if (UpdateTeachTip(*s)) dirty = true;
-            // Staging tray: notice items moved or deleted outside Pulse.
+            // Staging tray: notice items moved or deleted outside Luling.
             if (!s->tray.batches().empty() && GetTickCount64() - s->trayProbeAt >= 2000) {
                 s->trayProbeAt = GetTickCount64();
                 if (s->tray.RefreshExists()) dirty = true;
@@ -1441,7 +1441,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         }
         if (hit.region == ui::HitTestResult::SettingsToggle && hit.index >= ui::kSettingsMenuRowHit) {
             // Hand, not IDC_SIZEALL: some pointer themes draw "move" like "no".
-            SetCursor(LoadCursorW(nullptr, IDC_HAND)); // movable Pulse menu preview row
+            SetCursor(LoadCursorW(nullptr, IDC_HAND)); // movable Luling menu preview row
             return TRUE;
         }
         break;
@@ -1454,13 +1454,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (GetCapture() == hwnd) ReleaseCapture();
         break;
     case WM_MOUSEMOVE:
-        if (s) pulse::UpdateSidebarPeek(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        if (s) luling::UpdateSidebarPeek(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         if (HandleSidebarResize(s, hwnd, msg, lParam)) return 0;
         if (HandleDetailsPreviewPointer(s, hwnd, msg, wParam, lParam)) return 0;
         return HandleMouseMove(s, hwnd, msg, wParam, lParam);
 
     case WM_MOUSELEAVE:
-        if (s) pulse::CloseSidebarPeek(*s);
+        if (s) luling::CloseSidebarPeek(*s);
         return HandleMouseLeave(s, hwnd, msg, wParam, lParam);
 
     case WM_LBUTTONDOWN:
@@ -1485,8 +1485,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return HandleRButtonDown(s, hwnd, msg, wParam, lParam);
 
     case WM_MBUTTONUP:
-        if (s && pulse::HandleTabMiddleClick(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))) return 0;
-        if (s && pulse::HandleFolderMiddleClick(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))) return 0;
+        if (s && luling::HandleTabMiddleClick(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))) return 0;
+        if (s && luling::HandleFolderMiddleClick(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))) return 0;
         break;
 
     case WM_RBUTTONUP:
@@ -1813,7 +1813,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 ForEachPane(*s, [&](app::Pane& pane) {
                     auto* tab = pane.ActiveTab();
                     std::wstring kind, rest;
-                    if (!tab || !app::ParsePulsePath(tab->current_path, &kind, &rest) ||
+                    if (!tab || !app::ParseLulingPath(tab->current_path, &kind, &rest) ||
                         kind != L"search" || app::SplitSearchQueryText(rest).content.present()) return;
                     if (tab->snapshot && tab->selected_index >= 0 &&
                         static_cast<size_t>(tab->selected_index) < tab->EntryCount())
@@ -2031,7 +2031,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->probe_scheduler.Clear();
             s->probeQueue.clear();
             s->probeUnc.clear();
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
             extern void RecordP1StartupRollback(const AppState&);
             RecordP1StartupRollback(*s);
 #endif
@@ -2120,8 +2120,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     __try {
         return WndProcImpl(hwnd, msg, wParam, lParam);
-    } __except (pulse::crash::AddBreadcrumb(1, msg, static_cast<int32_t>(GetExceptionCode())),
-                pulse::crash::ReportFatal(GetExceptionInformation(), "wndproc")) {
+    } __except (luling::crash::AddBreadcrumb(1, msg, static_cast<int32_t>(GetExceptionCode())),
+                luling::crash::ReportFatal(GetExceptionInformation(), "wndproc")) {
         TerminateProcess(GetCurrentProcess(), GetExceptionCode());
         return 0;
     }
@@ -2138,10 +2138,10 @@ bool WaitForShotReady(AppState& s) {
         ProcessPendingResults(s);
         app::Tab* tab = ActiveTab(s);
         if (tab && !tab->loading && tab->snapshot) {
-            // PULSE_TEST_SHOT_SETTLE_MS: keep pumping after the folder loaded so
+            // LULING_TEST_SHOT_SETTLE_MS: keep pumping after the folder loaded so
             // asynchronous results (thumbnails from the preview host) land in the shot.
             wchar_t settle[16]{};
-            if (GetEnvironmentVariableW(L"PULSE_TEST_SHOT_SETTLE_MS", settle, 16)) {
+            if (GetEnvironmentVariableW(L"LULING_TEST_SHOT_SETTLE_MS", settle, 16)) {
                 const auto until = std::chrono::steady_clock::now() +
                     std::chrono::milliseconds((std::min)(_wtoi(settle), 15000));
                 while (std::chrono::steady_clock::now() < until) {
@@ -2212,11 +2212,11 @@ void StageTagShotStates(AppState& state) {
 }
 
 // No C++ objects with destructors here: SEH (__try/__except) forbids unwinding.
-// Verification hook for --shot-tray: PULSE_SHOT_TRAY_ACTION=<action>:<ms>.
+// Verification hook for --shot-tray: LULING_SHOT_TRAY_ACTION=<action>:<ms>.
 static void ApplyShotTrayAction(AppState& state) {
     wchar_t tray_action[64]{};
     if (state.shot_tray &&
-        GetEnvironmentVariableW(L"PULSE_SHOT_TRAY_ACTION", tray_action, ARRAYSIZE(tray_action))) {
+        GetEnvironmentVariableW(L"LULING_SHOT_TRAY_ACTION", tray_action, ARRAYSIZE(tray_action))) {
         // Verification hook: <action>:<ms> captures the card stack in the
         // middle of an animation (throw, back, drag:<dx>, dismiss, clear, hover).
         int ms = 0;
@@ -2255,27 +2255,27 @@ static void ApplyShotTrayAction(AppState& state) {
     }
 }
 
-// GUI verification for two-pane layouts: PULSE_SHOT_SPLIT_PATH opens that
-// folder in a second pane (PULSE_SHOT_SPLIT_STACKED=1: top/bottom instead of
-// left/right; PULSE_SHOT_SPLIT_FOCUS=1 focuses the second pane).
+// GUI verification for two-pane layouts: LULING_SHOT_SPLIT_PATH opens that
+// folder in a second pane (LULING_SHOT_SPLIT_STACKED=1: top/bottom instead of
+// left/right; LULING_SHOT_SPLIT_FOCUS=1 focuses the second pane).
 static void StageSplitShot(AppState& state) {
     wchar_t second[MAX_PATH]{}, flag[4]{};
     if (!state.isolatedTest ||
-        !GetEnvironmentVariableW(L"PULSE_SHOT_SPLIT_PATH", second, ARRAYSIZE(second))) return;
-    const bool stacked = GetEnvironmentVariableW(L"PULSE_SHOT_SPLIT_STACKED", flag, ARRAYSIZE(flag)) > 0;
+        !GetEnvironmentVariableW(L"LULING_SHOT_SPLIT_PATH", second, ARRAYSIZE(second))) return;
+    const bool stacked = GetEnvironmentVariableW(L"LULING_SHOT_SPLIT_STACKED", flag, ARRAYSIZE(flag)) > 0;
     ApplyLayoutPreset(state, stacked ? app::LayoutPreset::TwoHorizontal : app::LayoutPreset::TwoVertical);
     std::vector<app::Pane*> visible;
     if (Root(state)) Root(state)->CollectPanes(visible);
     if (visible.size() != 2 || !visible[1]->ActiveTab()) return;
     app::Tab* tab = visible[1]->ActiveTab();
     StartLoadingPath(state, *tab, second);
-    if (GetEnvironmentVariableW(L"PULSE_SHOT_SPLIT_FOCUS", flag, ARRAYSIZE(flag)) > 0)
+    if (GetEnvironmentVariableW(L"LULING_SHOT_SPLIT_FOCUS", flag, ARRAYSIZE(flag)) > 0)
         FocusPane(state, visible[1]);
-    // PULSE_SHOT_SPLIT_SWAP=1 swaps the panes; PULSE_SHOT_SPLIT_HOVER=1|2 shows the
+    // LULING_SHOT_SPLIT_SWAP=1 swaps the panes; LULING_SHOT_SPLIT_HOVER=1|2 shows the
     // divider hover (1) or the swap button hover (2).
-    if (GetEnvironmentVariableW(L"PULSE_SHOT_SPLIT_SWAP", flag, ARRAYSIZE(flag)) > 0)
+    if (GetEnvironmentVariableW(L"LULING_SHOT_SPLIT_SWAP", flag, ARRAYSIZE(flag)) > 0)
         SwapSplitPanes(state);
-    if (GetEnvironmentVariableW(L"PULSE_SHOT_SPLIT_HOVER", flag, ARRAYSIZE(flag)) > 0) {
+    if (GetEnvironmentVariableW(L"LULING_SHOT_SPLIT_HOVER", flag, ARRAYSIZE(flag)) > 0) {
         state.hoverRegion = static_cast<int>(ui::HitTestResult::Splitter);
         state.hoverControlIndex = flag[0] == L'2' ? ui::kSplitterSwapIndex : 0;
     }
@@ -2293,14 +2293,14 @@ static void StageSplitShot(AppState& state) {
 
 static void StageLinkPillShot(AppState& state) {
     wchar_t mode[24]{}, index[16]{};
-    if (!state.isolatedTest || !GetEnvironmentVariableW(L"PULSE_TEST_LINK_PILL_SHOT", mode, ARRAYSIZE(mode)) ||
+    if (!state.isolatedTest || !GetEnvironmentVariableW(L"LULING_TEST_LINK_PILL_SHOT", mode, ARRAYSIZE(mode)) ||
         !state.pane || !state.pane->ActiveTab()) return;
     // Apply preference-derived visibility before staging selection: the first
     // view-model fill may clear selection when those preferences change.
     BuildVm(state);
     auto* tab = state.pane->ActiveTab();
     if (!tab->snapshot || tab->snapshot->empty()) return;
-    GetEnvironmentVariableW(L"PULSE_TEST_LINK_PILL_INDEX", index, ARRAYSIZE(index));
+    GetEnvironmentVariableW(L"LULING_TEST_LINK_PILL_INDEX", index, ARRAYSIZE(index));
     const int row = std::clamp(_wtoi(index), 0, static_cast<int>(tab->snapshot->size()) - 1);
     tab->ClearSelection();
     state.hoverRow = -1;
@@ -2358,7 +2358,7 @@ int ShotModeMain(AppState& state, HWND hwnd) {
         }
         Render(state);
         ok = state.compositor.SaveSnapshot(state.shot.output.c_str());
-    } __except (pulse::crash::ReportFatal(GetExceptionInformation(), "shot")) {
+    } __except (luling::crash::ReportFatal(GetExceptionInformation(), "shot")) {
         return 2;
     }
     if (ok) {
@@ -2390,8 +2390,8 @@ int ShotModeMain(AppState& state, HWND hwnd) {
     return ok ? 0 : 1;
 }
 
-// Hidden: pulse.exe --picker-live file|folder|image [--dark] [--init <path>]
-// [--out <file>] opens Pulse's open dialog on its own, the way an app's
+// Hidden: luling.exe --picker-live file|folder|image [--dark] [--init <path>]
+// [--out <file>] opens Luling's open dialog on its own, the way an app's
 // IFileOpenDialog would, and writes "picked:<path>..." or "cancel" (UTF-8).
 int RunPickerLive(int first) {
     std::wstring kind = first < __argc && __wargv[first][0] != L'-' ? __wargv[first] : L"file";
@@ -2434,11 +2434,11 @@ int RunPickerLive(int first) {
 }
 
 bool SkipSingletonFromArgv() {
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     // Exercise the normal persistence branch without forwarding a fault test
-    // to a real running instance. GetPulseDataDir redirects every fixture.
-    if (GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) > 0 &&
-        GetEnvironmentVariableW(L"PULSE_TEST_STARTUP_FAIL", nullptr, 0) > 0) return true;
+    // to a real running instance. GetLulingDataDir redirects every fixture.
+    if (GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) > 0 &&
+        GetEnvironmentVariableW(L"LULING_TEST_STARTUP_FAIL", nullptr, 0) > 0) return true;
 #endif
     for (int i = 1; i < __argc; ++i) {
         if (wcscmp(__wargv[i], L"--selftest") == 0 ||
@@ -2457,17 +2457,17 @@ bool SkipSingletonFromArgv() {
 
 int RunFilePickerDialogTest(int argc, wchar_t** argv);
 int RunFilePickerOperationsTest();
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 int RunUiModuleAuditTest();
 int RunQuickPreviewAuditTest();
 #endif
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     std::optional<CLSID> tag_com_audit_class;
     if (!app::shell_tags::PrepareCommandAudit(__argc, __wargv, tag_com_audit_class)) return 2;
 #endif
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     if (__argc == 2 && wcscmp(__wargv[1], L"--quick-preview-audit") == 0)
         return RunQuickPreviewAuditTest();
     if (__argc == 2 && wcscmp(__wargv[1], L"--ui-module-audit") == 0)
@@ -2479,8 +2479,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         return RunFilePickerOperationsTest();
     if (__argc >= 3 && wcscmp(__wargv[1], L"--picker-dialog-test") == 0)
         return RunFilePickerDialogTest(__argc - 1, __wargv + 1);
-    pulse::crash::Initialize({pulse::crash::ProcessRole::App, false, {}});
-    pulse::compat::EnableDpiAwareness();
+    luling::crash::Initialize({luling::crash::ProcessRole::App, false, {}});
+    luling::compat::EnableDpiAwareness();
     // OLE init (drag & drop + clipboard); implies STA COM init.
     OleInitialize(nullptr);
     for (int i = 1; i < __argc; ++i) {
@@ -2507,20 +2507,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     }
 
     AppState state;
-    state.safeMode = pulse::crash::SafeModeRequested();
+    state.safeMode = luling::crash::SafeModeRequested();
     for (int i = 1; i < __argc; ++i)
         if (wcscmp(__wargv[i], L"--test-instance") == 0) state.isolatedTest = true;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     // Persistence checks: a test instance may save, but only into its own data dir.
-    if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) > 0 &&
-        GetEnvironmentVariableW(L"PULSE_TEST_PERSIST", nullptr, 0) > 0)
+    if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) > 0 &&
+        GetEnvironmentVariableW(L"LULING_TEST_PERSIST", nullptr, 0) > 0)
         state.isolatedTestPersist = true;
     if (tag_com_audit_class) state.isolatedTestPersist = false;
 #endif
     for (int i = 1; i < __argc; ++i)
         if (state.isolatedTest && wcscmp(__wargv[i], L"--content-index-observer") == 0) state.contentIndexObserver = true;
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     // Optional headless suite: excluded from production builds together with
     // the in-process index engine it exercises.
     for (int i = 1; i < __argc; ++i) {
@@ -2631,7 +2631,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         } else if (wcscmp(__wargv[i], L"--test-instance") == 0 || wcscmp(__wargv[i], L"--content-index-observer") == 0 ||
                    wcscmp(__wargv[i], L"--hang-watch") == 0 || wcscmp(__wargv[i], app::kStartupArgument) == 0) {
             continue;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         } else if ((wcscmp(__wargv[i], L"--tag-com-audit-class") == 0 ||
                     wcscmp(__wargv[i], L"--tag-com-audit-dir") == 0) && i + 1 < __argc) {
             ++i;
@@ -2680,13 +2680,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     if (shell_tag || shell_tag_com) state.open_path.clear();
     std::wstring normalized_launch;
     if (!app::SingleInstanceCoordinator::NormalizeLaunchPath(state.open_path, normalized_launch)) {
-        MessageBoxW(nullptr, L"Invalid launch path.", L"Pulse", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, L"Invalid launch path.", L"Luling", MB_OK | MB_ICONERROR);
         return 1;
     }
     state.open_path = std::move(normalized_launch);
     if (shell_tag) {
         if (!app::SingleInstanceCoordinator::NormalizeLaunchPath(shell_tag->path, normalized_launch) ||
-            normalized_launch.empty() || normalized_launch.starts_with(L"pulse:") ||
+            normalized_launch.empty() || normalized_launch.starts_with(L"luling:") ||
             app::IsThisPcArgument(normalized_launch)) return 1;
         shell_tag->path = std::move(normalized_launch);
     }
@@ -2695,7 +2695,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     if (!SkipSingletonFromArgv()) {
         const auto result = state.single_instance.Acquire();
         if (result == app::SingleInstanceCoordinator::AcquireResult::Failed) {
-            MessageBoxW(nullptr, L"Could not establish the Pulse instance endpoint.", L"Pulse", MB_OK | MB_ICONERROR);
+            MessageBoxW(nullptr, L"Could not establish the Luling instance endpoint.", L"Luling", MB_OK | MB_ICONERROR);
             return 1;
         }
         if (result == app::SingleInstanceCoordinator::AcquireResult::Existing) {
@@ -2711,10 +2711,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
                 failure_prefs.Load();
                 l10n::Initialize(hInstance, failure_prefs.language);
                 const std::wstring message = l10n::HantText(l10n::Pick(
-                    L"无法确认运行中的 Pulse 已收到此请求。原窗口可能仍会处理它，请先检查原窗口再重试。",
-                    L"Pulse could not confirm that the running instance received this request. "
+                    L"无法确认运行中的 鹿铃 已收到此请求。原窗口可能仍会处理它，请先检查原窗口再重试。",
+                    L"Luling could not confirm that the running instance received this request. "
                     L"The running instance may still open it. Check that window before trying again."));
-                MessageBoxW(nullptr, message.c_str(), L"Pulse", MB_OK | MB_ICONERROR);
+                MessageBoxW(nullptr, message.c_str(), L"Luling", MB_OK | MB_ICONERROR);
             }
             OleUninitialize();
             return forwarded ? 0 : 1;
@@ -2728,9 +2728,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
-    wc.hIcon = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_PULSE));
+    wc.hIcon = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_LULING));
     wc.hIconSm = reinterpret_cast<HICON>(LoadImageW(
-        hInstance, MAKEINTRESOURCEW(IDI_PULSE), IMAGE_ICON,
+        hInstance, MAKEINTRESOURCEW(IDI_LULING), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR));
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
@@ -2757,13 +2757,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     HWND hwnd = CreateWindowExW(
         WS_EX_NOREDIRECTIONBITMAP,
         wc.lpszClassName,
-        L"Pulse",
-        // Pulse paints the entire title bar (WM_NCCALCSIZE makes the whole
+        L"Luling",
+        // Luling paints the entire title bar (WM_NCCALCSIZE makes the whole
         // window client area). WS_CAPTION is what makes DWM play the system
         // minimize / maximize / restore animations; WM_NCACTIVATE keeps the
         // classic caption from being repainted. No WS_SYSMENU: with it DWM
         // also draws its own min / max / close buttons in the extended frame,
-        // and they show through the Mica title bar behind Pulse's buttons.
+        // and they show through the Mica title bar behind Luling's buttons.
         // Minimize / maximize / close commands, Alt+F4 and resizing do not
         // need it.
         kMainWindowStyle,
@@ -2781,8 +2781,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         wchar_t exe[MAX_PATH]{};
         GetModuleFileNameW(nullptr, exe, MAX_PATH);
         std::wstring log = exe;
-        log = log.substr(0, log.find_last_of(L'\\') + 1) + L"pulse_hang.log";
-        pulse::app::hang::Start(hwnd, log);
+        log = log.substr(0, log.find_last_of(L'\\') + 1) + L"luling_hang.log";
+        luling::app::hang::Start(hwnd, log);
         break;
     }
     if (wc.hIcon) SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(wc.hIcon));
@@ -2791,15 +2791,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     if (session.maximized) nCmdShow = SW_SHOWMAXIMIZED;
     wchar_t hidden_shot[4]{};
     const bool test_hidden = (state.shot.active || state.menushot || state.colorpickshot) &&
-        GetEnvironmentVariableW(L"PULSE_TEST_HIDDEN_SHOT", hidden_shot, ARRAYSIZE(hidden_shot)) == 1 &&
+        GetEnvironmentVariableW(L"LULING_TEST_HIDDEN_SHOT", hidden_shot, ARRAYSIZE(hidden_shot)) == 1 &&
         hidden_shot[0] == L'1';
-    // Started by the Explorer tag verb while Pulse was closed: stay hidden,
+    // Started by the Explorer tag verb while Luling was closed: stay hidden,
     // apply the tag batch, then exit (shell_tag_menu.cpp).
     if (shell_tag) QueueShellTagRequest(state, *shell_tag, true);
     if (shell_tag_com) BeginShellTagComLaunch();
     const CLSID* tag_com_class = nullptr;
     bool tag_com_allowed = !state.isolatedTest;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     if (tag_com_audit_class) { tag_com_class = &*tag_com_audit_class; tag_com_allowed = true; }
 #endif
     if (tag_com_allowed && state.appPrefs.shell_tag_menu) {
@@ -2823,13 +2823,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         bool ok = m.Create(hwnd, &state.compositor, state.scale);
         if (ok && state.menushot_search && state.pane && state.pane->ActiveTab()) {
             // BuildFinderItemMenu only checks current_path for the search bit.
-            state.pane->ActiveTab()->current_path = L"pulse:search:widgets.json";
+            state.pane->ActiveTab()->current_path = L"luling:search:widgets.json";
         }
         if (ok) {
             m.SetTheme(state.darkMode, state.accentColor);
             auto debug_items = BuildFinderItemMenu(state, true, L"撤销移动 a.txt");
             wchar_t quick_menu[4]{};
-            if (GetEnvironmentVariableW(L"PULSE_TEST_QUICK_MENU", quick_menu, ARRAYSIZE(quick_menu)) == 1 &&
+            if (GetEnvironmentVariableW(L"LULING_TEST_QUICK_MENU", quick_menu, ARRAYSIZE(quick_menu)) == 1 &&
                 quick_menu[0] == L'1') {
                 debug_items = app::BuildBackgroundMenu(false, true, L"撤销移动 a.txt");
                 app::AppendBackgroundViewCommands(debug_items, {});
@@ -2853,12 +2853,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
                 { app::CmdShellStaticBase + 0, L"打印", true }, group };
             // Long third-party verbs must ellipsize inside the menu width.
             wchar_t long_verb[256]{};
-            const DWORD verb_len = GetEnvironmentVariableW(L"PULSE_TEST_MENU_VERB", long_verb,
+            const DWORD verb_len = GetEnvironmentVariableW(L"LULING_TEST_MENU_VERB", long_verb,
                                                            ARRAYSIZE(long_verb));
             if (verb_len > 0 && verb_len < ARRAYSIZE(long_verb))
                 shell_rows.push_back({ app::CmdShellStaticBase + 1, long_verb, true });
             app::AppendShellSection(debug_items, shell_rows);
-            if (GetEnvironmentVariableW(L"PULSE_TEST_SPLIT_MENU", quick_menu, ARRAYSIZE(quick_menu)) == 1) {
+            if (GetEnvironmentVariableW(L"LULING_TEST_SPLIT_MENU", quick_menu, ARRAYSIZE(quick_menu)) == 1) {
                 debug_items = app::BuildSplitMenu(static_cast<int>(app::LayoutPreset::TwoVertical));
                 debug_items.back().separator_after = true;
                 ui::FluentMenuItem compare;
@@ -2897,10 +2897,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         return 0;
     }
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     wchar_t p1_probe[32768]{};
-    if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) > 0 &&
-        GetEnvironmentVariableW(L"PULSE_TEST_P1_FLOW", p1_probe, ARRAYSIZE(p1_probe))) {
+    if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) > 0 &&
+        GetEnvironmentVariableW(L"LULING_TEST_P1_FLOW", p1_probe, ARRAYSIZE(p1_probe))) {
         extern int RunP1RegressionProbe(AppState&, const wchar_t*);
         const int result = WaitForShotReady(state) ? RunP1RegressionProbe(state, p1_probe) : 4;
         DestroyWindow(hwnd);
@@ -2910,13 +2910,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
 #endif
     if (state.shot.active) {
         wchar_t experience_probe[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_SIZE_EXPERIENCE", experience_probe, ARRAYSIZE(experience_probe))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_FOLDER_SIZE_EXPERIENCE", experience_probe, ARRAYSIZE(experience_probe))) {
             extern int RunFolderSizeExperienceProbe(AppState&, const wchar_t*);
             const int result = WaitForShotReady(state) ? RunFolderSizeExperienceProbe(state, experience_probe) : 4;
             DestroyWindow(hwnd); OleUninitialize(); return result;
         }
         wchar_t folder_probe[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_THUMB_FLOW", folder_probe, ARRAYSIZE(folder_probe))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_FOLDER_THUMB_FLOW", folder_probe, ARRAYSIZE(folder_probe))) {
             extern int RunFolderThumbnailProbe(AppState&, const wchar_t*);
             const int result = WaitForShotReady(state) ? RunFolderThumbnailProbe(state, folder_probe) : 4;
             DestroyWindow(hwnd);
@@ -2924,7 +2924,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             return result;
         }
         wchar_t selection_probe[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_SELECTION_FLOW", selection_probe, ARRAYSIZE(selection_probe))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_SELECTION_FLOW", selection_probe, ARRAYSIZE(selection_probe))) {
             extern int RunSelectionInputProbe(AppState&, const wchar_t*);
             const int result = WaitForShotReady(state) ? RunSelectionInputProbe(state, selection_probe) : 4;
             DestroyWindow(hwnd);
@@ -2932,45 +2932,45 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             return result;
         }
         wchar_t settings_fixture[32]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_EXPANDED",settings_fixture,ARRAYSIZE(settings_fixture)))
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_EXPANDED",settings_fixture,ARRAYSIZE(settings_fixture)))
             state.settingsExpanded=static_cast<unsigned>(wcstoul(settings_fixture,nullptr,10)) & 0x3f0fu;
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_SCROLL",settings_fixture,ARRAYSIZE(settings_fixture))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_SCROLL",settings_fixture,ARRAYSIZE(settings_fixture))) {
             auto vm=BuildVm(state,false);
             state.settings.SetScroll(static_cast<float>(_wtof(settings_fixture))*state.scale,
                 state.renderer.SettingsMaxScroll(vm,static_cast<float>(state.compositor.Width()),static_cast<float>(state.compositor.Height())));
         }
         wchar_t panel_shot[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_OPTIONS_SHOT", panel_shot, ARRAYSIZE(panel_shot))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_OPTIONS_SHOT", panel_shot, ARRAYSIZE(panel_shot))) {
             ShowAddressSearch(state);
             ShowSearchOptions(state);
         }
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_HISTORY_SHOT", panel_shot, ARRAYSIZE(panel_shot))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_HISTORY_SHOT", panel_shot, ARRAYSIZE(panel_shot))) {
             state.searchHistory.Record(L"setup-dia", app::MakeSearchPath(L"setup-dia"));
             state.searchHistory.Record(L"项目预算", app::MakeSearchPath(L"content:项目预算"));
             ShowAddressSearch(state);
             ShowAddressSearchHistory(state);
         }
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         wchar_t settings_interactions[32768]{};
         wchar_t quicklook_settings[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_QUICKLOOK_SETTINGS", quicklook_settings, ARRAYSIZE(quicklook_settings))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_QUICKLOOK_SETTINGS", quicklook_settings, ARRAYSIZE(quicklook_settings))) {
             extern int RunQuickLookSettingsTest(AppState&, const wchar_t*);
             const int result = RunQuickLookSettingsTest(state, quicklook_settings);
             DestroyWindow(hwnd); OleUninitialize(); return result;
         }
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_INTERACTIONS",settings_interactions,ARRAYSIZE(settings_interactions))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_INTERACTIONS",settings_interactions,ARRAYSIZE(settings_interactions))) {
             extern int RunSettingsInteractionTest(AppState&,const wchar_t*);
             const int result=RunSettingsInteractionTest(state,settings_interactions);
             DestroyWindow(hwnd);OleUninitialize();return result;
         }
         wchar_t settings_flow[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_FLOW",settings_flow,ARRAYSIZE(settings_flow))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_FLOW",settings_flow,ARRAYSIZE(settings_flow))) {
             extern int RunSettingsFlowTest(AppState&,const wchar_t*);
             const int result=RunSettingsFlowTest(state,settings_flow);
             DestroyWindow(hwnd);OleUninitialize();return result;
         }
         wchar_t flow_output[32768]{};
-        if (state.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_FLOW", flow_output, ARRAYSIZE(flow_output))) {
+        if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_SEARCH_FLOW", flow_output, ARRAYSIZE(flow_output))) {
             extern int RunSearchFlowTest(AppState&, const wchar_t*);
             const int result = RunSearchFlowTest(state, flow_output);
             DestroyWindow(hwnd);
@@ -3037,7 +3037,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
-    pulse::app::hang::Stop();
+    luling::app::hang::Stop();
     OleUninitialize();
     return (int)msg.wParam;
 }

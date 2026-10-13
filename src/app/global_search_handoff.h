@@ -4,10 +4,10 @@
 #include <string>
 #include "global_search_window.h"
 
-namespace pulse {
+namespace luling {
 struct AppState;
 
-// pulse:search: path for the request, or empty when there is nothing to search.
+// luling:search: path for the request, or empty when there is nothing to search.
 std::wstring GlobalSearchHandoffPath(const GlobalSearchHandoff& request);
 // Brings the main window forward. With a query, the results open in a new tab
 // whose Back goes to the searched folder (or the new-tab location); without

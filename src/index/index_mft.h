@@ -10,7 +10,7 @@
 #include <windows.h>
 #include <winioctl.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 struct MftFile {
     uint64_t frn = 0;
@@ -38,9 +38,9 @@ MftReadResult EnumerateMft(HANDLE volume,
                   const std::function<void(size_t)>& progress,
                   const std::function<bool(MftFile&&)>& emit);
 
-} // namespace pulse::index
+} // namespace luling::index
 
-namespace pulse::index {
+namespace luling::index {
 MftReadResult EnumerateMftRecordsResult(const NTFS_VOLUME_DATA_BUFFER& geometry,
     const std::function<bool(uint64_t, void*, DWORD)>& read, std::atomic<bool>* running,
     const std::function<void(size_t)>& progress, const std::function<bool(MftFile&&)>& emit);

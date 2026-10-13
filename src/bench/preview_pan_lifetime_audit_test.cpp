@@ -19,7 +19,7 @@ static BOOL WINAPI FakeRemove(HHOOK) {++removed;return TRUE;}
 #undef DispatchMessageW
 #undef SetWindowsHookExW
 #undef UnhookWindowsHookEx
-namespace pulse::ui {
+namespace luling::ui {
 struct PreviewHandlerPanTest {
     static void CALLBACK Begin(HWND,UINT,UINT_PTR,DWORD) {
         auto* input=PreviewHandlerPan::current_input_;
@@ -62,9 +62,9 @@ struct PreviewHandlerPanTest {
 };
 }
 int wmain(){
-    const auto name=L"PulsePanAudit-"+std::to_wstring(GetCurrentProcessId());
+    const auto name=L"LulingPanAudit-"+std::to_wstring(GetCurrentProcessId());
     HDESK desktop=CreateDesktopW(name.c_str(),nullptr,nullptr,0,GENERIC_ALL,nullptr);
     if(!desktop)return 2;
-    int failures=pulse::ui::PreviewHandlerPanTest::Run(desktop);
+    int failures=luling::ui::PreviewHandlerPanTest::Run(desktop);
     CloseDesktop(desktop);return failures?1:0;
 }

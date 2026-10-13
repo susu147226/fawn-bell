@@ -5,7 +5,7 @@
 
 struct IDWriteFontFace;
 
-namespace pulse::ui::math {
+namespace luling::ui::math {
 
 // Distances are em units; fallback values keep layout available without MATH.
 struct FontMathMetrics {

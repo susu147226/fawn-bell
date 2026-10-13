@@ -2,7 +2,7 @@
 #include "app_model.h"
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 inline bool TickFilterAnimation(Pane& pane, bool editing, uint64_t now) {
     const float target = editing || !pane.view.filter_text.empty() ? 1.0f : 0.0f;
     if (pane.filter_animation_target != target) {

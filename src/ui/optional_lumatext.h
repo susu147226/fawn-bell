@@ -2,8 +2,8 @@
 #include "../common/windows_compat.h"
 #include <delayimp.h>
 
-namespace pulse::ui {
-#if defined(PULSE_HAS_LUMATEXT)
+namespace luling::ui {
+#if defined(LULING_HAS_LUMATEXT)
 inline bool ResolveLumaImports() noexcept {
     __try {
         return SUCCEEDED(__HrLoadAllImportsForDll("lumatext.dll"));

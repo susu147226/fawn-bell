@@ -1,9 +1,9 @@
 #pragma once
 // Linked only by the isolated upper-level MFT fault test.
-#ifdef PULSE_INDEX_VOLUME_FAULT_TEST
+#ifdef LULING_INDEX_VOLUME_FAULT_TEST
 #include "index_config.h"
 #include "index_mft.h"
-namespace pulse::index::volume_fault_test {
+namespace luling::index::volume_fault_test {
 HANDLE OpenVolume(wchar_t letter);
 BOOL CloseHandle(HANDLE volume);
 bool QueryJournal(HANDLE volume, uint64_t& id, int64_t& next);

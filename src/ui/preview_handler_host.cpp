@@ -21,18 +21,18 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace pulse::ui {
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+namespace luling::ui {
+#ifdef LULING_PREVIEW_HANDLER_TESTING
 IUnknown* (*g_preview_handler_factory_for_test)() = nullptr;
 #endif
 namespace {
 
-constexpr wchar_t kClassName[] = L"PulsePreviewHandlerHost";
+constexpr wchar_t kClassName[] = L"LulingPreviewHandlerHost";
 constexpr UINT kOpenDelayMs = 100;
 constexpr wchar_t kPreviewHandlerIid[] = L"{8895b1c6-b41f-4c1c-a562-0d564250836f}";
 // The built-in "Windows TXT Previewer". Text-perceived associations without a
 // handler of their own - txtfile, PerceivedType text - resolve to it, and it
-// draws the same plain text Pulse's own text view shows without starting a
+// draws the same plain text Luling's own text view shows without starting a
 // surrogate process first.
 constexpr CLSID kWindowsTxtPreviewer = {
     0x1531d583, 0x8375, 0x4d3f, {0xb5, 0xfb, 0xd2, 0x3b, 0xbd, 0x16, 0x9f, 0x22}
@@ -72,10 +72,10 @@ std::mutex g_slow_provider_mutex;
 std::unordered_map<std::wstring, SlowProvider> g_slow_providers;
 
 ULONGLONG CommandBudgetMs() {
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
     // Tests observe a retire without waiting for the production budget.
     wchar_t text[32]{};
-    if (GetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", text,
+    if (GetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", text,
                                 ARRAYSIZE(text)) > 0) {
         const unsigned long long value = std::wcstoull(text, nullptr, 10);
         if (value > 0) return static_cast<ULONGLONG>(value);
@@ -85,10 +85,10 @@ ULONGLONG CommandBudgetMs() {
 }
 
 ULONGLONG SlowOpenBudgetMs() {
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
     // Tests observe the slow-open give-up without waiting for the real budget.
     wchar_t text[32]{};
-    if (GetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", text,
+    if (GetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", text,
                                 ARRAYSIZE(text)) > 0) {
         const unsigned long long value = std::wcstoull(text, nullptr, 10);
         if (value > 0) return static_cast<ULONGLONG>(value);
@@ -161,7 +161,7 @@ struct ClsidEq {
 thread_local std::unordered_map<CLSID, ComPtr<IClassFactory>, ClsidHash, ClsidEq> g_factories;
 std::mutex g_association_mutex;
 std::once_flag g_register_class_once;
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
 std::atomic<uint32_t> g_test_open_attempts{0};
 // PlaceOverlay entries and returns. They differ only while the window manager
 // is inside the provider's window, which is what makes a preview trail its
@@ -171,7 +171,7 @@ std::atomic<uint32_t> g_test_place_done{0};
 #endif
 
 std::wstring ShellPath(const std::wstring& path) {
-    return pulse::path::StripExtendedPathPrefix(path);
+    return luling::path::StripExtendedPathPrefix(path);
 }
 
 std::wstring ExtensionOf(const std::wstring& path) {
@@ -189,7 +189,7 @@ bool IsOneOf(std::wstring_view extension, std::initializer_list<std::wstring_vie
 }
 
 bool IsNativePreviewExtension(std::wstring_view extension) {
-    return pulse::preview::IsNativeExtension(extension);
+    return luling::preview::IsNativeExtension(extension);
 }
 
 bool IsOfflinePlaceholder(DWORD attrs) {
@@ -220,7 +220,7 @@ bool ExtensionHasTextContentType(const std::wstring& extension) {
 }
 
 bool FindPreviewHandlerClsid(const std::wstring& extension, CLSID& clsid) {
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
     if (g_preview_handler_factory_for_test) { clsid = GUID_NULL; return true; }
 #endif
     static std::unordered_map<std::wstring, CLSID> cache;
@@ -294,7 +294,7 @@ void EvictFactory(const CLSID& clsid) {
 }
 
 ComPtr<IUnknown> CreateHandler(const CLSID& clsid) {
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
     if (g_preview_handler_factory_for_test) {
         ComPtr<IUnknown> handler;
         handler.Attach(g_preview_handler_factory_for_test());
@@ -474,7 +474,7 @@ struct PreviewHandlerHost::WorkerState {
 
     void PlaceOverlay() {
         if (!hwnd || !owner) return;
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
         g_test_place_calls.fetch_add(1, std::memory_order_relaxed);
         struct PlaceDone {
             ~PlaceDone() { g_test_place_done.fetch_add(1, std::memory_order_relaxed); }
@@ -551,10 +551,10 @@ struct PreviewHandlerHost::WorkerState {
             std::lock_guard<std::mutex> lock(mutex);
             provider_path = path;
         }
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
         g_test_open_attempts.fetch_add(1, std::memory_order_relaxed);
         wchar_t delay_text[16]{};
-        if (GetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS",
+        if (GetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS",
                                     delay_text, ARRAYSIZE(delay_text)) > 0) {
             const int delay = _wtoi(delay_text);
             if (delay > 0) Sleep(static_cast<DWORD>(std::min(delay, 10000)));
@@ -873,14 +873,14 @@ uint64_t PreviewHandlerHost::NextDeadline() const {
     return deadline;
 }
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 void PreviewHandlerHost::PrimeStalledOpenForTest() {
     Reset();
     worker_ = std::make_shared<WorkerState>();
     worker_->wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     worker_->opens_started = 1;
     worker_->open_started_tick = GetTickCount64() - CommandBudgetMs() + 150;
-    worker_->provider_path = L"private.pulse-deadline-test";
+    worker_->provider_path = L"private.luling-deadline-test";
     worker_->state = State::Loading;
     last_enabled_ = false;
 }
@@ -1122,7 +1122,7 @@ DWORD WINAPI PreviewHandlerHost::WorkerMain(void* parameter) {
     return 0;
 }
 
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
 void ResetPreviewHandlerOpenAttemptsForTest() {
     g_test_open_attempts.store(0, std::memory_order_relaxed);
 }
@@ -1165,4 +1165,4 @@ bool PreviewHandlerCanActivateIsolatedForTest(const std::wstring& path) {
 }
 #endif
 
-} // namespace pulse::ui
+} // namespace luling::ui

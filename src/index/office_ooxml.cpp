@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 using Microsoft::WRL::ComPtr;

@@ -17,7 +17,7 @@ Children Sample() {
     PROCESSENTRY32W entry{sizeof(entry)};
     if (snapshot == INVALID_HANDLE_VALUE) return result;
     if (Process32FirstW(snapshot, &entry)) do {
-        if (entry.th32ParentProcessID != GetCurrentProcessId() || _wcsicmp(entry.szExeFile, L"Pulse.Document.exe")) continue;
+        if (entry.th32ParentProcessID != GetCurrentProcessId() || _wcsicmp(entry.szExeFile, L"Luling.Document.exe")) continue;
         ++result.count;
         HANDLE child = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, entry.th32ProcessID);
         PROCESS_MEMORY_COUNTERS_EX memory{};
@@ -34,7 +34,7 @@ uint64_t Hash(std::wstring_view body) {
     for (const auto character : body) { hash ^= static_cast<uint16_t>(character); hash *= 1099511628211ull; }
     return hash;
 }
-void Metrics(const pulse::index::DocumentReadMetrics& metrics) {
+void Metrics(const luling::index::DocumentReadMetrics& metrics) {
     std::cout << ",\"reader_queue_us\":" << metrics.reader_queue_us
         << ",\"admission_wait_us\":" << metrics.admission_wait_us
         << ",\"process_start_us\":" << metrics.process_start_us
@@ -61,7 +61,7 @@ int wmain(int argc, wchar_t** argv) {
         paths.push_back(std::move(path));
     }
     if (paths.empty()) return 3;
-    struct Result { DWORD error = ERROR_CANCELLED; uint64_t hash = 0, chars = 0, elapsed = 0; pulse::index::DocumentReadMetrics metrics; };
+    struct Result { DWORD error = ERROR_CANCELLED; uint64_t hash = 0, chars = 0, elapsed = 0; luling::index::DocumentReadMetrics metrics; };
     std::vector<Result> results(paths.size() * rounds);
     std::atomic<size_t> next{0};
     std::atomic<bool> done{false};
@@ -74,15 +74,15 @@ int wmain(int argc, wchar_t** argv) {
             Sleep(10);
         }
     });
-    const auto started = pulse::index::DocumentMicros();
-    auto cancelled = [&] { return cancel_after && pulse::index::DocumentMicros() - started >= cancel_after; };
+    const auto started = luling::index::DocumentMicros();
+    auto cancelled = [&] { return cancel_after && luling::index::DocumentMicros() - started >= cancel_after; };
     std::vector<std::thread> workers;
-    auto pool = pulse::index::CreateDocumentReadPool();
+    auto pool = luling::index::CreateDocumentReadPool();
     wchar_t option[32]{};
-    const bool two_pools = GetEnvironmentVariableW(L"PULSE_POOL_BENCH_SECOND_POOL", option, ARRAYSIZE(option)) && option[0] == L'1';
-    auto second_pool = two_pools ? pulse::index::CreateDocumentReadPool() : pool;
+    const bool two_pools = GetEnvironmentVariableW(L"LULING_POOL_BENCH_SECOND_POOL", option, ARRAYSIZE(option)) && option[0] == L'1';
+    auto second_pool = two_pools ? luling::index::CreateDocumentReadPool() : pool;
     for (unsigned i = 0; i < threads; ++i) workers.emplace_back([&, i] {
-        pulse::index::DocumentReadSession session(i % 2 ? second_pool : pool);
+        luling::index::DocumentReadSession session(i % 2 ? second_pool : pool);
         auto reader_cancelled = [&] { return (!two_pools || i % 2 == 0) && cancelled(); };
         for (;;) {
             const auto index = next.fetch_add(1);
@@ -90,32 +90,32 @@ int wmain(int argc, wchar_t** argv) {
             auto& result = results[index];
             std::wstring body;
             uint64_t bytes = 0;
-            const auto before = pulse::index::DocumentMicros();
-            pulse::index::ReadSearchableDocument(paths[index % paths.size()], pulse::index::document::kMaximumFileBytes,
-                body, bytes, &result.error, pulse::text::Encoding::Auto, reader_cancelled, argv[4], false, &result.metrics);
-            result.elapsed = pulse::index::DocumentMicros() - before;
+            const auto before = luling::index::DocumentMicros();
+            luling::index::ReadSearchableDocument(paths[index % paths.size()], luling::index::document::kMaximumFileBytes,
+                body, bytes, &result.error, luling::text::Encoding::Auto, reader_cancelled, argv[4], false, &result.metrics);
+            result.elapsed = luling::index::DocumentMicros() - before;
             result.hash = Hash(body); result.chars = body.size();
             if (reader_cancelled()) break;
         }
     });
     for (auto& worker : workers) worker.join();
     wchar_t ready_path[32768]{};
-    if (GetEnvironmentVariableW(L"PULSE_POOL_BENCH_READY_FILE", ready_path, ARRAYSIZE(ready_path))) {
+    if (GetEnvironmentVariableW(L"LULING_POOL_BENCH_READY_FILE", ready_path, ARRAYSIZE(ready_path))) {
         std::ofstream ready{std::filesystem::path(ready_path)};
         ready << Sample().count;
     }
-    if (GetEnvironmentVariableW(L"PULSE_POOL_BENCH_HOLD_MS", option, ARRAYSIZE(option))) Sleep(static_cast<DWORD>(_wtoi(option)));
-    const auto release_started = pulse::index::DocumentMicros();
+    if (GetEnvironmentVariableW(L"LULING_POOL_BENCH_HOLD_MS", option, ARRAYSIZE(option))) Sleep(static_cast<DWORD>(_wtoi(option)));
+    const auto release_started = luling::index::DocumentMicros();
     second_pool.reset();
     pool.reset();
-    const auto release_us = pulse::index::DocumentMicros() - release_started;
-    const auto elapsed = pulse::index::DocumentMicros() - started;
+    const auto release_us = luling::index::DocumentMicros() - release_started;
+    const auto elapsed = luling::index::DocumentMicros() - started;
     done = true;
     monitor.join();
     const auto remaining = Sample();
-    pulse::index::DocumentReadMetrics total;
+    luling::index::DocumentReadMetrics total;
     uint64_t errors = 0;
-    for (const auto& result : results) { pulse::index::AddReaderMetrics(total, result.metrics); errors += result.error != ERROR_SUCCESS; }
+    for (const auto& result : results) { luling::index::AddReaderMetrics(total, result.metrics); errors += result.error != ERROR_SUCCESS; }
     std::cout << "{\"elapsed_us\":" << elapsed << ",\"files\":" << results.size() << ",\"errors\":" << errors
         << ",\"peak_children\":" << peak.count << ",\"peak_private_bytes\":" << peak.private_bytes
         << ",\"remaining_children\":" << remaining.count;

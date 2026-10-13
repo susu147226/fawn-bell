@@ -6,7 +6,7 @@
 #include <array>
 #include <cstdint>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 inline constexpr int kBloomDotCount = 19;
 inline constexpr int kBloomGlowCount = 6;
@@ -94,4 +94,4 @@ private:
     float stop_t_ = 1.0f;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

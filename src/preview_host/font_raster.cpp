@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 using Microsoft::WRL::ComPtr;
@@ -252,4 +252,4 @@ bool RasterizeFontFile(const std::wstring& path, UINT max_edge,
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

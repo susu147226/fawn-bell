@@ -5,7 +5,7 @@
 #include <string>
 #include "../ui/window_material.h"
 
-namespace pulse {
+namespace luling {
 // What the quick search window hands to the main window when the user asks to
 // continue there (Shift+Enter or the footer link). folder is empty when the
 // search covers every indexed location.

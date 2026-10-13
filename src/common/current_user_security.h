@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse {
+namespace luling {
 
 inline std::wstring ProcessUserSidString(HANDLE process) {
     HANDLE token = nullptr;
@@ -53,4 +53,4 @@ private:
     PSECURITY_DESCRIPTOR descriptor_ = nullptr;
 };
 
-} // namespace pulse
+} // namespace luling

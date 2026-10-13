@@ -1,10 +1,10 @@
 #pragma once
 #include "../ops/ops_manager.h"
 
-namespace pulse::app {
+namespace luling::app {
 
 inline UINT UpdateShutdownMessage() {
-    static const UINT message = RegisterWindowMessageW(L"Pulse.PrepareUpdateShutdown.v1");
+    static const UINT message = RegisterWindowMessageW(L"Luling.PrepareUpdateShutdown.v1");
     return message;
 }
 

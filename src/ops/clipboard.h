@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 
 struct ClipboardData {
     std::vector<std::wstring> paths;
@@ -32,4 +32,4 @@ bool ReadClipboard(ClipboardData& out);
 // captured by ReadClipboard. This never clears a newer clipboard value.
 bool CompleteCutClipboard(uint32_t sequence, const std::vector<std::wstring>& expected_paths);
 
-} // namespace pulse::ops
+} // namespace luling::ops

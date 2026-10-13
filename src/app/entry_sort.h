@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 // How folders are ordered against files in the details list.
 enum class FolderSortMode : uint8_t {
@@ -50,4 +50,4 @@ void SortEntriesBySize(std::vector<fs::DirEntry>& entries, ui::SortDirection dir
 // Order-independent fingerprint of `sizes`, to notice changed totals. Empty is 0.
 uint64_t FolderSizeSignature(const FolderSizeLookup& sizes);
 
-} // namespace pulse::app
+} // namespace luling::app

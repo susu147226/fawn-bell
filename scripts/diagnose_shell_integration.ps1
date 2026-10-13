@@ -1,5 +1,5 @@
 # Run on the affected computer, as the affected user. No elevation is needed.
-# Reads only the associations used by Pulse; writes one diagnostic JSON file.
+# Reads only the associations used by Luling; writes one diagnostic JSON file.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
@@ -57,7 +57,7 @@ $report = [ordered]@{
     captured_utc = [DateTime]::UtcNow.ToString('o')
     os_version = [Environment]::OSVersion.Version.ToString()
     process_64_bit = [Environment]::Is64BitProcess
-    note = 'Registry reads only. Paths inside association commands and Pulse backups may identify installation locations.'
+    note = 'Registry reads only. Paths inside association commands and Luling backups may identify installation locations.'
     associations = @()
     backups = @()
 }
@@ -74,12 +74,12 @@ foreach ($view in $views) {
                 $verb = $shell + '\' + $group.verb
                 $entry = [ordered]@{ hive = $hive; view = $view.ToString(); group = $group.name; keys = @() }
                 foreach ($path in @($shell, $verb, ($verb + '\command'))) {
-                    $entry.keys += Read-SelectedRegistryValues $base $path @('', 'DelegateExecute', 'PulseBackup', 'PulseBackupDelegateExecute')
+                    $entry.keys += Read-SelectedRegistryValues $base $path @('', 'DelegateExecute', 'LulingBackup', 'LulingBackupDelegateExecute')
                 }
                 $report.associations += $entry
                 if ($hive -eq 'CurrentUser' -and $group.name -ne 'Folder') {
                     $backup = Read-SelectedRegistryValues $base (
-                        'Software\Pulse\ShellIntegration\Backups\v1\' + $group.name) @('Snapshot', 'PendingUpgrade')
+                        'Software\Luling\ShellIntegration\Backups\v1\' + $group.name) @('Snapshot', 'PendingUpgrade')
                     $report.backups += [ordered]@{ view = $view.ToString(); group = $group.name; key = $backup }
                 }
             }

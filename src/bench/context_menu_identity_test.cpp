@@ -5,10 +5,10 @@
 #include <cstdio>
 
 namespace { std::wstring fixture; }
-namespace pulse::app { std::wstring GetPulseDataDir() { return fixture; } }
+namespace luling::app { std::wstring GetLulingDataDir() { return fixture; } }
 
 int wmain() {
-    using namespace pulse;
+    using namespace luling;
     namespace fs = std::filesystem;
     const auto parent = fs::absolute(L"bench_data").lexically_normal();
     const auto base = parent / (L"context-menu-identity-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
@@ -17,7 +17,7 @@ int wmain() {
     fixture = base.wstring();
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; };
-    const std::wstring stable = L"pulse:quick-access";
+    const std::wstring stable = L"luling:quick-access";
     const auto category = ipc::CtxMenuCategory::Software;
     for (const auto label : {L"Pin to Quick access", L"固定到快速访问", L"固定到快速存取"}) {
         app::ContextMenuPrefs original;
@@ -54,28 +54,28 @@ int wmain() {
         }
     }
     app::ContextMenuPrefs other;
-    other.RecordSeen(L"pulse:future-command", L"Future translated label", false, category);
+    other.RecordSeen(L"luling:future-command", L"Future translated label", false, category);
     const auto handler = ipc::HandlerCatalogKey(L"{00000000-0000-0000-0000-000000000001}");
     other.RecordSeen(handler, L"Handler", false, category, true);
     other.RecordSeen(L"v:New (N)", L"New (N)", false, category);
     other.RecordSeen(L"f: Open with ", L"Open with", true, category);
     other.SetItemEnabled(L"v:New (N)", false);
     other.MigrateSeenKeys();
-    check(other.seen.size() == 4 && other.seen[0].key == L"pulse:future-command" && other.seen[1].key == handler,
+    check(other.seen.size() == 4 && other.seen[0].key == L"luling:future-command" && other.seen[1].key == handler,
         "other command and handler identities stay unchanged");
     check(other.seen[2].key == L"v:new" && other.seen[3].key == L"f:openwith" &&
         !other.ItemEnabled(L"v:new", category, false), "legacy display verbs and flyouts still normalize with their choices");
     app::ContextMenuPrefs com;
     com.RecordSeen(L"v:pintoquickaccess", L"Pin to Quick access", false, category, true);
     com.MigrateSeenKeys();
-    check(com.seen[0].key == L"v:pintoquickaccess", "COM command with similar text is not reassigned to Pulse");
+    check(com.seen[0].key == L"v:pintoquickaccess", "COM command with similar text is not reassigned to Luling");
     {
-        // Pulse menu card: new switchable rows, presets and preview rows.
+        // Luling menu card: new switchable rows, presets and preview rows.
         using app::BuiltinMenuItem;
         using app::BuiltinMenuPreset;
         app::ContextMenuPrefs fresh;
         check(fresh.builtin_hidden == 0 && app::BuiltinMenuPresetFor(fresh.builtin_hidden) == BuiltinMenuPreset::Full,
-            "CMI-B01 defaults keep every Pulse row (preset 完整)");
+            "CMI-B01 defaults keep every 鹿铃 row (preset 完整)");
         app::ContextMenuPrefs hide;
         hide.SetBuiltinVisible(BuiltinMenuItem::Paste, false);
         hide.SetBuiltinVisible(BuiltinMenuItem::View, false);
@@ -117,7 +117,7 @@ int wmain() {
         bool labels = true;
         for (int i = 0; i < app::kBuiltinMenuItemCount; ++i)
             labels &= !app::BuiltinMenuKey(static_cast<BuiltinMenuItem>(i)).empty();
-        check(labels, "CMI-B08 every Pulse row has a stable key");
+        check(labels, "CMI-B08 every Luling row has a stable key");
 
         // Drag-to-reorder on the settings preview (CMI-O*).
         using app::BuiltinMenuSurface;

@@ -3,7 +3,7 @@
 #include "update_progress.h"
 #include <memory>
 
-namespace pulse::app {
+namespace luling::app {
 // The caller must keep this read-only handle open until launching the installer.
 bool VerifyUpdateInstaller(HANDLE file, std::wstring_view expected_hash);
 DWORD UpdateInstallErrorFromExitCode(DWORD exit_code);

@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 constexpr uint32_t kAttrStdInfo = 0x10;
@@ -404,9 +404,9 @@ MftReadResult EnumerateMftRecordsResult(const NTFS_VOLUME_DATA_BUFFER& vd,
     return count > 0 ? MftReadResult::Complete : MftReadResult::Failed;
 }
 
-} // namespace pulse::index
+} // namespace luling::index
 
-namespace pulse::index {
+namespace luling::index {
 bool EnumerateMftRecords(const NTFS_VOLUME_DATA_BUFFER& vd,
     const std::function<bool(uint64_t, void*, DWORD)>& read, std::atomic<bool>* running,
     const std::function<void(size_t)>& progress, const std::function<bool(MftFile&&)>& emit) {

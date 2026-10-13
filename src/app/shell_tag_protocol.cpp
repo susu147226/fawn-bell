@@ -3,7 +3,7 @@
 #include <cstring>
 #include <objbase.h>
 
-namespace pulse::app::shell_tags {
+namespace luling::app::shell_tags {
 size_t RequestBytes(const Request& request) {
     size_t size = sizeof(Request) + request.tag.size() * sizeof(wchar_t);
     for (const auto& path : request.paths) size += sizeof(std::wstring) + path.size() * sizeof(wchar_t);
@@ -32,7 +32,7 @@ bool SafeTagId(const std::wstring& tag) {
         (c >= L'0' && c <= L'9') || c == L'-' || c == L'_' || c == L'{' || c == L'}')) return false;
     return true;
 }
-std::wstring VerbName(const std::wstring& tag) { return L"pulse.tag." + tag; }
+std::wstring VerbName(const std::wstring& tag) { return L"luling.tag." + tag; }
 Receipts::Acceptance Receipts::Accept(const Request& request, uint64_t now, Reply& prior) {
     if (!ValidRequest(request) || now >= request.deadline || request.deadline - now > 60000) return Acceptance::Invalid;
     for (auto it = entries_.begin(); it != entries_.end();) {

@@ -4,7 +4,7 @@
 #include <set>
 #include <vector>
 
-using namespace pulse;
+using namespace luling;
 namespace {
 int failures = 0;
 void Check(bool condition, const char* message) {

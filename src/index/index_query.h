@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 
 const wchar_t* FoldTable();
 inline wchar_t FoldChar(wchar_t c) { return FoldTable()[static_cast<uint16_t>(c)]; }
@@ -83,4 +83,4 @@ bool MatchTerm(std::wstring_view path, std::wstring_view name, bool is_dir,
                uint64_t size, uint64_t modified, const Term& term);
 int RankName(const wchar_t* s, uint32_t n, bool is_dir, const CompiledQuery& q);
 
-} // namespace pulse::index
+} // namespace luling::index

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace pulse::index {
+namespace luling::index {
 bool EngineTestAccess::QuietDiagnosticsFixture() {
     bool ok = true;
     auto check = [&](bool passed, const char* label) {
@@ -13,7 +13,7 @@ bool EngineTestAccess::QuietDiagnosticsFixture() {
     std::filesystem::create_directories(dir);
     SetMachineIndexScope(false);
     SetActiveIndexDirectory(dir.wstring());
-    const auto log = dir / L"pulse-index-timing.jsonl";
+    const auto log = dir / L"luling-index-timing.jsonl";
     {
         FilenameTiming timing;
         const auto token = FilenameTiming::Begin();

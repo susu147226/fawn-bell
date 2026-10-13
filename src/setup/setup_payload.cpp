@@ -14,7 +14,7 @@ extern "C" {
 #include "XzCrc64.h"
 }
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 constexpr char kMagic[8] = {'P', 'U', 'L', 'S', 'E', 'P', 'K', '1'};
@@ -387,7 +387,7 @@ bool Payload::ExtractTo(const std::filesystem::path& target, const ProgressCallb
         std::filesystem::create_directories(final_path.parent_path(), ec);
         if (ec) { error = L"Cannot create folder " + final_path.parent_path().wstring(); return false; }
         auto temp_path = final_path;
-        temp_path += L".pulse-new";
+        temp_path += L".luling-new";
         UniqueHandle out(CreateFileW(temp_path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
                                      FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr));
         if (out.get() == INVALID_HANDLE_VALUE) { out.release(); error = Win32Message((L"Cannot write " + temp_path.wstring()).c_str()); return false; }
@@ -424,4 +424,4 @@ bool Payload::ExtractTo(const std::filesystem::path& target, const ProgressCallb
     return reader.Finish(error);
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

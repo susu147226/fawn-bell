@@ -7,7 +7,7 @@
 
 #include "setup_common.h"
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 // Splits "/NAME=value" into name and value (value may be quoted).
@@ -57,11 +57,11 @@ Options ParseOptions(const wchar_t* command_line) {
         else if (EqualsNoCase(name, L"/SILENT")) o.silent = true;
         else if (EqualsNoCase(name, L"/VERYSILENT")) o.silent = o.very_silent = true;
         else if (EqualsNoCase(name, L"/SUPPRESSMSGBOXES")) o.suppress_msgboxes = true;
-        else if (EqualsNoCase(name, L"/PULSEUPDATE")) o.pulse_update = value == L"1";
-        else if (EqualsNoCase(name, L"/PULSEUPGRADE")) o.pulse_upgrade = value == L"1";
+        else if (EqualsNoCase(name, L"/PULSEUPDATE")) o.luling_update = value == L"1";
+        else if (EqualsNoCase(name, L"/PULSEUPGRADE")) o.luling_upgrade = value == L"1";
         else if (EqualsNoCase(name, L"/UNINSTALL")) o.uninstall = true;
         else if (EqualsNoCase(name, L"/PULSETEST")) o.test = true;
-        else if (EqualsNoCase(name, L"/PULSE-ELEVATED")) o.elevated_child = true;
+        else if (EqualsNoCase(name, L"/LULING-ELEVATED")) o.elevated_child = true;
         else if (EqualsNoCase(name, L"/DIR")) o.dir = value;
         else if (EqualsNoCase(name, L"/LOG")) { o.log_requested = true; o.log = value; }
         else if (EqualsNoCase(name, L"/LANG")) o.lang = value;
@@ -94,4 +94,4 @@ std::wstring FormatTaskList(const Tasks& tasks) {
     return out;
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

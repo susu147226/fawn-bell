@@ -9,7 +9,7 @@
 #include <cstring>
 #include <thread>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 bool HasRow(const std::vector<PreviewPropertyValue>& rows, const std::wstring& label) {
@@ -53,7 +53,7 @@ constexpr ULONGLONG kLaunchBackoffMs = 60000;
 
 bool StartPack(ffmpeg::Process& process, const std::wstring& arguments, SIZE_T memory_limit, DWORD stdout_buffer) {
     if (GetTickCount64() < g_backoff_until.load()) return false;
-    const std::wstring exe = packs::PackToolPath(packs::PackId::Raw, L"pulse-rawpack.exe");
+    const std::wstring exe = packs::PackToolPath(packs::PackId::Raw, L"luling-rawpack.exe");
     if (exe.empty()) return false;
     ffmpeg::LaunchOptions options;
     options.memory_limit = memory_limit;
@@ -175,4 +175,4 @@ bool RawPackProperties(const std::wstring& path, std::vector<PreviewPropertyValu
     return added;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

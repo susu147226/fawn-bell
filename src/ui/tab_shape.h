@@ -2,7 +2,7 @@
 #pragma once
 #include "ui_compositor.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct ChromeTabShape {
     float top_radius = 8.0f;
@@ -28,4 +28,4 @@ void FillRoundedAccent(ID2D1DeviceContext* dc, ID2D1Brush* brush,
                        const D2D1_RECT_F& bounds, float radius,
                        float thickness, AccentEdge edge);
 
-} // namespace pulse::ui
+} // namespace luling::ui

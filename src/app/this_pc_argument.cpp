@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <cwctype>
 
-namespace pulse::app {
+namespace luling::app {
 bool IsThisPcArgument(std::wstring_view raw) {
     auto equals = [](std::wstring_view a, std::wstring_view b) {
         return a.size() == b.size() &&

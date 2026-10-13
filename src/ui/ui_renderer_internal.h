@@ -22,7 +22,7 @@
 #include <vector>
 #include <wrl/client.h>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -217,33 +217,33 @@ void ClearTextWidthCache() {
     }
 
     std::wstring FormatListType(const std::wstring& name, bool isDir) {
-        using pulse::l10n::StringId;
-        if (isDir) return pulse::l10n::Get(StringId::TypeFolder);
+        using luling::l10n::StringId;
+        if (isDir) return luling::l10n::Get(StringId::TypeFolder);
         const size_t dot = name.find_last_of(L'.');
         if (dot == std::wstring::npos || dot == 0 || dot + 1 >= name.size())
-            return pulse::l10n::Get(StringId::TypeFile);
+            return luling::l10n::Get(StringId::TypeFile);
         std::wstring ext = name.substr(dot + 1);
         for (auto& c : ext) c = std::towlower(c);
-        if (ext == L"txt" || ext == L"md" || ext == L"log") return pulse::l10n::Get(StringId::TypeTextDocument);
-        if (ext == L"png" || ext == L"jpg" || ext == L"jpeg" || ext == L"gif" || ext == L"bmp" || ext == L"webp") return pulse::l10n::Get(StringId::TypeImage);
-        if (ext == L"mp4" || ext == L"mkv" || ext == L"avi" || ext == L"mov") return pulse::l10n::Get(StringId::TypeVideo);
-        if (ext == L"mp3" || ext == L"wav" || ext == L"flac") return pulse::l10n::Get(StringId::TypeAudio);
-        if (ext == L"zip" || ext == L"rar" || ext == L"7z") return pulse::l10n::Get(StringId::TypeArchive);
-        if (ext == L"exe" || ext == L"msi") return pulse::l10n::Get(StringId::TypeApplication);
-        if (ext == L"dwg") return L"AutoCAD " + pulse::l10n::Get(StringId::TypeFile);
-        return pulse::l10n::Get(StringId::TypeFile);
+        if (ext == L"txt" || ext == L"md" || ext == L"log") return luling::l10n::Get(StringId::TypeTextDocument);
+        if (ext == L"png" || ext == L"jpg" || ext == L"jpeg" || ext == L"gif" || ext == L"bmp" || ext == L"webp") return luling::l10n::Get(StringId::TypeImage);
+        if (ext == L"mp4" || ext == L"mkv" || ext == L"avi" || ext == L"mov") return luling::l10n::Get(StringId::TypeVideo);
+        if (ext == L"mp3" || ext == L"wav" || ext == L"flac") return luling::l10n::Get(StringId::TypeAudio);
+        if (ext == L"zip" || ext == L"rar" || ext == L"7z") return luling::l10n::Get(StringId::TypeArchive);
+        if (ext == L"exe" || ext == L"msi") return luling::l10n::Get(StringId::TypeApplication);
+        if (ext == L"dwg") return L"AutoCAD " + luling::l10n::Get(StringId::TypeFile);
+        return luling::l10n::Get(StringId::TypeFile);
     }
 
     // "This PC" rows: the drive kind instead of "Folder".
     inline std::wstring DriveTypeText(uint8_t drive_type) {
-        using pulse::l10n::StringId;
+        using luling::l10n::StringId;
         switch (drive_type) {
-        case DRIVE_FIXED: return pulse::l10n::Get(StringId::LocalDisk);
-        case DRIVE_REMOVABLE: return pulse::l10n::Get(StringId::RemovableDisk);
-        case DRIVE_REMOTE: return pulse::l10n::Get(StringId::NetworkDrive);
-        case DRIVE_CDROM: return pulse::l10n::Get(StringId::CdDrive);
-        case DRIVE_RAMDISK: return pulse::l10n::Get(StringId::RamDisk);
-        default: return pulse::l10n::Get(StringId::Drive);
+        case DRIVE_FIXED: return luling::l10n::Get(StringId::LocalDisk);
+        case DRIVE_REMOVABLE: return luling::l10n::Get(StringId::RemovableDisk);
+        case DRIVE_REMOTE: return luling::l10n::Get(StringId::NetworkDrive);
+        case DRIVE_CDROM: return luling::l10n::Get(StringId::CdDrive);
+        case DRIVE_RAMDISK: return luling::l10n::Get(StringId::RamDisk);
+        default: return luling::l10n::Get(StringId::Drive);
         }
     }
 
@@ -341,12 +341,12 @@ void ClearTextWidthCache() {
         // made the icon cache treat resolved shortcuts as extensionless files.
         entry.name = source.name;
         entry.size_text = penetrated
-            ? (source.link_target_is_dir ? L"" : pulse::format::ByteSize(source.link_target_size, true))
-            : (source.is_dir ? L"" : pulse::format::ByteSize(source.size, true));
+            ? (source.link_target_is_dir ? L"" : luling::format::ByteSize(source.link_target_size, true))
+            : (source.is_dir ? L"" : luling::format::ByteSize(source.size, true));
         // A zero FILETIME means "no time" (drives, servers, index rows without
         // it), not 1601-01-01.
         const auto list_time = [](const FILETIME& time) {
-            return time.dwLowDateTime || time.dwHighDateTime ? pulse::format::LocalFileTime(time)
+            return time.dwLowDateTime || time.dwHighDateTime ? luling::format::LocalFileTime(time)
                                                              : std::wstring();
         };
         const auto time_value = [](const FILETIME& time) {
@@ -378,7 +378,7 @@ void ClearTextWidthCache() {
                 known_kind = recent->kind;
             if (known_kind != app::PlaceItemKind::Unknown)
                 entry.is_dir = known_kind == app::PlaceItemKind::Folder;
-            entry.type_text = pulse::l10n::Get(pulse::l10n::StringId::Unavailable);
+            entry.type_text = luling::l10n::Get(luling::l10n::StringId::Unavailable);
         } else {
             entry.type_text = FormatListType(
                 penetrated ? fs::StripLnkSuffix(source.name) : source.name, entry.is_dir);
@@ -391,9 +391,9 @@ void ClearTextWidthCache() {
                 static_cast<double>(source.drive_total - free_bytes) /
                 static_cast<double>(source.drive_total));
             wchar_t space[128]{};
-            swprintf_s(space, pulse::l10n::Get(pulse::l10n::StringId::PickerDriveFreeFormat).c_str(),
-                       pulse::format::ByteSize(free_bytes).c_str(),
-                       pulse::format::ByteSize(source.drive_total).c_str());
+            swprintf_s(space, luling::l10n::Get(luling::l10n::StringId::PickerDriveFreeFormat).c_str(),
+                       luling::format::ByteSize(free_bytes).c_str(),
+                       luling::format::ByteSize(source.drive_total).c_str());
             entry.drive_space_text = space;
         }
         entry.record_only = source.change_record_only;
@@ -892,77 +892,77 @@ void ClearTextWidthCache() {
         const app::AdvancedSearchSpec spec = app::ParseSearchQuery(query);
         auto kind_label = [&] {
             switch (spec.kind) {
-            case pulse::index::SearchKind::Folder:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindFolder);
-            case pulse::index::SearchKind::Document:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindDocument);
-            case pulse::index::SearchKind::Image:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindImage);
-            case pulse::index::SearchKind::Video:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindVideo);
-            case pulse::index::SearchKind::Audio:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindAudio);
-            case pulse::index::SearchKind::Archive:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindArchive);
-            case pulse::index::SearchKind::Code:
-                return pulse::l10n::Get(pulse::l10n::StringId::KindCode);
-            case pulse::index::SearchKind::Custom:
+            case luling::index::SearchKind::Folder:
+                return luling::l10n::Get(luling::l10n::StringId::KindFolder);
+            case luling::index::SearchKind::Document:
+                return luling::l10n::Get(luling::l10n::StringId::KindDocument);
+            case luling::index::SearchKind::Image:
+                return luling::l10n::Get(luling::l10n::StringId::KindImage);
+            case luling::index::SearchKind::Video:
+                return luling::l10n::Get(luling::l10n::StringId::KindVideo);
+            case luling::index::SearchKind::Audio:
+                return luling::l10n::Get(luling::l10n::StringId::KindAudio);
+            case luling::index::SearchKind::Archive:
+                return luling::l10n::Get(luling::l10n::StringId::KindArchive);
+            case luling::index::SearchKind::Code:
+                return luling::l10n::Get(luling::l10n::StringId::KindCode);
+            case luling::index::SearchKind::Custom:
                 return spec.custom_exts.empty()
-                    ? pulse::l10n::Get(pulse::l10n::StringId::KindCustom)
+                    ? luling::l10n::Get(luling::l10n::StringId::KindCustom)
                     : spec.custom_exts;
             default:
-                return pulse::l10n::Get(pulse::l10n::StringId::SearchChipType);
+                return luling::l10n::Get(luling::l10n::StringId::SearchChipType);
             }
         };
         auto date_label = [&] {
             switch (spec.date) {
             case app::DatePreset::Today:
-                return pulse::l10n::Get(pulse::l10n::StringId::DateToday);
+                return luling::l10n::Get(luling::l10n::StringId::DateToday);
             case app::DatePreset::Yesterday:
-                return pulse::l10n::Get(pulse::l10n::StringId::DateYesterday);
+                return luling::l10n::Get(luling::l10n::StringId::DateYesterday);
             case app::DatePreset::ThisWeek:
-                return pulse::l10n::Get(pulse::l10n::StringId::DateThisWeek);
+                return luling::l10n::Get(luling::l10n::StringId::DateThisWeek);
             case app::DatePreset::ThisMonth:
-                return pulse::l10n::Get(pulse::l10n::StringId::DateThisMonth);
+                return luling::l10n::Get(luling::l10n::StringId::DateThisMonth);
             case app::DatePreset::ThisYear:
-                return pulse::l10n::Get(pulse::l10n::StringId::DateThisYear);
+                return luling::l10n::Get(luling::l10n::StringId::DateThisYear);
             default:
-                return pulse::l10n::Get(pulse::l10n::StringId::SearchChipDate);
+                return luling::l10n::Get(luling::l10n::StringId::SearchChipDate);
             }
         };
         auto size_label = [&] {
             switch (spec.size) {
             case app::SizePreset::Empty:
-                return pulse::l10n::Get(pulse::l10n::StringId::SizeEmpty);
+                return luling::l10n::Get(luling::l10n::StringId::SizeEmpty);
             case app::SizePreset::Lt1MB:
-                return pulse::l10n::Get(pulse::l10n::StringId::SizeLt1MB);
+                return luling::l10n::Get(luling::l10n::StringId::SizeLt1MB);
             case app::SizePreset::From1To10MB:
-                return pulse::l10n::Get(pulse::l10n::StringId::Size1To10MB);
+                return luling::l10n::Get(luling::l10n::StringId::Size1To10MB);
             case app::SizePreset::Gt10MB:
-                return pulse::l10n::Get(pulse::l10n::StringId::SizeGt10MB);
+                return luling::l10n::Get(luling::l10n::StringId::SizeGt10MB);
             case app::SizePreset::Gt100MB:
-                return pulse::l10n::Get(pulse::l10n::StringId::SizeGt100MB);
+                return luling::l10n::Get(luling::l10n::StringId::SizeGt100MB);
             case app::SizePreset::Gt1GB:
-                return pulse::l10n::Get(pulse::l10n::StringId::SizeGt1GB);
+                return luling::l10n::Get(luling::l10n::StringId::SizeGt1GB);
             default:
-                return pulse::l10n::Get(pulse::l10n::StringId::SearchChipSize);
+                return luling::l10n::Get(luling::l10n::StringId::SearchChipSize);
             }
         };
         labels[0] = kind_label();
         labels[1] = date_label();
         labels[2] = size_label();
         if (spec.content.empty()) {
-            labels[3] = pulse::l10n::Get(pulse::l10n::StringId::SearchChipContent);
+            labels[3] = luling::l10n::Get(luling::l10n::StringId::SearchChipContent);
         } else {
             // "Contents: word" so the chip says what the word filters.
             std::wstring text(spec.content.size() + 64, L'\0');
             const int n = swprintf_s(text.data(), text.size(),
-                pulse::l10n::Get(pulse::l10n::StringId::SearchChipContentFormat).c_str(),
+                luling::l10n::Get(luling::l10n::StringId::SearchChipContentFormat).c_str(),
                 spec.content.c_str());
             text.resize(n > 0 ? static_cast<size_t>(n) : 0);
             labels[3] = text.empty() ? spec.content : text;
         }
-        labels[4] = pulse::l10n::Get(pulse::l10n::StringId::AdvancedSearch);
+        labels[4] = luling::l10n::Get(luling::l10n::StringId::AdvancedSearch);
     }
 
     // The Advanced chip leads the row so it is never the one clipped by a narrow pane.
@@ -1011,7 +1011,7 @@ void ClearTextWidthCache() {
     }
 
     bool SidebarItemHasUnpin(const SidebarItem& item) {
-        return item.tab_row || (item.indent == 0 && item.path.starts_with(L"pulse:workspace:"));
+        return item.tab_row || (item.indent == 0 && item.path.starts_with(L"luling:workspace:"));
     }
 
     D2D1_RECT_F WorkspaceUnpinRect(const D2D1_RECT_F& row, float scale) {
@@ -1033,8 +1033,8 @@ void ClearTextWidthCache() {
         // Sidebar items hold normalized paths (\\?\C:\..., \\?\UNC\...), while the
         // pane path is display text without that prefix; compare both as display
         // text or file-system rows never match.
-        const std::wstring root = pulse::path::FriendlyPathText(root_in);
-        const std::wstring path = pulse::path::FriendlyPathText(path_in);
+        const std::wstring root = luling::path::FriendlyPathText(root_in);
+        const std::wstring path = luling::path::FriendlyPathText(path_in);
         if (root.empty() || path.empty()) return false;
         if (_wcsicmp(root.c_str(), path.c_str()) == 0) return true;
         std::wstring prefix = root;
@@ -1233,19 +1233,19 @@ void ClearTextWidthCache() {
 
     // Display order: 基本信息 / 标签 / 属性 / 安全 / 其他. Collapsed state is
     // keyed by def.id, so reordering is safe.
-    struct DetailsSectionDef { int id; pulse::l10n::StringId label; };
+    struct DetailsSectionDef { int id; luling::l10n::StringId label; };
     constexpr DetailsSectionDef kDetailsSections[] = {
-        { 0, pulse::l10n::StringId::DetailsBasic },
-        { 2, pulse::l10n::StringId::DetailsTags },
-        { 1, pulse::l10n::StringId::DetailsAttributes },
-        { 3, pulse::l10n::StringId::DetailsSecurity },
-        { 4, pulse::l10n::StringId::DetailsOther },
+        { 0, luling::l10n::StringId::DetailsBasic },
+        { 2, luling::l10n::StringId::DetailsTags },
+        { 1, luling::l10n::StringId::DetailsAttributes },
+        { 3, luling::l10n::StringId::DetailsSecurity },
+        { 4, luling::l10n::StringId::DetailsOther },
     };
 
     // Button row labels, shared between layout (width measurement) and drawing.
-    constexpr pulse::l10n::StringId kDetailsButtonLabels[4] = {
-        pulse::l10n::StringId::Open, pulse::l10n::StringId::OpenNewTab,
-        pulse::l10n::StringId::CopyPath, pulse::l10n::StringId::More,
+    constexpr luling::l10n::StringId kDetailsButtonLabels[4] = {
+        luling::l10n::StringId::Open, luling::l10n::StringId::OpenNewTab,
+        luling::l10n::StringId::CopyPath, luling::l10n::StringId::More,
     };
 
     // Manual divider minimums and fallback widths (DIP). Automatic layouts
@@ -1266,7 +1266,7 @@ void ClearTextWidthCache() {
     constexpr float kTypeChipGapDip = 6.0f;
 
     std::wstring WeekdayName(int day) {
-        const std::wstring all = pulse::l10n::Get(pulse::l10n::StringId::DateWeekdays);
+        const std::wstring all = luling::l10n::Get(luling::l10n::StringId::DateWeekdays);
         size_t start = 0;
         for (int i = 0; i < day; ++i) {
             const size_t comma = all.find(L',', start);
@@ -1297,13 +1297,13 @@ void ClearTextWidthCache() {
         const long long diff = day_number(now) - day_number(st);
         wchar_t hm[16];
         swprintf_s(hm, L"%02u:%02u", st.wHour, st.wMinute);
-        using pulse::l10n::StringId;
-        if (diff == 0) return pulse::l10n::Get(StringId::DateToday) + L" " + hm;
-        if (diff == 1) return pulse::l10n::Get(StringId::DateYesterday) + L" " + hm;
+        using luling::l10n::StringId;
+        if (diff == 0) return luling::l10n::Get(StringId::DateToday) + L" " + hm;
+        if (diff == 1) return luling::l10n::Get(StringId::DateYesterday) + L" " + hm;
         if (diff > 1 && diff < 7) return WeekdayName(st.wDayOfWeek) + L" " + hm;
         wchar_t text[64];
         if (diff > 0 && st.wYear == now.wYear) {
-            swprintf_s(text, pulse::l10n::Get(StringId::DateMonthDayFormat).c_str(), st.wMonth, st.wDay);
+            swprintf_s(text, luling::l10n::Get(StringId::DateMonthDayFormat).c_str(), st.wMonth, st.wDay);
             return std::wstring(text) + L" " + hm;
         }
         if (diff < 0) {
@@ -1316,13 +1316,13 @@ void ClearTextWidthCache() {
 
     // Widest strings SmartListDate can produce (column fitting).
     std::vector<std::wstring> SmartDateSamples() {
-        using pulse::l10n::StringId;
-        std::vector<std::wstring> out{pulse::l10n::Get(StringId::DateToday) + L" 23:59",
-                                      pulse::l10n::Get(StringId::DateYesterday) + L" 23:59",
+        using luling::l10n::StringId;
+        std::vector<std::wstring> out{luling::l10n::Get(StringId::DateToday) + L" 23:59",
+                                      luling::l10n::Get(StringId::DateYesterday) + L" 23:59",
                                       L"2026-12-30"};
         for (int day = 0; day < 7; ++day) out.push_back(WeekdayName(day) + L" 23:59");
         wchar_t text[64];
-        swprintf_s(text, pulse::l10n::Get(StringId::DateMonthDayFormat).c_str(), 12u, 30u);
+        swprintf_s(text, luling::l10n::Get(StringId::DateMonthDayFormat).c_str(), 12u, 30u);
         out.push_back(std::wstring(text) + L" 23:59");
         return out;
     }
@@ -1482,7 +1482,7 @@ void ClearTextWidthCache() {
                 float needed_total = 0.0f;
                 for (int i = 0; i < 4; ++i) {
                     bw[i] = MeasureLayoutText(compositor, dwrite, small_fmt,
-                                              pulse::l10n::Get(kDetailsButtonLabels[i]))
+                                              luling::l10n::Get(kDetailsButtonLabels[i]))
                         + 12.0f * s; // 4s text padding + slack around the label
                     needed_total += bw[i];
                 }
@@ -1672,7 +1672,7 @@ fluent::BadgeKind IndexVolumeBadgeKind(const std::wstring& state) {
     // model keeps it next to the localized label); Traditional is accepted too.
     const auto has = [&state](const wchar_t* simplified) {
         return state.find(simplified) != std::wstring::npos ||
-               state.find(pulse::l10n::Cn(simplified)) != std::wstring::npos;
+               state.find(luling::l10n::Cn(simplified)) != std::wstring::npos;
     };
     if (has(L"失败")) return fluent::BadgeKind::Danger;
     if (has(L"非 NTFS") || has(L"不支持")) return fluent::BadgeKind::Warning;
@@ -1820,8 +1820,8 @@ constexpr int kSettingsNavCount = 6;  // 5: 预览增强包
 
 // System folder groups shown under Settings > Exclusions: 0-3 follow
 // index::kSystemExclusionGroups, 4-5 are always skipped by the index.
-inline pulse::l10n::StringId SystemGroupLabel(int group) {
-    using I = pulse::l10n::StringId;
+inline luling::l10n::StringId SystemGroupLabel(int group) {
+    using I = luling::l10n::StringId;
     static constexpr I kLabels[] = {I::SystemGroupWindows, I::SystemGroupTemp, I::SystemGroupOld,
                                     I::SystemGroupProgramData, I::SystemGroupRecycle,
                                     I::SystemGroupComponents};
@@ -1844,60 +1844,60 @@ inline bool SystemGroupChipVisible(const WindowViewModel& vm, int group) {
     return SystemGroupEnabled(vm, group);
 }
 
-inline app::BuiltinMenuSurface PulseMenuSurface(const WindowViewModel& vm) {
+inline app::BuiltinMenuSurface LulingMenuSurface(const WindowViewModel& vm) {
     return vm.settings_context_tab == 1 ? app::BuiltinMenuSurface::Background
          : vm.settings_context_tab == 2 ? app::BuiltinMenuSurface::RowButtons
                                         : app::BuiltinMenuSurface::Item;
 }
 // Preview metrics (DIP), shared by layout and drawing.
-inline constexpr float kPulsePreviewTitle = 24.0f, kPulsePreviewRow = 34.0f,
-    kPulsePreviewSwatches = 34.0f, kPulsePreviewSeparator = 9.0f, kPulsePreviewPad = 5.0f;
+inline constexpr float kLulingPreviewTitle = 24.0f, kLulingPreviewRow = 34.0f,
+    kLulingPreviewSwatches = 34.0f, kLulingPreviewSeparator = 9.0f, kLulingPreviewPad = 5.0f;
 // Hint line under the preview box ("drag to reorder").
-inline constexpr float kPulsePreviewHint = 26.0f;
-inline const app::BuiltinMenuOrder& PulseMenuOrder(const WindowViewModel& vm) {
-    return vm.settings_builtin_order[static_cast<size_t>(PulseMenuSurface(vm))];
+inline constexpr float kLulingPreviewHint = 26.0f;
+inline const app::BuiltinMenuOrder& LulingMenuOrder(const WindowViewModel& vm) {
+    return vm.settings_builtin_order[static_cast<size_t>(LulingMenuSurface(vm))];
 }
-inline bool PulseMenuOrderCustom(const WindowViewModel& vm, app::BuiltinMenuSurface surface) {
+inline bool LulingMenuOrderCustom(const WindowViewModel& vm, app::BuiltinMenuSurface surface) {
     const auto& order = vm.settings_builtin_order[static_cast<size_t>(surface)];
     return !order.empty() && app::NormalizeBuiltinMenuOrder(surface, order) != app::BuiltinMenuDefaultOrder(surface);
 }
-inline float PulseMenuPreviewHeight(const WindowViewModel& vm, float scale) {
-    if (vm.settings_context_tab == 2) return (kPulsePreviewTitle + 56.0f + kPulsePreviewHint) * scale;
-    float h = 2 * kPulsePreviewPad;
-    for (const auto& r : app::BuiltinMenuVisibleRows(PulseMenuSurface(vm), vm.settings_builtin_hidden, PulseMenuOrder(vm))) {
-        h += kPulsePreviewRow;
-        if (r.row.item == app::BuiltinMenuItem::Tags) h += kPulsePreviewSwatches;
-        if (r.separator_after) h += kPulsePreviewSeparator;
+inline float LulingMenuPreviewHeight(const WindowViewModel& vm, float scale) {
+    if (vm.settings_context_tab == 2) return (kLulingPreviewTitle + 56.0f + kLulingPreviewHint) * scale;
+    float h = 2 * kLulingPreviewPad;
+    for (const auto& r : app::BuiltinMenuVisibleRows(LulingMenuSurface(vm), vm.settings_builtin_hidden, LulingMenuOrder(vm))) {
+        h += kLulingPreviewRow;
+        if (r.row.item == app::BuiltinMenuItem::Tags) h += kLulingPreviewSwatches;
+        if (r.separator_after) h += kLulingPreviewSeparator;
     }
-    return (kPulsePreviewTitle + h + kPulsePreviewHint) * scale;
+    return (kLulingPreviewTitle + h + kLulingPreviewHint) * scale;
 }
-// The menu box inside l.pulse_preview (below the title, above the hint).
-inline D2D1_RECT_F PulsePreviewBox(const D2D1_RECT_F& preview, float scale) {
-    return D2D1::RectF(preview.left, preview.top + kPulsePreviewTitle * scale,
-                       preview.right, preview.bottom - kPulsePreviewHint * scale);
+// The menu box inside l.luling_preview (below the title, above the hint).
+inline D2D1_RECT_F LulingPreviewBox(const D2D1_RECT_F& preview, float scale) {
+    return D2D1::RectF(preview.left, preview.top + kLulingPreviewTitle * scale,
+                       preview.right, preview.bottom - kLulingPreviewHint * scale);
 }
-inline int PulseMenuRowHit(const app::BuiltinMenuRow& row) {
+inline int LulingMenuRowHit(const app::BuiltinMenuRow& row) {
     return row.fixed != app::BuiltinFixedRow::None ? kSettingsMenuFixedHit + static_cast<int>(row.fixed)
                                                    : kSettingsMenuRowHit + static_cast<int>(row.item);
 }
 
 // One preview row (the tag swatches belong to the 标签... row) or, on the
 // row-buttons tab, one hover button.
-struct PulsePreviewRow {
+struct LulingPreviewRow {
     app::BuiltinMenuRow row{};
     D2D1_RECT_F rect{};
     bool separator_after = false;
 };
-struct PulsePreviewLayout {
-    std::vector<PulsePreviewRow> rows; // without the dragged row while dragging
+struct LulingPreviewLayout {
+    std::vector<LulingPreviewRow> rows; // without the dragged row while dragging
     bool dragging = false;
     app::BuiltinMenuRow drag_row{};
     D2D1_RECT_F ghost{}, gap{};        // floating row; the slot it would land in
     app::BuiltinMenuOrder order;       // order a drop now would give
 };
-inline std::vector<PulsePreviewRow> LayoutPulsePreviewRows(const WindowViewModel& vm, const app::BuiltinMenuOrder& order,
+inline std::vector<LulingPreviewRow> LayoutLulingPreviewRows(const WindowViewModel& vm, const app::BuiltinMenuOrder& order,
                                                            const D2D1_RECT_F& box, float s) {
-    std::vector<PulsePreviewRow> out;
+    std::vector<LulingPreviewRow> out;
     if (vm.settings_context_tab == 2) {
         const auto visible = app::BuiltinMenuVisibleRows(app::BuiltinMenuSurface::RowButtons, vm.settings_builtin_hidden, order);
         const auto row = D2D1::RectF(box.left + 8 * s, box.top + 12 * s, box.right - 8 * s, box.bottom - 12 * s);
@@ -1909,29 +1909,29 @@ inline std::vector<PulsePreviewRow> LayoutPulsePreviewRows(const WindowViewModel
         }
         return out;
     }
-    float y = box.top + kPulsePreviewPad * s;
+    float y = box.top + kLulingPreviewPad * s;
     const float x0 = box.left + 6 * s, x1 = box.right - 6 * s;
-    for (const auto& v : app::BuiltinMenuVisibleRows(PulseMenuSurface(vm), vm.settings_builtin_hidden, order)) {
-        const float h = (kPulsePreviewRow + (v.row.item == app::BuiltinMenuItem::Tags ? kPulsePreviewSwatches : 0.0f)) * s;
+    for (const auto& v : app::BuiltinMenuVisibleRows(LulingMenuSurface(vm), vm.settings_builtin_hidden, order)) {
+        const float h = (kLulingPreviewRow + (v.row.item == app::BuiltinMenuItem::Tags ? kLulingPreviewSwatches : 0.0f)) * s;
         out.push_back({ v.row, D2D1::RectF(x0, y, x1, y + h), v.separator_after });
         y += h;
-        if (v.separator_after) y += kPulsePreviewSeparator * s;
+        if (v.separator_after) y += kLulingPreviewSeparator * s;
     }
     return out;
 }
 // While a row is dragged, every landing place is tried and the one whose
 // slot is nearest the floating row wins; the rows are laid out as that drop
 // would leave them, so separators and groups preview truthfully.
-inline PulsePreviewLayout LayoutPulsePreview(const WindowViewModel& vm, const D2D1_RECT_F& box, float s) {
-    PulsePreviewLayout l;
-    const auto surface = PulseMenuSurface(vm);
+inline LulingPreviewLayout LayoutLulingPreview(const WindowViewModel& vm, const D2D1_RECT_F& box, float s) {
+    LulingPreviewLayout l;
+    const auto surface = LulingMenuSurface(vm);
     const bool horizontal = vm.settings_context_tab == 2;
-    l.order = app::NormalizeBuiltinMenuOrder(surface, PulseMenuOrder(vm));
-    l.rows = LayoutPulsePreviewRows(vm, l.order, box, s);
+    l.order = app::NormalizeBuiltinMenuOrder(surface, LulingMenuOrder(vm));
+    l.rows = LayoutLulingPreviewRows(vm, l.order, box, s);
     if (vm.settings_menu_drag < 0 || vm.settings_menu_drag >= app::kBuiltinMenuItemCount) return l;
     const auto dragged = static_cast<app::BuiltinMenuItem>(vm.settings_menu_drag);
-    auto movable = [&](const PulsePreviewRow& r) { return r.row.fixed == app::BuiltinFixedRow::None && r.row.item < app::BuiltinMenuItem::Count; };
-    const auto held = std::find_if(l.rows.begin(), l.rows.end(), [&](const PulsePreviewRow& r) { return movable(r) && r.row.item == dragged; });
+    auto movable = [&](const LulingPreviewRow& r) { return r.row.fixed == app::BuiltinFixedRow::None && r.row.item < app::BuiltinMenuItem::Count; };
+    const auto held = std::find_if(l.rows.begin(), l.rows.end(), [&](const LulingPreviewRow& r) { return movable(r) && r.row.item == dragged; });
     if (held == l.rows.end()) return l;
     app::BuiltinMenuOrder rest = l.order;
     rest.erase(std::remove(rest.begin(), rest.end(), dragged), rest.end());
@@ -1947,8 +1947,8 @@ inline PulsePreviewLayout LayoutPulsePreview(const WindowViewModel& vm, const D2
         auto at = p < rest_visible.size() ? std::find(candidate.begin(), candidate.end(), rest_visible[p])
                                           : std::find(candidate.begin(), candidate.end(), rest_visible.back()) + 1;
         candidate.insert(at, dragged);
-        auto rows = LayoutPulsePreviewRows(vm, candidate, box, s);
-        const auto slot = std::find_if(rows.begin(), rows.end(), [&](const PulsePreviewRow& r) { return movable(r) && r.row.item == dragged; });
+        auto rows = LayoutLulingPreviewRows(vm, candidate, box, s);
+        const auto slot = std::find_if(rows.begin(), rows.end(), [&](const LulingPreviewRow& r) { return movable(r) && r.row.item == dragged; });
         if (slot == rows.end()) continue;
         const float d = std::abs((horizontal ? slot->rect.left : slot->rect.top) - start);
         if (d >= best) continue;
@@ -1966,16 +1966,16 @@ inline PulsePreviewLayout LayoutPulsePreview(const WindowViewModel& vm, const D2
 }
 
 struct SettingsLayout {
-    // Cards 0-4: Explorer groups (with a master switch). Card 5: Pulse's own
+    // Cards 0-4: Explorer groups (with a master switch). Card 5: Luling's own
     // commands, rows only (context_toggle[5] stays empty).
     static constexpr int kContextCards = 6;
     D2D1_RECT_F context_cards[kContextCards]{}, context_header[kContextCards]{}, context_toggle[kContextCards]{},
         context_empty[kContextCards]{}, context_restore{};
     std::vector<D2D1_RECT_F> context_rows;
-    // Pulse menu card (first on the page): presets (3 = 自定义, display
+    // Luling menu card (first on the page): presets (3 = 自定义, display
     // only), surface tabs, fixed rows of the current tab, live preview.
-    D2D1_RECT_F pulse_card{}, pulse_restore{}, pulse_preset[4]{}, pulse_tabs{}, pulse_tab[3]{},
-        pulse_fixed[2]{}, pulse_preview{}, pulse_order_reset{}, context_other{};
+    D2D1_RECT_F luling_card{}, luling_restore{}, luling_preset[4]{}, luling_tabs{}, luling_tab[3]{},
+        luling_fixed[2]{}, luling_preview{}, luling_order_reset{}, context_other{};
     D2D1_RECT_F duplicate_options{};
     D2D1_RECT_F section[4]{}, group[3]{}, footer{};
     D2D1_RECT_F theme_row{}, theme_tile[3]{}, effect_choice{}, language_choice{};
@@ -2202,11 +2202,11 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         l.index_status = D2D1::RectF(card_left, y, card_right, y + 82.0f * scale);
         y += 94.0f * scale;
         const std::wstring index_actions[] = {
-            pulse::l10n::Get(pulse::l10n::StringId::Rebuild),
-            pulse::l10n::Get(pulse::l10n::StringId::OpenLocation),
-            pulse::l10n::Get(vm.settings_index_service
-                ? pulse::l10n::StringId::ChangeLocation
-                : pulse::l10n::StringId::InstallService),
+            luling::l10n::Get(luling::l10n::StringId::Rebuild),
+            luling::l10n::Get(luling::l10n::StringId::OpenLocation),
+            luling::l10n::Get(vm.settings_index_service
+                ? luling::l10n::StringId::ChangeLocation
+                : luling::l10n::StringId::InstallService),
         };
         const bool compact_actions = card_right - card_left < 650.0f * scale;
         const float path_h = compact_actions ? 116.0f * scale : 64.0f * scale;
@@ -2239,10 +2239,10 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         y += 44.0f * scale;
         const float section_btn_h = 32.0f * scale;
         const float add_folder_w = label_btn_w(
-            pulse::l10n::Get(pulse::l10n::StringId::AddFolder));
+            luling::l10n::Get(luling::l10n::StringId::AddFolder));
         l.index_exclude_action = D2D1::RectF(card_right - add_folder_w, y - 36.0f * scale,
                                              card_right, y - 36.0f * scale + section_btn_h);
-        const float remove_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::Remove));
+        const float remove_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::Remove));
         const float system_top = y;
         if (vm.settings_index_system_known) {
             l.index_system_row = D2D1::RectF(card_left, y, card_right, y + 64.0f * scale);
@@ -2261,11 +2261,11 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             for (int g = 0; g < 6; ++g) {
                 if (!SystemGroupChipVisible(vm, g)) continue;
                 l.index_system_chip[g] = place(painter
-                    ? painter->MeasureBadgeWidth(pulse::l10n::Get(SystemGroupLabel(g))) : 120.0f * scale,
+                    ? painter->MeasureBadgeWidth(luling::l10n::Get(SystemGroupLabel(g))) : 120.0f * scale,
                     22.0f * scale);
             }
             const float more_w = (painter ? painter->MeasureBadgeWidth(
-                pulse::l10n::Get(pulse::l10n::StringId::SettingsSystemCustomize)) : 60.0f * scale) + 16.0f * scale;
+                luling::l10n::Get(luling::l10n::StringId::SettingsSystemCustomize)) : 60.0f * scale) + 16.0f * scale;
             l.index_system_more = place(more_w, 28.0f * scale);
             y = chip_y + 22.0f * scale + 14.0f * scale;
             if (vm.settings_index_system_expanded) {
@@ -2296,7 +2296,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             y += empty_h;
         }
         y += 44.0f * scale;
-        const float rescan_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::Rescan));
+        const float rescan_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::Rescan));
         l.network_action[0] = D2D1::RectF(card_right - add_folder_w, y - 36.0f * scale,
                                           card_right, y - 36.0f * scale + section_btn_h);
         l.network_action[1] = D2D1::RectF(
@@ -2320,12 +2320,12 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         y += 30*scale;
         l.context_rows.resize(vm.settings_items.size());
         {
-            // Pulse menu card: header, presets, surface tabs, then the
+            // Luling menu card: header, presets, surface tabs, then the
             // switch list with a live menu preview on the right.
             const float left=l.content.left+pad,right=l.content.right-pad,top=y;
             const float inner=left+54*scale;
             const float link_w=label_btn_w(l10n::Get(l10n::StringId::RestoreDefaults))-8*scale;
-            l.pulse_restore=D2D1::RectF(right-16*scale-link_w,top+18*scale,right-16*scale,top+46*scale);
+            l.luling_restore=D2D1::RectF(right-16*scale-link_w,top+18*scale,right-16*scale,top+46*scale);
             y=top+72*scale;
             static constexpr l10n::StringId kPresetDesc[]={l10n::StringId::ContextPresetSlimDesc,l10n::StringId::ContextPresetStandardDesc,
                 l10n::StringId::ContextPresetFullDesc,l10n::StringId::ContextPresetCustomDesc};
@@ -2333,7 +2333,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             for(int i=0;i<4;++i) {
                 // Fit the longer caption line (small text is narrower than the button font).
                 const float w=std::max(80*scale,label_btn_w(l10n::Get(kPresetDesc[i]))*0.92f);
-                l.pulse_preset[i]=D2D1::RectF(px,y,px+w,y+48*scale);
+                l.luling_preset[i]=D2D1::RectF(px,y,px+w,y+48*scale);
                 px+=w+8*scale;
             }
             y+=60*scale;
@@ -2341,21 +2341,21 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             float tx=inner+3*scale;
             for(int i=0;i<3;++i) {
                 const float w=std::max(72*scale,label_btn_w(l10n::Get(kTabs[i])));
-                l.pulse_tab[i]=D2D1::RectF(tx,y+3*scale,tx+w,y+33*scale);
+                l.luling_tab[i]=D2D1::RectF(tx,y+3*scale,tx+w,y+33*scale);
                 tx+=w;
             }
-            l.pulse_tabs=D2D1::RectF(inner,y,tx+3*scale,y+36*scale);
+            l.luling_tabs=D2D1::RectF(inner,y,tx+3*scale,y+36*scale);
             y+=52*scale;
             const bool preview=right-left>=700*scale;
             const float preview_w=244*scale;
             const float list_right=preview ? right-24*scale-preview_w-28*scale : right-24*scale;
             const float list_top=y;
-            const auto rows=app::BuiltinMenuOrderedRows(PulseMenuSurface(vm),PulseMenuOrder(vm));
+            const auto rows=app::BuiltinMenuOrderedRows(LulingMenuSurface(vm),LulingMenuOrder(vm));
             for(size_t k=0;k<rows.size();++k) {
                 const auto& row=rows[k];
                 const auto row_rc=D2D1::RectF(inner,y,list_right,y+44*scale);
                 if(row.fixed!=app::BuiltinFixedRow::None) {
-                    l.pulse_fixed[row.fixed==app::BuiltinFixedRow::Open ? 0 : 1]=row_rc;
+                    l.luling_fixed[row.fixed==app::BuiltinFixedRow::Open ? 0 : 1]=row_rc;
                 } else {
                     const size_t i=vm.settings_builtin_first+static_cast<size_t>(row.item);
                     if(i<l.context_rows.size()) l.context_rows[i]=row_rc;
@@ -2364,16 +2364,16 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             }
             float bottom=y;
             if(preview) {
-                const float h=PulseMenuPreviewHeight(vm,scale);
-                l.pulse_preview=D2D1::RectF(right-24*scale-preview_w,list_top,right-24*scale,list_top+h);
-                if(PulseMenuOrderCustom(vm,PulseMenuSurface(vm))) {
+                const float h=LulingMenuPreviewHeight(vm,scale);
+                l.luling_preview=D2D1::RectF(right-24*scale-preview_w,list_top,right-24*scale,list_top+h);
+                if(LulingMenuOrderCustom(vm,LulingMenuSurface(vm))) {
                     const float order_w=label_btn_w(l10n::Get(l10n::StringId::ContextOrderReset))-8*scale;
-                    l.pulse_order_reset=D2D1::RectF(l.pulse_preview.right-order_w,list_top-4*scale,l.pulse_preview.right,list_top+20*scale);
+                    l.luling_order_reset=D2D1::RectF(l.luling_preview.right-order_w,list_top-4*scale,l.luling_preview.right,list_top+20*scale);
                 }
-                bottom=std::max(bottom,l.pulse_preview.bottom);
+                bottom=std::max(bottom,l.luling_preview.bottom);
             }
             y=bottom+16*scale;
-            l.pulse_card=D2D1::RectF(left,top,right,y);
+            l.luling_card=D2D1::RectF(left,top,right,y);
             y+=20*scale;
             l.context_other=D2D1::RectF(left,y,right,y+20*scale);
             y+=30*scale;
@@ -2405,13 +2405,13 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         {
             const float lines = static_cast<float>(AboutRowLines(vm, card_right - card_left, scale));
             const float actions_y = y + 66.0f * scale + lines * kAboutRowDip * scale + 10.0f * scale;
-            static constexpr pulse::l10n::StringId kAboutLabels[] = {
-                pulse::l10n::StringId::AboutCopyInfo,
-                pulse::l10n::StringId::AboutHomepage,
+            static constexpr luling::l10n::StringId kAboutLabels[] = {
+                luling::l10n::StringId::AboutCopyInfo,
+                luling::l10n::StringId::AboutHomepage,
             };
             float ax = card_left + 16.0f * scale;
             for (int i = 0; i < 2; ++i) {
-                const float w = label_btn_w(pulse::l10n::Get(kAboutLabels[i]));
+                const float w = label_btn_w(luling::l10n::Get(kAboutLabels[i]));
                 l.about_action[i] = D2D1::RectF(ax, actions_y, ax + w, actions_y + 32.0f * scale);
                 ax += w + 8.0f * scale;
             }
@@ -2437,14 +2437,14 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         const float gap = 8.0f * scale;
         const float action_left = card_left + 16.0f * scale;
         const float action_right = card_right - 16.0f * scale;
-        static constexpr pulse::l10n::StringId kDiagLabels[] = {
-            pulse::l10n::StringId::OpenDiagnostics,
-            pulse::l10n::StringId::ClearDiagnostics,
-            pulse::l10n::StringId::ExportDiagnostics,
+        static constexpr luling::l10n::StringId kDiagLabels[] = {
+            luling::l10n::StringId::OpenDiagnostics,
+            luling::l10n::StringId::ClearDiagnostics,
+            luling::l10n::StringId::ExportDiagnostics,
         };
         float diag_w[3]{};
         for (int i = 0; i < 3; ++i)
-            diag_w[i] = label_btn_w(pulse::l10n::Get(kDiagLabels[i]));
+            diag_w[i] = label_btn_w(luling::l10n::Get(kDiagLabels[i]));
         if (compact_diagnostics) {
             for (int i = 0; i < 3; ++i) {
                 const float top = y + (152.0f + i * 40.0f) * scale;
@@ -2468,9 +2468,9 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
 
         const float available_width = std::max(0.0f, card_right - card_left - 32.0f * scale);
         const float check_w = std::min(available_width, label_btn_w(
-            pulse::l10n::Get(pulse::l10n::StringId::CheckForUpdates)));
+            luling::l10n::Get(luling::l10n::StringId::CheckForUpdates)));
         const float download_w = std::min(available_width, label_btn_w(
-            pulse::l10n::Get(pulse::l10n::StringId::DownloadUpdate)));
+            luling::l10n::Get(luling::l10n::StringId::DownloadUpdate)));
         const bool stack_updates = vm.settings_update_available && check_w + gap + download_w > available_width;
         // The automatic-check switch sits between the status text and the buttons,
         // like the performance switch in the diagnostics card.
@@ -2495,7 +2495,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
 
         // Release notes: a header row per embedded version; the expanded one gets a body.
         const float release_top = y;
-        const float all_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::ReleaseAll));
+        const float all_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::ReleaseAll));
         l.release_all = D2D1::RectF(card_right - 16.0f * scale - all_w, release_top + 14.0f * scale,
                                     card_right - 16.0f * scale, release_top + 46.0f * scale);
         float ry = release_top + 70.0f * scale;
@@ -2534,7 +2534,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         }
         y += 48.0f * scale;
         if (vm.dup_scope == 0) {
-            const float browse_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::DupBrowse));
+            const float browse_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::DupBrowse));
             l.dup_browse = D2D1::RectF(card_right - inner - browse_w, y,
                                        card_right - inner, y + btn_h);
             y += 44.0f * scale;
@@ -2561,8 +2561,8 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             l.dup_min_size[i] = D2D1::RectF(left, y, left + min_w, y + 32.0f * scale);
         }
         y += 44.0f * scale;
-        const float scan_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::DupScan));
-        const float cancel_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::Cancel));
+        const float scan_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::DupScan));
+        const float cancel_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::Cancel));
         l.dup_scan = D2D1::RectF(card_left + inner, y, card_left + inner + scan_w, y + btn_h);
         l.dup_cancel = D2D1::RectF(l.dup_scan.right + gap, y,
                                    l.dup_scan.right + gap + cancel_w, y + btn_h);
@@ -2575,7 +2575,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         }
         if (!vm.dup_empty.empty()) y += 36.0f * scale;
         const float file_h = 32.0f * scale;
-        const float delete_w = label_btn_w(pulse::l10n::Get(pulse::l10n::StringId::DupDeleteExtras));
+        const float delete_w = label_btn_w(luling::l10n::Get(luling::l10n::StringId::DupDeleteExtras));
         const float vis_pad = 64.0f * scale;
         l.dup_group_cards.reserve(vm.dup_groups.size());
         l.dup_group_delete.reserve(vm.dup_groups.size());
@@ -2612,7 +2612,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         }
         if (vm.dup_show_delete_all) {
             const float all_w = label_btn_w(vm.dup_delete_all.empty()
-                ? pulse::l10n::Get(pulse::l10n::StringId::DupDeleteAllExtras)
+                ? luling::l10n::Get(luling::l10n::StringId::DupDeleteAllExtras)
                 : vm.dup_delete_all);
             l.dup_delete_all = D2D1::RectF(card_left, y, card_left + all_w, y + btn_h);
             y += 48.0f * scale;
@@ -2986,4 +2986,4 @@ ScrollbarMetrics ComputeScrollbar(float viewH, float totalH, float scrollY, floa
 }
 } // namespace
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -44,11 +44,11 @@ HRESULT FindRecycledFixture(const std::filesystem::path& original, ComPtr<IShell
         const std::wstring folder_location = SUCCEEDED(details_hr) && folder_value.vt == VT_BSTR && folder_value.bstrVal ? folder_value.bstrVal : L"";
         VariantClear(&folder_value);
         auto matches = [&](const std::wstring& value) {
-            return pulse::path::EqualInsensitive(value, original.wstring()) ||
-                (pulse::path::EqualInsensitive(value, original.parent_path().wstring()) &&
-                 pulse::path::EqualInsensitive(display, original.filename().wstring()));
+            return luling::path::EqualInsensitive(value, original.wstring()) ||
+                (luling::path::EqualInsensitive(value, original.parent_path().wstring()) &&
+                 luling::path::EqualInsensitive(display, original.filename().wstring()));
         };
-        const bool match = matches(location) || matches(folder_location) || pulse::path::EqualInsensitive(display, original.wstring());
+        const bool match = matches(location) || matches(folder_location) || luling::path::EqualInsensitive(display, original.wstring());
         if (!match && (location.find(marker) != std::wstring::npos || folder_location.find(marker) != std::wstring::npos || display.find(marker) != std::wstring::npos))
             std::wcerr << L"fixture-only bin match: item_property_hr=0x" << std::hex << static_cast<unsigned long>(parent_hr)
                 << L" display_hr=0x" << static_cast<unsigned long>(name_hr) << L" folder_property_hr=0x" << static_cast<unsigned long>(details_hr)
@@ -60,7 +60,7 @@ HRESULT FindRecycledFixture(const std::filesystem::path& original, ComPtr<IShell
     return found ? S_OK : HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
 }
 int RestoreExistingFixture(const std::filesystem::path& original) {
-    if (!original.parent_path().filename().wstring().starts_with(L"pulse_recycle_fixture_{") ||
+    if (!original.parent_path().filename().wstring().starts_with(L"luling_recycle_fixture_{") ||
         original.filename() != L"unique_roundtrip_item" || std::filesystem::exists(original)) return 2;
     ComPtr<IShellItem> item;
     HRESULT hr = FindRecycledFixture(original, item);
@@ -88,14 +88,14 @@ int RecycleRoundTrip(bool directory = false) {
     GUID guid{};
     if (FAILED(CoCreateGuid(&guid))) return 2;
     wchar_t unique[40]{}; StringFromGUID2(guid, unique, 40);
-    const auto root = std::filesystem::path(temp) / (L"pulse_recycle_fixture_" + std::wstring(unique));
+    const auto root = std::filesystem::path(temp) / (L"luling_recycle_fixture_" + std::wstring(unique));
     const auto original = root / L"unique_roundtrip_item";
     std::filesystem::create_directories(root);
     if (directory) std::filesystem::create_directory(original);
     const auto content_path = directory ? original / L"child.txt" : original;
-    { std::ofstream file(content_path); file << "Pulse isolated recycle roundtrip"; }
+    { std::ofstream file(content_path); file << "Luling isolated recycle roundtrip"; }
     std::atomic<bool> cancel{false};
-    const auto result = pulse::ops::DeleteWithCurrentToken({original.wstring()}, false, nullptr, cancel);
+    const auto result = luling::ops::DeleteWithCurrentToken({original.wstring()}, false, nullptr, cancel);
     ComPtr<IShellItem> recycled;
     HRESULT restore = FindRecycledFixture(original, recycled);
     const bool deleted = SUCCEEDED(result.hr) && result.sources.size() == 1 &&
@@ -115,7 +115,7 @@ int RecycleRoundTrip(bool directory = false) {
     { std::ifstream file(content_path); content.assign(std::istreambuf_iterator<char>(file), {}); }
     ComPtr<IShellItem> remaining;
     const HRESULT remaining_hr = FindRecycledFixture(original, remaining);
-    const bool restored = SUCCEEDED(restore) && content == "Pulse isolated recycle roundtrip" &&
+    const bool restored = SUCCEEDED(restore) && content == "Luling isolated recycle roundtrip" &&
         remaining_hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     std::cout << (deleted ? "[PASS] " : "[FAIL] ") << (directory ? "folder" : "file") << " recycle creates exact isolated bin entry without permanent deletion\n";
     std::cout << (restored ? "[PASS] " : "[FAIL] ") << (directory ? "folder" : "file") << " restore preserves content and removes only fixture bin entry\n";
@@ -131,7 +131,7 @@ int RecycleRoundTrip(bool directory = false) {
 }
 }
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::ops;
+    using namespace luling::ops;
     if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return 2;
     if (argc == 3 && std::wstring(argv[1]) == L"--restore-fixture") {
         const int result = RestoreExistingFixture(argv[2]); CoUninitialize(); return result;
@@ -145,7 +145,7 @@ int wmain(int argc, wchar_t** argv) {
     auto check = [&](bool ok, const char* label) { std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << '\n'; if (!ok) ++failed; };
     wchar_t temp[MAX_PATH]{};
     if (!GetTempPathW(MAX_PATH, temp)) { CoUninitialize(); return 2; }
-    const auto root = std::filesystem::path(temp) / (L"pulse_delete_test_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
+    const auto root = std::filesystem::path(temp) / (L"luling_delete_test_" + std::to_wstring(GetCurrentProcessId()) + L"_" + std::to_wstring(GetTickCount64()));
     std::atomic<bool> cancel{false};
     try {
         std::filesystem::create_directories(root / L"folder");
@@ -155,7 +155,7 @@ int wmain(int argc, wchar_t** argv) {
         auto result = DeleteWithCurrentToken({(root / L"file.txt").wstring()}, true, nullptr, cancel);
         check(result.cancelled && !result.mutated && result.sources.empty() && std::filesystem::exists(root / L"file.txt"), "pre-cancel preserves fixture");
         cancel = false;
-        result = DeleteWithCurrentToken({L"\\\\localhost\\nonexistent_pulse_recycle_test_share\\file.txt"}, false, nullptr, cancel);
+        result = DeleteWithCurrentToken({L"\\\\localhost\\nonexistent_luling_recycle_test_share\\file.txt"}, false, nullptr, cancel);
         check(FAILED(result.hr) && !result.mutated && !result.cancelled && result.sources.empty(), "UNC recycle rejected before any delete attempt");
         result = DeleteWithCurrentToken({(root / L"file.txt").wstring(), (root / L"missing.txt").wstring()}, true, nullptr, cancel);
         if (result.sources.size() != 1) std::cerr << "delete hr=" << std::hex << static_cast<unsigned long>(result.hr) << std::dec << " successes=" << result.sources.size() << " mutated=" << result.mutated << '\n';

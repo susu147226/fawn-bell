@@ -2,7 +2,7 @@
 #include "fs_snapshot.h"
 #include "fs_enum.h"
 
-namespace pulse::fs {
+namespace luling::fs {
 
 bool QueryDirectoryIdentity(const std::wstring& path, DirectoryIdentity& out) {
     out = {};
@@ -237,4 +237,4 @@ size_t SnapshotStore::ResidentBytes() const {
     return resident_bytes_;
 }
 
-} // namespace pulse::fs
+} // namespace luling::fs

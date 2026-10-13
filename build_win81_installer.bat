@@ -1,5 +1,5 @@
 @echo off
-rem Build the Windows 8.1 candidate, then pack dist\PulseSetup-<version>-win81.exe.
+rem Build the Windows 8.1 candidate, then pack dist\LulingSetup-<version>-win81.exe.
 setlocal
 cd /d "%~dp0"
 if /i not "%~1"=="/skipbuild" call build_win81.bat /release

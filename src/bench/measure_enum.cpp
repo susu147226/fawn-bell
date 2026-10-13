@@ -1,5 +1,5 @@
 // measure_enum.cpp — Stage 0 directory enumeration benchmark
-// pulse_bench_enum [--gen <dir> <count>] [path...]
+// luling_bench_enum [--gen <dir> <count>] [path...]
 
 #include <windows.h>
 #include <shellapi.h>
@@ -52,7 +52,7 @@ struct NtIoStatusBlock {
 
 using NtPioApcRoutine = VOID (NTAPI*)(PVOID ApcContext, NtIoStatusBlock* IoStatusBlock, ULONG Reserved);
 
-using pulse::fs::NtFileFullDirInformation;
+using luling::fs::NtFileFullDirInformation;
 
 enum NtFileInformationClass : int {
     NtFileFullDirectoryInformation = 2,
@@ -487,7 +487,7 @@ int wmain(int argc, wchar_t* argv[]) {
     std::ios::sync_with_stdio(false);
 
     if (argc < 2) {
-        return usage("pulse_bench_enum");
+        return usage("luling_bench_enum");
     }
 
     int idx = 1;
@@ -495,7 +495,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
     while (idx < argc) {
         if (std::wstring_view(argv[idx]) == L"--gen") {
-            if (idx + 3 > argc) return usage("pulse_bench_enum");
+            if (idx + 3 > argc) return usage("luling_bench_enum");
             std::wstring dir = argv[idx + 1];
             int64_t count = _wtoi64(argv[idx + 2]);
             generate_directory(dir, count);

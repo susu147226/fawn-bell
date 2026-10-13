@@ -5,7 +5,7 @@
 #include <cwctype>
 #include <utility>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 using Kind = MathNodeKind;
 using Class = MathAtomClass;
@@ -1059,4 +1059,4 @@ float MathAtomSpacing(MathAtomClass left, MathAtomClass right, MathStyle style) 
                                            {3, 3, 0, 5, 3, 3, 3, 3}, {3, 3, 4, 5, 3, 0, 3, 3}};
     return static_cast<float>(table[static_cast<size_t>(left)][static_cast<size_t>(right)]) / 18;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

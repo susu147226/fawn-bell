@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 void ResetPreviewHandlerOpenAttemptsForTest();
 uint32_t PreviewHandlerOpenAttemptsForTest();
 bool PreviewHandlerCanActivateIsolatedForTest(const std::wstring& path);
@@ -33,7 +33,7 @@ LRESULT CALLBACK OwnerProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 int wmain(int argc, wchar_t** argv) {
     if (argc < 2 || ((wcscmp(argv[1], L"--selftest") == 0 ||
                       wcscmp(argv[1], L"--isolated-test") == 0) && argc < 3)) {
-        wprintf(L"usage: pulse_preview_handler_probe.exe "
+        wprintf(L"usage: luling_preview_handler_probe.exe "
                 L"[--selftest|--isolated-test] <file> or --cooldown-test\n");
         return 1;
     }
@@ -54,10 +54,10 @@ int wmain(int argc, wchar_t** argv) {
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-    wc.lpszClassName = L"PulsePreviewProbeOwner";
+    wc.lpszClassName = L"LulingPreviewProbeOwner";
     RegisterClassExW(&wc);
 
-    HWND owner = CreateWindowExW(0, wc.lpszClassName, L"Pulse preview probe",
+    HWND owner = CreateWindowExW(0, wc.lpszClassName, L"Luling preview probe",
                                  WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                  80, 80, 420, 860, nullptr, nullptr,
                                  wc.hInstance, nullptr);
@@ -80,9 +80,9 @@ int wmain(int argc, wchar_t** argv) {
         : 0;
     wprintf(L"attrs=0x%08X exist=%d size=%llu canhost=%d\n",
             attrs, have_fad ? 1 : 0, static_cast<unsigned long long>(size),
-            pulse::ui::PreviewHandlerHost::CanHost(path) ? 1 : 0);
+            luling::ui::PreviewHandlerHost::CanHost(path) ? 1 : 0);
     if (isolated_test) {
-        const bool isolated = pulse::ui::PreviewHandlerCanActivateIsolatedForTest(path);
+        const bool isolated = luling::ui::PreviewHandlerCanActivateIsolatedForTest(path);
         wprintf(L"[%s] preview handler supports isolated local-server activation\n",
                 isolated ? L"PASS" : L"FAIL");
         DestroyWindow(owner);
@@ -96,23 +96,23 @@ int wmain(int argc, wchar_t** argv) {
     if (cooldown_test) {
         // Delay before provider activation, so this regression needs no installed
         // Office/PDF handler or real files. B is queued while A is still opening.
-        const std::wstring first = L"pulse-cooldown-a.pulse-test-a";
-        const std::wstring second = L"pulse-cooldown-b.pulse-test-b";
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", L"1200");
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"200");
-        pulse::ui::ResetSlowPreviewProvidersForTest();
-        pulse::ui::ResetPreviewHandlerOpenAttemptsForTest();
+        const std::wstring first = L"luling-cooldown-a.luling-test-a";
+        const std::wstring second = L"luling-cooldown-b.luling-test-b";
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", L"1200");
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"200");
+        luling::ui::ResetSlowPreviewProvidersForTest();
+        luling::ui::ResetPreviewHandlerOpenAttemptsForTest();
         bool started = false;
         bool queued_before_timeout = false;
         bool first_cooled = false;
         bool second_cooled = false;
         {
-            pulse::ui::PreviewHandlerHost host;
+            luling::ui::PreviewHandlerHost host;
             host.Sync(owner, bounds, first, FILE_ATTRIBUTE_NORMAL, 1, 0, 0,
                       true, bg, fg, true, true);
             const ULONGLONG start_deadline = GetTickCount64() + 1000;
             while (GetTickCount64() < start_deadline) {
-                if (pulse::ui::PreviewHandlerOpenAttemptsForTest() > 0) {
+                if (luling::ui::PreviewHandlerOpenAttemptsForTest() > 0) {
                     started = true;
                     break;
                 }
@@ -122,21 +122,21 @@ int wmain(int argc, wchar_t** argv) {
                 host.Sync(owner, bounds, second, FILE_ATTRIBUTE_NORMAL, 2, 0, 0,
                           true, bg, fg, true, true);
                 queued_before_timeout =
-                    !pulse::ui::PreviewProviderCoolingDownForTest(first) &&
-                    !pulse::ui::PreviewProviderCoolingDownForTest(second);
+                    !luling::ui::PreviewProviderCoolingDownForTest(first) &&
+                    !luling::ui::PreviewProviderCoolingDownForTest(second);
                 const ULONGLONG deadline = GetTickCount64() + 700;
                 while (GetTickCount64() < deadline) {
                     host.Sync(owner, bounds, second, FILE_ATTRIBUTE_NORMAL, 2, 0, 0,
                               true, bg, fg, true, true);
-                    first_cooled = pulse::ui::PreviewProviderCoolingDownForTest(first);
-                    second_cooled = pulse::ui::PreviewProviderCoolingDownForTest(second);
+                    first_cooled = luling::ui::PreviewProviderCoolingDownForTest(first);
+                    second_cooled = luling::ui::PreviewProviderCoolingDownForTest(second);
                     if (first_cooled || second_cooled) break;
                     Sleep(10);
                 }
             }
         }
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
         const bool ok = started && queued_before_timeout && first_cooled && !second_cooled;
         wprintf(L"[%s] switching A to B cools only the blocked A "
                 L"(started=%d, queued=%d, A=%d, B=%d)\n",
@@ -151,23 +151,23 @@ int wmain(int argc, wchar_t** argv) {
             }
             Sleep(10);
         }
-        pulse::ui::ResetSlowPreviewProvidersForTest();
+        luling::ui::ResetSlowPreviewProvidersForTest();
         DestroyWindow(owner);
         CoUninitialize();
         return ok ? 0 : 6;
     }
     if (self_test) {
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", L"1500");
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", L"1500");
         // This block only measures that the owner thread never waits on the
         // apartment, so the stall watchdog is kept out of its way.
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"60000");
-        pulse::ui::ResetPreviewHandlerOpenAttemptsForTest();
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"60000");
+        luling::ui::ResetPreviewHandlerOpenAttemptsForTest();
         double max_sync_ms = 0.0;
         double max_reposition_ms = 0.0;
         double reset_ms = 0.0;
         double destroy_ms = 0.0;
         {
-            auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+            auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
             host->SetNotifyWindow(owner);
             for (uint64_t generation = 1; generation <= 64; ++generation) {
                 const auto start = std::chrono::steady_clock::now();
@@ -195,13 +195,13 @@ int wmain(int argc, wchar_t** argv) {
             destroy_ms = std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - destroy_start).count();
         }
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
-        SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
+        SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
         const bool sync_ok = max_sync_ms < 50.0;
         const bool reposition_ok = max_reposition_ms < 50.0;
         const bool reset_ok = reset_ms < 50.0;
         const bool destroy_ok = destroy_ms < 350.0;
-        const uint32_t open_attempts = pulse::ui::PreviewHandlerOpenAttemptsForTest();
+        const uint32_t open_attempts = luling::ui::PreviewHandlerOpenAttemptsForTest();
         const bool coalesced = open_attempts == 1;
         wprintf(L"[%s] COM preview Sync remains non-blocking (max %.2f ms)\n",
                 sync_ok ? L"PASS" : L"FAIL", max_sync_ms);
@@ -220,7 +220,7 @@ int wmain(int argc, wchar_t** argv) {
         // drags it. The Office and PDF providers own a window in another process,
         // which is exactly the case that used to lag.
         bool follow_ok = true;
-        if (!pulse::ui::PreviewHandlerHost::CanHost(path)) {
+        if (!luling::ui::PreviewHandlerHost::CanHost(path)) {
             wprintf(L"[SKIP] overlay follow needs a file with a system preview handler\n");
         } else {
             double worst_follow_ms = 0.0;
@@ -229,7 +229,7 @@ int wmain(int argc, wchar_t** argv) {
             int missed = 0;
             bool shown = false;
             {
-                auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+                auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
                 host->SetNotifyWindow(owner);
                 host->Sync(owner, bounds, path, attrs, 31, modified, size, true, bg, fg, true, true);
                 const ULONGLONG shown_deadline = GetTickCount64() + 20000;
@@ -239,11 +239,11 @@ int wmain(int argc, wchar_t** argv) {
                         TranslateMessage(&message);
                         DispatchMessageW(&message);
                     }
-                    if (host->state() == pulse::ui::PreviewHandlerHost::State::Shown) {
+                    if (host->state() == luling::ui::PreviewHandlerHost::State::Shown) {
                         shown = true;
                         break;
                     }
-                    if (host->state() == pulse::ui::PreviewHandlerHost::State::Failed) break;
+                    if (host->state() == luling::ui::PreviewHandlerHost::State::Failed) break;
                     Sleep(10);
                 }
                 const HWND overlay = host->overlay_window_for_test();
@@ -256,7 +256,7 @@ int wmain(int argc, wchar_t** argv) {
                     const LONG offset = rest_overlay.left - rest_owner.left;
                     // One step per frame of a drag, with no settling in between:
                     // this is the rate the pane sees while the window is moving.
-                    pulse::ui::ResetOverlayPlaceCountsForTest();
+                    luling::ui::ResetOverlayPlaceCountsForTest();
                     for (int step = 1; step <= 16; ++step) {
                         const LONG want = rest_owner.left + 12 * step;
                         SetWindowPos(owner, nullptr, want, rest_owner.top, 0, 0,
@@ -298,7 +298,7 @@ int wmain(int argc, wchar_t** argv) {
                     L"worst %.1f ms, average %.1f ms, missed %d, placements %u/%u)\n",
                     follow_ok ? L"PASS" : L"FAIL", steps, shown ? 1 : 0,
                     worst_follow_ms, average, missed,
-                    pulse::ui::OverlayPlaceDoneForTest(), pulse::ui::OverlayPlaceCallsForTest());
+                    luling::ui::OverlayPlaceDoneForTest(), luling::ui::OverlayPlaceCallsForTest());
         }
 
         // A provider that never comes back from its open used to stall this and
@@ -307,22 +307,22 @@ int wmain(int argc, wchar_t** argv) {
         // pane falls back instead of waiting, and a fresh apartment must still
         // serve the next selection.
         bool stall_ok = true;
-        if (!pulse::ui::PreviewHandlerHost::CanHost(path)) {
+        if (!luling::ui::PreviewHandlerHost::CanHost(path)) {
             wprintf(L"[SKIP] stalled provider recovery needs a file with a system preview handler\n");
         } else {
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", L"1200");
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"200");
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", L"200");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", L"1200");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"200");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", L"200");
             double max_stall_sync_ms = 0.0;
             bool fell_back = false;
             {
-                auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+                auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
                 host->SetNotifyWindow(owner);
                 const ULONGLONG deadline = GetTickCount64() + 4000;
                 // The pane evaluates CanHost once per selection and hands the
                 // answer straight to Sync, so the identity stays put.
                 for (int attempt = 0; attempt < 400 && GetTickCount64() < deadline; ++attempt) {
-                    const bool can_host = pulse::ui::PreviewHandlerHost::CanHost(path);
+                    const bool can_host = luling::ui::PreviewHandlerHost::CanHost(path);
                     const auto start = std::chrono::steady_clock::now();
                     host->Sync(owner, bounds, path, attrs, 7, modified, size, true, bg, fg, can_host);
                     max_stall_sync_ms = (std::max)(max_stall_sync_ms,
@@ -345,9 +345,9 @@ int wmain(int argc, wchar_t** argv) {
                 // unloads on its own; give it that chance before the owner dies.
                 Sleep(1400);
             }
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", nullptr);
-            pulse::ui::ResetSlowPreviewProvidersForTest();
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", nullptr);
+            luling::ui::ResetSlowPreviewProvidersForTest();
             stall_ok = fell_back && max_stall_sync_ms < 50.0;
             wprintf(L"[%s] stalled handler open is retired instead of blocking the pane "
                     L"(fell back=%d, max sync %.2f ms)\n",
@@ -358,7 +358,7 @@ int wmain(int argc, wchar_t** argv) {
             // served instead of queueing behind the stalled one.
             bool served = false;
             {
-                auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+                auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
                 host->SetNotifyWindow(owner);
                 const ULONGLONG deadline = GetTickCount64() + 10000;
                 for (int attempt = 0; attempt < 1000 && GetTickCount64() < deadline; ++attempt) {
@@ -369,8 +369,8 @@ int wmain(int argc, wchar_t** argv) {
                         DispatchMessageW(&message);
                     }
                     const auto state = host->state();
-                    if (state == pulse::ui::PreviewHandlerHost::State::Shown ||
-                        state == pulse::ui::PreviewHandlerHost::State::Failed) {
+                    if (state == luling::ui::PreviewHandlerHost::State::Shown ||
+                        state == luling::ui::PreviewHandlerHost::State::Failed) {
                         served = true;
                         break;
                     }
@@ -380,8 +380,8 @@ int wmain(int argc, wchar_t** argv) {
                 host.reset();
                 Sleep(300);
             }
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
-            pulse::ui::ResetSlowPreviewProvidersForTest();
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
+            luling::ui::ResetSlowPreviewProvidersForTest();
             stall_ok = stall_ok && served;
             wprintf(L"[%s] a later preview is served by a fresh apartment (finished=%d)\n",
                     served ? L"PASS" : L"FAIL", served ? 1 : 0);
@@ -393,15 +393,15 @@ int wmain(int argc, wchar_t** argv) {
         // that very file, which left the preview with nothing but the failure
         // placeholder. Only a request the pane has moved on from may cut it off.
         bool slow_ok = true;
-        if (!pulse::ui::PreviewHandlerHost::CanHost(path)) {
+        if (!luling::ui::PreviewHandlerHost::CanHost(path)) {
             wprintf(L"[SKIP] the slow provider grace needs a file with a system preview handler\n");
         } else {
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", L"2500");
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"300");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", L"2500");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", L"300");
             double shown_ms = 0.0;
             bool shown = false;
             {
-                auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+                auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
                 host->SetNotifyWindow(owner);
                 const auto start = std::chrono::steady_clock::now();
                 const ULONGLONG deadline = GetTickCount64() + 12000;
@@ -414,7 +414,7 @@ int wmain(int argc, wchar_t** argv) {
                         TranslateMessage(&message);
                         DispatchMessageW(&message);
                     }
-                    if (host->state() == pulse::ui::PreviewHandlerHost::State::Shown) {
+                    if (host->state() == luling::ui::PreviewHandlerHost::State::Shown) {
                         shown = true;
                         shown_ms = std::chrono::duration<double, std::milli>(
                             std::chrono::steady_clock::now() - start).count();
@@ -428,8 +428,8 @@ int wmain(int argc, wchar_t** argv) {
             }
             // A provider that only needed more time must not have been cooled
             // down: the pane keeps handing it this file.
-            const bool kept = pulse::ui::PreviewHandlerHost::CanHost(path);
-            pulse::ui::ResetSlowPreviewProvidersForTest();
+            const bool kept = luling::ui::PreviewHandlerHost::CanHost(path);
+            luling::ui::ResetSlowPreviewProvidersForTest();
             slow_ok = shown && kept;
             wprintf(L"[%s] a slow provider still serves the selection on screen "
                     L"(shown=%d at %.0f ms, still used=%d)\n",
@@ -441,7 +441,7 @@ int wmain(int argc, wchar_t** argv) {
             bool left_behind = false;
             double fallback_ms = 0.0;
             {
-                auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+                auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
                 host->SetNotifyWindow(owner);
                 // Open one file and let the provider get stuck in it.
                 host->Sync(owner, bounds, path, attrs, 12, modified, size, true, bg, fg, true);
@@ -465,7 +465,7 @@ int wmain(int argc, wchar_t** argv) {
                         TranslateMessage(&message);
                         DispatchMessageW(&message);
                     }
-                    if (!pulse::ui::PreviewHandlerHost::CanHost(path)) {
+                    if (!luling::ui::PreviewHandlerHost::CanHost(path)) {
                         left_behind = true;
                         fallback_ms = std::chrono::duration<double, std::milli>(
                             std::chrono::steady_clock::now() - start).count();
@@ -477,8 +477,8 @@ int wmain(int argc, wchar_t** argv) {
                 host.reset();
                 Sleep(300);
             }
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
-            pulse::ui::ResetSlowPreviewProvidersForTest();
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_OPEN_BUDGET_MS", nullptr);
+            luling::ui::ResetSlowPreviewProvidersForTest();
             slow_ok = slow_ok && left_behind;
             wprintf(L"[%s] a superseded selection retires the stuck provider "
                     L"(fell back=%d at %.0f ms)\n",
@@ -488,12 +488,12 @@ int wmain(int argc, wchar_t** argv) {
             // reach once it answers: the open that was retired can still come
             // back, and the pane should get the handler again instead of the "no
             // provider" placeholder for the rest of the cooldown.
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", L"1200");
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", L"200");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", L"1200");
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", L"200");
             bool cooled_down = false;
             bool usable_again = false;
             {
-                auto host = std::make_unique<pulse::ui::PreviewHandlerHost>();
+                auto host = std::make_unique<luling::ui::PreviewHandlerHost>();
                 host->SetNotifyWindow(owner);
                 host->Sync(owner, bounds, path, attrs, 15, modified, size, true, bg, fg, true);
                 const ULONGLONG cooling = GetTickCount64() + 900;
@@ -508,7 +508,7 @@ int wmain(int argc, wchar_t** argv) {
                 // One repaint of the same request reaches the watchdog without
                 // publishing anything new, so the retired open is left to finish.
                 host->Sync(owner, bounds, path, attrs, 15, modified, size, true, bg, fg, true);
-                cooled_down = !pulse::ui::PreviewHandlerHost::CanHost(path);
+                cooled_down = !luling::ui::PreviewHandlerHost::CanHost(path);
                 const ULONGLONG deadline = GetTickCount64() + 8000;
                 while (GetTickCount64() < deadline) {
                     MSG message{};
@@ -516,7 +516,7 @@ int wmain(int argc, wchar_t** argv) {
                         TranslateMessage(&message);
                         DispatchMessageW(&message);
                     }
-                    if (pulse::ui::PreviewHandlerHost::CanHost(path)) {
+                    if (luling::ui::PreviewHandlerHost::CanHost(path)) {
                         usable_again = true;
                         break;
                     }
@@ -526,9 +526,9 @@ int wmain(int argc, wchar_t** argv) {
                 host.reset();
                 Sleep(200);
             }
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
-            SetEnvironmentVariableW(L"PULSE_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", nullptr);
-            pulse::ui::ResetSlowPreviewProvidersForTest();
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_TEST_DELAY_MS", nullptr);
+            SetEnvironmentVariableW(L"LULING_PREVIEW_HANDLER_SLOW_OPEN_BUDGET_MS", nullptr);
+            luling::ui::ResetSlowPreviewProvidersForTest();
             slow_ok = slow_ok && cooled_down && usable_again;
             wprintf(L"[%s] a provider that answered clears its cooldown "
                     L"(cooled down=%d, usable again=%d)\n",
@@ -542,7 +542,7 @@ int wmain(int argc, wchar_t** argv) {
                 slow_ok && follow_ok ? 0 : 4;
     }
 
-    pulse::ui::PreviewHandlerHost host;
+    luling::ui::PreviewHandlerHost host;
     host.SetNotifyWindow(owner);
     host.Sync(owner, bounds, path, attrs, 1, modified, size, true, bg, fg, true);
 

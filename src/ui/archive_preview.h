@@ -12,13 +12,13 @@
 
 #include "FluentTokens.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class Compositor;
 
 class ArchivePreview {
 public:
-    // Parses the Pulse.Preview.exe archive payload (ipc::PreviewContentKind::
+    // Parses the Luling.Preview.exe archive payload (ipc::PreviewContentKind::
     // Archive). Re-parsing only happens when the payload or file changes, so
     // expansion and scroll survive repaints. Returns false for a payload that
     // is not an archive listing.
@@ -138,4 +138,4 @@ private:
     Microsoft::WRL::ComPtr<IDWriteTextFormat> body_, small_, chip_, value_, title_, icon_;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

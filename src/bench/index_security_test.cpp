@@ -8,7 +8,7 @@
 #include <iterator>
 #include <thread>
 
-using namespace pulse::index;
+using namespace luling::index;
 namespace fs = std::filesystem;
 int main() {
     int failures = 0;
@@ -48,7 +48,7 @@ int main() {
         HANDLE other = nullptr;
         // NEW_CREDENTIALS retains local groups but creates a different authentication
         // session. No server or account is touched and the credentials are never used.
-        const BOOL logged = LogonUserW(L"PulseIsolationFixture", L".", L"unused-fixture-password",
+        const BOOL logged = LogonUserW(L"LulingIsolationFixture", L".", L"unused-fixture-password",
             LOGON32_LOGON_NEW_CREDENTIALS, LOGON32_PROVIDER_WINNT50, &other);
         check(logged != FALSE, "isolated second logon token created");
         if (logged) {
@@ -127,10 +127,10 @@ int main() {
             fs::exists(root) && !fs::exists(root.wstring() + L"-renamed"),
             "actual ancestor rename refused while migration owns path lock");
     }
-    write(source / L"pulse-index.bin"); write(unsafe / L"pulse-index.bin");
+    write(source / L"luling-index.bin"); write(unsafe / L"luling-index.bin");
     IndexMigration migration; std::wstring error;
     check(!CopyIndexForMigration(source.wstring(), unsafe.wstring(), migration, error, true) &&
-        fs::exists(source / L"pulse-index.bin") && fs::exists(unsafe / L"pulse-index.bin"),
+        fs::exists(source / L"luling-index.bin") && fs::exists(unsafe / L"luling-index.bin"),
         "readable nonempty matching target rejected without deleting either copy");
     // An elevated preparation failure is a regression, not an environment skip.
     HANDLE process_token = nullptr;
@@ -145,7 +145,7 @@ int main() {
         "elevated process must prepare and validate an empty private directory");
     if (!prepared) {
         check(!CopyIndexForMigration(source.wstring(), target.wstring(), migration, error, true) &&
-            fs::exists(source / L"pulse-index.bin") && !fs::exists(target / L"pulse-index.bin"),
+            fs::exists(source / L"luling-index.bin") && !fs::exists(target / L"luling-index.bin"),
             "unprivileged migration fails closed before copying and retains source");
         printf("[SKIP] successful private migration and restricted-token reads require elevated administrator\n");
     }
@@ -154,7 +154,7 @@ int main() {
             "production private-object check reads attributes and security on the same handle");
         check(ProtectIndexDirectory(target.wstring()) && ProtectIndexDirectory(target.wstring()),
             "same-path empty private directory protection succeeds repeatedly");
-        const auto existing_artifact = target / L"pulse-index.bin";
+        const auto existing_artifact = target / L"luling-index.bin";
         write(existing_artifact);
         check(IsPrivateIndexObject(existing_artifact) && ProtectIndexDirectory(target.wstring()),
             "same-path nonempty private index validates inherited file security without migration");
@@ -173,17 +173,17 @@ int main() {
             return file == INVALID_HANDLE_VALUE && code == ERROR_ACCESS_DENIED;
         };
         check(denied_read(target), "restricted token cannot enumerate protected target before copy");
-        write(target / L"probe.pulse-copy-temp");
-        check(denied_read(target / L"probe.pulse-copy-temp"), "temporary output inherits private ACL from creation");
-        fs::remove(target / L"probe.pulse-copy-temp");
+        write(target / L"probe.luling-copy-temp");
+        check(denied_read(target / L"probe.luling-copy-temp"), "temporary output inherits private ACL from creation");
+        fs::remove(target / L"probe.luling-copy-temp");
         check(CopyIndexForMigration(source.wstring(), target.wstring(), migration, error, true), "production migration copies into private target");
-        check(denied_read(target / L"pulse-index.bin"), "restricted token cannot read published index");
+        check(denied_read(target / L"luling-index.bin"), "restricted token cannot read published index");
         IndexMigration resume;
         check(CopyIndexForMigration(source.wstring(), target.wstring(), resume, error, true), "private matching target resumes safely");
         DiscardIndexMigrationCopies(resume);
-        check(fs::exists(target / L"pulse-index.bin"), "resume rollback preserves prior copy");
+        check(fs::exists(target / L"luling-index.bin"), "resume rollback preserves prior copy");
         DiscardIndexMigrationCopies(migration);
-        check(fs::exists(source / L"pulse-index.bin") && !fs::exists(target / L"pulse-index.bin"), "failed activation rollback retains source");
+        check(fs::exists(source / L"luling-index.bin") && !fs::exists(target / L"luling-index.bin"), "failed activation rollback retains source");
     }
     // Index folders chosen before #66 inherited their parent's readable ACL.
     check(AdoptableIndexEntry(L"v9\\volumes\\119c0b9769de1692\\base-a.bin", false) &&

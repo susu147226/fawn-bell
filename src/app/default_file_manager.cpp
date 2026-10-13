@@ -10,7 +10,7 @@
 #include <shlwapi.h>
 #include <cwctype>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 std::wstring ModulePath() {
@@ -24,7 +24,7 @@ std::wstring ModulePath() {
 } // namespace
 
 DefaultManagerState DefaultFileManagerState(const AppPrefs& prefs) {
-    const int on = (prefs.open_folders_in_pulse ? 1 : 0) + (prefs.take_over_win_e ? 1 : 0) +
+    const int on = (prefs.open_folders_in_luling ? 1 : 0) + (prefs.take_over_win_e ? 1 : 0) +
                    (prefs.take_over_this_pc ? 1 : 0);
     if (on == 0) return DefaultManagerState::Off;
     return on == 3 ? DefaultManagerState::Full : DefaultManagerState::Partial;
@@ -39,7 +39,7 @@ std::wstring DefaultFileManagerSummary(const AppPrefs& prefs) {
         if (!missing.empty()) missing += l10n::Pick(L"、", L", ");
         missing += part;
     };
-    if (!prefs.open_folders_in_pulse) add(l10n::Get(I::SettingsTakeoverFolders));
+    if (!prefs.open_folders_in_luling) add(l10n::Get(I::SettingsTakeoverFolders));
     if (!prefs.take_over_this_pc) add(l10n::Get(I::ThisPc));
     if (!prefs.take_over_win_e) add(L"Win+E");
     const std::wstring& pattern = l10n::Get(I::SettingsDefaultManagerPartial);
@@ -69,4 +69,4 @@ bool ApplyThisPcOpen(AppPrefs& prefs, bool on) {
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     return ok && prefs.take_over_this_pc == on;
 }
-} // namespace pulse::app
+} // namespace luling::app

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app::shell_tags {
+namespace luling::app::shell_tags {
 inline constexpr wchar_t kClassId[] = L"{A2D41CF7-62E1-49F4-BCE9-3624D44FB779}";
 inline constexpr wchar_t kRegistryRoot[] = L"Software\\Classes\\CLSID\\{A2D41CF7-62E1-49F4-BCE9-3624D44FB779}";
 inline constexpr size_t kMaxPaths = 10000;

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace pulse::ipc {
+namespace luling::ipc {
 std::function<void()> review_pending_read;
 void ObserveShellPendingReadForReview() { if (review_pending_read) review_pending_read(); }
 }
@@ -20,7 +20,7 @@ bool HasExited(DWORD pid) {
     CloseHandle(process); return ended;
 }
 int Child(const fs::path& root) {
-    auto& client = pulse::ipc::ShellClient::Instance();
+    auto& client = luling::ipc::ShellClient::Instance();
     HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!ready) return 2;
     int failures = 0;
@@ -28,7 +28,7 @@ int Child(const fs::path& root) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << std::endl; failures += !ok;
     };
     std::atomic<unsigned> replies{0};
-    pulse::ipc::ShellClient::Callbacks callbacks;
+    luling::ipc::ShellClient::Callbacks callbacks;
     callbacks.done = [&](uint32_t, uint32_t hr, bool cancelled, const std::wstring& text) {
         if (hr == S_OK && !cancelled && text == L"isolated stub ready") { ++replies; SetEvent(ready); }
     };
@@ -49,7 +49,7 @@ int Child(const fs::path& root) {
     return failures ? 1 : 0;
 }
 int GenerationChild(const fs::path& root) {
-    auto& client = pulse::ipc::ShellClient::Instance();
+    auto& client = luling::ipc::ShellClient::Instance();
     HANDLE blocked = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     HANDLE release = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -63,14 +63,14 @@ int GenerationChild(const fs::path& root) {
     std::atomic<unsigned> timeouts{0};
     std::atomic<uint32_t> successful{0};
     std::atomic<unsigned> successful_replies{0};
-    pulse::ipc::review_pending_read = [&] {
+    luling::ipc::review_pending_read = [&] {
         if (once.exchange(true)) {
             if (successful.load()) SetEvent(idle_read);
             return;
         }
         SetEvent(blocked); WaitForSingleObject(release, 20000);
     };
-    pulse::ipc::ShellClient::Callbacks callbacks;
+    luling::ipc::ShellClient::Callbacks callbacks;
     callbacks.done = [&](uint32_t id, uint32_t hr, bool cancelled, const std::wstring& text) {
         if (hr == static_cast<uint32_t>(HRESULT_FROM_WIN32(ERROR_TIMEOUT))) ++timeouts;
         if (hr == S_OK && !cancelled && text == L"isolated stub ready") { successful = id; ++successful_replies; SetEvent(ready); }
@@ -104,7 +104,7 @@ int GenerationChild(const fs::path& root) {
     check(WaitForSingleObject(idle_read, 10000) == WAIT_OBJECT_0,
           "M04-004 replacement reader has an outstanding idle read before Stop");
     const auto stopping = GetTickCount64();
-    client.Stop(); pulse::ipc::review_pending_read = {};
+    client.Stop(); luling::ipc::review_pending_read = {};
     check(GetTickCount64() - stopping < 3000, "M04-004 Stop cancels and drains the isolated pending read within the test bound");
     check(second_process && WaitForSingleObject(second_process, 5000) == WAIT_OBJECT_0 &&
           !fs::exists(root / L"first-noop.txt") && !fs::exists(root / L"second-noop.txt"),
@@ -128,7 +128,7 @@ int wmain(int argc, wchar_t** argv) {
         if (generation) std::ofstream(root / L"generation-mode") << "isolated generation regression";
         if (partial) std::ofstream(root / L"partial-mode") << "partial response header";
         fs::copy_file(self, root / L"client.exe");
-        fs::copy_file(self.parent_path() / L"pulse_shell_reconnect_stub.exe", root / L"pulse_shell.exe");
+        fs::copy_file(self.parent_path() / L"luling_shell_reconnect_stub.exe", root / L"luling_shell.exe");
         std::wstring command = L"\"" + (root / L"client.exe").wstring() + L"\" --child \"" + root.wstring() + L"\"";
         STARTUPINFOW startup{sizeof(startup)};
         startup.dwFlags = STARTF_USESTDHANDLES;

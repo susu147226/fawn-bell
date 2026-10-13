@@ -8,12 +8,12 @@
 #include <vector>
 #include <windows.h>
 
-using namespace pulse::index;
-using pulse::ipc::MsgHeader;
-using pulse::ipc::PayloadReader;
-using pulse::ipc::PayloadWriter;
-using pulse::ipc::PipeRead;
-using pulse::ipc::PipeWrite;
+using namespace luling::index;
+using luling::ipc::MsgHeader;
+using luling::ipc::PayloadReader;
+using luling::ipc::PayloadWriter;
+using luling::ipc::PipeRead;
+using luling::ipc::PipeWrite;
 
 namespace {
 
@@ -103,7 +103,7 @@ int wmain(int argc, wchar_t** argv) {
     uint32_t indexed = 0;
     std::wstring status;
     if (!QueryStatus(indexed, status)) {
-        std::wcerr << L"[FAIL] PulseIndex is unavailable or not ready\n";
+        std::wcerr << L"[FAIL] LulingIndex is unavailable or not ready\n";
         return 2;
     }
     // Avoid writing the localized status through a narrow/legacy console code

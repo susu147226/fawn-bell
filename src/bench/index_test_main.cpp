@@ -11,7 +11,7 @@
 #include <iostream>
 #include <mutex>
 
-namespace pulse::index {
+namespace luling::index {
 struct NetworkIndexTestAccess {
     static bool ReadConfig(NetworkIndex& index, const std::wstring& path, std::vector<std::wstring>& roots) {
         return index.ReadConfig(path, roots);
@@ -19,7 +19,7 @@ struct NetworkIndexTestAccess {
 };
 }
 
-using namespace pulse::index;
+using namespace luling::index;
 
 namespace {
 
@@ -72,7 +72,7 @@ void RunNetworkIntegration(const std::wstring& root) {
     Check(found, L"network integration searches UNC file");
 
     bool watched = false;
-    const std::wstring watch_name = L"pulse-network-watch-test.tmp";
+    const std::wstring watch_name = L"luling-network-watch-test.tmp";
     const std::wstring watch_path = root + L"\\" + watch_name;
     bool watcher_ready = false;
     for (int i = 0; i < 50; ++i) {
@@ -142,9 +142,9 @@ void RunNetworkIntegration(const std::wstring& root) {
 
     // A directory created after the crawl, then renamed and removed: search
     // must follow its contents without waiting for a re-crawl.
-    const std::wstring dir_before = root + L"\\pulse-network-dir-test";
-    const std::wstring dir_after = root + L"\\pulse-network-dir-renamed";
-    const std::wstring inner_name = L"pulse-network-inner-probe.tmp";
+    const std::wstring dir_before = root + L"\\luling-network-dir-test";
+    const std::wstring dir_after = root + L"\\luling-network-dir-renamed";
+    const std::wstring inner_name = L"luling-network-inner-probe.tmp";
     bool dir_tracked = false;
     bool rename_tracked = false;
     bool removal_tracked = false;
@@ -200,7 +200,7 @@ void RunLiveNetworkTests() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(MAX_PATH, temp);
     const std::filesystem::path dir = std::filesystem::path(temp) /
-        (L"pulse_live_net_" + std::to_wstring(GetCurrentProcessId()));
+        (L"luling_live_net_" + std::to_wstring(GetCurrentProcessId()));
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
     std::filesystem::create_directories(dir / L"sub" / L"LanChat Notes", ec);
@@ -355,10 +355,10 @@ int wmain(int argc, wchar_t** argv) {
 
     {
         IndexConfig path_config;
-        path_config.excluded_paths = { L"C:\\Program Files\\Pulse" };
-        Check(path_config.IsPathExcluded(L"C:\\Program Files\\Pulse") &&
-                  path_config.IsPathExcluded(L"c:\\program files\\pulse\\Pulse.Index.exe") &&
-                  !path_config.IsPathExcluded(L"C:\\Program Files\\PulseTools"),
+        path_config.excluded_paths = { L"C:\\Program Files\\Luling" };
+        Check(path_config.IsPathExcluded(L"C:\\Program Files\\Luling") &&
+                  path_config.IsPathExcluded(L"c:\\program files\\luling\\Luling.Index.exe") &&
+                  !path_config.IsPathExcluded(L"C:\\Program Files\\LulingTools"),
               L"excluded path matches subtree boundaries");
     }
 
@@ -366,7 +366,7 @@ int wmain(int argc, wchar_t** argv) {
         wchar_t temp_dir[MAX_PATH]{};
         GetTempPathW(ARRAYSIZE(temp_dir), temp_dir);
         const std::wstring config_path = std::wstring(temp_dir) +
-            L"pulse-network-index-utf8-test.json";
+            L"luling-network-index-utf8-test.json";
         const std::vector<std::wstring> expected{
             L"\\\\192.0.2.10\\示例共享盘",
             L"\\\\server\\share\\设计资料"
@@ -420,9 +420,9 @@ int wmain(int argc, wchar_t** argv) {
           L"local and network result merge pagination");
 
     {
-        using namespace pulse::index;
+        using namespace luling::index;
         Check(QueryPrimaryNameLen(ParseQuery(L"a")) == 1, L"query: single-char needle length");
-        Check(QueryIsSimpleName(ParseQuery(L"pulse")), L"query: simple name token");
+        Check(QueryIsSimpleName(ParseQuery(L"luling")), L"query: simple name token");
         Check(!QueryIsSimpleName(ParseQuery(L"ext:pdf")), L"query: ext filter is not simple name");
         const auto content_q = ParseQuery(L"report content:\u53d1\u7968");
         Check(QueryHasContent(content_q) && QueryHasNameFilter(content_q) &&
@@ -488,14 +488,14 @@ int wmain(int argc, wchar_t** argv) {
     Check(QueryCanNarrow(L"p", L"pu") && QueryCanNarrow(L"pu", L"pul"),
           L"query: incremental typing can narrow");
 
-    const auto shard = MakeShardPaths(L"C:\\ProgramData\\Pulse\\Index\\Volumes",
+    const auto shard = MakeShardPaths(L"C:\\ProgramData\\Luling\\Index\\Volumes",
                                       L"\\\\?\\VOLUME{TEST}");
     Check(shard.directory.find(L"\\") != std::wstring::npos &&
               shard.base_a != shard.base_b && shard.wal_a != shard.wal_b,
           L"shard paths are stable and slot-separated");
     wchar_t temp_dir[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp_dir), temp_dir);
-    const std::wstring manifest_path = std::wstring(temp_dir) + L"pulse-shard-manifest-test.json";
+    const std::wstring manifest_path = std::wstring(temp_dir) + L"luling-shard-manifest-test.json";
     ShardManifest manifest;
     manifest.generation = 7;
     manifest.active_built = 1234;
@@ -514,7 +514,7 @@ int wmain(int argc, wchar_t** argv) {
               loaded.active_bytes == manifest.active_bytes && loaded.active_crc64 == manifest.active_crc64,
           L"shard manifest atomic roundtrip");
 
-    const std::wstring v9_root = std::wstring(temp_dir) + L"pulse-v9-store-test";
+    const std::wstring v9_root = std::wstring(temp_dir) + L"luling-v9-store-test";
     const auto v9_paths = MakeShardPaths(v9_root, L"\\\\?\\VOLUME{V9-TEST}");
     auto write_fake_base = [](const std::wstring& path, uint64_t built) {
         BYTE bytes[128]{};
@@ -566,7 +566,7 @@ int wmain(int argc, wchar_t** argv) {
 
     {
         // Network re-crawl policy (network_crawl_schedule.h).
-        namespace cs = pulse::index::crawl_schedule;
+        namespace cs = luling::index::crawl_schedule;
         using namespace std::chrono_literals;
         const cs::Clock::time_point t0{std::chrono::hours(1)};
         const cs::Clock::time_point never{};

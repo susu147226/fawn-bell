@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cwctype>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 // Plain Win32 form without the \\?\ prefix or trailing separators.
@@ -145,7 +145,7 @@ std::wstring TempDirectory() {
 
 std::wstring DropStageRoot() {
     const std::wstring temp = TempDirectory();
-    return temp.empty() ? std::wstring() : temp + L"\\PulseDrop";
+    return temp.empty() ? std::wstring() : temp + L"\\LulingDrop";
 }
 
 bool IsTemporaryDropSource(const std::wstring& path, const std::wstring& temp_dir,
@@ -230,4 +230,4 @@ void SweepDropStages(const std::wstring& stage_root, bool include_own) {
     for (const auto& dir : doomed) RemoveTree(dir);
 }
 
-} // namespace pulse::app
+} // namespace luling::app

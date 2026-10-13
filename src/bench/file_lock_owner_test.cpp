@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-using namespace pulse::ops;
+using namespace luling::ops;
 namespace fsys = std::filesystem;
 
 namespace {
@@ -52,7 +52,7 @@ fsys::path g_holder_exe;
 int g_holder_seq = 0;
 
 bool StartHolder(Holder& holder, const fsys::path& file) {
-    const std::wstring event_name = L"Local\\pulse-lock-test-" + std::to_wstring(GetCurrentProcessId())
+    const std::wstring event_name = L"Local\\luling-lock-test-" + std::to_wstring(GetCurrentProcessId())
         + L"-" + std::to_wstring(++g_holder_seq);
     HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, event_name.c_str());
     std::wstring command = L"\"" + g_holder_exe.wstring() + L"\" --hold \"" + file.wstring() + L"\" "
@@ -343,7 +343,7 @@ int wmain(int argc, wchar_t** argv) {
               "copy completes after ending the owner");
     }
     {
-        // Permanent delete through pulse_shell (IFileOperation) of fixture files only.
+        // Permanent delete through luling_shell (IFileOperation) of fixture files only.
         const fsys::path free_file = root / L"del" / L"free.txt";
         const fsys::path locked = root / L"del" / L"locked.txt";
         Touch(free_file);

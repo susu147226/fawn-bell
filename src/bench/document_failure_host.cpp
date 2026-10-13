@@ -28,7 +28,7 @@ void ChangeSameSizeAndTime(const std::wstring& path) {
 }
 // Disposable protocol peer for fault injection; never used by the product.
 int wmain(int argc, wchar_t** argv) {
-    using namespace pulse::index::document;
+    using namespace luling::index::document;
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     if (argc != 5) return 2;
     const auto input = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[1], nullptr, 10)));
@@ -36,7 +36,7 @@ int wmain(int argc, wchar_t** argv) {
     const auto request_ready = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[3], nullptr, 10)));
     const auto ready = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[4], nullptr, 10)));
     wchar_t mode[32]{};
-    GetEnvironmentVariableW(L"PULSE_DOCUMENT_FAILURE_FIXTURE", mode, ARRAYSIZE(mode));
+    GetEnvironmentVariableW(L"LULING_DOCUMENT_FAILURE_FIXTURE", mode, ARRAYSIZE(mode));
     auto* memory = VirtualAlloc(nullptr, 32u * 1024 * 1024, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (memory) std::memset(memory, 1, 32u * 1024 * 1024);
     for (;;) {

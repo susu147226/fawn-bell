@@ -14,7 +14,7 @@
 
 #include "../ipc/preview_protocol.h"
 
-namespace pulse::preview {
+namespace luling::preview {
 
 bool IsNotebookExtension(std::wstring_view extension);
 
@@ -23,4 +23,4 @@ bool IsNotebookExtension(std::wstring_view extension);
 bool MakeNotebookDocument(const std::wstring& path, std::wstring& payload, uint32_t& bytes_read,
                           bool& truncated, ipc::PreviewTextEncoding& encoding);
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

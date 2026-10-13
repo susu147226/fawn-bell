@@ -12,7 +12,7 @@
 #include <set>
 #include <thread>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 bool Under(const std::wstring& path, const std::wstring& root) {
     const auto p = ContentScopeKey(path), r = ContentScopeKey(root);
@@ -41,13 +41,13 @@ void LogSubscriptionFailure(const Changes& state, uint64_t generation, size_t pe
         const char* names[]{"none", "queue_overflow", "feed_connect", "feed_not_ready", "feed_gap",
             "watch_overflow", "watch_not_ready", "transport", "metadata", "directory_enumeration", "reconcile"};
         wchar_t directory[32768]{};
-        DWORD count = GetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", directory, ARRAYSIZE(directory));
+        DWORD count = GetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", directory, ARRAYSIZE(directory));
         std::filesystem::path root;
         if (count && count < ARRAYSIZE(directory)) root = directory;
         else {
             count = GetEnvironmentVariableW(L"LOCALAPPDATA", directory, ARRAYSIZE(directory));
             if (!count || count >= ARRAYSIZE(directory)) return;
-            root = std::filesystem::path(directory) / L"Pulse" / L"logs";
+            root = std::filesystem::path(directory) / L"Luling" / L"logs";
         }
         std::error_code error;
         std::filesystem::create_directories(root, error);

@@ -13,7 +13,7 @@
 #include <thread>
 
 namespace fs = std::filesystem;
-using namespace pulse::app;
+using namespace luling::app;
 namespace {
 unsigned checks = 0, failures = 0;
 void Check(bool ok, const char* message) {
@@ -174,8 +174,8 @@ void RealMachine() {
     if (!GetEnvironmentVariableW(L"ProgramFiles(x86)", buffer, ARRAYSIZE(buffer))) throw std::runtime_error("ProgramFiles(x86) not configured");
     const std::wstring programs = buffer;
     const auto root_rows = Children(volume), program_rows = Children(programs);
-    pulse::index::IndexFeedConnection diagnostic(nullptr);
-    std::vector<pulse::index::IndexedFolderSize> diagnostic_values;
+    luling::index::IndexFeedConnection diagnostic(nullptr);
+    std::vector<luling::index::IndexedFolderSize> diagnostic_values;
     const bool index_reply = diagnostic.FolderSizes({programs}, diagnostic_values);
     std::printf("[REAL-INDEX] protocol_reply=%d available=%d\n", index_reply,
         !diagnostic_values.empty() && diagnostic_values[0].available);

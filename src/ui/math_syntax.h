@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 enum class MathAtomClass {
     Ord,
@@ -125,4 +125,4 @@ MathParseResult ParseMathSyntax(std::wstring_view source);
 float MathAtomSpacing(MathAtomClass left, MathAtomClass right, MathStyle style);
 void NormalizeMathAtomClasses(std::vector<MathAtomClass>& classes);
 
-} // namespace pulse::ui
+} // namespace luling::ui

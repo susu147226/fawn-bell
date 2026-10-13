@@ -5,7 +5,7 @@
 #include <aclapi.h>
 
 namespace {
-#ifdef PULSE_INTEGRATION_TEST
+#ifdef LULING_INTEGRATION_TEST
 int writes = 0;
 bool FailEnableAndRollback(const std::wstring&, const std::wstring&) {
     ++writes;
@@ -67,12 +67,12 @@ void SetLegacyOrphans() {
 }
 
 int wmain() {
-    const std::wstring sandbox = L"Software\\PulseTest\\IntegrationRegistry-" + std::to_wstring(GetCurrentProcessId());
+    const std::wstring sandbox = L"Software\\LulingTest\\IntegrationRegistry-" + std::to_wstring(GetCurrentProcessId());
     HKEY root = nullptr;
     if (RegCreateKeyExW(HKEY_CURRENT_USER, sandbox.c_str(), 0, nullptr, 0, KEY_ALL_ACCESS, nullptr, &root, nullptr) != ERROR_SUCCESS) return 2;
     if (RegOverridePredefKey(HKEY_CURRENT_USER, root) != ERROR_SUCCESS) { RegCloseKey(root); return 2; }
-    using namespace pulse::app;
-    const std::wstring exe = L"C:\\Pulse test\\pulse.exe", next = L"D:\\Pulse\\pulse.exe";
+    using namespace luling::app;
+    const std::wstring exe = L"C:\\Luling test\\luling.exe", next = L"D:\\Luling\\luling.exe";
     const std::wstring shell = L"Software\\Classes\\Directory\\shell", command = shell + L"\\open\\command";
     const std::wstring win = L"Software\\Classes\\CLSID\\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}\\shell\\opennewwindow\\command";
     const std::wstring pc = L"Software\\Classes\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}\\shell";
@@ -81,13 +81,13 @@ int wmain() {
     Check(ApplyShellIntegration(ShellIntegrationKind::ThisPc, exe, false) && HasLegacyShellIntegrationResidue(),
         "ordinary disable does not infer ownership of a legacy orphan");
     Check(!ApplyShellIntegration(ShellIntegrationKind::ThisPc, exe, true) && HasLegacyShellIntegrationResidue() &&
-        !Read(L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\ThisPc", L"Snapshot").exists,
+        !Read(L"Software\\Luling\\ShellIntegration\\Backups\\v1\\ThisPc", L"Snapshot").exists,
         "enable requires explicit repair instead of backing up damaged legacy overrides as originals");
     Set(shell + L"\\ThirdParty\\command", L"", L"third party command");
     Check(RepairLegacyShellIntegrationResidue() && !HasLegacyShellIntegrationResidue() &&
         !KeyExists(pc) && !KeyExists(win) && !Read(shell).exists &&
         Read(shell + L"\\ThirdParty\\command").exists &&
-        Read(L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\LegacyOrphanRepair", L"Snapshot").exists,
+        Read(L"Software\\Luling\\ShellIntegration\\Backups\\v1\\LegacyOrphanRepair", L"Snapshot").exists,
         "explicit legacy repair backs up seven values and preserves third-party menus");
     Check(!RepairLegacyShellIntegrationResidue() && Read(shell + L"\\ThirdParty\\command").exists,
         "repeated repair makes no changes after residue is gone");
@@ -98,7 +98,7 @@ int wmain() {
     Check(!HasLegacyShellIntegrationResidue() && !RepairLegacyShellIntegrationResidue() && Read(shell).exists,
         "a changed delegate aborts the entire legacy repair before writes");
     Clear(); SetLegacyOrphans();
-    Set(L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\LegacyOrphanRepair", L"Snapshot", L"different existing backup", REG_BINARY);
+    Set(L"Software\\Luling\\ShellIntegration\\Backups\\v1\\LegacyOrphanRepair", L"Snapshot", L"different existing backup", REG_BINARY);
     Check(!RepairLegacyShellIntegrationResidue() && HasLegacyShellIntegrationResidue(),
         "an incompatible backup prevents all repair writes");
     Clear();
@@ -128,7 +128,7 @@ int wmain() {
     Check(ApplyShellIntegration(ShellIntegrationKind::Folders,exe,false) && Read(shell)==open, "open default alone is not ownership");
     Set(command,L"",L"\""+exe+L"\" \"%1\""); Set(command,L"DelegateExecute",L"");
     // #81: an empty per-user DelegateExecute still overrides the system handler
-    // after Pulse's command has gone. A missing backup must not leave it behind.
+    // after Luling's command has gone. A missing backup must not leave it behind.
     Check(!ApplyShellIntegration(ShellIntegrationKind::Directory,exe,false) && !KeyExists(shell), "legacy restore removes owned overrides instead of leaving an unusable open verb");
     for (const bool migrate : {false, true}) {
         Clear();
@@ -172,13 +172,13 @@ int wmain() {
     Check(ApplyShellIntegration(ShellIntegrationKind::WinE, exe, true), "capture legacy ownership for external handler test");
     DeleteValue(win, L""); Set(win, L"DelegateExecute", L"{11111111-2222-3333-4444-555555555555}");
     const auto later_delegate = Read(win, L"DelegateExecute");
-    Check(!HasShellIntegrationOwnership(ShellIntegrationKind::WinE, exe), "external COM handler is not reported as a Pulse residual");
+    Check(!HasShellIntegrationOwnership(ShellIntegrationKind::WinE, exe), "external COM handler is not reported as a Luling residual");
     ApplyShellIntegration(ShellIntegrationKind::WinE, exe, false);
     Check(Read(win, L"DelegateExecute") == later_delegate, "partial restore preserves a later external COM handler");
     Clear();
     Set(win,L"",L"\""+exe+L"\""); Set(win,L"DelegateExecute",L"");
-    Set(win,L"PulseBackup",L"legacy command"); Set(win,L"PulseBackupDelegateExecute",L"");
-    const auto legacy_command=Read(win,L"PulseBackup"), legacy_delegate=Read(win,L"PulseBackupDelegateExecute");
+    Set(win,L"LulingBackup",L"legacy command"); Set(win,L"LulingBackupDelegateExecute",L"");
+    const auto legacy_command=Read(win,L"LulingBackup"), legacy_delegate=Read(win,L"LulingBackupDelegateExecute");
     Check(!ApplyShellIntegration(ShellIntegrationKind::WinE,exe,false) && Read(win)==legacy_command && Read(win,L"DelegateExecute")==legacy_delegate, "legacy text backup is recovered but original type remains unknown");
     Set(win,L"",L"\""+exe+L"\"");
     Check(ApplyShellIntegration(ShellIntegrationKind::WinE,exe,true) && !ApplyShellIntegration(ShellIntegrationKind::WinE,exe,false) && Read(win)==legacy_command, "enable migrates available legacy backup without claiming exact restoration");
@@ -188,17 +188,17 @@ int wmain() {
     Check(ApplyShellIntegration(ShellIntegrationKind::Directory,exe,true) && UpgradeShellIntegration(ShellIntegrationKind::Directory,exe,next) && ReadShellIntegration(ShellIntegrationKind::Directory,next) && ApplyShellIntegration(ShellIntegrationKind::Directory,next,false) && Read(command)==upgrade_original, "upgrade executable path keeps original snapshot");
     ApplyShellIntegration(ShellIntegrationKind::Directory,exe,true); Set(command,L"",L"other"); const auto takeover=Read(command);
     Check(UpgradeShellIntegration(ShellIntegrationKind::Directory,exe,next) && Read(command)==takeover, "upgrade preserves later ownership takeover");
-    Clear(); Set(win,L"",L"\""+exe+L"\""); Set(win,L"DelegateExecute",L""); Set(win,L"PulseBackup",L"legacy before upgrade");
-    const auto upgrade_legacy=Read(win,L"PulseBackup");
+    Clear(); Set(win,L"",L"\""+exe+L"\""); Set(win,L"DelegateExecute",L""); Set(win,L"LulingBackup",L"legacy before upgrade");
+    const auto upgrade_legacy=Read(win,L"LulingBackup");
     Check(PrepareShellIntegrationUpgrade(ShellIntegrationKind::WinE,exe),"prepare captures legacy backup before old uninstaller consumes it");
     Set(win,L"",L"legacy before upgrade");
     HKEY legacy_key=nullptr; RegOpenKeyExW(HKEY_CURRENT_USER,win.c_str(),0,KEY_SET_VALUE,&legacy_key);
-    if(legacy_key) { RegDeleteValueW(legacy_key,L"PulseBackup"); RegCloseKey(legacy_key); }
+    if(legacy_key) { RegDeleteValueW(legacy_key,L"LulingBackup"); RegCloseKey(legacy_key); }
     Check(UpgradeShellIntegration(ShellIntegrationKind::WinE,exe,next) && ReadShellIntegration(ShellIntegrationKind::WinE,next) && !ApplyShellIntegration(ShellIntegrationKind::WinE,next,false) && Read(win)==upgrade_legacy,"old uninstaller restored value is reacquired with preserved legacy backup");
     Clear(); ApplyShellIntegration(ShellIntegrationKind::Directory,exe,true); PrepareShellIntegrationUpgrade(ShellIntegrationKind::Directory,exe);
     Set(command,L"",L"changed during upgrade"); const auto concurrent=Read(command);
     Check(UpgradeShellIntegration(ShellIntegrationKind::Directory,exe,next) && Read(command)==concurrent,"prepared upgrade still preserves unexpected third-party command");
-    Clear(); Set(L"Software\\Pulse\\ShellIntegration\\Backups\\v1\\Directory",L"Snapshot",L"corrupt",REG_BINARY);
+    Clear(); Set(L"Software\\Luling\\ShellIntegration\\Backups\\v1\\Directory",L"Snapshot",L"corrupt",REG_BINARY);
     Check(!ApplyShellIntegration(ShellIntegrationKind::Directory,exe,true) && !Read(command).exists, "corrupt snapshot fails without association changes");
     Clear(); Set(command,L"",L"protected original"); const auto protected_original=Read(command);
     HKEY protected_key=nullptr; PACL old_acl=nullptr, denied_acl=nullptr; PSECURITY_DESCRIPTOR descriptor=nullptr;
@@ -221,7 +221,7 @@ int wmain() {
         Check(restored_acl && ApplyShellIntegration(ShellIntegrationKind::Directory,exe,false) && Read(command)==protected_original,"partial restore can be retried without losing original values");
     }
     if (denied_acl) LocalFree(denied_acl); if (descriptor) LocalFree(descriptor); if (protected_key) RegCloseKey(protected_key);
-#ifdef PULSE_INTEGRATION_TEST
+#ifdef LULING_INTEGRATION_TEST
     for (bool retry_upgrade : {false, true}) {
         Clear(); Set(command, L"", L"original manager.exe %1");
         const auto original_upgrade = Read(command);

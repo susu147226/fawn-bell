@@ -1,7 +1,7 @@
 #include "app_internal.h"
 #include "../common/localization.h"
 
-namespace pulse {
+namespace luling {
 void MarkContentSearchStopped(app::Tab& tab) {
     tab.search_content_stopped = true;
     tab.pending_generation = tab.search_live_generation = 0;

@@ -18,7 +18,7 @@
 #include <cwchar>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -594,8 +594,8 @@ void SettingsController::Apply(SettingsEffect effect) const {
 void SettingsController::SaveAndApply(SettingsEffect effect) const {
     if (!prefs_->Save() && ui_.show_error)
         ui_.show_error(l10n::HantText(prefs_->load_failed ?
-            l10n::Pick(L"原设置未能读取，已阻止覆盖。请关闭后重试打开 Pulse。",
-                L"The original settings could not be read. Saving is blocked to protect them. Restart Pulse to retry.") :
+            l10n::Pick(L"原设置未能读取，已阻止覆盖。请关闭后重试打开 鹿铃。",
+                L"The original settings could not be read. Saving is blocked to protect them. Restart Luling to retry.") :
             l10n::Pick(L"设置未能保存，重启后可能恢复原值。",
                 L"Settings could not be saved and may revert after a restart.")));
     Apply(effect);
@@ -831,7 +831,7 @@ std::wstring SettingsController::GlobalSearchHotkeyText() const {
 }
 
 bool SettingsController::IntegrationCanRestore() const noexcept {
-    return prefs_ && (prefs_->integration_enabled || prefs_->open_folders_in_pulse ||
+    return prefs_ && (prefs_->integration_enabled || prefs_->open_folders_in_luling ||
         prefs_->take_over_win_e || prefs_->take_over_this_pc || prefs_->integration_residual ||
         IntegrationCanRetry());
 }
@@ -841,10 +841,10 @@ int SettingsController::IntegrationState() const noexcept {
     if (IntegrationCanRetry()) return 3;
     const auto& p = *prefs_;
     if (p.integration_incomplete) return 2;
-    const bool active = p.open_folders_in_pulse || p.take_over_win_e || p.take_over_this_pc ||
+    const bool active = p.open_folders_in_luling || p.take_over_win_e || p.take_over_this_pc ||
         p.integration_residual;
     if (!p.integration_enabled) return active ? 2 : 0;
-    if (p.open_folders_in_pulse != p.integration_folders ||
+    if (p.open_folders_in_luling != p.integration_folders ||
         p.take_over_win_e != p.integration_win_e || p.take_over_this_pc != p.integration_this_pc)
         return 2;
     return active || p.take_over_explorer_windows ? 1 : 0;
@@ -993,7 +993,7 @@ void SettingsController::ToggleUi(int index) {
         global_search_error_.clear();
         Apply(SettingsEffect::GlobalSearch);
     } else if (index >= 60 && index < 63) {
-        // Pulse menu presets (精简 / 标准 / 完整).
+        // Luling menu presets (精简 / 标准 / 完整).
         context_->builtin_hidden =
             BuiltinMenuPresetHidden(static_cast<BuiltinMenuPreset>(index - 60));
         context_->Save();
@@ -1001,7 +1001,7 @@ void SettingsController::ToggleUi(int index) {
     } else if (index >= 64 && index < 67) {
         context_tab_ = index - 64;
     } else if (index == 67) {
-        // The card's 恢复默认 resets Pulse's own rows only: shown and order.
+        // The card's 恢复默认 resets Luling's own rows only: shown and order.
         context_->builtin_hidden = 0;
         context_->ResetBuiltinOrder();
         context_->Save();
@@ -1020,7 +1020,7 @@ void SettingsController::ToggleUi(int index) {
     } else if (index >= 100) {
         const size_t item = static_cast<size_t>(index - 100);
         if (item >= context_->seen.size()) {
-            // Rows after the seen catalog are Pulse's own commands, in
+            // Rows after the seen catalog are Luling's own commands, in
             // BuiltinMenuItem order (app_runtime builds them the same way).
             const size_t builtin = item - context_->seen.size();
             if (builtin >= static_cast<size_t>(kBuiltinMenuItemCount)) return;
@@ -1186,4 +1186,4 @@ void SettingsController::Stop() {
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

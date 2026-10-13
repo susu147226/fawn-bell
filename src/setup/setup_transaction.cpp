@@ -6,7 +6,7 @@
 #include <windows.h>
 
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 bool Exists(const std::wstring& p) { return GetFileAttributesW(p.c_str()) != INVALID_FILE_ATTRIBUTES; }
@@ -40,7 +40,7 @@ void UndoStep(const std::wstring& app, const std::wstring& backup, bool had_old,
 
 FileTransaction::FileTransaction(std::wstring app_dir)
     : app_(NormalizeDir(std::move(app_dir))),
-      work_(app_ + L"\\.pulse-setup"),
+      work_(app_ + L"\\.luling-setup"),
       staging_(work_ + L"\\staging"),
       backup_(work_ + L"\\backup"),
       journal_(work_ + L"\\journal.txt") {}
@@ -135,4 +135,4 @@ void FileTransaction::Rollback(size_t done) {
 void FileTransaction::Finish() { RemoveTree(work_); }
 void FileTransaction::Abort() { RemoveTree(work_); }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

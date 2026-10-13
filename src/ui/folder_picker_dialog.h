@@ -1,6 +1,6 @@
 #pragma once
 
-// Pulse's own open dialog: a modal window that replaces IFileOpenDialog for
+// Luling's own open dialog: a modal window that replaces IFileOpenDialog for
 // folders, pictures and files. It hosts the main window's renderer in embedded
 // mode, so the address row, sidebar and file list are the same code as the
 // main UI; only the title strip and the footer are the picker's own.
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // A sidebar row: a known folder or a place the caller
 // added (IFileDialog::AddPlace).
@@ -57,4 +57,4 @@ bool ShowFilePicker(HWND owner, const FolderPickerSpec& spec, bool dark,
 bool ShowFolderPicker(HWND owner, const FolderPickerSpec& spec, bool dark,
                       D2D1_COLOR_F accent, std::wstring& path);
 
-} // namespace pulse::ui
+} // namespace luling::ui

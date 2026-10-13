@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class OpenWithIconCache {
 public:
@@ -77,4 +77,4 @@ private:
     std::atomic<bool> running_{false};
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

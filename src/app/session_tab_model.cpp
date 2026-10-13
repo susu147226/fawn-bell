@@ -4,7 +4,7 @@
 #include <memory>
 #include <unordered_set>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -163,4 +163,4 @@ void RestoreWindowTabs(WindowTabs& tabs,
     NormalizeGroupRuns(tabs);
 }
 
-} // namespace pulse::app
+} // namespace luling::app

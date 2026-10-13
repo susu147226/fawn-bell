@@ -16,19 +16,19 @@ void Check(bool ok, const char* message) {
     if (!ok) ++failures;
 }
 LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR data) {
-    auto& compositor = *reinterpret_cast<pulse::ui::Compositor*>(data);
+    auto& compositor = *reinterpret_cast<luling::ui::Compositor*>(data);
     auto* format = force_present_failure ? nullptr : compositor.TextFormat();
     const auto foreground = D2D1::ColorF(1, 1, 1);
     DWORD flags = 0;
     const bool redirected = GetLayeredWindowAttributes(hwnd, nullptr, nullptr, &flags) && (flags & LWA_ALPHA);
     const auto background = D2D1::ColorF(0, redirected ? 1.0f : 0.0f);
     LRESULT result = 0;
-    if (pulse::ui::HandleChildEditMessage(compositor, format, foreground,
+    if (luling::ui::HandleChildEditMessage(compositor, format, foreground,
         background, reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)), hwnd, msg, wp, lp, result)) return result;
-    return pulse::ui::DefPresentedChildEditProc(compositor, format, foreground,
+    return luling::ui::DefPresentedChildEditProc(compositor, format, foreground,
         background, hwnd, msg, wp, lp);
 }
-bool HasRenderedText(pulse::ui::Compositor& compositor, HWND edit) {
+bool HasRenderedText(luling::ui::Compositor& compositor, HWND edit) {
     RECT rect{};
     GetClientRect(edit, &rect);
     BITMAPINFO info{};
@@ -69,12 +69,12 @@ bool HasRenderedText(pulse::ui::Compositor& compositor, HWND edit) {
     return painted && ink > 20;
 }
 
-void CheckEditLayoutCache(HWND parent, pulse::ui::Compositor& compositor) {
+void CheckEditLayoutCache(HWND parent, luling::ui::Compositor& compositor) {
     // Init creates graphics resources; production callers initialize formats
     // separately before presenting editors, as the other fixtures do below.
     compositor.RecreateTextFormats(1.0f);
     Check(compositor.TextFormat() != nullptr, "initialize cache fixture text format");
-    HWND edit = pulse::ui::CreateChildEdit(parent, L"cache 中文");
+    HWND edit = luling::ui::CreateChildEdit(parent, L"cache 中文");
     Check(edit != nullptr, "create isolated edit layout cache fixture");
     if (!edit) return;
     SetWindowPos(edit, nullptr, 20, 30, 320, 30, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -94,7 +94,7 @@ void CheckEditLayoutCache(HWND parent, pulse::ui::Compositor& compositor) {
     Check(HasRenderedText(compositor, edit) && compositor.GetLumaTextStats()->edit_layout_builds > builds,
         "height change rebuilds editor layout");
     builds = compositor.GetLumaTextStats()->edit_layout_builds;
-    pulse::ui::typography::InvalidateCaches();
+    luling::ui::typography::InvalidateCaches();
     Check(HasRenderedText(compositor, edit) && compositor.GetLumaTextStats()->edit_layout_builds > builds,
         "font generation change rebuilds editor layout with the same format pointer");
     builds = compositor.GetLumaTextStats()->edit_layout_builds;
@@ -128,7 +128,7 @@ void CheckEditLayoutCache(HWND parent, pulse::ui::Compositor& compositor) {
     DestroyWindow(edit);
     ShowWindow(parent, SW_HIDE);
 }
-void CheckSelectionSync(pulse::ui::Compositor& compositor, HWND edit) {
+void CheckSelectionSync(luling::ui::Compositor& compositor, HWND edit) {
     const std::wstring text = L"0123456789abcdef";
     auto set_text = [&](const std::wstring& value) {
         SendMessageW(edit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(value.c_str()));
@@ -172,10 +172,10 @@ void CheckSelectionSync(pulse::ui::Compositor& compositor, HWND edit) {
     SendMessageW(edit, WM_KEYDOWN, VK_RIGHT, 0);
     click(9, true);
     Check(selection() == std::pair<DWORD, DWORD>{5, 9}, "native arrow updates the subsequent mouse anchor");
-    HWND other = pulse::ui::CreateChildEdit(GetParent(edit), L"other field");
+    HWND other = luling::ui::CreateChildEdit(GetParent(edit), L"other field");
     SetWindowSubclass(other, EditProc, 1, reinterpret_cast<DWORD_PTR>(&compositor));
     SetWindowPos(other, nullptr, 20, 90, 180, 30, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    pulse::ui::PresentChildEdit(compositor, compositor.TextFormat(),
+    luling::ui::PresentChildEdit(compositor, compositor.TextFormat(),
         D2D1::ColorF(1, 1, 1), D2D1::ColorF(0, 0, 0), other);
     SendMessageW(edit, EM_SETSEL, 8, 3);
     SendMessageW(other, EM_SETSEL, 7, 7);
@@ -202,21 +202,21 @@ int wmain() {
     HWND parent = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_NOACTIVATE, L"STATIC", L"",
         WS_POPUP, -30000, -30000, 700, 300, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     {
-        SetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_INIT_FAILURE", L"1");
-        pulse::ui::Compositor compositor;
+        SetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_INIT_FAILURE", L"1");
+        luling::ui::Compositor compositor;
         Check(parent && compositor.Init(parent), "composition survives a late text engine initialization failure");
         Check(!compositor.LumaTextEnabled(), "partially initialized text engine does not suppress native editing");
-        SetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_INIT_FAILURE", nullptr);
+        SetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_INIT_FAILURE", nullptr);
     }
     {
-        pulse::ui::Compositor compositor;
+        luling::ui::Compositor compositor;
         Check(parent && compositor.Init(parent), "create composition host for native child editors");
         Check(compositor.LumaTextEnabled(), "LumaText remains enabled");
         CheckEditLayoutCache(parent, compositor);
         for (const auto [redirected, scale] : {std::pair{false, 1.0f}, std::pair{false, 1.5f},
                 std::pair{true, 1.0f}, std::pair{true, 1.5f}}) {
             compositor.RecreateTextFormats(scale);
-            HWND edit = pulse::ui::CreateChildEdit(parent, L"show 中文");
+            HWND edit = luling::ui::CreateChildEdit(parent, L"show 中文");
             Check(edit && IsChild(parent, edit) && GetAncestor(edit, GA_ROOT) == parent &&
                 !(GetWindowLongPtrW(edit, GWL_STYLE) & WS_POPUP), "editor is a real child, not an owned top-level popup");
             if (!edit) continue;
@@ -254,12 +254,12 @@ int wmain() {
             SendMessageW(edit, WM_UNDO, 0, 0);
             GetWindowTextW(edit, text, ARRAYSIZE(text));
             Check(std::wstring(text) == L"show 中文", "native undo remains functional");
-            for (const auto mode : {pulse::ui::typography::TextRenderMode::Auto,
-                    pulse::ui::typography::TextRenderMode::Sharp,
-                    pulse::ui::typography::TextRenderMode::Smooth,
-                    pulse::ui::typography::TextRenderMode::Auto}) {
-                pulse::ui::typography::SetTextRenderMode(mode);
-                const bool luma_ui = mode == pulse::ui::typography::TextRenderMode::Auto;
+            for (const auto mode : {luling::ui::typography::TextRenderMode::Auto,
+                    luling::ui::typography::TextRenderMode::Sharp,
+                    luling::ui::typography::TextRenderMode::Smooth,
+                    luling::ui::typography::TextRenderMode::Auto}) {
+                luling::ui::typography::SetTextRenderMode(mode);
+                const bool luma_ui = mode == luling::ui::typography::TextRenderMode::Auto;
                 Check(compositor.LumaTextAvailable() && compositor.LumaTextEnabled() == luma_ui &&
                     compositor.CustomEditEnabled(), "inputs retain DirectWrite presentation across all UI modes");
                 DWORD flags = 0;
@@ -270,7 +270,7 @@ int wmain() {
                     compositor.GetLumaTextStats()->edit_directwrite_draws > before_draws,
                     "every text mode draws actual DirectWrite input glyph pixels");
                 Check(compositor.GetLumaTextStats()->edit_rendering_mode ==
-                    (mode == pulse::ui::typography::TextRenderMode::Sharp ? DWRITE_RENDERING_MODE_GDI_CLASSIC
+                    (mode == luling::ui::typography::TextRenderMode::Sharp ? DWRITE_RENDERING_MODE_GDI_CLASSIC
                                                                        : DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC),
                     "input uses the list's rendering parameters for the selected mode");
                 IDWriteTextLayout* layout = nullptr;
@@ -298,20 +298,20 @@ int wmain() {
                 SendMessageW(edit, WM_UNDO, 0, 0);
                 GetWindowTextW(edit, text, ARRAYSIZE(text));
                 Check(std::wstring(text) == L"show 中文", "selection and undo survive backend migration");
-                HWND fresh = pulse::ui::CreateChildEdit(parent, L"new 中文");
+                HWND fresh = luling::ui::CreateChildEdit(parent, L"new 中文");
                 SetWindowSubclass(fresh, EditProc, 1, reinterpret_cast<DWORD_PTR>(&compositor));
                 SetWindowPos(fresh, nullptr, 20, 80, 320, 30, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-                pulse::ui::PresentChildEdit(compositor, compositor.TextFormat(), D2D1::ColorF(1, 1, 1),
+                luling::ui::PresentChildEdit(compositor, compositor.TextFormat(), D2D1::ColorF(1, 1, 1),
                     D2D1::ColorF(0, 0, 0), fresh);
                 flags = 0;
                 const bool fresh_native = GetLayeredWindowAttributes(fresh, nullptr, nullptr, &flags) && (flags & LWA_ALPHA);
-                Check(fresh_native && !GetPropW(fresh, L"Pulse.NativeEditFallback"),
+                Check(fresh_native && !GetPropW(fresh, L"Luling.NativeEditFallback"),
                     "new editor keeps redirected DirectWrite presentation in every mode");
                 force_present_failure = true;
                 SendMessageW(fresh, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"fail 中文"));
                 force_present_failure = false;
-                Check(GetPropW(fresh, L"Pulse.NativeEditFallback") &&
-                    !pulse::ui::PresentChildEdit(compositor, compositor.TextFormat(), D2D1::ColorF(1, 1, 1),
+                Check(GetPropW(fresh, L"Luling.NativeEditFallback") &&
+                    !luling::ui::PresentChildEdit(compositor, compositor.TextFormat(), D2D1::ColorF(1, 1, 1),
                         D2D1::ColorF(0, 0, 0), fresh), "each text mode retains sticky native fallback after presentation failure");
                 SendMessageW(fresh, EM_SETSEL, 0, 4);
                 SendMessageW(fresh, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"safe"));
@@ -332,16 +332,16 @@ int wmain() {
             SendMessageW(edit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"fallback"));
             force_present_failure = false;
             LRESULT handled = 0;
-            Check(!pulse::ui::HandleChildEditMessage(compositor, compositor.TextFormat(),
+            Check(!luling::ui::HandleChildEditMessage(compositor, compositor.TextFormat(),
                 D2D1::ColorF(1, 1, 1), D2D1::ColorF(0, 0, 0), nullptr,
                 edit, WM_PAINT, 0, 0, handled), "presentation failure restores native paint handling");
             SendMessageW(edit, EM_SETSEL, 0, -1);
             SendMessageW(edit, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"native 中文"));
             GetWindowTextW(edit, text, ARRAYSIZE(text));
             Check(std::wstring(text) == L"native 中文", "editing remains functional after presentation failure");
-            pulse::ui::typography::SetTextRenderMode(pulse::ui::typography::TextRenderMode::Sharp);
-            pulse::ui::typography::SetTextRenderMode(pulse::ui::typography::TextRenderMode::Auto);
-            Check(!pulse::ui::PresentChildEdit(compositor, compositor.TextFormat(), D2D1::ColorF(1, 1, 1),
+            luling::ui::typography::SetTextRenderMode(luling::ui::typography::TextRenderMode::Sharp);
+            luling::ui::typography::SetTextRenderMode(luling::ui::typography::TextRenderMode::Auto);
+            Check(!luling::ui::PresentChildEdit(compositor, compositor.TextFormat(), D2D1::ColorF(1, 1, 1),
                 D2D1::ColorF(0, 0, 0), edit), "backend changes preserve a presentation-failure fallback");
             ShowWindow(parent, SW_HIDE);
             Check(!IsWindowVisible(edit), "parent hide automatically hides the editor");
@@ -350,24 +350,24 @@ int wmain() {
         for (const bool fail : {false, true}) {
             // A dialog field's first bitmap right after it is shown (#41): a
             // failed present must leave a visible, clickable native editor.
-            HWND fresh = pulse::ui::CreateChildEdit(parent, L"typed 中文");
+            HWND fresh = luling::ui::CreateChildEdit(parent, L"typed 中文");
             if (!fresh) continue;
             SetWindowSubclass(fresh, EditProc, 1, reinterpret_cast<DWORD_PTR>(&compositor));
             SetWindowPos(fresh, nullptr, 20, 30, 320, 30, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
             ShowWindow(parent, SW_SHOWNOACTIVATE);
-            const bool shown = pulse::ui::PresentChildEdit(compositor, fail ? nullptr : compositor.TextFormat(),
+            const bool shown = luling::ui::PresentChildEdit(compositor, fail ? nullptr : compositor.TextFormat(),
                 D2D1::ColorF(1, 1, 1), D2D1::ColorF(0, 0, 0), fresh);
             BYTE alpha = 0;
             DWORD flags = 0;
             const bool opaque_native = GetLayeredWindowAttributes(fresh, nullptr, &alpha, &flags) &&
                 (flags & LWA_ALPHA) && alpha == 255;
             LRESULT handled = 0;
-            const bool native_paint = !pulse::ui::HandleChildEditMessage(compositor, compositor.TextFormat(),
+            const bool native_paint = !luling::ui::HandleChildEditMessage(compositor, compositor.TextFormat(),
                 D2D1::ColorF(1, 1, 1), D2D1::ColorF(0, 0, 0), nullptr, fresh, WM_PAINT, 0, 0, handled);
             if (fail) {
                 Check(!shown && opaque_native, "failed initial present leaves an opaque native editor");
                 Check(native_paint, "failed initial present hands painting to the native editor");
-                Check(!pulse::ui::PresentChildEdit(compositor, compositor.TextFormat(),
+                Check(!luling::ui::PresentChildEdit(compositor, compositor.TextFormat(),
                     D2D1::ColorF(1, 1, 1), D2D1::ColorF(0, 0, 0), fresh),
                     "later presents keep the native fallback instead of painting over it");
             } else {
@@ -376,7 +376,7 @@ int wmain() {
             ShowWindow(parent, SW_HIDE);
             DestroyWindow(fresh);
         }
-        HWND edit = pulse::ui::CreateChildEdit(parent);
+        HWND edit = luling::ui::CreateChildEdit(parent);
         DestroyWindow(parent);
         Check(!IsWindow(edit), "destroying parent automatically destroys its editor");
     }

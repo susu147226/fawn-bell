@@ -4,7 +4,7 @@
 #include <string_view>
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 struct ListTypeAhead {
     std::wstring prefix;
     uint64_t last_input = 0;
@@ -35,4 +35,4 @@ struct ListTypeAhead {
         return -1;
     }
 };
-} // namespace pulse::app
+} // namespace luling::app

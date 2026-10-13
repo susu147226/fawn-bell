@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr uint32_t kMaxEntries = 200000;
@@ -256,4 +256,4 @@ bool MakeFolderListing(const std::wstring& path, uint32_t budget_ms, bool final_
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

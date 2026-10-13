@@ -2,7 +2,7 @@
 #include "archive_listing.h"
 #include <string_view>
 
-namespace pulse::preview {
+namespace luling::preview {
 bool IsArchivePackExtension(std::wstring_view extension);
 bool ArchivePackAvailable();
 bool ArchivePackListing(const std::wstring& path, std::wstring& text,

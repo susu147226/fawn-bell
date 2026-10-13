@@ -2,7 +2,7 @@
 #include "content_result_store.h"
 #include <optional>
 
-namespace pulse::index {
+namespace luling::index {
 struct ContentSearchUpdate {
     ContentSearchProgress progress;
     std::vector<ContentHit> hits;
@@ -30,4 +30,4 @@ private:
     std::shared_ptr<ContentResultStore> results_;
     std::shared_ptr<ContentResultStore> previous_;
 };
-} // namespace pulse::index
+} // namespace luling::index

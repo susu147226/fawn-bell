@@ -14,7 +14,7 @@
 
 #include <optional>
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 constexpr wchar_t kUninstallerName[] = L"uninstall.exe";
@@ -67,7 +67,7 @@ std::wstring ReadJsonString(const std::string& json, const char* key) {
 }  // namespace
 
 std::wstring ConfiguredIndexPath() {
-    const std::wstring base = KnownFolder(FOLDERID_ProgramData) + L"\\Pulse";
+    const std::wstring base = KnownFolder(FOLDERID_ProgramData) + L"\\Luling";
     const std::wstring fallback = base + L"\\Index";
     std::wstring config = base + L"\\index-config.json";
     if (!FileExists(config)) config = base + L"\\Index\\config.json";
@@ -115,7 +115,7 @@ UpgradePrefs CaptureUpgradePrefs(const std::wstring& previous_exe) {
     UpgradePrefs p;
     p.captured = true;
     p.previous_exe = previous_exe;
-    p.startup = ReadString(HKEY_CURRENT_USER, 0, kRunKey, L"Pulse");
+    p.startup = ReadString(HKEY_CURRENT_USER, 0, kRunKey, L"Luling");
     auto targets = [&](const wchar_t* key) {
         auto c = ReadString(HKEY_CURRENT_USER, 0, key, L"");
         return c && CommandTargetsExe(*c, previous_exe);
@@ -138,12 +138,12 @@ std::wstring ReplaceExe(std::wstring command, const std::wstring& old_exe, const
 
 void RestoreUpgradePrefs(const UpgradePrefs& p, const std::wstring& app) {
     if (!p.captured) return;
-    const std::wstring exe = app + L"\\pulse.exe";
-    if (p.startup) WriteString(HKEY_CURRENT_USER, 0, kRunKey, L"Pulse", ReplaceExe(*p.startup, p.previous_exe, exe));
-    else DeleteValue(HKEY_CURRENT_USER, 0, kRunKey, L"Pulse");
+    const std::wstring exe = app + L"\\luling.exe";
+    if (p.startup) WriteString(HKEY_CURRENT_USER, 0, kRunKey, L"Luling", ReplaceExe(*p.startup, p.previous_exe, exe));
+    else DeleteValue(HKEY_CURRENT_USER, 0, kRunKey, L"Luling");
     const auto flags = p.Flags();
     if (flags.empty()) return;
-    const auto r = RunProcess(app + L"\\pulse_integration.exe",
+    const auto r = RunProcess(app + L"\\luling_integration.exe",
                               flags.substr(1) + L" --upgrade-from " + Quote(p.previous_exe) + L" --exe " + Quote(exe),
                               true);
     if (!r.started) Log(L"Could not start integration migration");
@@ -245,13 +245,13 @@ InstallRequest ResolveDefaults(const Options& options) {
     const auto previous = FindPreviousInstall(UninstallKey(options));
     if (!options.dir.empty()) {
         r.app_dir = NormalizeDir(ExpandEnv(options.dir));
-    } else if (previous && FileExists(previous->dir + L"\\pulse.exe")) {
+    } else if (previous && FileExists(previous->dir + L"\\luling.exe")) {
         r.app_dir = previous->dir;
-        Log(L"Reusing registered Pulse directory: " + r.app_dir);
+        Log(L"Reusing registered Luling directory: " + r.app_dir);
     } else {
-        r.app_dir = KnownFolder(FOLDERID_ProgramFiles) + (options.test ? L"\\Pulse Test" : L"\\Pulse");
+        r.app_dir = KnownFolder(FOLDERID_ProgramFiles) + (options.test ? L"\\Luling Test" : L"\\Luling");
     }
-    if (previous && FileExists(previous->dir + L"\\pulse.exe")) {
+    if (previous && FileExists(previous->dir + L"\\luling.exe")) {
         r.upgrade = true;
         r.previous_version = ReadString(previous->where.root, previous->where.view, UninstallKey(options),
                                         L"DisplayVersion").value_or(L"");
@@ -270,22 +270,22 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
     const Options& o = req.options;
     const std::wstring app = NormalizeDir(req.app_dir);
     const bool real = !o.test;
-    ctx.Phase(Phase::Preparing, L"Installing Pulse " + std::wstring(payload.Info().version.begin(),
+    ctx.Phase(Phase::Preparing, L"Installing Luling " + std::wstring(payload.Info().version.begin(),
                                                                        payload.Info().version.end()) +
                                     L" to " + app + (o.test ? L" (test mode)" : L""));
     Log(L"Tasks: " + FormatTaskList(req.tasks) + L"; index path: " + req.index_path);
     if (app.size() < 4 || app[1] != L':') return Fail(kExitPrepareFailed, L"Invalid installation directory: " + app);
 
     const auto previous = FindPreviousInstall(UninstallKey(o));
-    const bool in_place = previous && SameDirectory(previous->dir, app) && FileExists(previous->dir + L"\\pulse.exe");
+    const bool in_place = previous && SameDirectory(previous->dir, app) && FileExists(previous->dir + L"\\luling.exe");
     if (previous) Log(L"Previous install: " + previous->dir + (previous->inno ? L" (Inno)" : L"") +
                       (in_place ? L", upgrading in place" : L""));
 
     // An unattended update may only replace the registered machine install in place.
-    if (o.pulse_update && (!in_place || (real && !previous->where.machine())))
-        return Fail(kExitPrepareFailed, L"Pulse update requires the existing installation directory and scope.");
+    if (o.luling_update && (!in_place || (real && !previous->where.machine())))
+        return Fail(kExitPrepareFailed, L"Luling update requires the existing installation directory and scope.");
 
-    // 1. Extract and verify everything before any running Pulse is disturbed.
+    // 1. Extract and verify everything before any running Luling is disturbed.
     CreateDirs(app);
     FileTransaction tx(app);
     std::wstring error;
@@ -316,20 +316,20 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
     Log(L"Extracted and flushed " + std::to_wstring(files.size()) + L" files in " +
         std::to_wstring(GetTickCount64() - t0) + L" ms");
 
-    // 2. Close Pulse and its hosts (PrepareToInstall).
+    // 2. Close Luling and its hosts (PrepareToInstall).
     std::vector<std::wstring> dirs{app};
     if (previous && !SameDirectory(previous->dir, app)) dirs.push_back(previous->dir);
-    ctx.Phase(Phase::Closing, L"Closing Pulse");
+    ctx.Phase(Phase::Closing, L"Closing Luling");
     auto close_all = [&]() -> bool {
-        CloseState state = ClosePulseForUpdate(dirs, o.pulse_update);
-        while (state == CloseState::Busy && cb.busy && cb.busy()) state = ClosePulseForUpdate(dirs, o.pulse_update);
+        CloseState state = CloseLulingForUpdate(dirs, o.luling_update);
+        while (state == CloseState::Busy && cb.busy && cb.busy()) state = CloseLulingForUpdate(dirs, o.luling_update);
         if (state != CloseState::Done) {
-            error = state == CloseState::Busy ? L"Pulse is still copying or moving files."
-                                              : L"Pulse could not be closed.";
+            error = state == CloseState::Busy ? L"Luling is still copying or moving files."
+                                              : L"Luling could not be closed.";
             return false;
         }
-        StopPulseHosts(dirs, real);
-        WaitUntilImageGone(L"Pulse.Index.exe", dirs, 10000);
+        StopLulingHosts(dirs, real);
+        WaitUntilImageGone(L"Luling.Index.exe", dirs, 10000);
         return true;
     };
     if (!close_all()) { tx.Abort(); return Fail(kExitPrepareFailed, error); }
@@ -348,9 +348,9 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
                 tx.Abort();
                 return Fail(kExitPrepareFailed, L"The previous uninstaller is missing: " + exe);
             }
-            prefs = CaptureUpgradePrefs(ParentDir(exe) + L"\\pulse.exe");
+            prefs = CaptureUpgradePrefs(ParentDir(exe) + L"\\luling.exe");
             if (!prefs.Flags().empty()) {
-                const auto r = RunProcess(tx.StagingDir() + L"\\pulse_integration.exe",
+                const auto r = RunProcess(tx.StagingDir() + L"\\luling_integration.exe",
                                           L"--prepare-upgrade --exe " + Quote(prefs.previous_exe) + prefs.Flags(),
                                           true);
                 if (!r.started || r.exit_code != 0) {
@@ -383,7 +383,7 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
     }
 
     // 4. Register: uninstall entry, shortcuts, startup.
-    ctx.Phase(Phase::Registering, L"Registering Pulse");
+    ctx.Phase(Phase::Registering, L"Registering Luling");
     InstallResult result;
     result.app_dir = app;
     bool post_failed = false;
@@ -401,29 +401,29 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
     if (previous && previous->inno && in_place) RemoveInnoUninstaller(app);
 
     const std::wstring group = KnownFolder(real ? FOLDERID_CommonPrograms : FOLDERID_Programs) +
-                               (real ? L"\\Pulse" : L"\\Pulse Test");
+                               (real ? L"\\Luling" : L"\\Luling Test");
     const bool chinese = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE;
-    if (!EnsureShortcut(group + L"\\Pulse.lnk", app + L"\\pulse.exe", L"", app, L"Pulse", error))
+    if (!EnsureShortcut(group + L"\\Luling.lnk", app + L"\\luling.exe", L"", app, L"Luling", error))
         Log(L"Shortcut: " + error);
-    // Inno named it "{cm:UninstallProgram,Pulse}"; replace the Inno one in place.
-    const std::wstring uninstall_lnk = group + (chinese ? L"\\卸载 Pulse.lnk" : L"\\Uninstall Pulse.lnk");
+    // Inno named it "{cm:UninstallProgram,Luling}"; replace the Inno one in place.
+    const std::wstring uninstall_lnk = group + (chinese ? L"\\卸载 鹿铃.lnk" : L"\\Uninstall Luling.lnk");
     DeleteFileW(uninstall_lnk.c_str());
     if (!EnsureShortcut(uninstall_lnk, entry.uninstaller, L"", app, L"", error)) Log(L"Shortcut: " + error);
     if (req.tasks.desktop_icon) {
         const std::wstring desktop = KnownFolder(real ? FOLDERID_PublicDesktop : FOLDERID_Desktop);
-        if (!EnsureShortcut(desktop + (real ? L"\\Pulse.lnk" : L"\\Pulse Test.lnk"), app + L"\\pulse.exe", L"", app,
-                            L"Pulse", error))
+        if (!EnsureShortcut(desktop + (real ? L"\\Luling.lnk" : L"\\Luling Test.lnk"), app + L"\\luling.exe", L"", app,
+                            L"Luling", error))
             Log(L"Shortcut: " + error);
     }
-    if (real && req.tasks.startup && !o.pulse_update)
-        WriteString(HKEY_CURRENT_USER, 0, kRunKey, L"Pulse", Quote(app + L"\\pulse.exe"));
+    if (real && req.tasks.startup && !o.luling_update)
+        WriteString(HKEY_CURRENT_USER, 0, kRunKey, L"Luling", Quote(app + L"\\luling.exe"));
 
     // 5. Post-install configuration (CurStepChanged ssPostInstall + [Run]).
     result.startup = real && req.tasks.startup;
     if (real) {
         RestoreUpgradePrefs(prefs, app);
         if (req.tasks.index_service) ctx.Phase(Phase::IndexService, L"Configuring the index service");
-        const std::wstring index_exe = app + L"\\Pulse.Index.exe";
+        const std::wstring index_exe = app + L"\\Luling.Index.exe";
         if (!req.tasks.index_service) {
             if (in_place && ServiceExists(kServiceName)) {
                 const auto r = RunProcess(index_exe, L"--uninstall", true);
@@ -452,15 +452,15 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
             }
         }
         ctx.Phase(Phase::SeedVerbs, L"Caching context-menu verbs");
-        const auto seed = RunProcess(app + L"\\pulse.exe", L"--seed-shell-verbs", true, app);
+        const auto seed = RunProcess(app + L"\\luling.exe", L"--seed-shell-verbs", true, app);
         Log(L"Seed shell verbs: " + std::to_wstring(seed.exit_code));
         result.verbs_seeded = seed.started && seed.exit_code == 0;
     }
 
     // GetCustomSetupExitCode: only unattended updates report post-install failures.
-    result.exit_code = (o.pulse_update && post_failed) ? kExitFailed : kExitOk;
+    result.exit_code = (o.luling_update && post_failed) ? kExitFailed : kExitOk;
     ctx.Phase(Phase::Done, L"Done, exit code " + std::to_wstring(result.exit_code));
     return result;
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

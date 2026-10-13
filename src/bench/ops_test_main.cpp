@@ -1,6 +1,6 @@
 // ops_test_main.cpp — Stage 1B-1 ops-layer self test (console).
 //
-// Drives the full stack: OpsManager -> ShellClient -> pipe -> pulse_shell.exe
+// Drives the full stack: OpsManager -> ShellClient -> pipe -> luling_shell.exe
 // -> IFileOperation. All file operations are confined to
 // bench_data/opstest (created/cleaned by this test). Prints one PASS/FAIL
 // line per check; exit code 0 iff all checks pass.
@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-using namespace pulse;
+using namespace luling;
 
 namespace {
 
@@ -473,7 +473,7 @@ int wmain(int argc, wchar_t** argv) {
             struct WindowFixture { ops::OpsManager operations; bool migration_pending = true; } fixture;
             WNDCLASSW window_class{};
             window_class.hInstance = GetModuleHandleW(nullptr);
-            window_class.lpszClassName = L"PulseUpdateShutdownTest";
+            window_class.lpszClassName = L"LulingUpdateShutdownTest";
             window_class.lpfnWndProc = [](HWND window, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
                 auto* state = reinterpret_cast<WindowFixture*>(GetWindowLongPtrW(window, GWLP_USERDATA));
                 if (state && message == app::UpdateShutdownMessage()) {
@@ -575,7 +575,7 @@ int wmain(int argc, wchar_t** argv) {
     MakeDir(srcDir);
     MakeDir(dstDir);
 
-    const char payload[] = "pulse ops self-test payload";
+    const char payload[] = "luling ops self-test payload";
     MakeFile(srcDir + L"\\a.txt", payload, sizeof(payload) - 1);
     MakeFile(srcDir + L"\\b.txt", payload, sizeof(payload) - 1);
     MakeFile(srcDir + L"\\d.txt", payload, sizeof(payload) - 1);
@@ -646,9 +646,9 @@ int wmain(int argc, wchar_t** argv) {
         if (!recycle_only) {
             // OPS-01: neither ordinary names nor ancestor names prove ownership.
             for (bool retry : { false, true }) {
-                const auto dir = root + (retry ? L"\\retry.pulse-copy-parent" : L"\\discard.pulse-backup-parent");
+                const auto dir = root + (retry ? L"\\retry.luling-copy-parent" : L"\\discard.luling-backup-parent");
                 MakeDir(dir);
-                const auto keep = dir + L"\\user.pulse-copy-123";
+                const auto keep = dir + L"\\user.luling-copy-123";
                 MakeDir(keep);
                 MakeFile(keep + L"\\keep.txt", payload, sizeof(payload));
                 const auto journal = root + L"\\recovery.json";
@@ -833,7 +833,7 @@ int wmain(int argc, wchar_t** argv) {
 
     // --- 1. Ping ------------------------------------------------------------
     {
-        Check(ipc::ShellClient::Instance().Ping(), L"IPC ping pulse_shell.exe");
+        Check(ipc::ShellClient::Instance().Ping(), L"IPC ping luling_shell.exe");
     }
 
     // --- 2. Copy ------------------------------------------------------------
@@ -1337,7 +1337,7 @@ int wmain(int argc, wchar_t** argv) {
 
     // --- Open: a \\?\ path reaches the handler in plain form (#55) --------
     {
-        // Pulse lists folders as \\?\C:\...; association handlers (and the
+        // Luling lists folders as \\?\C:\...; association handlers (and the
         // shell itself) reject that form and answer "Windows cannot find".
         const std::wstring run_dir = root + L"\\long form";
         MakeDir(run_dir);
@@ -1391,7 +1391,7 @@ int wmain(int argc, wchar_t** argv) {
         }
         size_t small_temporaries = 0, big_temporaries = 0;
         for (const auto& name : names) {
-            if (name.find(L".pulse-copy-") == std::wstring::npos) continue;
+            if (name.find(L".luling-copy-") == std::wstring::npos) continue;
             if (name.rfind(L"big.bin", 0) == 0) ++big_temporaries; else ++small_temporaries;
         }
         wprintf(L"[INFO] fast copy names seen=%zu small_tmp=%zu big_tmp=%zu\n", names.size(),
@@ -1402,8 +1402,8 @@ int wmain(int argc, wchar_t** argv) {
         Check(big_temporaries > 0, L"a large file still goes through a temporary name");
         bool leftovers = false;
         for (const auto& item : std::filesystem::directory_iterator(dst))
-            leftovers = leftovers || item.path().filename().wstring().find(L".pulse-") != std::wstring::npos;
-        Check(!leftovers, L"no .pulse- temporaries remain after the copy");
+            leftovers = leftovers || item.path().filename().wstring().find(L".luling-") != std::wstring::npos;
+        Check(!leftovers, L"no .luling- temporaries remain after the copy");
 
         // Replacing an existing file keeps the temporary + ReplaceFileW path.
         const std::string newer = "replacement body";
@@ -1416,7 +1416,7 @@ int wmain(int argc, wchar_t** argv) {
         const auto replaced = RunConflictOp(replace, ops::ConflictChoice::Replace, true);
         const auto replace_names = watch_replace.Stop();
         const bool replace_temp = std::any_of(replace_names.begin(), replace_names.end(),
-            [](const std::wstring& name) { return name.find(L"s0.txt.pulse-copy-") == 0; });
+            [](const std::wstring& name) { return name.find(L"s0.txt.luling-copy-") == 0; });
         Check(replaced.phase == ops::OpPhase::Completed && FileHash(dst + L"\\s0.txt") == FileHash(src + L"\\s0.txt"),
               L"replacing an existing file still succeeds");
         Check(replace_temp, L"replacement keeps the atomic temporary-file path");

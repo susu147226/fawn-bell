@@ -5,8 +5,8 @@
 #include <tlhelp32.h>
 #include <map>
 
-void Render(pulse::AppState& state);
-namespace pulse::app::hang { std::wstring ThreadStackForProbe(DWORD tid); }
+void Render(luling::AppState& state);
+namespace luling::app::hang { std::wstring ThreadStackForProbe(DWORD tid); }
 
 namespace {
 std::map<DWORD, uint64_t> ThreadCpuTimes() {
@@ -30,10 +30,10 @@ std::map<DWORD, uint64_t> ThreadCpuTimes() {
 }
 
 // Explicit isolated --shot runs only. Measures the production rendering path.
-int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
+int RunFolderThumbnailProbe(luling::AppState& state, const wchar_t* output) {
     FILE* log = nullptr;
     if (_wfopen_s(&log, output, L"w") || !log) return 2;
-    const bool baseline = GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_BASELINE", nullptr, 0) > 0;
+    const bool baseline = GetEnvironmentVariableW(L"LULING_TEST_FOLDER_BASELINE", nullptr, 0) > 0;
     state.renderer.SetFolderThumbnailsEnabled(!baseline);
     const auto pump = [&] {
         MSG message{};
@@ -60,7 +60,7 @@ int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
     GetProcessIoCounters(GetCurrentProcess(), &io_start);
     uint64_t first_bitmap = 0, settled_at = 0, first_size = 0, first_scan = 0;
     wchar_t scroll_text[32]{};
-    const bool preview_trace = GetEnvironmentVariableW(L"PULSE_TEST_PREVIEW_SCROLL", scroll_text, ARRAYSIZE(scroll_text)) > 0;
+    const bool preview_trace = GetEnvironmentVariableW(L"LULING_TEST_PREVIEW_SCROLL", scroll_text, ARRAYSIZE(scroll_text)) > 0;
     const float trace_scroll = preview_trace ? static_cast<float>(wcstod(scroll_text, nullptr)) : 0;
     bool trace_scrolled = false;
     size_t peak_indexed = 0;
@@ -68,9 +68,9 @@ int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
     while (GetTickCount64() - start < (preview_trace ? 25000u : 8000u)) {
         pump();
         if (preview_trace && !trace_scrolled && GetTickCount64() - start >= 1500) {
-            if (auto* active = pulse::ActiveTab(state)) {
+            if (auto* active = luling::ActiveTab(state)) {
                 active->scroll_y = trace_scroll * state.scale;
-                pulse::ClampScroll(state);
+                luling::ClampScroll(state);
                 trace_scrolled = true;
             }
         }
@@ -87,15 +87,15 @@ int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
             settled_at = elapsed;
         {
             size_t indexed = 0;
-            if (const auto* active = pulse::ActiveTab(state); active && active->snapshot) {
+            if (const auto* active = luling::ActiveTab(state); active && active->snapshot) {
                 for (const auto& entry : *active->snapshot) {
                     if (!entry.is_dir) continue;
                     const auto path = entry.full_path.empty() ? active->current_path + L"\\" + entry.name : entry.full_path;
                     const auto value = state.folderSizes.Get(path);
                     if (value.has_value && !first_size) first_size = elapsed;
-                    if (value.source == pulse::app::FolderSizeSource::Scan &&
-                        value.state == pulse::app::FolderSizeState::Ready && !first_scan) first_scan = elapsed;
-                    indexed += value.source == pulse::app::FolderSizeSource::Index;
+                    if (value.source == luling::app::FolderSizeSource::Scan &&
+                        value.state == luling::app::FolderSizeState::Ready && !first_scan) first_scan = elapsed;
+                    indexed += value.source == luling::app::FolderSizeSource::Index;
                 }
             }
             peak_indexed = std::max(peak_indexed, indexed);
@@ -110,14 +110,14 @@ int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
         first_bitmap, settled_at, first_size, static_cast<double>(cpu_time() - cpu_start) / 10000.0,
         io_end.ReadTransferCount - io_start.ReadTransferCount);
     size_t size_known = 0, size_partial = 0, size_indexed = 0, size_scanned = 0, size_verified = 0;
-    if (const auto* active = pulse::ActiveTab(state); active && active->snapshot) {
+    if (const auto* active = luling::ActiveTab(state); active && active->snapshot) {
         for (const auto& entry : *active->snapshot) {
             if (!entry.is_dir) continue;
             const auto path = entry.full_path.empty() ? active->current_path + L"\\" + entry.name : entry.full_path;
             const auto value = state.folderSizes.Get(path);
             size_known += value.has_value; size_partial += value.partial;
-            size_indexed += value.state == pulse::app::FolderSizeState::Indexed;
-            size_scanned += value.source == pulse::app::FolderSizeSource::Scan;
+            size_indexed += value.state == luling::app::FolderSizeState::Indexed;
+            size_scanned += value.source == luling::app::FolderSizeSource::Scan;
             size_verified += value.verified;
         }
     }
@@ -154,11 +154,11 @@ int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
         if (name) LocalFree(name);
         if (thread) CloseHandle(thread);
         if (cpu - previous->second >= 1000000 && id != GetCurrentThreadId()) {
-            const auto stack = pulse::app::hang::ThreadStackForProbe(id);
+            const auto stack = luling::app::hang::ThreadStackForProbe(id);
             std::fprintf(log, "[IDLE-STACK] thread=%lu\n%ls", id, stack.c_str());
         }
     }
-    if (GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_STOP_SIZES", nullptr, 0) > 0) {
+    if (GetEnvironmentVariableW(L"LULING_TEST_FOLDER_STOP_SIZES", nullptr, 0) > 0) {
         state.folderSizes.Stop();
         const auto stopped_start = GetTickCount64();
         const auto stopped_cpu = cpu_time(), stopped_ui = ui_cpu_time();
@@ -169,13 +169,13 @@ int RunFolderThumbnailProbe(pulse::AppState& state, const wchar_t* output) {
         std::fclose(log);
         return snapshot ? 0 : 1;
     }
-    auto* tab = pulse::ActiveTab(state);
+    auto* tab = luling::ActiveTab(state);
     for (bool scrolling : {false, true}) {
         std::vector<double> times;
         for (int frame = 0; frame < 90; ++frame) {
             if (scrolling && tab) {
                 tab->scroll_y = static_cast<float>((frame % 12) * 75) * state.scale;
-                pulse::ClampScroll(state);
+                luling::ClampScroll(state);
             }
             pump();
             Render(state);

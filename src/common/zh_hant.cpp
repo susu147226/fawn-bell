@@ -7,7 +7,7 @@
 #include <mutex>
 #include <vector>
 
-namespace pulse::l10n {
+namespace luling::l10n {
 namespace {
 
 struct ZhHantPhrase {
@@ -119,4 +119,4 @@ std::wstring ToTraditional(std::wstring_view chinese) {
     return out;
 }
 
-} // namespace pulse::l10n
+} // namespace luling::l10n

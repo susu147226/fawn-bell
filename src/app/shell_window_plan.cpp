@@ -3,7 +3,7 @@
 
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 bool SamePath(const std::wstring& a, const std::wstring& b) {
@@ -72,4 +72,4 @@ ExplorerTakeoverStep DecideExplorerTakeover(const ExplorerWindowProbe& probe) {
     return ExplorerTakeoverStep::Wait;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

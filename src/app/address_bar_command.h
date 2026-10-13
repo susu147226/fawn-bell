@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class AddressBarProgram { None, Cmd, PowerShell, Pwsh, WindowsTerminal };
 
@@ -23,10 +23,10 @@ const wchar_t* AddressBarProgramExe(AddressBarProgram program);
 // Folder shortcuts typed in the address bar (#54): %VAR% environment variables
 // (%temp%, %appdata%\Microsoft) and shell: folders (shell:startup,
 // shell:sendto\sub, shell:::{CLSID}). shell:MyComputerFolder resolves to This PC
-// (an empty path) and shell:RecycleBinFolder to the pulse:recycle view.
+// (an empty path) and shell:RecycleBinFolder to the luling:recycle view.
 struct AddressShortcut {
     bool resolved = false;   // false: not a shortcut, or one that names nothing
-    std::wstring path;       // filesystem path, L"" for This PC, or a pulse: view
+    std::wstring path;       // filesystem path, L"" for This PC, or a luling: view
 };
 
 // Surrounding spaces and quotes are ignored. Plain paths, unknown variables
@@ -34,4 +34,4 @@ struct AddressShortcut {
 // keep the address bar's ordinary handling. shell: lookups need COM.
 AddressShortcut ResolveAddressShortcut(std::wstring_view text);
 
-} // namespace pulse::app
+} // namespace luling::app

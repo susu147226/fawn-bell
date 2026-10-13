@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 
 // The sidebar scrollbar stays out of sight until it is useful (#44): a thin
 // thumb shows while the sidebar scrolls and fades out a moment later; the
@@ -38,4 +38,4 @@ private:
     uint64_t last_tick_ = 0;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

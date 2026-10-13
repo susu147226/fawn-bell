@@ -41,7 +41,7 @@
 
 #pragma comment(lib, "uxtheme.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 
 HsvColor HsvFromRgb(uint32_t rgb) noexcept {
     const int r = static_cast<int>((rgb >> 16) & 0xff);
@@ -118,7 +118,7 @@ namespace {
 constexpr GUID kShadowEffectClsid = { 0xC67EA361, 0x1863, 0x4e69,
     { 0x89, 0xDB, 0x69, 0x5D, 0x3E, 0x9D, 0x5B, 0x53 } };
 
-constexpr wchar_t kClassName[] = L"PulseFluentColorPicker";
+constexpr wchar_t kClassName[] = L"LulingFluentColorPicker";
 
 // Card metrics in DIPs (QFluent DropDownColorPickerPopup layout).
 constexpr float kCardW = 292.0f;
@@ -1155,7 +1155,7 @@ bool SavePng(const wchar_t* path, int w, int h, void* bits) {
 } // namespace
 
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 void TestColorPickerFallback(HWND owner, float scale, bool dark, const std::wstring& png,
                              const DialogRecoveryCheck& check) {
     Compositor compositor;
@@ -1178,8 +1178,8 @@ void TestColorPickerFallback(HWND owner, float scale, bool dark, const std::wstr
     if (!s.hwnd) return;
     CreateBrushes(s); CreateEdits(s);
     for (auto edit : s.edits) {
-        check(edit && !GetPropW(edit, L"Pulse.NativeEditFallback"), "color new EDIT has no inherited fallback");
-        SetPropW(edit, L"Pulse.Test.LumaPresentFailure", reinterpret_cast<HANDLE>(1));
+        check(edit && !GetPropW(edit, L"Luling.NativeEditFallback"), "color new EDIT has no inherited fallback");
+        SetPropW(edit, L"Luling.Test.LumaPresentFailure", reinterpret_cast<HANDLE>(1));
     }
     SyncEdits(s, -1); Render(s); Present(s, 255, 0);
     ShowWindow(s.hwnd, SW_SHOWNOACTIVATE); ShowEdits(s); Repaint(s);
@@ -1188,14 +1188,14 @@ void TestColorPickerFallback(HWND owner, float scale, bool dark, const std::wstr
         if (!edit) continue;
         SetFocus(edit); SendMessageW(edit, EM_SETSEL, 0, 1);
         InvalidateRect(edit, nullptr, FALSE); UpdateWindow(edit);
-        check(GetPropW(edit, L"Pulse.NativeEditFallback") != nullptr, "color failed Luma present activates native fallback");
+        check(GetPropW(edit, L"Luling.NativeEditFallback") != nullptr, "color failed Luma present activates native fallback");
         BYTE alpha = 0; DWORD flags = 0;
         check(GetLayeredWindowAttributes(edit, nullptr, &alpha, &flags) && alpha == 255 && (flags & LWA_ALPHA),
               "color fallback child remains opaque and visible");
         DWORD first = 0, last = 0;
         SendMessageW(edit, EM_GETSEL, reinterpret_cast<WPARAM>(&first), reinterpret_cast<LPARAM>(&last));
         check(GetFocus() == edit && first == 0 && last == 1, "color fallback preserves real focus and selection");
-        RemovePropW(edit, L"Pulse.Test.LumaPresentFailure");
+        RemovePropW(edit, L"Luling.Test.LumaPresentFailure");
         // Disable model normalization for this native EDIT input/undo probe.
         s.syncing = true;
         SetWindowTextW(edit, i < 4 ? L"123" : L"#ff345678");
@@ -1207,7 +1207,7 @@ void TestColorPickerFallback(HWND owner, float scale, bool dark, const std::wstr
         check(std::wstring(text) == (i < 4 ? L"123" : L"#ff345678"), "color native fallback preserves undo");
         s.syncing = false;
         InvalidateRect(edit, nullptr, FALSE); UpdateWindow(edit);
-        check(GetPropW(edit, L"Pulse.NativeEditFallback") != nullptr, "color native fallback stays stable after fault removed");
+        check(GetPropW(edit, L"Luling.NativeEditFallback") != nullptr, "color native fallback stays stable after fault removed");
     }
     SetWindowTextW(s.edits[4], L"#ff102030");
     SendMessageW(s.edits[4], EM_SETSEL, 7, 9);
@@ -1360,7 +1360,7 @@ bool ColorPickerPopup::SaveDebugSnapshot(Compositor* compositor, const wchar_t* 
     return ok;
 }
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 bool TestColorPickerEditFallback(HWND host, Compositor& compositor) {
     bool ok = true;
     for (float scale : {1.0f, 1.5f, 2.0f}) {
@@ -1373,12 +1373,12 @@ bool TestColorPickerEditFallback(HWND host, Compositor& compositor) {
         for (HWND edit : s.edits) {
             if (!edit) { ok = false; continue; }
             SetWindowPos(edit, nullptr, 0, 0, 180, 32, SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-            SetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_PRESENT_FAILURE", L"1");
+            SetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_PRESENT_FAILURE", L"1");
             SendMessageW(edit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"123"));
             SendMessageW(edit, WM_PAINT, 0, 0);
             SendMessageW(edit, WM_PAINT, 0, 0);
-            ok &= GetPropW(edit, L"Pulse.NativeEditFallback") != nullptr;
-            SetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_PRESENT_FAILURE", nullptr);
+            ok &= GetPropW(edit, L"Luling.NativeEditFallback") != nullptr;
+            SetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_PRESENT_FAILURE", nullptr);
             SendMessageW(edit, EM_SETSEL, 0, 3);
             SendMessageW(edit, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"234"));
             wchar_t text[16]{};
@@ -1389,7 +1389,7 @@ bool TestColorPickerEditFallback(HWND host, Compositor& compositor) {
             ok &= std::wstring(text) == L"123";
             s.hsv_mode = true;
             SyncEdits(s, -1);
-            ok &= GetPropW(edit, L"Pulse.NativeEditFallback") != nullptr;
+            ok &= GetPropW(edit, L"Luling.NativeEditFallback") != nullptr;
         }
         for (HWND edit : s.edits) if (edit) DestroyWindow(edit);
         if (s.font) DeleteObject(s.font);
@@ -1399,4 +1399,4 @@ bool TestColorPickerEditFallback(HWND host, Compositor& compositor) {
 }
 #endif
 
-} // namespace pulse::ui
+} // namespace luling::ui

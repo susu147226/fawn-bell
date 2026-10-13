@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace pulse::ipc {
+namespace luling::ipc {
 std::function<void(ShellClient&, uint32_t, uint32_t)> audit_submit;
 bool InterceptShellSubmitForReview(ShellClient& client, uint32_t type, uint32_t id) {
     if (!audit_submit) return false;
@@ -34,7 +34,7 @@ struct ShellClientReviewTestAccess {
     }
 };
 }
-namespace pulse::ops {
+namespace luling::ops {
 std::atomic<unsigned> audit_starts{0};
 std::function<void(OpsManager&, const std::wstring&)> audit_scan;
 std::function<void(const ipc::ShellClient::Callbacks&)> audit_callbacks;
@@ -97,7 +97,7 @@ struct OpsManagerAuditAccess {
 }
 
 namespace {
-using namespace pulse::ops;
+using namespace luling::ops;
 namespace fs = std::filesystem;
 void Write(const fs::path& file, const char* text) { std::ofstream(file) << text; }
 std::string Read(const fs::path& file) { std::ifstream in(file); return {std::istreambuf_iterator<char>(in), {}}; }
@@ -141,7 +141,7 @@ struct DenyAccess {
 }
 
 int main() {
-    using namespace pulse::ops;
+    using namespace luling::ops;
     const auto root = fs::absolute(fs::path(L"bench_data") /
         (L"transfer-audit-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64())));
     fs::create_directories(root);
@@ -292,7 +292,7 @@ int main() {
         manager.Submit(Request(OpType::Copy, source, target));
         check(Wait(manager, 0) && manager.Status().phase == OpPhase::Completed && Read(target / source.filename()) == "allowed file",
               "file copy succeeds with no directory-create permission or UAC");
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
         check(ElevatedHelperProcessIdForTesting() == 0, "permitted operations never launched the authorization helper");
         std::atomic<bool> invalid_cancel{false};
         const auto invalid_name = TransferWithElevatedHelper({source.wstring()}, target.wstring(), false,
@@ -302,7 +302,7 @@ int main() {
 #endif
         manager.Stop();
     }
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     {
         const auto target = root / L"authorized-partial";
         const auto source = root / L"authorized-first.txt";

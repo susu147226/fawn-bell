@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse {
+namespace luling {
 
 inline bool IsRenameFilename(const std::wstring& name) {
     if (name.empty() || name == L"." || name == L".." ||
@@ -20,4 +20,4 @@ inline bool IsRenameFilename(const std::wstring& name) {
     return true;
 }
 
-} // namespace pulse
+} // namespace luling

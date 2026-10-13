@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 // "Group by" for real folders (details view). Values are persisted.
 // Location groups by parent folder and only applies to multi-folder views
@@ -132,4 +132,4 @@ private:
 // the recycle bin (deleted date).
 GroupBy DefaultGroupFor(const std::wstring& path);
 
-} // namespace pulse::app
+} // namespace luling::app

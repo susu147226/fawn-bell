@@ -13,7 +13,7 @@
 #include <vector>
 #include <windows.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 struct NetworkRootInfo {
     std::wstring path;
@@ -35,7 +35,7 @@ bool SaveNetworkRootsFile(const std::wstring& path, const std::vector<std::wstri
 bool LoadNetworkRoots(std::vector<std::wstring>& roots, std::wstring* error = nullptr);
 bool SaveNetworkRoots(const std::vector<std::wstring>& roots, std::wstring* error = nullptr);
 
-// Per-user SMB index. It intentionally runs in Pulse.Index.exe's
+// Per-user SMB index. It intentionally runs in Luling.Index.exe's
 // --network-agent mode so Windows can use the interactive user's existing SMB
 // session without the SYSTEM service storing credentials.
 class NetworkIndex {
@@ -171,9 +171,9 @@ bool CanReuseLiveNetworkWalk(const Query& previous, const Query& next);
 // caller holds the mutex guarding `matches`.
 SearchResult SelectLiveNetworkHits(const Query& query, const LiveNetworkMatches& matches);
 
-} // namespace pulse::index
+} // namespace luling::index
 
-namespace pulse::index {
+namespace luling::index {
 void LiveNetworkWalk(const std::wstring& folder, const std::wstring& needle, bool folders_only,
     LiveNetworkMatches& out, std::mutex& mutex, const std::function<bool()>& cancelled,
     const std::function<void()>& progress, const Query* selection);

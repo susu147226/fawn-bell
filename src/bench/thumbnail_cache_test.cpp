@@ -1,7 +1,7 @@
 #include "../ui/thumbnail_cache.h"
 #include <cstdio>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct ThumbnailCacheTestAccess {
     static bool DeadlineAndPageRegression() {
         ThumbnailCache cache;
@@ -378,15 +378,15 @@ struct ThumbnailCacheTestAccess {
 }
 
 bool RunThumbnailCacheTests() {
-    return pulse::ui::ThumbnailCacheTestAccess::Run();
+    return luling::ui::ThumbnailCacheTestAccess::Run();
 }
 
 bool RunThumbnailPropertiesRegression() {
-    return pulse::ui::ThumbnailCacheTestAccess::PropertiesRegression();
+    return luling::ui::ThumbnailCacheTestAccess::PropertiesRegression();
 }
 
 bool RunThumbnailSheetRegression() {
-    return pulse::ui::ThumbnailCacheTestAccess::SheetRegression();
+    return luling::ui::ThumbnailCacheTestAccess::SheetRegression();
 }
 
-bool RunThumbnailDeadlineRegression() { return pulse::ui::ThumbnailCacheTestAccess::DeadlineAndPageRegression(); }
+bool RunThumbnailDeadlineRegression() { return luling::ui::ThumbnailCacheTestAccess::DeadlineAndPageRegression(); }

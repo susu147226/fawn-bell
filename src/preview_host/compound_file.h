@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 constexpr uint32_t kCfbEndOfChain = 0xFFFFFFFAu; // FREESECT/ENDOFCHAIN/FATSECT/DIFSECT and up
 
@@ -211,4 +211,4 @@ private:
     std::vector<uint8_t> ministream_;
 };
 
-} // namespace pulse::preview
+} // namespace luling::preview

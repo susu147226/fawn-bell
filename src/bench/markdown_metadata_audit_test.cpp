@@ -7,7 +7,7 @@
 
 int main() {
     using namespace std::chrono;
-    using pulse::ui::MarkdownImageInfo;
+    using luling::ui::MarkdownImageInfo;
     struct Fixture { std::mutex mutex; std::condition_variable cv; bool release = false, entered = false, finished = false; };
     auto fixture = std::make_shared<Fixture>();
     auto& mutex = fixture->mutex;
@@ -24,7 +24,7 @@ int main() {
         }
         MarkdownImageInfo result; result.ready = true; result.path = target; return result;
     };
-    auto cache = std::make_unique<pulse::ui::MarkdownImageMetadata>(resolver);
+    auto cache = std::make_unique<luling::ui::MarkdownImageMetadata>(resolver);
     const auto start = steady_clock::now();
     ok &= !cache->Lookup(L"slow", L"base", nullptr).ready;
     ok &= steady_clock::now() - start < milliseconds(100);

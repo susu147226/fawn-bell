@@ -6,7 +6,7 @@
 #include <new>
 #include <array>
 
-namespace pulse::preview {
+namespace luling::preview {
 using Microsoft::WRL::ComPtr;
 namespace {
 uint32_t U16(const uint8_t* p) { return p[0] | (uint32_t(p[1]) << 8); }

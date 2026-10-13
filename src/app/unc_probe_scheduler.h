@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Tracks ownership of the single UI-side UNC probe slot. A result from an
 // expired probe must never release a slot acquired by a later probe.
@@ -59,4 +59,4 @@ private:
     std::unordered_map<std::wstring, uint64_t> latest_by_path_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

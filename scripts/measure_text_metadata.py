@@ -16,16 +16,16 @@ if not corpus.exists():
         suffix = b' 3d3s marker\n' if index % 17 == 0 else b' absent data\n'
         (corpus / f'{index:04}.txt').write_bytes(b'x' * (8192 - 16) + suffix)
 executables = {
-    'before': root / 'build_realtime/text-io-before/pulse_content_index_test.exe',
-    'after': root / 'build_realtime/text-io-after/pulse_content_index_test.exe',
+    'before': root / 'build_realtime/text-io-before/luling_content_index_test.exe',
+    'after': root / 'build_realtime/text-io-after/luling_content_index_test.exe',
 }
 pattern = re.compile(r'TEXT_IO run=(\d+) elapsed_ms=([\d.]+) scanned=(\d+) hits=(\d+) hash=(\d+) bytes=(\d+) error=(\d+)')
 results = []
 for sequence, mode in enumerate(['before', 'after', 'after', 'before'] * 2):
     timing = output / f'{sequence}-{mode}'
     timing.mkdir(exist_ok=True)
-    env = dict(os.environ, PULSE_TEST_TASK_TEXT_BENCH_ROOT=str(corpus),
-               PULSE_CONTENT_TIMING_DIR=str(timing))
+    env = dict(os.environ, LULING_TEST_TASK_TEXT_BENCH_ROOT=str(corpus),
+               LULING_CONTENT_TIMING_DIR=str(timing))
     completed = subprocess.run([str(executables[mode])], cwd=root, env=env, capture_output=True, timeout=120)
     (timing / 'console.log').write_bytes(completed.stdout + completed.stderr)
     if completed.returncode:

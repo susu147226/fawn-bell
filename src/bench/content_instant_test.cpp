@@ -12,7 +12,7 @@
 #include <cstdio>
 
 namespace {
-using namespace pulse::index;
+using namespace luling::index;
 int failures = 0;
 DWORD fixture_host = 0;
 void Check(bool ok, const char* message) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", message); fflush(stdout); if (!ok) ++failures; }
@@ -28,7 +28,7 @@ std::vector<DWORD> Children() {
     PROCESSENTRY32W entry{sizeof(entry)};
     if (snapshot != INVALID_HANDLE_VALUE) {
         if (Process32FirstW(snapshot, &entry)) do {
-            if (entry.th32ParentProcessID == GetCurrentProcessId() && entry.th32ProcessID != fixture_host && _wcsicmp(entry.szExeFile, L"Pulse.Index.exe") == 0) ids.push_back(entry.th32ProcessID);
+            if (entry.th32ParentProcessID == GetCurrentProcessId() && entry.th32ProcessID != fixture_host && _wcsicmp(entry.szExeFile, L"Luling.Index.exe") == 0) ids.push_back(entry.th32ProcessID);
         } while (Process32NextW(snapshot, &entry));
         CloseHandle(snapshot);
     }
@@ -43,7 +43,7 @@ int RunInstantGapTests(const std::filesystem::path& base) {
     const auto root = base / L"gap-files", logs = base / L"gap-logs";
     std::filesystem::create_directories(root);
     std::filesystem::create_directories(base / L"gap-profile");
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", logs.c_str());
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", logs.c_str());
     const auto changed = root / L"changed.txt";
     Write(changed, "new content");
     ContentIndex index((base / L"gap-profile" / L"content.sqlite").wstring(), ContentAgentMode::Instant);
@@ -122,8 +122,8 @@ int RunInstantGapTests(const std::filesystem::path& base) {
         Check(initial.error == item.scan_error && initial.scanned_files == 2 && initial.total_files == 2 &&
             original == current && known_updates_before_pause,
             "known deletion/addition are applied before pausing without replacing initial results or counts");
-        pulse::ipc::PayloadWriter writer; content::PutSubscriptionStatus(writer, paused);
-        pulse::ipc::PayloadReader reader(writer.data().data(), writer.data().size());
+        luling::ipc::PayloadWriter writer; content::PutSubscriptionStatus(writer, paused);
+        luling::ipc::PayloadReader reader(writer.data().data(), writer.data().size());
         ContentSearchProgress decoded;
         Check(content::GetSubscriptionStatus(reader, decoded) && decoded.subscription_error == paused.subscription_error &&
             decoded.subscription_failure == item.source, "subscription status survives the production protocol fields");
@@ -160,7 +160,7 @@ int RunInstantReconcileAudit(const std::filesystem::path& base) {
     const auto root = base / L"reconcile-files";
     std::filesystem::create_directories(root / L"imported");
     Write(root / L"changed.txt", "new marker"); Write(root / L"imported" / L"child.txt", "new marker");
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", (base / L"reconcile-logs").c_str());
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", (base / L"reconcile-logs").c_str());
     std::filesystem::create_directories(base / L"reconcile-profile");
     ContentIndex index((base / L"reconcile-profile" / L"content.sqlite").wstring(), ContentAgentMode::Instant);
     ContentIndexConfig config; config.roots = {{root.wstring()}};
@@ -217,8 +217,8 @@ int RunInstantReconcileAudit(const std::filesystem::path& base) {
             if (progress.subscription_error) {
                 paused = progress.subscription_error == ERROR_ACCESS_DENIED && !progress.live &&
                     progress.subscription_failure == ContentSubscriptionFailure::Reconcile;
-                pulse::ipc::PayloadWriter writer; content::PutSubscriptionStatus(writer, progress);
-                pulse::ipc::PayloadReader reader(writer.data().data(), writer.data().size()); ContentSearchProgress decoded;
+                luling::ipc::PayloadWriter writer; content::PutSubscriptionStatus(writer, progress);
+                luling::ipc::PayloadReader reader(writer.data().data(), writer.data().size()); ContentSearchProgress decoded;
                 Check(content::GetSubscriptionStatus(reader, decoded) && decoded.subscription_failure == ContentSubscriptionFailure::Reconcile,
                       "reconciliation pause reason survives protocol");
             }
@@ -242,10 +242,10 @@ int RunInstantLifecycleTests(const std::filesystem::path& base) {
     const auto profile = base / L"profile", files = base / L"files";
     std::filesystem::create_directories(profile); std::filesystem::create_directories(files);
     SetEnvironmentVariableW(L"LOCALAPPDATA", profile.c_str());
-    SetEnvironmentVariableW(L"PULSE_DOCUMENT_ADMISSION_DIR", profile.c_str());
+    SetEnvironmentVariableW(L"LULING_DOCUMENT_ADMISSION_DIR", profile.c_str());
     const auto logs = base / L"logs";
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", logs.c_str());
-    const auto cache = profile / L"Pulse" / L"ContentIndex" / L"content-v1.sqlite";
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", logs.c_str());
+    const auto cache = profile / L"Luling" / L"ContentIndex" / L"content-v1.sqlite";
     Write(files / L"a.txt", "instant_marker first"); Write(files / L"b.txt", "absent");
     const auto nested = files / L"parent" / L"sub";
     std::filesystem::create_directories(nested);
@@ -255,12 +255,12 @@ int RunInstantLifecycleTests(const std::filesystem::path& base) {
         ~Host() { if (process) { TerminateProcess(process, 0); WaitForSingleObject(process, 2000); CloseHandle(process); } fixture_host = 0; }
     } host;
     wchar_t shared_mode[8]{};
-    const bool shared = GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_SHARED", shared_mode, ARRAYSIZE(shared_mode)) != 0;
+    const bool shared = GetEnvironmentVariableW(L"LULING_TEST_INSTANT_SHARED", shared_mode, ARRAYSIZE(shared_mode)) != 0;
     if (shared) {
         const auto token = L"instant-" + std::to_wstring(GetCurrentProcessId());
-        SetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", (L"\\\\.\\pipe\\PulseIndex.Test." + token).c_str());
+        SetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", (L"\\\\.\\pipe\\LulingIndex.Test." + token).c_str());
         wchar_t module[32768]{}; GetModuleFileNameW(nullptr, module, ARRAYSIZE(module));
-        const auto exe = std::filesystem::path(module).parent_path() / L"Pulse.Index.exe";
+        const auto exe = std::filesystem::path(module).parent_path() / L"Luling.Index.exe";
         std::wstring command = L"\"" + exe.wstring() + L"\" --test-host " + token + L" \"" + files.wstring() + L"\" \"" + (base / L"filename-cache").wstring() + L"\"";
         STARTUPINFOW startup{sizeof(startup)}; PROCESS_INFORMATION process{};
         if (!CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process)) {
@@ -278,7 +278,7 @@ int RunInstantLifecycleTests(const std::filesystem::path& base) {
     client.Configure(config);
     Check(Await([&] { return client.GetConfig().roots.size() == 1; }), "instant scope can be saved without a body database");
     Check(Children().empty() && !std::filesystem::exists(cache), "startup/configuration have no content process or body database");
-    wchar_t seconds[16]{}; GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_IDLE_SECONDS", seconds, ARRAYSIZE(seconds));
+    wchar_t seconds[16]{}; GetEnvironmentVariableW(L"LULING_TEST_INSTANT_IDLE_SECONDS", seconds, ARRAYSIZE(seconds));
     const DWORD idle_ms = wcstoul(seconds, nullptr, 10) * 1000;
     if (idle_ms) {
         const auto start = GetTickCount64(), cpu = Cpu();
@@ -311,7 +311,7 @@ int RunInstantLifecycleTests(const std::filesystem::path& base) {
     Check(Await([&] { pump(); return completed == 1 && visible.size() == 1; }), "first-run instant search works without any cache");
     Check(last_error == 0 && !std::filesystem::exists(cache), "successful instant search never writes persistent body cache");
     wchar_t crash_ready[32768]{};
-    if (GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_CRASH_READY", crash_ready, ARRAYSIZE(crash_ready))) {
+    if (GetEnvironmentVariableW(L"LULING_TEST_INSTANT_CRASH_READY", crash_ready, ARRAYSIZE(crash_ready))) {
         const auto children = Children();
         { std::ofstream ready(std::filesystem::path(crash_ready), std::ios::trunc); for (auto id : children) ready << id << '\n'; }
         // The isolated harness terminates this parent without running its destructors.
@@ -398,7 +398,7 @@ int RunInstantLifecycleTests(const std::filesystem::path& base) {
     Write(nested / L"scoped.txt", "instant_marker");
     auto scoped_request = request; scoped_request.root = nested.wstring(); scoped_request.generation += 500;
     scoped.SearchAsync(scoped_request); bool scoped_hit = false, scoped_removed = false, scoped_done = false;
-    const bool rename_after_complete = GetEnvironmentVariableW(L"PULSE_TEST_INSTANT_RENAME_AFTER_COMPLETE", nullptr, 0) != 0;
+    const bool rename_after_complete = GetEnvironmentVariableW(L"LULING_TEST_INSTANT_RENAME_AFTER_COMPLETE", nullptr, 0) != 0;
     auto scoped_pump = [&] { ContentSearchUpdate update; while (scoped.TakeUpdate(update)) {
         scoped_done |= update.progress.done && !update.progress.delta;
         for (const auto& hit : update.hits) { scoped_hit |= !hit.removed; scoped_removed |= hit.removed; }

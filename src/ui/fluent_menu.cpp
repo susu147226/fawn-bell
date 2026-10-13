@@ -18,7 +18,7 @@
 #pragma comment(lib, "windowscodecs.lib")
 #pragma comment(lib, "uxtheme.lib")
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -28,7 +28,7 @@ constexpr GUID kShadowEffectClsid = { 0xC67EA361, 0x1863, 0x4e69,
     { 0x89, 0xDB, 0x69, 0x5D, 0x3E, 0x9D, 0x5B, 0x53 } };
 
 constexpr UINT_PTR kAnimTimer = 1;
-constexpr wchar_t kMenuClass[] = L"PulseFluentMenu";
+constexpr wchar_t kMenuClass[] = L"LulingFluentMenu";
 
 float MeasureWidth(IDWriteFactory2* dwrite, IDWriteTextFormat* format,
                    const std::wstring& text) {
@@ -276,7 +276,7 @@ bool FluentMenu::EnsureWindow() {
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     if (!GetClassInfoExW(inst, kMenuClass, &wc)) RegisterClassExW(&wc);
     hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
-                            kMenuClass, L"PulseMenu", WS_POPUP,
+                            kMenuClass, L"LulingMenu", WS_POPUP,
                             0, 0, 10, 10, owner_, nullptr, inst, this);
     return hwnd_ != nullptr;
 }
@@ -601,7 +601,7 @@ bool FluentMenu::RenderSurface(const FluentMenuModel& model, int hover_row, int 
             field.bounds = D2D1::RectF(card.left + 8.0f * scale_, card.top + 6.0f * scale_,
                                        card.right - 8.0f * scale_, card.top + (float)header - 4.0f * scale_);
             field.placeholder = filter_placeholder_.empty()
-                ? pulse::l10n::Get(pulse::l10n::StringId::TabMenuSearch) : filter_placeholder_;
+                ? luling::l10n::Get(luling::l10n::StringId::TabMenuSearch) : filter_placeholder_;
             field.text = filter_query_;
             field.leading_glyph = L"\xE721";
             field.state.focused = true;
@@ -783,7 +783,7 @@ bool FluentMenu::EnsureSubWindow() {
     // Same class as the main popup (registered in EnsureWindow); the shared
     // wndproc routes by hwnd.
     sub_hwnd_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
-                                kMenuClass, L"PulseSubMenu", WS_POPUP,
+                                kMenuClass, L"LulingSubMenu", WS_POPUP,
                                 0, 0, 10, 10, hwnd_, nullptr,
                                 GetModuleHandleW(nullptr), this);
     return sub_hwnd_ != nullptr;
@@ -946,7 +946,7 @@ void FluentMenu::UpdateTooltip(int row) {
         // No create param: the shared wndproc treats it as a plain window.
         tooltip_ = CreateWindowExW(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE |
                                    WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-                                   kMenuClass, L"PulseMenuTip", WS_POPUP, 0, 0, 1, 1, hwnd_,
+                                   kMenuClass, L"LulingMenuTip", WS_POPUP, 0, 0, 1, 1, hwnd_,
                                    nullptr, GetModuleHandleW(nullptr), nullptr);
     }
     if (!tooltip_ || !RenderTip(text)) return;
@@ -1650,7 +1650,7 @@ void FluentMenu::RefreshFilter() {
     UpdateTooltip(-1);
     if (items.empty()) {
         FluentMenuItem none;
-        none.text = filter_query_.empty() ? pulse::l10n::Get(pulse::l10n::StringId::MenuTypeSearch).c_str() : pulse::l10n::Get(pulse::l10n::StringId::MenuNoMatch).c_str();
+        none.text = filter_query_.empty() ? luling::l10n::Get(luling::l10n::StringId::MenuTypeSearch).c_str() : luling::l10n::Get(luling::l10n::StringId::MenuNoMatch).c_str();
         none.enabled = false;
         items.push_back(std::move(none));
     }
@@ -1676,7 +1676,7 @@ bool FluentMenu::ReplaceItems(std::vector<FluentMenuItem> items) {
     if (sub_parent_row_ >= 0) return false;
     if (model_.PatchCommands(items)) return true;
     // The rows changed shape: a context menu opened before the shell host
-    // answered (no cached layout for this type yet) only had Pulse's own rows,
+    // answered (no cached layout for this type yet) only had Luling's own rows,
     // and the Explorer section (New, archivers, ...) arrives afterwards. Rebuild
     // in place so those rows show up in this menu instead of the next one
     // (#73). Shell rows are appended after the built-in ones, so the rows under
@@ -1750,4 +1750,4 @@ bool FluentMenu::SaveDebugSnapshot(const wchar_t* png_path,
     return SUCCEEDED(encoder->Commit());
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

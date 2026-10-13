@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 class Compositor;
 class FluentMenu;
@@ -51,4 +51,4 @@ public:
                                   bool dark, D2D1_COLOR_F accent, float scale);
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -1,8 +1,8 @@
-// index_paths.h — Shared data directory for the index file (UI + Pulse.Index).
+// index_paths.h — Shared data directory for the index file (UI + Luling.Index).
 #pragma once
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 
 void SetMachineIndexScope(bool machine_scope);
 bool MachineIndexScope();
@@ -11,4 +11,4 @@ void SetActiveIndexDirectory(const std::wstring& directory);
 std::wstring DataDir();
 std::wstring CacheFilePath();
 
-} // namespace pulse::index
+} // namespace luling::index

@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <string>
-namespace pulse::app {
+namespace luling::app {
 bool CreateUpdateStage(const std::wstring& local_app_data, std::wstring& directory,
                        std::wstring& file, HANDLE& lease);
 bool RemoveUpdateStage(const std::wstring& directory);

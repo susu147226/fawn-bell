@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 enum : unsigned {
@@ -472,4 +472,4 @@ bool MakeMarkdownDocument(const std::wstring& source, std::wstring& payload) {
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

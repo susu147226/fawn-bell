@@ -13,10 +13,10 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
-constexpr wchar_t kClassName[] = L"PulseTextDiffWindow";
+constexpr wchar_t kClassName[] = L"LulingTextDiffWindow";
 constexpr UINT kMsgJobDone = WM_APP + 41;
 constexpr UINT_PTR kTooltipTimer = 1;
 constexpr float kToolbarH = 48.0f;
@@ -27,9 +27,9 @@ constexpr int kContextLines = 2;
 constexpr int kMinFoldLines = 3;
 constexpr size_t kMaxDrawChars = 4000;
 
-using Sid = pulse::l10n::StringId;
+using Sid = luling::l10n::StringId;
 
-std::wstring Str(Sid id) { return std::wstring(pulse::l10n::Get(id)); }
+std::wstring Str(Sid id) { return std::wstring(luling::l10n::Get(id)); }
 
 std::wstring Fill(std::wstring text, std::wstring_view key, const std::wstring& value) {
     const size_t at = text.find(key);
@@ -139,7 +139,7 @@ bool TextDiffWindow::EnsureWindow(HWND owner) {
         if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
         registered = true;
     }
-    const UINT dpi = owner ? pulse::compat::WindowDpi(owner) : 96u;
+    const UINT dpi = owner ? luling::compat::WindowDpi(owner) : 96u;
     MONITORINFO mi{sizeof(mi)};
     GetMonitorInfoW(MonitorFromWindow(owner, MONITOR_DEFAULTTONEAREST), &mi);
     const RECT work = mi.rcWork;
@@ -1160,7 +1160,7 @@ LRESULT CALLBACK TextDiffWindow::WndProc(HWND hwnd, UINT message, WPARAM wparam,
 LRESULT TextDiffWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) {
     switch (message) {
     case WM_CREATE:
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
+        scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
         if (!compositor_.Init(hwnd_)) return -1;
         // No text input here: without this the IME turns Esc / Ctrl+C into VK_PROCESSKEY.
         ImmAssociateContext(hwnd_, nullptr);
@@ -1334,4 +1334,4 @@ LRESULT TextDiffWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam
     return DefWindowProcW(hwnd_, message, wparam, lparam);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

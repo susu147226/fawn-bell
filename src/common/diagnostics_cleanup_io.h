@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <string>
 
-namespace pulse::diagnostics {
+namespace luling::diagnostics {
 // Per-call adapter: fault tests never replace process-wide filesystem functions.
 struct CleanupIo {
     decltype(&GetFileAttributesW) attributes = GetFileAttributesW;

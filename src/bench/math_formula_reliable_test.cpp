@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace pulse_test {
+namespace luling_test {
 using Microsoft::WRL::ComPtr;
 const MathRenderProfile& MathReliableProfile() {
     static const MathRenderProfile profile = [] {
@@ -46,8 +46,8 @@ const MathRenderProfile& MathReliableProfile() {
     return profile;
 }
 int TestMathReliable(IDWriteFactory2* factory) {
-    using namespace pulse::ui;
-    using namespace pulse::ui::math;
+    using namespace luling::ui;
+    using namespace luling::ui::math;
     int failures = 0;
     const auto check = [&failures](bool valid, const char* name) {
         std::printf("[%s] reliable %s\n", valid ? "PASS" : "FAIL", name);
@@ -158,7 +158,7 @@ int TestMathReliable(IDWriteFactory2* factory) {
     std::wstring payload;
     MarkdownView view;
     const auto& profile = MathReliableProfile();
-    check(pulse::preview::MakeMarkdownDocument(profile.markdown, payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
+    check(luling::preview::MakeMarkdownDocument(profile.markdown, payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
         view.Source() == profile.markdown && view.PlainText().find(profile.copy_probe) != std::wstring::npos,
         "source and copied text preserve original macro definitions and invocations");
     std::printf("[COVERAGE] Reliable mathematics gallery: all %zu cases, no sampling.\n", profile.formulas.size());

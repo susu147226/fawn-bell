@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 using Id = l10n::StringId;
 struct HelpRow { Id label; std::wstring keys; };
@@ -281,7 +281,7 @@ void ShowShortcutHelp(HWND owner,bool dark,D2D1_COLOR_F accent) {
     window.scale=static_cast<float>(compat::WindowDpi(owner))/96.0f;
     WNDCLASSW wc{};
     wc.hInstance=GetModuleHandleW(nullptr); wc.lpfnWndProc=HelpWindow::Proc;
-    wc.lpszClassName=L"PulseShortcutHelp"; wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);
+    wc.lpszClassName=L"LulingShortcutHelp"; wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);
     RegisterClassW(&wc);
     RECT r{}; GetClientRect(owner,&r);
     POINT p{}; ClientToScreen(owner,&p);

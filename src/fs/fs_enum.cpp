@@ -19,7 +19,7 @@
 
 #pragma comment(lib, "shlwapi.lib")
 
-namespace pulse::fs {
+namespace luling::fs {
 
 DWORD ReadReparseTag(const std::wstring& path) {
     WIN32_FIND_DATAW data{};
@@ -59,7 +59,7 @@ struct NtIoStatusBlock {
 
 using NtPioApcRoutine = VOID (NTAPI*)(PVOID ApcContext, NtIoStatusBlock* IoStatusBlock, ULONG Reserved);
 
-using pulse::fs::NtFileFullDirInformation;
+using luling::fs::NtFileFullDirInformation;
 
 enum NtFileInformationClass : int {
     NtFileFullDirectoryInformation = 2,
@@ -122,7 +122,7 @@ static void InitNtApi() {
 }
 
 bool IsVirtualPath(const std::wstring& path) {
-    return path.starts_with(L"pulse:");
+    return path.starts_with(L"luling:");
 }
 
 bool IsUncPath(const std::wstring& path) {
@@ -332,7 +332,7 @@ static void EnumerateNtQuery(const std::wstring& path, std::vector<DirEntry>& ou
         if (iosb.Information > buffer.size()) throw std::runtime_error("Invalid NT directory buffer size");
         auto* info = reinterpret_cast<NtFileFullDirInformation*>(buffer.data());
         for (;;) {
-            pulse::fs::ValidateNtDirectoryRecord(info, static_cast<size_t>(iosb.Information) -
+            luling::fs::ValidateNtDirectoryRecord(info, static_cast<size_t>(iosb.Information) -
                 static_cast<size_t>(reinterpret_cast<BYTE*>(info) - buffer.data()));
             DirEntry e;
             e.name.assign(info->FileName, info->FileNameLength / sizeof(WCHAR));
@@ -526,4 +526,4 @@ void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>& out, co
     out = std::move(request->entries);
 }
 
-} // namespace pulse::fs
+} // namespace luling::fs

@@ -1,5 +1,5 @@
 // measure_shell.cpp — Stage 0 Shell icon/thumbnail cost benchmark
-// Usage: pulse_bench_shell [dir] [N]
+// Usage: luling_bench_shell [dir] [N]
 //   dir: directory to sample (default: C:\Windows\System32)
 //   N:   number of items to sample (default: 200)
 
@@ -193,7 +193,7 @@ int wmain(int argc, wchar_t* argv[]) {
     if (argc == 2 && std::wstring(argv[1]) == L"--audit-bind-failure") {
         const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
         if (FAILED(initialized)) return 2;
-        const auto sample = time_thumbnail(L"?:\\Pulse-invalid-shell-benchmark-fixture");
+        const auto sample = time_thumbnail(L"?:\\Luling-invalid-shell-benchmark-fixture");
         const bool passed = !sample.milliseconds && !sample.hit;
         CoUninitialize();
         std::cout << (passed ? "[PASS]" : "[FAIL]") << " factory binding failure has no timing sample and cannot enter statistics\n";
@@ -203,7 +203,7 @@ int wmain(int argc, wchar_t* argv[]) {
     int64_t n = 200;
 
     if (argc > 1) n = _wtoi64(argv[1]);
-    if (argc > 2) return usage("pulse_bench_shell");
+    if (argc > 2) return usage("luling_bench_shell");
 
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (FAILED(hr)) {

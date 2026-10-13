@@ -21,25 +21,25 @@ void Check(bool ok, const char* label) {
 bool StartupRollbackFaultForTest(int stage) { return fault_stage == stage; }
 
 int RunStartupRollbackTest(HINSTANCE instance, WNDPROC window_proc) {
-    using namespace pulse;
+    using namespace luling;
     const auto root = std::filesystem::absolute(L"bench_data/startup-rollback-" +
         std::to_wstring(GetCurrentProcessId()));
     if (std::filesystem::exists(root)) return 2;
     std::filesystem::create_directories(root);
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", root.c_str());
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", root.c_str());
     const auto temporary = root / L"temp";
     std::filesystem::create_directories(temporary);
     SetEnvironmentVariableW(L"TEMP", temporary.c_str());
     SetEnvironmentVariableW(L"TMP", temporary.c_str());
     crash::Initialize({crash::ProcessRole::App, false, root.wstring()});
-    const auto desktop_name = L"PulseStartupAudit_" + std::to_wstring(GetCurrentProcessId());
+    const auto desktop_name = L"LulingStartupAudit_" + std::to_wstring(GetCurrentProcessId());
     HDESK desktop = CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
     if (!desktop || !SetThreadDesktop(desktop) || FAILED(OleInitialize(nullptr))) return 2;
     l10n::Initialize(instance, L"en-US");
     WNDCLASSW cls{};
     cls.hInstance = instance;
     cls.lpfnWndProc = window_proc;
-    cls.lpszClassName = L"PulseStartupAudit";
+    cls.lpszClassName = L"LulingStartupAudit";
     if (!RegisterClassW(&cls)) return 2;
     const std::map<std::wstring, std::wstring> originals{
         {L"app.json", L"{\"language\":\"en-US\",\"show_status_performance\":true}"},
@@ -98,7 +98,7 @@ int RunStartupRollbackTest(HINSTANCE instance, WNDPROC window_proc) {
         close_procedure = window_proc;
         WNDCLASSW ready_class{};
         ready_class.hInstance = instance;
-        ready_class.lpszClassName = L"PulseReadyCloseAudit";
+        ready_class.lpszClassName = L"LulingReadyCloseAudit";
         ready_class.lpfnWndProc = [](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) -> LRESULT {
             if (message == WM_NCCREATE) {
                 auto* create = reinterpret_cast<CREATESTRUCTW*>(lparam);

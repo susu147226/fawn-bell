@@ -7,7 +7,7 @@
 #include <initializer_list>
 #include <iterator>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 struct BuiltinMenuInfo {
@@ -243,4 +243,4 @@ uint32_t RowActionMask(uint32_t builtin_hidden, const BuiltinMenuOrder& row_orde
     return mask | (code << kRowActionOrderShift);
 }
 
-} // namespace pulse::app
+} // namespace luling::app

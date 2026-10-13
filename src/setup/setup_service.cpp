@@ -2,7 +2,7 @@
 
 #include <vector>
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 struct ScHandle {
@@ -63,4 +63,4 @@ std::wstring ServiceBinaryPath(const wchar_t* name) {
     return config->lpBinaryPathName;
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

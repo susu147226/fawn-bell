@@ -11,7 +11,7 @@
 #include <thread>
 #include <windows.h>
 
-namespace pulse::fs {
+namespace luling::fs {
 class EnumerationCancelled : public std::runtime_error {
 public:
     EnumerationCancelled() : std::runtime_error("Directory enumeration cancelled") {}
@@ -76,4 +76,4 @@ Result RunBoundedEnumeration(bool network, Provider provider, Cancelled cancelle
     if (state->error) std::rethrow_exception(state->error);
     return std::move(*state->result);
 }
-} // namespace pulse::fs
+} // namespace luling::fs

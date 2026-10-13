@@ -34,8 +34,8 @@ bool WriteAll(HANDLE pipe, HANDLE ready, const void* input, DWORD size) {
     return true;
 }
 DWORD Extract(const std::wstring& path, uint64_t maximum_bytes, std::wstring& body, uint64_t& size,
-              std::wstring_view stop_needle, bool case_sensitive, pulse::index::DocumentReadMetrics& metrics,
-              const pulse::index::document::Request& request, pulse::index::document::Begin& begin,
+              std::wstring_view stop_needle, bool case_sensitive, luling::index::DocumentReadMetrics& metrics,
+              const luling::index::document::Request& request, luling::index::document::Begin& begin,
               bool& began, HANDLE output, HANDLE ready) {
     // Keep the checked file stable while OPC/IFilter reopen it by name. File
     // access itself is inside the parent's cancellation and timeout boundary.
@@ -45,13 +45,13 @@ DWORD Extract(const std::wstring& path, uint64_t maximum_bytes, std::wstring& bo
     struct File { HANDLE value; ~File() { CloseHandle(value); } } owner{file};
     BY_HANDLE_FILE_INFORMATION info{};
     if (!GetFileInformationByHandle(file, &info)) return GetLastError();
-    if (pulse::index::document::QueryFileVersion(file, info, begin.version)) begin.flags = 1;
-    if (!pulse::index::document::FallbackSourceMatches(request, begin)) return ERROR_FILE_INVALID;
+    if (luling::index::document::QueryFileVersion(file, info, begin.version)) begin.flags = 1;
+    if (!luling::index::document::FallbackSourceMatches(request, begin)) return ERROR_FILE_INVALID;
     constexpr DWORD unavailable = FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT |
         FILE_ATTRIBUTE_OFFLINE | 0x00040000 | 0x00400000;
     if (info.dwFileAttributes & unavailable) return ERROR_FILE_OFFLINE;
     const uint64_t file_bytes = (static_cast<uint64_t>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
-    if (file_bytes > (std::min)(maximum_bytes, pulse::index::document::kMaximumFileBytes)) return ERROR_FILE_TOO_LARGE;
+    if (file_bytes > (std::min)(maximum_bytes, luling::index::document::kMaximumFileBytes)) return ERROR_FILE_TOO_LARGE;
     began = true;
     if (!WriteAll(output, ready, &begin, sizeof(begin))) return ERROR_BROKEN_PIPE;
     const auto dot = path.find_last_of(L'.');
@@ -59,14 +59,14 @@ DWORD Extract(const std::wstring& path, uint64_t maximum_bytes, std::wstring& bo
     std::transform(ext.begin(), ext.end(), ext.begin(), [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
     HRESULT hr = HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
     if (ext == L".docx" || ext == L".xlsx" || ext == L".pptx")
-        hr = pulse::index::ExtractOfficeOpenXml(path, body, stop_needle, case_sensitive, &metrics);
+        hr = luling::index::ExtractOfficeOpenXml(path, body, stop_needle, case_sensitive, &metrics);
     else if (ext == L".doc" || ext == L".xls" || ext == L".ppt" || ext == L".rtf") {
-        pulse::index::DocumentMetricScope timing(metrics.filter_us);
-        hr = pulse::index::ExtractOfficeFilter(path, body, stop_needle, case_sensitive);
+        luling::index::DocumentMetricScope timing(metrics.filter_us);
+        hr = luling::index::ExtractOfficeFilter(path, body, stop_needle, case_sensitive);
     } else if (ext == L".pdf") {
         const bool filter_only = begin.engine == 2;
         if (!filter_only) {
-            try { hr = pulse::index::ExtractPdfiumText(file, file_bytes, body, stop_needle, case_sensitive, metrics); }
+            try { hr = luling::index::ExtractPdfiumText(file, file_bytes, body, stop_needle, case_sensitive, metrics); }
             catch (const std::bad_alloc&) { hr = E_OUTOFMEMORY; }
         }
         // Retry compatibility failures, not ordinary nonmatches or image-only documents.
@@ -79,7 +79,7 @@ DWORD Extract(const std::wstring& path, uint64_t maximum_bytes, std::wstring& bo
             std::thread pdf([&] {
                 hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
                 if (FAILED(hr)) return;
-                try { pulse::index::DocumentMetricScope timing(metrics.filter_us); hr = pulse::index::ExtractOfficeFilter(path, body, stop_needle, case_sensitive); }
+                try { luling::index::DocumentMetricScope timing(metrics.filter_us); hr = luling::index::ExtractOfficeFilter(path, body, stop_needle, case_sensitive); }
                 catch (const std::bad_alloc&) { hr = E_OUTOFMEMORY; }
                 catch (...) { hr = E_FAIL; }
                 CoUninitialize();
@@ -107,8 +107,8 @@ int wmain(int argc, wchar_t** argv) {
     const auto response_ready = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(_wcstoui64(argv[4], nullptr, 10)));
     if (!input || !output || !request_ready || !response_ready) return 1;
     if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return 2;
-    using namespace pulse::index::document;
-    pulse::index::DocumentMemoryTrace memory_trace;
+    using namespace luling::index::document;
+    luling::index::DocumentMemoryTrace memory_trace;
     uint64_t document_sequence = 0;
     for (;;) {
         if (WaitForSingleObject(request_ready, kIdleMs) != WAIT_OBJECT_0) return 0;
@@ -135,12 +135,12 @@ int wmain(int argc, wchar_t** argv) {
             const bool pdf = dot != std::wstring::npos && _wcsicmp(path.c_str() + dot, L".pdf") == 0;
             begin.engine = pdf ? ((request.override_engine == 2 || begin.config_mode == 2) ? 2u : 1u) : 0u;
             bool began = false;
-            const auto cpu_start = pulse::index::DocumentCpuMicros();
+            const auto cpu_start = luling::index::DocumentCpuMicros();
             try { response.error = Extract(path, request.maximum_bytes, body, response.file_bytes, stop_needle,
                 (request.flags & 1) != 0, response.metrics, request, begin, began, output, response_ready); }
             catch (const std::bad_alloc&) { response.error = ERROR_NOT_ENOUGH_MEMORY; }
             catch (...) { response.error = ERROR_BAD_FORMAT; }
-            response.metrics.cpu_us = pulse::index::DocumentCpuMicros() - cpu_start;
+            response.metrics.cpu_us = luling::index::DocumentCpuMicros() - cpu_start;
             if (!began) {
                 begin.error = response.error;
                 if (!WriteAll(output, response_ready, &begin, sizeof(begin))) return 0;

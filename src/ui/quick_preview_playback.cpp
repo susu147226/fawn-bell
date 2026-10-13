@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 constexpr UINT_PTR kAnimationTimer = 7;
 constexpr UINT_PTR kVideoTimer = 8;
@@ -1039,4 +1039,4 @@ void QuickPreviewWindow::DrawCodecCardText(ID2D1DeviceContext* dc, const D2D1_RE
     caption->SetParagraphAlignment(sp);
     brush->SetColor(original);
 }
-} // namespace pulse::ui
+} // namespace luling::ui

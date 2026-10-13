@@ -5,7 +5,7 @@
 #include <array>
 #include <cstring>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 uint32_t Be32(const uint8_t* p) {
@@ -235,4 +235,4 @@ std::wstring MakeIconSizesPayload(const std::vector<IconEntry>& entries, size_t 
     return s;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

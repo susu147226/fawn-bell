@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::index {
+namespace luling::index {
 
 namespace {
 
@@ -800,4 +800,4 @@ std::wstring QueryWithoutPathPrefix(std::wstring_view raw) {
     return QueryTextWithoutScope(raw, false);
 }
 
-} // namespace pulse::index
+} // namespace luling::index

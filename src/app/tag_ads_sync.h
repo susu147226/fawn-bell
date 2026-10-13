@@ -1,7 +1,7 @@
 #pragma once
 #include "places.h"
 #include <functional>
-namespace pulse::app {
+namespace luling::app {
 enum class TagAdsFailureStage { JournalRead, JournalWrite, StreamWrite, Pending };
 struct TagAdsFailure {
     std::wstring path;

@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct LumaTextStats {
     std::uint64_t draw_calls = 0;
@@ -65,4 +65,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

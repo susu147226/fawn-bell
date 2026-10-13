@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
@@ -496,4 +496,4 @@ void BloomAccentPicker::Draw(ID2D1DeviceContext* dc, const Theme& theme) const {
     }
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -4,7 +4,7 @@
 #pragma once
 #include <windows.h>
 
-namespace pulse {
+namespace luling {
 
 struct AppState;
 
@@ -15,4 +15,4 @@ void OpenSortWheel(AppState& s);
 // WndProc hook: true when the message was consumed by the open picker.
 bool GroupWheelMessage(AppState& s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-} // namespace pulse
+} // namespace luling

@@ -14,7 +14,7 @@
 #include <vector>
 
 using Microsoft::WRL::ComPtr;
-namespace wire = pulse::imgpack;
+namespace wire = luling::imgpack;
 namespace {
 struct Frame {
     wire::FrameHeader header;

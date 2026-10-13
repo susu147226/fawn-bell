@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "operation_intent_ui.h"
 #include "app_navigation.h"
 #include "app_hosted_edit.h"
@@ -7,7 +7,7 @@
 #include <filesystem>
 
 bool RunOperationIntentUiTest() {
-    using namespace pulse;
+    using namespace luling;
     std::filesystem::create_directories(L"bench_data");
     FILE* log = nullptr;
     _wfopen_s(&log, L"bench_data/m12023_operation_intent_ui_test.log", L"w");

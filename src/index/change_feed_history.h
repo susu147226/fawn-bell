@@ -7,7 +7,7 @@
 #include <limits>
 #include <stdexcept>
 
-namespace pulse::index {
+namespace luling::index {
 // In-memory only. The engine mutex protects readers and the single writer.
 // Keep the same event-count horizon without a heap object/string per event.
 class ChangeFeedHistory {

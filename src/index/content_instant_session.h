@@ -1,7 +1,7 @@
 #pragma once
 #include "content_index.h"
 
-namespace pulse::index {
+namespace luling::index {
 // Deterministic transport/search injection for the instant-session regression fixture.
 // Production callers leave this null and use the real feed, watches and scanner.
 struct ContentInstantSessionHooks {

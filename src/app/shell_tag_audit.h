@@ -1,9 +1,9 @@
 #pragma once
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "shell_tag_protocol.h"
 #include <optional>
 
-namespace pulse::app::shell_tags {
+namespace luling::app::shell_tags {
 inline bool PrepareCommandAudit(int argc, wchar_t** argv, std::optional<CLSID>& audit_class) {
     bool isolated = false;
     const wchar_t* class_text = nullptr;
@@ -32,11 +32,11 @@ inline bool PrepareCommandAudit(int argc, wchar_t** argv, std::optional<CLSID>& 
             return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
         };
         if (!absolute || !exists(root) || !exists(profile) || !exists(temporary)) return false;
-        if (!SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", profile.c_str()) ||
+        if (!SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", profile.c_str()) ||
             !SetEnvironmentVariableW(L"TEMP", temporary.c_str()) ||
             !SetEnvironmentVariableW(L"TMP", temporary.c_str())) return false;
     }
-    if (GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) == 0) return false;
+    if (GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) == 0) return false;
     audit_class = requested;
     return true;
 }

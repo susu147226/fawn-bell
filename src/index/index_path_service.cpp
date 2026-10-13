@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <winsvc.h>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 struct ServiceHandle {
     SC_HANDLE value = nullptr;
@@ -88,7 +88,7 @@ int ConfigureServiceIndexPath(const std::wstring& path) {
     } catch (...) { return ERROR_ACCESS_DENIED; }
     ServiceHandle manager{OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT)};
     if (!manager.value) return static_cast<int>(GetLastError());
-    ServiceHandle service{OpenServiceW(manager.value, L"PulseIndex",
+    ServiceHandle service{OpenServiceW(manager.value, L"LulingIndex",
         SERVICE_QUERY_STATUS | SERVICE_STOP | SERVICE_START)};
     if (!service.value) {
         const DWORD error = GetLastError();

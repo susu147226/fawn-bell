@@ -10,7 +10,7 @@
 #include <cwctype>
 #include <iterator>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 bool Inside(const D2D1_RECT_F& rect, POINT point) {
     return point.x >= rect.left && point.x < rect.right &&
@@ -236,4 +236,4 @@ void QuickPreviewWindow::DrawAudio(ID2D1DeviceContext* dc, const VideoPreview::S
     }
 }
 
-}  // namespace pulse::ui
+}  // namespace luling::ui

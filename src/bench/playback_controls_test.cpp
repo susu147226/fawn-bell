@@ -7,7 +7,7 @@
 #include <functional>
 #include <limits>
 
-using pulse::ui::VideoPreview;
+using luling::ui::VideoPreview;
 static int failures = 0;
 void Check(bool ok, const char* label) {
     std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", label);
@@ -33,7 +33,7 @@ int wmain(int argc, wchar_t** argv) {
     const bool unsupported_audio_only = argc == 3 && wcscmp(argv[2], L"--unsupported-audio-only") == 0;
     const bool open_only = argc == 3 && wcscmp(argv[2], L"--open-only") == 0;
     const bool end_seek_only = argc == 3 && wcscmp(argv[2], L"--end-seek-only") == 0;
-    using namespace pulse::ui::playback;
+    using namespace luling::ui::playback;
     if (!open_only && !end_seek_only && !unsupported_audio_only) {
         Check(FrameAt(0, 20) == 0 && FrameAt(1, 20) == 19, "GIF seek endpoints are valid frame indices");
         Check(FrameAt(.5, 11) == 5, "GIF seek maps progress to frame");
@@ -50,7 +50,7 @@ int wmain(int argc, wchar_t** argv) {
     if (argc != 2 && !open_only && !end_seek_only && !unsupported_audio_only) { std::puts("Video runtime tests require an isolated fixture path"); return 2; }
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     HWND window = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC",
-        L"Pulse playback regression fixture", WS_OVERLAPPEDWINDOW,
+        L"Luling playback regression fixture", WS_OVERLAPPEDWINDOW,
         80, 80, 480, 320, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     ShowWindow(window, SW_SHOWNOACTIVATE);
     VideoPreview video;
@@ -63,7 +63,7 @@ int wmain(int argc, wchar_t** argv) {
     if (unsupported_audio_only) {
         Check(opened && FAILED(state.error) && !state.ready && !state.playing && state.unsupported_audio,
             "unsupported audio reports the system format limitation without offering playback");
-        video.Open(window, L"Z:\\__pulse_missing_fixture__\\missing.ogg");
+        video.Open(window, L"Z:\\__luling_missing_fixture__\\missing.ogg");
         Check(Until([&] { return FAILED(video.Snapshot().error); }), "missing audio returns an error");
         Check(!video.Snapshot().unsupported_audio, "missing audio is not mislabeled as a system format limitation");
         video.Reset();
@@ -148,7 +148,7 @@ int wmain(int argc, wchar_t** argv) {
     video.Reset();
     Check(!video.active(), "close clears media state immediately");
     for (int i = 0; i < 4; ++i) { video.Open(window, argv[1]); Pump(30); video.Reset(); }
-    video.Open(window, L"Z:\\__pulse_missing_fixture__\\missing.mp4");
+    video.Open(window, L"Z:\\__luling_missing_fixture__\\missing.mp4");
     Check(Until([&] { return FAILED(video.Snapshot().error); }), "missing media reports failure instead of spinning");
     Check(!video.Snapshot().ready, "old video cannot overwrite newer failed open");
     video.Reset();

@@ -18,7 +18,7 @@ struct Harness {
     BOOL ok = TRUE;
     DWORD elapsed = 0;
     int ticks = 0, closed = 0;
-    std::vector<pulse::fs::UncProbeResult> results;
+    std::vector<luling::fs::UncProbeResult> results;
 } harness;
 
 void Gate(Pause point) {
@@ -54,7 +54,7 @@ DWORD WINAPI ProbeWait(HANDLE object, DWORD timeout) {
     return ::WaitForSingleObject(object, timeout);
 }
 BOOL WINAPI ProbePost(HWND, UINT, WPARAM, LPARAM value) {
-    auto* result = reinterpret_cast<pulse::fs::UncProbeResult*>(value);
+    auto* result = reinterpret_cast<luling::fs::UncProbeResult*>(value);
     std::lock_guard lock(harness.mutex);
     harness.results.push_back(*result);
     delete result;
@@ -114,7 +114,7 @@ void Reset(Pause pause, DWORD elapsed, BOOL ok = TRUE) {
     harness.results.clear();
 }
 void Run(Pause pause, DWORD elapsed, BOOL ok = TRUE) {
-    using namespace pulse::fs;
+    using namespace luling::fs;
     Reset(pause, elapsed, ok);
     Check(StartUncProbe(reinterpret_cast<HWND>(1), WM_APP, L"\\\\fixture\\share", 42),
           "production probe starts");
@@ -153,11 +153,11 @@ int main() {
     Run(Pause::BeforeSignal, 2500, FALSE);
     Reset(Pause::None, 0);
     harness.fail_event = true;
-    Check(!pulse::fs::StartUncProbe(reinterpret_cast<HWND>(1), WM_APP, L"fixture", 1),
+    Check(!luling::fs::StartUncProbe(reinterpret_cast<HWND>(1), WM_APP, L"fixture", 1),
           "event creation failure is reported");
     harness.fail_event = false;
     harness.fail_thread = true;
-    Check(!pulse::fs::StartUncProbe(reinterpret_cast<HWND>(1), WM_APP, L"fixture", 1) && harness.closed == 1,
+    Check(!luling::fs::StartUncProbe(reinterpret_cast<HWND>(1), WM_APP, L"fixture", 1) && harness.closed == 1,
           "thread creation failure closes event");
     std::cout << "Failures: " << failures << std::endl;
     return failures ? 1 : 0;

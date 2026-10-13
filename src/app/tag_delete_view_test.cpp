@@ -1,11 +1,11 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "app_commands.h"
 #include "app_navigation.h"
 #include "../common/localization.h"
 #include <cstdio>
 
 bool RunTagDeleteViewTest() {
-    using namespace pulse;
+    using namespace luling;
     FILE* log = nullptr;
     _wfopen_s(&log, L"bench_data/tag_delete_view_test.log", L"w");
     if (!log) return false;
@@ -34,7 +34,7 @@ bool RunTagDeleteViewTest() {
     };
     auto* first = add(app::MakeTagPath(removed));
     auto* second = add(app::MakeTagPath(removed));
-    auto* legacy = add(L"pulse:tag:0");
+    auto* legacy = add(L"luling:tag:0");
     auto* other = add(app::MakeTagPath(retained));
     auto* directory = add(L"C:\\private-tag-view-no-io");
     BindCurrentLayout(s);

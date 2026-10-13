@@ -1,6 +1,6 @@
 #pragma once
 
-namespace pulse {
+namespace luling {
 struct AppState;
 namespace ops { struct CompletedOperation; struct FinishedTask; }
 void ApplyOperationIntentCompletion(AppState& state, const ops::CompletedOperation& completed);

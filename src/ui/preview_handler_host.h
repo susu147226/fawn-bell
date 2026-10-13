@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Hosts the system IPreviewHandler (Explorer Alt+P) in a WS_POPUP overlay.
 // All third-party COM calls and the overlay HWND live on a dedicated STA.
@@ -43,12 +43,12 @@ public:
 
     State state() const;
     uint64_t NextDeadline() const;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     void PrimeStalledOpenForTest();
 #endif
     static bool CanHost(const std::wstring& path);
 
-#ifdef PULSE_PREVIEW_HANDLER_TESTING
+#ifdef LULING_PREVIEW_HANDLER_TESTING
     // The overlay HWND the apartment owns, or null while it has none. Tests use
     // it to measure how quickly the preview follows a moving owner.
     HWND overlay_window_for_test() const;
@@ -84,4 +84,4 @@ private:
     bool last_enabled_ = false;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

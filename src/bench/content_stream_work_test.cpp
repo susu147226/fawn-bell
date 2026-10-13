@@ -29,7 +29,7 @@ int TrackedOpen(const void* filename, sqlite3** db) {
 #undef sqlite3_open16
 
 namespace {
-using namespace pulse::index;
+using namespace luling::index;
 int failures = 0;
 void Check(bool ok, const char* name) {
     std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", name);
@@ -85,13 +85,13 @@ void PrintPlan(const std::shared_ptr<ContentResultStore>& store) {
     sqlite3_stmt* statement = nullptr;
     bool ok = sqlite3_open16(store->CachePath().c_str(), &db) == SQLITE_OK;
     if (ok) {
-        sqlite3_create_collation(db, "PULSE_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
-        sqlite3_create_function_v2(db, "pulse_extension", 1, SQLITE_UTF16 | SQLITE_DETERMINISTIC,
+        sqlite3_create_collation(db, "LULING_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
+        sqlite3_create_function_v2(db, "luling_extension", 1, SQLITE_UTF16 | SQLITE_DETERMINISTIC,
                                    nullptr, SqlExtension, nullptr, nullptr, nullptr);
         ok = sqlite3_prepare_v2(db,
             "EXPLAIN QUERY PLAN SELECT name,path,size FROM hits INDEXED BY hits_display_order "
             "WHERE seq IN (SELECT seq FROM visible_members) "
-            "ORDER BY name COLLATE PULSE_ORDINAL ASC,seq ASC LIMIT 256 OFFSET 0", -1,
+            "ORDER BY name COLLATE LULING_ORDINAL ASC,seq ASC LIMIT 256 OFFSET 0", -1,
             &statement, nullptr) == SQLITE_OK;
         if (ok) {
             while (sqlite3_step(statement) == SQLITE_ROW)
@@ -172,7 +172,7 @@ void Mutations() {
     store->FindIdentity(30, [identity_done](int pos) { identity_done->set_value(pos); });
     Check(identity_result.wait_for(std::chrono::seconds(10)) == std::future_status::ready && identity_result.get() == 0,
           "identity lookup uses current display positions");
-    store->SetFilter([](const pulse::fs::DirEntry& entry) { return entry.size >= 20; });
+    store->SetFilter([](const luling::fs::DirEntry& entry) { return entry.size >= 20; });
     Check(Barrier(store) && store->Count() == 2, "filter preserves admitted identities");
     b.size = 25;
     c.size = 5;
@@ -195,7 +195,7 @@ void Mutations() {
         sqlite3* db = nullptr;
         sqlite3_stmt* query = nullptr;
         bool gap = sqlite3_open16(store->CachePath().c_str(), &db) == SQLITE_OK;
-        if (gap) sqlite3_create_collation(db, "PULSE_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
+        if (gap) sqlite3_create_collation(db, "LULING_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
         gap = gap && sqlite3_prepare_v2(db, "SELECT count(*),max(seq),sum(seq=3) FROM hits", -1, &query, nullptr) == SQLITE_OK &&
             sqlite3_step(query) == SQLITE_ROW;
         if (gap) {
@@ -211,7 +211,7 @@ void Mutations() {
     auto e = MakeHit(60, 60);
     Check(store->Append({e}) && store->Count() == 4 && RowAt(store, 0, 60),
           "legacy append remains compatible after stream");
-    store->SetFilter([](const pulse::fs::DirEntry& entry) { return entry.size >= 40; });
+    store->SetFilter([](const luling::fs::DirEntry& entry) { return entry.size >= 40; });
     Check(Barrier(store) && store->Count() == 3, "filter hides deletion candidate");
     b.removed = true;
     Check(store->StreamUpsert({b}, ContentResultSort::Name, false) && store->RawCount() == 3 &&
@@ -231,7 +231,7 @@ void Rollback() {
     sqlite3* db = nullptr;
     bool ready = sqlite3_open16(store->CachePath().c_str(), &db) == SQLITE_OK;
     if (ready) {
-        sqlite3_create_collation(db, "PULSE_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
+        sqlite3_create_collation(db, "LULING_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
         ready = sqlite3_exec(db, "CREATE TRIGGER fail_stream BEFORE INSERT ON hits WHEN NEW.file_id=3 "
                                   "BEGIN SELECT RAISE(ABORT,'injected failure'); END", nullptr, nullptr, nullptr) == SQLITE_OK;
     }

@@ -3,7 +3,7 @@
 #include <array>
 #include <filesystem>
 #include <fstream>
-namespace pulse::index {
+namespace luling::index {
 namespace {
 using SidecarIdentity = std::array<uint64_t, 10>;
 constexpr uint64_t kPinyinSidecarVersion = 2;

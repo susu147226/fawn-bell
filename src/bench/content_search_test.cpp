@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-using namespace pulse;
+using namespace luling;
 
 namespace {
 
@@ -471,7 +471,7 @@ int wmain(int argc, wchar_t** argv) {
         Check(listed > 0, L"content agent duplicate listing on C:\\ reports files");
     }
     client.Stop();
-    Check(!std::filesystem::exists(isolated_profile / L"Pulse" / L"ContentIndex"), L"transient-only client never starts persistent index" );
+    Check(!std::filesystem::exists(isolated_profile / L"Luling" / L"ContentIndex"), L"transient-only client never starts persistent index" );
     SetEnvironmentVariableW(L"LOCALAPPDATA", saved_length ? saved_local_appdata : nullptr);
 
     fs::remove_all(root, ignored);

@@ -7,7 +7,7 @@
 #include <cwchar>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 constexpr uint64_t kMaximumPackFileBytes = 256ull * 1024 * 1024;
@@ -24,7 +24,7 @@ struct FileHandle {
 };
 
 // The Compression API lives in cabinet.dll; load it from System32 on demand
-// so Pulse keeps starting where it is missing.
+// so Luling keeps starting where it is missing.
 class Lzms {
 public:
     Lzms() {
@@ -316,4 +316,4 @@ PackInstallOutcome PackInstaller::TakeOutcome(DWORD& error) {
     return outcome;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

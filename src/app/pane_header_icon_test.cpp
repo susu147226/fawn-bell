@@ -1,5 +1,5 @@
 #include "../ui/shortcut_help.h"
-#if defined(PULSE_WITH_SELFTEST) || defined(PULSE_PANE_HEADER_STANDALONE)
+#if defined(LULING_WITH_SELFTEST) || defined(LULING_PANE_HEADER_STANDALONE)
 #include "../ui/ui_renderer_internal.h"
 #include "../ui/pane_header_icons.h"
 #include "../common/windows_compat.h"
@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct PaneHeaderIconTest {
     static bool Toolbar(Compositor& compositor, MainRenderer& renderer, std::ofstream& log) {
         bool ok=true;
@@ -238,7 +238,7 @@ struct PaneHeaderIconTest {
     }
 };
 }
-namespace pulse::app {
+namespace luling::app {
 bool RunPaneHeaderIconTest() {
     const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(hr)) return false;
@@ -248,10 +248,10 @@ bool RunPaneHeaderIconTest() {
     return ok;
 }
 }
-#ifdef PULSE_PANE_HEADER_STANDALONE
+#ifdef LULING_PANE_HEADER_STANDALONE
 int wmain() {
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
-    return pulse::app::RunPaneHeaderIconTest() ? 0 : 1;
+    luling::l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
+    return luling::app::RunPaneHeaderIconTest() ? 0 : 1;
 }
 #endif
 #endif

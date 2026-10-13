@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::l10n {
+namespace luling::l10n {
 
 enum class Language {
     System,
@@ -525,7 +525,7 @@ enum class StringId : UINT {
     FixedDisk = IDS_FIXED_DISK,
     PerformanceFormat = IDS_PERFORMANCE_FORMAT,
     SettingsAboutDiagnostics = IDS_SETTINGS_ABOUT_DIAGNOSTICS,
-    AboutPulse = IDS_ABOUT_PULSE,
+    AboutLuling = IDS_ABOUT_LULING,
     VersionFormat = IDS_VERSION_FORMAT,
     BuildIdFormat = IDS_BUILD_ID_FORMAT,
     Diagnostics = IDS_DIAGNOSTICS,
@@ -929,8 +929,8 @@ enum class StringId : UINT {
     SettingsSystemFoldersTip = IDS_SETTINGS_SYSTEM_FOLDERS_TIP,
     ContextActionStrip = IDS_CONTEXT_ACTION_STRIP,
     ContextFolderProperties = IDS_CONTEXT_FOLDER_PROPERTIES,
-    ContextPulseMenu = IDS_CONTEXT_PULSE_MENU,
-    ContextPulseMenuDesc = IDS_CONTEXT_PULSE_MENU_DESC,
+    ContextLulingMenu = IDS_CONTEXT_LULING_MENU,
+    ContextLulingMenuDesc = IDS_CONTEXT_LULING_MENU_DESC,
     ContextTabItem = IDS_CONTEXT_TAB_ITEM,
     ContextTabBackground = IDS_CONTEXT_TAB_BACKGROUND,
     ContextTabRow = IDS_CONTEXT_TAB_ROW,
@@ -1043,7 +1043,7 @@ enum class StringId : UINT {
     NotifyIconAlways = IDS_NOTIFY_ICON_ALWAYS,
     NotifyIconBackground = IDS_NOTIFY_ICON_BACKGROUND,
     NotifyIconNever = IDS_NOTIFY_ICON_NEVER,
-    ExitPulse = IDS_EXIT_PULSE,
+    ExitLuling = IDS_EXIT_LULING,
     ListSelectionOutline = IDS_LIST_SELECTION_OUTLINE,
     ListSelectionOutlineDesc = IDS_LIST_SELECTION_OUTLINE_DESC,
     SidebarHideCloud = IDS_SIDEBAR_HIDE_CLOUD,
@@ -1422,7 +1422,7 @@ std::wstring HantText(std::wstring_view chinese);
 // built independently of the current language (e.g. release notes).
 std::wstring ToTraditional(std::wstring_view chinese);
 
-// Text reported by helper processes (index service, network agent, pulse_shell,
+// Text reported by helper processes (index service, network agent, luling_shell,
 // preview host) in Simplified Chinese, localized for display: unchanged for
 // zh-CN, Traditional for zh-TW, translated for English (service_text.cpp).
 // Unknown text is returned as reported; embedded paths and counts are kept.
@@ -1433,4 +1433,4 @@ bool IsKnownServiceText(std::wstring_view text);
 // never converts the item part, so real file names stay as they are on disk.
 std::wstring ServiceErrorText(std::wstring_view text);
 
-} // namespace pulse::l10n
+} // namespace luling::l10n

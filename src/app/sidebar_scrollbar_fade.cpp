@@ -1,7 +1,7 @@
 #include "sidebar_scrollbar_fade.h"
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -52,4 +52,4 @@ bool ScrollbarFade::Moving(uint64_t now) const noexcept {
     return opacity_ > 0.0f && !hot_ && visible_until_ <= now + kLead;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

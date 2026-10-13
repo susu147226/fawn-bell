@@ -1,8 +1,8 @@
 #include "about_info.h"
 
 #include "../common/localization.h"
-#include "pulse_release_notes.h"
-#include "pulse_version.h"
+#include "luling_release_notes.h"
+#include "luling_version.h"
 
 #include <cmath>
 #include <cstdio>
@@ -10,7 +10,7 @@
 #include <cwchar>
 #include <iterator>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 std::wstring Utf8ToWide(const char* data, size_t size) {
@@ -55,7 +55,7 @@ std::wstring StripInline(const std::wstring& line) {
 ui::ReleaseNoteView ParseNote(const wchar_t* version, const std::wstring& text) {
     ui::ReleaseNoteView note;
     note.version = version;
-    note.current = note.version == PULSE_VERSION_STRING;
+    note.current = note.version == LULING_VERSION_STRING;
     size_t pos = 0;
     while (pos < text.size()) {
         size_t end = text.find(L'\n', pos);
@@ -82,8 +82,8 @@ ui::ReleaseNoteView ParseNote(const wchar_t* version, const std::wstring& text) 
 }
 
 std::wstring BuildTimeText() {
-    // PULSE_BUILD_ID is "YYYYMMDDTHHMMSSZ-<hash>" in UTC; show local time.
-    const std::wstring id = PULSE_BUILD_ID;
+    // LULING_BUILD_ID is "YYYYMMDDTHHMMSSZ-<hash>" in UTC; show local time.
+    const std::wstring id = LULING_BUILD_ID;
     SYSTEMTIME utc{};
     if (id.size() < 16 || id[8] != L'T' || id[15] != L'Z' ||
         swscanf_s(id.c_str(), L"%4hu%2hu%2huT%2hu%2hu%2hu", &utc.wYear, &utc.wMonth, &utc.wDay,
@@ -160,16 +160,16 @@ static std::vector<ui::ReleaseNoteView> LoadReleaseNotes(bool english) {
     const auto find = [module](int id) {
         return FindResourceW(module, MAKEINTRESOURCEW(id), MAKEINTRESOURCEW(10) /* RT_RCDATA */);
     };
-    for (int i = 0; kPulseReleaseNoteVersions[i]; ++i) {
-        const int id = PULSE_RELEASE_NOTE_RESOURCE_BASE + i;
-        HRSRC res = english ? find(id + PULSE_RELEASE_NOTE_ENGLISH_OFFSET) : nullptr;
+    for (int i = 0; kLulingReleaseNoteVersions[i]; ++i) {
+        const int id = LULING_RELEASE_NOTE_RESOURCE_BASE + i;
+        HRSRC res = english ? find(id + LULING_RELEASE_NOTE_ENGLISH_OFFSET) : nullptr;
         if (!res) res = find(id);
         if (!res) continue;
         HGLOBAL handle = LoadResource(module, res);
         const DWORD size = SizeofResource(module, res);
         const char* data = handle ? static_cast<const char*>(LockResource(handle)) : nullptr;
         if (!data || !size) continue;
-        auto note = ParseNote(kPulseReleaseNoteVersions[i], Utf8ToWide(data, size));
+        auto note = ParseNote(kLulingReleaseNoteVersions[i], Utf8ToWide(data, size));
         if (!note.lines.empty()) out.push_back(std::move(note));
     }
     return out;
@@ -200,10 +200,10 @@ std::vector<AboutRow> BuildAboutRows(bool index_service, bool index_installed, f
     using I = l10n::StringId;
     std::vector<AboutRow> rows;
     rows.emplace_back(l10n::Get(I::AboutVersion),
-                      std::wstring(PULSE_VERSION_STRING) + L" \u00B7 " + kArchitecture);
+                      std::wstring(LULING_VERSION_STRING) + L" \u00B7 " + kArchitecture);
     const std::wstring built = BuildTimeText();
     if (!built.empty()) rows.emplace_back(l10n::Get(I::AboutBuilt), built);
-    rows.emplace_back(l10n::Get(I::AboutBuildId), PULSE_BUILD_ID);
+    rows.emplace_back(l10n::Get(I::AboutBuildId), LULING_BUILD_ID);
     rows.emplace_back(l10n::Get(I::AboutOs), WindowsText());
     rows.emplace_back(l10n::Get(I::AboutLocation), InstallDirectory());
     rows.emplace_back(l10n::Get(I::AboutIndex),
@@ -217,7 +217,7 @@ std::vector<AboutRow> BuildAboutRows(bool index_service, bool index_installed, f
 }
 
 std::wstring AboutRowsText(const std::vector<AboutRow>& rows) {
-    std::wstring text = L"Pulse\r\n";
+    std::wstring text = L"Luling\r\n";
     for (const auto& [label, value] : rows) text += label + L": " + value + L"\r\n";
     return text;
 }
@@ -240,4 +240,4 @@ bool CopyTextToClipboard(HWND owner, const std::wstring& text) {
     return ok;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

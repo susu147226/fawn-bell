@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 
 // The V9 layout is unchanged. V11 rebuilds parent links damaged by old WAL replay.
 // 12: MFT builds read file sizes from extension records (fragmented large files).
@@ -50,4 +50,4 @@ bool PublishShardBase(const ShardPaths& paths, const std::wstring& temp_path,
                       ShardManifest& published, std::wstring* error = nullptr,
                       const std::wstring& source_id = {});
 
-} // namespace pulse::index
+} // namespace luling::index

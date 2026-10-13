@@ -1,7 +1,7 @@
 #pragma once
 #include "app_runtime.h"
 
-namespace pulse {
+namespace luling {
 std::vector<std::wstring> QuickAccessTargets(const app::Tab* tab, bool background);
 void AppendQuickAccessCommand(AppState& s, std::vector<ui::FluentMenuItem>& items,
                               const std::vector<std::wstring>& paths);

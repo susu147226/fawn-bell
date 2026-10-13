@@ -28,14 +28,14 @@ std::wstring Extended(const std::wstring& path) {
 }
 bool HasMarker(const std::wstring& path) {
     try {
-        std::vector<pulse::fs::DirEntry> entries;
-        pulse::fs::EnumerateDirectory(path, entries);
+        std::vector<luling::fs::DirEntry> entries;
+        luling::fs::EnumerateDirectory(path, entries);
         return entries.size() == 1 && entries.front().name == L"owned-marker.txt";
     } catch (const std::exception&) { return false; }
 }
 void Run(const files::path& root) {
-    using pulse::fs::NormalizePath;
-    using pulse::fs::ParentPath;
+    using luling::fs::NormalizePath;
+    using luling::fs::ParentPath;
     const std::wstring base = root.wstring();
     const std::wstring drive = base.substr(0, 2);
     const std::wstring target = base + L"\\target";
@@ -70,7 +70,7 @@ void Run(const files::path& root) {
     Check(NormalizePath(base + L"\\CaseSensitive") == Extended(base + L"\\CaseSensitive") &&
           NormalizePath(base + L"\\casesensitive") == Extended(base + L"\\casesensitive"),
           "M03-004 normalizer does not fold case-distinct names");
-    Check(NormalizePath(L"pulse:recycle") == L"pulse:recycle" && NormalizePath(L"").empty(),
+    Check(NormalizePath(L"luling:recycle") == L"luling:recycle" && NormalizePath(L"").empty(),
           "M03-004 virtual and intentional empty This-PC paths keep their contract");
     Check(ParentPath(base + L"\\one\\..\\target") == Extended(base),
           "M03-004 parent lookup shares ordinary path normalization");
@@ -83,8 +83,8 @@ void Run(const files::path& root) {
     const std::wstring over_limit = base + L"\\" + std::wstring(40000, L'x');
     Check(NormalizePath(over_limit).empty(), "M03-004 over-limit resolution fails instead of manufacturing an extended path");
     // Exercise the actual in-memory cache; no application/profile cache I/O.
-    pulse::fs::SnapshotStore store;
-    auto snapshot = std::make_shared<std::vector<pulse::fs::DirEntry>>();
+    luling::fs::SnapshotStore store;
+    auto snapshot = std::make_shared<std::vector<luling::fs::DirEntry>>();
     snapshot->push_back({}); snapshot->front().name = L"owned-cache-entry";
     store.Update(target, 7, snapshot);
     Check(store.Peek(base + L"\\one\\..\\target") == snapshot,
@@ -103,8 +103,8 @@ void Run(const files::path& root) {
     const auto invalid = store.GetOrStart(over_limit, generation);
     Check(!invalid && generation == 0 && store.EntryCount() == entries_before,
           "M03-004 invalid cache lookup neither aliases This-PC nor creates a bogus entry");
-    store.Update(over_limit, 100, std::make_shared<std::vector<pulse::fs::DirEntry>>());
-    store.Put(over_limit, std::make_shared<std::vector<pulse::fs::DirEntry>>());
+    store.Update(over_limit, 100, std::make_shared<std::vector<luling::fs::DirEntry>>());
+    store.Put(over_limit, std::make_shared<std::vector<luling::fs::DirEntry>>());
     store.MarkDirty(over_limit);
     Check(store.Peek(L"") == snapshot && !store.IsDirty(L"") && store.EntryCount() == entries_before,
           "M03-004 invalid cache writes and dirty marks preserve the intentional empty key");
@@ -114,21 +114,21 @@ void Run(const files::path& root) {
           "M03-004 an embedded NUL cannot silently shorten ordinary input");
     Check(NormalizePath(L"\\\\review-server\\share\\target\\") == L"\\\\?\\UNC\\review-server\\share\\target",
           "M03-004 ordinary UNC trailing separator shares the same cache key");
-    pulse::fs::DirectoryIdentity direct_identity, relative_identity;
-    Check(pulse::fs::QueryDirectoryIdentity(target, direct_identity) &&
-          pulse::fs::QueryDirectoryIdentity(drive + L"one\\..\\target", relative_identity) &&
-          pulse::fs::SameDirectoryIdentity(direct_identity, relative_identity),
+    luling::fs::DirectoryIdentity direct_identity, relative_identity;
+    Check(luling::fs::QueryDirectoryIdentity(target, direct_identity) &&
+          luling::fs::QueryDirectoryIdentity(drive + L"one\\..\\target", relative_identity) &&
+          luling::fs::SameDirectoryIdentity(direct_identity, relative_identity),
           "M03-004 equivalent ordinary paths query the same actual owned directory identity");
     const std::wstring invalid_unc = L"\\\\review-server\\share\\" + std::wstring(40000, L'x');
-    Check(pulse::fs::CacheFile(invalid_unc).empty() && !files::exists(root / L"Pulse"),
+    Check(luling::fs::CacheFile(invalid_unc).empty() && !files::exists(root / L"Luling"),
           "M03-004 invalid UNC cache input is rejected before creating any cache directory");
     const std::wstring unc = L"\\\\review-server\\share\\target";
-    const auto cache_file = pulse::fs::CacheFile(unc);
-    Check(pulse::fs::CacheFile(L"\\\\review-server\\share\\one\\..\\target") == cache_file,
+    const auto cache_file = luling::fs::CacheFile(unc);
+    Check(luling::fs::CacheFile(L"\\\\review-server\\share\\one\\..\\target") == cache_file,
           "M03-004 disk cache filename shares ordinary UNC normalization");
-    Check(pulse::fs::SaveNetSnapshot(pulse::fs::BeginNetSnapshotWrite(unc), snapshot),
+    Check(luling::fs::SaveNetSnapshot(luling::fs::BeginNetSnapshotWrite(unc), snapshot),
           "M03-004 real disk cache write remains inside the redirected owned profile");
-    const auto cached = pulse::fs::LoadNetSnapshot(L"\\\\review-server\\share\\.\\target");
+    const auto cached = luling::fs::LoadNetSnapshot(L"\\\\review-server\\share\\.\\target");
     Check(cached && cached->size() == 1 && cached->front().name == snapshot->front().name,
           "M03-004 equivalent UNC path loads the exact owned disk snapshot without network access");
     const auto cache_bytes = [&] {
@@ -136,8 +136,8 @@ void Run(const files::path& root) {
         return std::string(std::istreambuf_iterator<char>(input), {});
     };
     const std::string before_invalid = cache_bytes();
-    Check(!pulse::fs::SaveNetSnapshot(pulse::fs::BeginNetSnapshotWrite(invalid_unc), snapshot) &&
-          !pulse::fs::LoadNetSnapshot(invalid_unc) && cache_bytes() == before_invalid,
+    Check(!luling::fs::SaveNetSnapshot(luling::fs::BeginNetSnapshotWrite(invalid_unc), snapshot) &&
+          !luling::fs::LoadNetSnapshot(invalid_unc) && cache_bytes() == before_invalid,
           "M03-004 invalid UNC cache read and write leave existing snapshot bytes unchanged");
     Check(HasMarker(drive + L"target"), "M03-004 real directory enumeration reaches the owned drive-relative target");
     Check(HasMarker(base + L"\\one\\..\\target"), "M03-004 real directory enumeration reaches the owned absolute-dot target");

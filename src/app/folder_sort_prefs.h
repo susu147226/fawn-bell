@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct FolderSort {
     ui::SortColumn column = ui::SortColumn::Name;
@@ -37,4 +37,4 @@ private:
     FolderSort default_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

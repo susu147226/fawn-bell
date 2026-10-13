@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::setup {
+namespace luling::setup {
 
 std::wstring Win32Error(DWORD code) {
     wchar_t* text = nullptr;
@@ -183,4 +183,4 @@ std::string WideToUtf8(const std::wstring& w) {
     return s;
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

@@ -7,7 +7,7 @@
 #include <shobjidl.h>
 
 
-namespace pulse::setup {
+namespace luling::setup {
 namespace {
 
 template <class T>
@@ -50,4 +50,4 @@ bool EnsureShortcut(const std::wstring& lnk, const std::wstring& target, const s
     return true;
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

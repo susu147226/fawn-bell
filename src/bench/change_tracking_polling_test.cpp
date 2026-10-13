@@ -7,11 +7,11 @@ int main() {
         std::printf("[%s] %s\n", ok ? "PASS" : "FAIL", name);
         failures += !ok;
     };
-    using pulse::app::ShouldPollChangeTracking;
+    using luling::app::ShouldPollChangeTracking;
     check(!ShouldPollChangeTracking(nullptr), "unavailable window does not poll");
-    // Off-screen, non-activating fixture; never touches the user's Pulse window.
+    // Off-screen, non-activating fixture; never touches the user's Luling window.
     const HWND window = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-        L"STATIC", L"Pulse polling regression", WS_POPUP | WS_MINIMIZEBOX,
+        L"STATIC", L"Luling polling regression", WS_POPUP | WS_MINIMIZEBOX,
         -32000, -32000, 1, 1, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     check(window != nullptr, "create isolated window");
     if (!window) return 1;

@@ -2,7 +2,7 @@
 #include "app_commands.h"
 #include "app_navigation.h"
 
-namespace pulse {
+namespace luling {
 bool HandleListCharacter(AppState& s, wchar_t ch) {
     // Native text editors own their input; shortcuts never become a prefix.
     if (GetFocus() != s.hwnd || (GetKeyState(VK_CONTROL) & 0x8000) ||
@@ -43,4 +43,4 @@ void TickQuickPreviewSelection(AppState& s, ULONGLONG now) {
     if (!item.path.empty() && item.path != s.quickPreview.item().path)
         s.quickPreview.Update(item);
 }
-} // namespace pulse
+} // namespace luling

@@ -9,7 +9,7 @@
 #include <initializer_list>
 #include <vector>
 
-namespace pulse::ffmpeg {
+namespace luling::ffmpeg {
 
 bool IsVideoExtension(std::wstring_view e) {
     return std::find(std::begin(kVideoExtensions), std::end(kVideoExtensions), e) != std::end(kVideoExtensions);
@@ -301,4 +301,4 @@ bool HasStream(std::string_view log, std::string_view kind) {
     return !StreamLine(log, kind).empty();
 }
 
-} // namespace pulse::ffmpeg
+} // namespace luling::ffmpeg

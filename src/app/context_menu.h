@@ -1,6 +1,6 @@
 // context_menu.h — Built-in Fluent context menu verbs (stage 1B-2).
 //
-// Built-in verbs only; third-party IContextMenu stays in pulse_shell and is
+// Built-in verbs only; third-party IContextMenu stays in luling_shell and is
 // out of scope for 1B-2 (plan.md §11 pit 6). Item construction is windowless
 // so the console self-test can assert the verb list, hit-test and dispatch
 // without a GUI.
@@ -12,7 +12,7 @@
 #include "../index/index_engine.h"
 #include <string>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Command ids returned by FluentMenu::TrackPopup for the built-in verbs.
 enum MenuCmd : int {
@@ -58,8 +58,8 @@ enum MenuCmd : int {
     CmdMoveToTarget,
     CmdPinWorkspace,
     CmdPinNetwork,
-    CmdSearchAll,           // palette: open pulse:search: as a folder
-    CmdInstallFullIndex,    // palette: UAC-install PulseIndex service
+    CmdSearchAll,           // palette: open luling:search: as a folder
+    CmdInstallFullIndex,    // palette: UAC-install LulingIndex service
     CmdSettings,            // palette / title-bar gear → settings tab
     CmdSettingsContextMenu, // 管理右键项… → 右键菜单 page
     CmdTags,
@@ -111,17 +111,17 @@ enum MenuCmd : int {
     CmdRestoreAllRecycle = 193, // recycle background: restore every listed item
     CmdApplyViewToAllFolders = 194, // view menu: this view + sort become every folder's default
     CmdApplyGroupToAllFolders = 195, // group menu: this grouping becomes every folder's default (#75)
-    CmdExitPulse = 196,         // palette: quit even when closing keeps Pulse running (#57)
+    CmdExitLuling = 196,         // palette: quit even when closing keeps Luling running (#57)
     CmdRecentBase = 200,
     CmdIndexBase = 1000,
     // Explorer integration (优化.md §7): registry static verbs bound to the
-    // current selection (+index into the StaticVerb list) and pulse_shell
+    // current selection (+index into the StaticVerb list) and luling_shell
     // IContextMenu session items (+host menu id, up to 0x7FFF).
     CmdShellStaticBase = 6000,
     CmdShellComBase = 8000,
 };
 
-// One merged Explorer row (registry static verb or pulse_shell COM item),
+// One merged Explorer row (registry static verb or luling_shell COM item),
 // already mapped to its final command id. Software-owned submenus keep one
 // level: command 0 + non-empty children => flyout header row.
 struct ShellMenuEntry {
@@ -130,7 +130,7 @@ struct ShellMenuEntry {
     bool enabled = true;
     std::vector<ShellMenuEntry> children;
     std::wstring verb;      // canonical verb when known (registry / GetCommandString)
-    bool from_com = false;  // pulse_shell IContextMenu row (vs registry static)
+    bool from_com = false;  // luling_shell IContextMenu row (vs registry static)
     std::wstring clsid;     // handler CLSID when known ("{guid}")
     std::wstring handler;   // handler display name for the settings catalog
 };
@@ -238,4 +238,4 @@ std::vector<ui::FluentMenuItem> BuildCommandPalette(const std::wstring& query,
 std::wstring UniqueChildName(const std::wstring& dir, const std::wstring& base,
                              const std::wstring& ext);
 
-} // namespace pulse::app
+} // namespace luling::app

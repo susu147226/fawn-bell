@@ -76,7 +76,7 @@ int wmain() {
         const std::wstring path=root+L"\\"+name;
         Check(Write(path,data,size),L"write isolated archive fixture");
         std::wstring text,error; uint32_t read=0;
-        const bool ok=pulse::preview::MakeArchiveListing(path,text,read,&error);
+        const bool ok=luling::preview::MakeArchiveListing(path,text,read,&error);
         Check(ok && text.find(std::wstring(L"PULSEARC\t1\t")+format+L"\t-\t0\n")==0 && text.find(entry)!=std::wstring::npos,name);
         if (!ok) std::wprintf(L"error: %s\n",error.c_str());
     };
@@ -92,23 +92,23 @@ int wmain() {
     const std::wstring path=root+L"\\bridge.iso";
     Check(Write(path,iso.data(),iso.size()),L"write UDF bridge fixture");
     std::wstring text,error; uint32_t read=0;
-    Check(pulse::preview::MakeArchiveListing(path,text,read,&error) && text.find(L"PULSEARC\t1\tISO/UDF\t-\t1\n")==0 && text.find(L"HELLO.TXT")!=std::wstring::npos,L"UDF bridge explicitly reports incomplete ISO compatibility directory");
+    Check(luling::preview::MakeArchiveListing(path,text,read,&error) && text.find(L"PULSEARC\t1\tISO/UDF\t-\t1\n")==0 && text.find(L"HELLO.TXT")!=std::wstring::npos,L"UDF bridge explicitly reports incomplete ISO compatibility directory");
     // UDF-only recognition data must not fall through to libarchive's empty-TAR bidder.
     std::fill(iso.begin()+16*2048, iso.begin()+18*2048, static_cast<unsigned char>(0));
     const std::wstring udf_only=root+L"\\udf-only.iso";
     Check(Write(udf_only,iso.data(),iso.size()),L"write UDF-only recognition fixture");
-    Check(!pulse::preview::MakeArchiveListing(udf_only,text,read,&error) && error==L"udf-invalid",
+    Check(!luling::preview::MakeArchiveListing(udf_only,text,read,&error) && error==L"udf-invalid",
           L"UDF-only image cannot masquerade as an empty ISO or TAR tree");
     const std::wstring bad=root+L"\\bad.gz";
     Check(Write(bad,gz,10),L"write truncated gzip fixture");
-    Check(!pulse::preview::MakeArchiveListing(bad,text,read,&error) && error.find(L"compressed-stream-")==0,L"truncated gzip returns explicit compressed stream failure");
-    pulse_test::Host host;
+    Check(!luling::preview::MakeArchiveListing(bad,text,read,&error) && error.find(L"compressed-stream-")==0,L"truncated gzip returns explicit compressed stream failure");
+    luling_test::Host host;
     const bool started = host.Start();
     Check(started, L"start preview host for archive IPC warnings");
     if (started) {
-        pulse_test::Result bridge_result, udf_result, stream_result;
+        luling_test::Result bridge_result, udf_result, stream_result;
         Check(host.Request(std::filesystem::absolute(path).wstring(), bridge_result) &&
-              bridge_result.response.kind == pulse::ipc::PreviewContentKind::Archive &&
+              bridge_result.response.kind == luling::ipc::PreviewContentKind::Archive &&
               bridge_result.text.starts_with(L"PULSEARC\t1\tISO/UDF\t-\t1\n") &&
               bridge_result.text.find(L"HELLO.TXT") != std::wstring::npos,
               L"IPC preserves incomplete ISO compatibility directory payload");

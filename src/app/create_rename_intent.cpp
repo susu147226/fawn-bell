@@ -2,7 +2,7 @@
 #include "../common/path_utils.h"
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 std::wstring Canonical(std::wstring_view value) {
     auto result = path::StripExtendedPathPrefix(value);
@@ -87,4 +87,4 @@ std::optional<CreateRenameSelection> SelectCreateRenameIntent(std::vector<Create
     }
     return std::nullopt;
 }
-} // namespace pulse::app
+} // namespace luling::app

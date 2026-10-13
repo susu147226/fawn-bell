@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 // ---- common model ---------------------------------------------------------
@@ -634,4 +634,4 @@ std::wstring SerializeArchiveEntries(std::vector<ArchiveListingEntry> entries,
     return Serialize(listing);
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

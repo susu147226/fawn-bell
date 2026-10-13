@@ -6,7 +6,7 @@
 #include "../ops/ops_manager.h"
 #include "../ui/confirm_dialog.h"
 
-namespace pulse {
+namespace luling {
 struct AppState;
 
 // The prompt: item name, one row per owning process, and the note that

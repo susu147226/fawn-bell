@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 
 struct DuplicateCleanupFile {
     std::wstring path;
@@ -35,4 +35,4 @@ private:
     std::vector<HANDLE> handles_;
 };
 
-} // namespace pulse::ops
+} // namespace luling::ops

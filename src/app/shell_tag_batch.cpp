@@ -1,6 +1,6 @@
 #include "shell_tag_batch.h"
 
-namespace pulse::app::shell_tags {
+namespace luling::app::shell_tags {
 Reply BatchHandler::Handle(PlacesCatalog& places, const Request& request, const AdsSink& ads, uint64_t now,
     bool* added, bool* duplicate) {
     if (added) *added = false;

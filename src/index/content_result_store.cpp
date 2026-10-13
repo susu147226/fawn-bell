@@ -12,7 +12,7 @@
 #include <thread>
 #include <objbase.h>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 struct Statement {
     sqlite3_stmt* p = nullptr;
@@ -43,9 +43,9 @@ ContentResultStore::Row ReadRow(sqlite3_stmt* p) {
 constexpr const char* kRows = "SELECT h.name,h.path,h.size,h.mtime,h.line,h.snippet,h.file_id FROM visible v JOIN hits h ON h.seq=v.seq WHERE v.pos>=?1 AND v.pos<?2 ORDER BY v.pos";
 std::string SortOrder(ContentResultSort sort, bool descending, bool stable_ties = false) {
     std::string order = stable_ties ? "seq" : "file_id";
-    if (sort == ContentResultSort::Name) order = "name COLLATE PULSE_ORDINAL";
-    else if (sort == ContentResultSort::Type) order = "pulse_extension(path) COLLATE PULSE_ORDINAL";
-    else if (sort == ContentResultSort::Path) order = "path COLLATE PULSE_ORDINAL";
+    if (sort == ContentResultSort::Name) order = "name COLLATE LULING_ORDINAL";
+    else if (sort == ContentResultSort::Type) order = "luling_extension(path) COLLATE LULING_ORDINAL";
+    else if (sort == ContentResultSort::Path) order = "path COLLATE LULING_ORDINAL";
     else if (sort == ContentResultSort::Size) order = "size";
     else if (sort == ContentResultSort::Mtime) order = "mtime";
     order += descending ? " DESC" : " ASC";
@@ -131,14 +131,14 @@ struct ContentResultStore::Impl {
         if(!GetTempPathW(ARRAYSIZE(directory),directory)) return false;
         GUID id{}; if(FAILED(CoCreateGuid(&id))) return false;
         wchar_t token[40]{}; StringFromGUID2(id,token,40);
-        path=std::wstring(directory)+L"Pulse-results-"+token+L".sqlite";
+        path=std::wstring(directory)+L"Luling-results-"+token+L".sqlite";
         CurrentUserSecurityAttributes security;
         HANDLE file=CreateFileW(path.c_str(),GENERIC_WRITE,0,security ? security.get() : nullptr,CREATE_NEW,FILE_ATTRIBUTE_TEMPORARY,nullptr);
         if(file==INVALID_HANDLE_VALUE) return false;
         CloseHandle(file);
         if(sqlite3_open16(path.c_str(),&db)!=SQLITE_OK) return false;
-        sqlite3_create_collation(db,"PULSE_ORDINAL",SQLITE_UTF16,nullptr,OrdinalCollation);
-        sqlite3_create_function_v2(db,"pulse_extension",1,SQLITE_UTF16|SQLITE_DETERMINISTIC,nullptr,SqlExtension,nullptr,nullptr,nullptr);
+        sqlite3_create_collation(db,"LULING_ORDINAL",SQLITE_UTF16,nullptr,OrdinalCollation);
+        sqlite3_create_function_v2(db,"luling_extension",1,SQLITE_UTF16|SQLITE_DETERMINISTIC,nullptr,SqlExtension,nullptr,nullptr,nullptr);
         return Exec("PRAGMA foreign_keys=ON; PRAGMA journal_mode=MEMORY; PRAGMA synchronous=OFF; PRAGMA cache_size=-2048; PRAGMA temp_store=FILE; CREATE TABLE hits(seq INTEGER PRIMARY KEY,name TEXT,path TEXT,size INTEGER,mtime INTEGER,line INTEGER,snippet TEXT,file_id INTEGER NOT NULL DEFAULT 0); CREATE UNIQUE INDEX hits_identity ON hits(file_id) WHERE file_id<>0; CREATE TABLE visible(pos INTEGER PRIMARY KEY,seq INTEGER);");
     }
     void Enqueue(std::function<void()> task) {
@@ -271,16 +271,16 @@ bool ContentResultStore::UpsertChanges(const std::vector<ContentHit>& hits, Cont
     if (p.stopping || !p.Open() ||
         (streaming ? (!p.EnsureOrderIndex(order) || !p.UseDynamicVisible(order)) : !p.MaterializeVisible()) ||
         !p.Exec("BEGIN")) { p.error=ERROR_DATABASE_FAILURE; p.Notify(); return false; }
-    bool ok = p.Exec("CREATE UNIQUE INDEX IF NOT EXISTS hits_path ON hits(path COLLATE PULSE_ORDINAL)");
-    Statement remove(p.db, "DELETE FROM hits WHERE path=?1 COLLATE PULSE_ORDINAL AND (?2=0 OR file_id=?2)");
+    bool ok = p.Exec("CREATE UNIQUE INDEX IF NOT EXISTS hits_path ON hits(path COLLATE LULING_ORDINAL)");
+    Statement remove(p.db, "DELETE FROM hits WHERE path=?1 COLLATE LULING_ORDINAL AND (?2=0 OR file_id=?2)");
     // A temporary task result gaining its index identity is still the same
     // displayed row. Only a genuine overwrite/rename conflict removes it.
-    Statement conflict(p.db, "DELETE FROM hits WHERE path=?1 COLLATE PULSE_ORDINAL AND file_id<>?2 AND (file_id<>0 OR EXISTS(SELECT 1 FROM hits WHERE file_id=?2))");
+    Statement conflict(p.db, "DELETE FROM hits WHERE path=?1 COLLATE LULING_ORDINAL AND file_id<>?2 AND (file_id<>0 OR EXISTS(SELECT 1 FROM hits WHERE file_id=?2))");
     Statement identity(p.db, "UPDATE hits SET path=?1 WHERE file_id=?2 AND ?2<>0");
     Statement put(p.db, "INSERT INTO hits(seq,name,path,size,mtime,line,snippet,file_id) VALUES((SELECT coalesce(max(seq),-1)+1 FROM hits),?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(path) DO UPDATE SET name=excluded.name,size=excluded.size,mtime=excluded.mtime,line=excluded.line,snippet=excluded.snippet,file_id=CASE WHEN excluded.file_id=0 THEN hits.file_id ELSE excluded.file_id END");
-    Statement present(p.db,"SELECT 1 FROM hits WHERE path=?1 COLLATE PULSE_ORDINAL");
-    Statement admit(p.db,streaming ? "INSERT OR IGNORE INTO visible_members SELECT seq FROM hits WHERE path=?1 COLLATE PULSE_ORDINAL" : "SELECT 1");
-    Statement exclude(p.db,streaming ? "DELETE FROM visible_members WHERE seq IN (SELECT seq FROM hits WHERE path=?1 COLLATE PULSE_ORDINAL)" : "SELECT 1");
+    Statement present(p.db,"SELECT 1 FROM hits WHERE path=?1 COLLATE LULING_ORDINAL");
+    Statement admit(p.db,streaming ? "INSERT OR IGNORE INTO visible_members SELECT seq FROM hits WHERE path=?1 COLLATE LULING_ORDINAL" : "SELECT 1");
+    Statement exclude(p.db,streaming ? "DELETE FROM visible_members WHERE seq IN (SELECT seq FROM hits WHERE path=?1 COLLATE LULING_ORDINAL)" : "SELECT 1");
     size_t stream_raw=p.raw, stream_count=p.count;
     // There are no application triggers here: the only indirect changes made
     // by a hits deletion are its ON DELETE CASCADE membership deletions.
@@ -614,4 +614,4 @@ size_t ContentResultStore::CachedRows() const {
     return count;
 }
 std::wstring ContentResultStore::CachePath() const { std::lock_guard lock(impl_->io); return impl_->path; }
-} // namespace pulse::index
+} // namespace luling::index

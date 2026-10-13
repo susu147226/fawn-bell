@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace pulse::ui {
+namespace luling::ui {
 inline D2D1_RECT_F ThumbnailArtworkRect(const D2D1_RECT_F& target,
                                       const IconArtworkBounds& bounds) {
     const float width = target.right - target.left;
@@ -40,4 +40,4 @@ inline D2D1_RECT_F ContainedThumbnailRect(const D2D1_RECT_F& dest, uint32_t w, u
     }
     return fitted;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -15,7 +15,7 @@
 #include <map>
 #include "search_trace.h"
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 std::wstring NativePath(const std::wstring &path) {
     if (path.starts_with(L"\\\\?\\"))
@@ -711,4 +711,4 @@ bool RunContentTaskSupplement(const ContentIndexConfig &config, const ContentSea
     callback(progress, {});
     return !cancelled && (enumeration_complete || progress.truncated);
 }
-} // namespace pulse::index
+} // namespace luling::index

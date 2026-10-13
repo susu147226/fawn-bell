@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <string>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Excel 97-2003 and WPS spreadsheets (.xls/.et: BIFF8 "Workbook" stream in a
 // compound file; Excel 5/95 "Book" streams read too). The first worksheet in
@@ -18,4 +18,4 @@ bool ReadXlsModel(const std::wstring& path, int rows, int cols, SheetModel& mode
 // Either format, by content (ZIP -> .xlsx reader, compound file -> BIFF).
 bool ReadSheetModel(const std::wstring& path, int rows, int cols, SheetModel& model, std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

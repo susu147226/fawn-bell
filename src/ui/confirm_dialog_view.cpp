@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cwchar>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 constexpr float kMinWidth = 420.0f;
@@ -343,4 +343,4 @@ void DrawConfirmDialog(Compositor& compositor, fluent::Painter& painter, const T
                               Dip(scale, 12.0f), theme.stroke_card);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

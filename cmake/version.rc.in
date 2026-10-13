@@ -17,12 +17,12 @@ BEGIN
     BEGIN
         BLOCK "080404b0"
         BEGIN
-            VALUE "CompanyName", "Pulse Project\0"
-            VALUE "FileDescription", "@PULSE_FILE_DESCRIPTION@\0"
+            VALUE "CompanyName", "Luling Project\0"
+            VALUE "FileDescription", "@LULING_FILE_DESCRIPTION@\0"
             VALUE "FileVersion", "@PROJECT_VERSION@\0"
-            VALUE "InternalName", "@PULSE_INTERNAL_NAME@\0"
-            VALUE "OriginalFilename", "@PULSE_ORIGINAL_FILENAME@\0"
-            VALUE "ProductName", "Pulse\0"
+            VALUE "InternalName", "@LULING_INTERNAL_NAME@\0"
+            VALUE "OriginalFilename", "@LULING_ORIGINAL_FILENAME@\0"
+            VALUE "ProductName", "Luling\0"
             VALUE "ProductVersion", "@PROJECT_VERSION@\0"
         END
     END

@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 extern IUnknown* (*g_preview_handler_factory_for_test)();
 }
 namespace {
@@ -69,7 +69,7 @@ int main() {
     // the extensions whose only handler is the built-in TXT previewer.
     // Extensions with any other handler keep the handler path. Real association
     // lookups run here, so the fake factory below must not be installed yet.
-    pulse::ui::g_preview_handler_factory_for_test = nullptr;
+    luling::ui::g_preview_handler_factory_for_test = nullptr;
     {
         struct AssocFixture {
             const wchar_t* extension;
@@ -78,11 +78,11 @@ int main() {
             const wchar_t* handler;
         };
         const AssocFixture fixtures[] = {
-            {L".pulse-handler-plain-test", L"text/plain", L"PulseHandlerPlainTest",
+            {L".luling-handler-plain-test", L"text/plain", L"LulingHandlerPlainTest",
              L"{1a2b3c4d-1111-2222-3333-445566778899}"},
-            {L".pulse-handler-txtprev-test", nullptr, L"PulseHandlerTxtprevTest",
+            {L".luling-handler-txtprev-test", nullptr, L"LulingHandlerTxtprevTest",
              L"{1531d583-8375-4d3f-b5fb-d23bbd169f22}"},
-            {L".pulse-handler-other-test", nullptr, L"PulseHandlerOtherTest",
+            {L".luling-handler-other-test", nullptr, L"LulingHandlerOtherTest",
              L"{1a2b3c4d-1111-2222-3333-445566778899}"},
         };
         auto set_string = [](const std::wstring& key_path, const wchar_t* name,
@@ -108,11 +108,11 @@ int main() {
                                      nullptr, fixture.handler);
         }
         if (registered) {
-            check(!pulse::ui::PreviewHandlerHost::CanHost(L"a.pulse-handler-plain-test"),
+            check(!luling::ui::PreviewHandlerHost::CanHost(L"a.luling-handler-plain-test"),
                   "text/plain content type stays on the native text path");
-            check(!pulse::ui::PreviewHandlerHost::CanHost(L"b.pulse-handler-txtprev-test"),
+            check(!luling::ui::PreviewHandlerHost::CanHost(L"b.luling-handler-txtprev-test"),
                   "built-in TXT previewer stays on the native text path");
-            check(pulse::ui::PreviewHandlerHost::CanHost(L"c.pulse-handler-other-test"),
+            check(luling::ui::PreviewHandlerHost::CanHost(L"c.luling-handler-other-test"),
                   "other preview handlers keep the handler path");
         } else {
             std::printf("[SKIP] handler association fixtures need HKCU write access\n");
@@ -124,9 +124,9 @@ int main() {
                 (std::wstring(L"Software\\Classes\\") + fixture.progid).c_str());
         }
     }
-    pulse::ui::g_preview_handler_factory_for_test = CreateSlowHandler;
+    luling::ui::g_preview_handler_factory_for_test = CreateSlowHandler;
     {
-        pulse::ui::PreviewHandlerHost host;
+        luling::ui::PreviewHandlerHost host;
         D2D1_RECT_F bounds{0, 0, 200, 200};
         host.Sync(owner, bounds, L"isolated.docx", FILE_ATTRIBUTE_NORMAL, 1, 1, 1,
             true, D2D1::ColorF(D2D1::ColorF::White), D2D1::ColorF(D2D1::ColorF::Black), true, true);
@@ -146,14 +146,14 @@ int main() {
         check(PumpUntil(entered), "next preview initializes after cancellation");
         SetEvent(release_preview);
         const auto deadline = GetTickCount64() + 5000;
-        while (host.state() != pulse::ui::PreviewHandlerHost::State::Shown && GetTickCount64() < deadline) {
+        while (host.state() != luling::ui::PreviewHandlerHost::State::Shown && GetTickCount64() < deadline) {
             MSG msg{};
             while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
                 TranslateMessage(&msg); DispatchMessageW(&msg);
             }
             Sleep(5);
         }
-        check(host.state() == pulse::ui::PreviewHandlerHost::State::Shown &&
+        check(host.state() == luling::ui::PreviewHandlerHost::State::Shown &&
             (GetWindowLongPtrW(preview_parent.load(), GWL_STYLE) & WS_VISIBLE),
             "current successful preview becomes visible");
     }

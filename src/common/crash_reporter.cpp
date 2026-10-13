@@ -1,6 +1,6 @@
 #include "crash_reporter.h"
 #include "runtime_log.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 
 #include <dbghelp.h>
 #include <shlobj.h>
@@ -16,7 +16,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::crash {
+namespace luling::crash {
 namespace {
 
 constexpr size_t kBreadcrumbCount = 64;
@@ -106,11 +106,11 @@ std::wstring DefaultDataRoot(bool machine_scope) {
     wchar_t path[MAX_PATH]{};
     const int csidl = machine_scope ? CSIDL_COMMON_APPDATA : CSIDL_LOCAL_APPDATA;
     if (FAILED(SHGetFolderPathW(nullptr, csidl, nullptr, SHGFP_TYPE_CURRENT, path))) return {};
-    return JoinPath(path, L"Pulse");
+    return JoinPath(path, L"Luling");
 }
 
 std::wstring SafeBuildId() {
-    std::wstring value = PULSE_BUILD_ID;
+    std::wstring value = LULING_BUILD_ID;
     for (wchar_t& c : value) {
         if (!iswalnum(c) && c != L'-' && c != L'_') c = L'_';
     }
@@ -295,7 +295,7 @@ void WriteFallback(const std::wstring& stem, DWORD code, void* address,
     const int length = snprintf(line, sizeof(line),
         "context=%s code=0x%08lX address=%p pid=%lu tid=%lu version=%ls build=%ls\r\n",
         context ? context : "unknown", code, address, GetCurrentProcessId(),
-        GetCurrentThreadId(), PULSE_VERSION_STRING, PULSE_BUILD_ID);
+        GetCurrentThreadId(), LULING_VERSION_STRING, LULING_BUILD_ID);
     if (length > 0) {
         DWORD written = 0;
         WriteFile(file, line, static_cast<DWORD>((std::min)(length,
@@ -344,7 +344,7 @@ void WriteJson(const std::wstring& stem, EXCEPTION_POINTERS* exception,
         "  \"context\":\"%s\",\n  \"recoverable\":%s,\n  \"dump_written\":%s,\n"
         "  \"uptime_ms\":%llu,\n  \"os\":\"%lu.%lu.%lu\",\n  \"breadcrumbs\":[",
         stem.c_str(), now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute,
-        now.wSecond, now.wMilliseconds, PULSE_VERSION_STRING, PULSE_BUILD_ID,
+        now.wSecond, now.wMilliseconds, LULING_VERSION_STRING, LULING_BUILD_ID,
         RoleToken(g_config.role), GetCurrentProcessId(), GetCurrentThreadId(), code,
         address, context ? context : "unknown", recoverable ? "true" : "false",
         dump_written ? "true" : "false", GetTickCount64() - g_started_tick,
@@ -488,4 +488,4 @@ const std::wstring& DiagnosticsRoot() noexcept {
     return g_diagnostics_root;
 }
 
-} // namespace pulse::crash
+} // namespace luling::crash

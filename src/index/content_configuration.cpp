@@ -2,7 +2,7 @@
 #include "content_scope.h"
 #include "../../third_party/sqlite/sqlite3.h"
 
-namespace pulse::index {
+namespace luling::index {
 ContentIndexConfig LoadContentIndexConfig() {
     ContentIndexConfig config;
     const auto path = config_storage::DatabasePath();

@@ -1,15 +1,15 @@
 #pragma once
-// Command line accepted by the Pulse setup. Inno Setup switches used by the
+// Command line accepted by the Luling setup. Inno Setup switches used by the
 // in-app updater (src/app/update_installer.cpp) are accepted unchanged:
 //   /SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /PULSEUPDATE=1 /LOG /DIR="..."
 // plus /SILENT, /LOG="file", /TASKS="a,!b", /MERGETASKS="..", /LANG=..
-// Pulse additions: /PULSETEST (isolated test install), /INDEXPATH="..",
+// Luling additions: /PULSETEST (isolated test install), /INDEXPATH="..",
 // /UNINSTALL, /PULSEUPGRADE=1 (uninstall during an upgrade, keeps data).
 
 #include <optional>
 #include <string>
 
-namespace pulse::setup {
+namespace luling::setup {
 
 struct Tasks {
     bool index_service = true;
@@ -21,11 +21,11 @@ struct Options {
     bool silent = false;           // /SILENT or /VERYSILENT: no wizard
     bool very_silent = false;
     bool suppress_msgboxes = false;
-    bool pulse_update = false;     // /PULSEUPDATE=1
-    bool pulse_upgrade = false;    // /PULSEUPGRADE=1 (uninstaller)
+    bool luling_update = false;     // /PULSEUPDATE=1
+    bool luling_upgrade = false;    // /PULSEUPGRADE=1 (uninstaller)
     bool uninstall = false;
     bool test = false;             // /PULSETEST
-    bool elevated_child = false;   // internal: /PULSE-ELEVATED
+    bool elevated_child = false;   // internal: /LULING-ELEVATED
     std::wstring dir;              // /DIR
     std::wstring log;              // /LOG[=file]; empty value means default path
     bool log_requested = false;
@@ -44,4 +44,4 @@ Options ParseOptions(const wchar_t* command_line);
 void ApplyTaskList(const std::wstring& list, Tasks& tasks, bool replace);
 std::wstring FormatTaskList(const Tasks& tasks);  // "indexservice,startup"
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

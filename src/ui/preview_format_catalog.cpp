@@ -22,7 +22,7 @@
 #include <mutex>
 #include <thread>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 const wchar_t* Pick(const wchar_t* zh, const wchar_t* en) { return l10n::Pick(zh, en); }
@@ -369,4 +369,4 @@ float LayoutPreviewFormats(const D2D1_RECT_F& area, float scale,
     return y + 4 * scale - area.top;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

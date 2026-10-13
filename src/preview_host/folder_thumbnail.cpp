@@ -13,14 +13,14 @@
 #include <memory>
 #include <cstdio>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 using Microsoft::WRL::ComPtr;
 namespace fs = std::filesystem;
 constexpr DWORD kSkip = FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM |
     FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_OFFLINE | 0x00040000 | 0x00400000;
 constexpr uint64_t kCacheLimit = 64ull * 1024 * 1024;
-#ifdef PULSE_FOLDER_THUMBNAIL_TESTING
+#ifdef LULING_FOLDER_THUMBNAIL_TESTING
 thread_local DWORD test_budget_ms = 450;
 thread_local unsigned test_completed_pictures = ~0u;
 #endif
@@ -34,7 +34,7 @@ struct DiagnosticTrace {
     DiagnosticTrace* previous = active_trace;
     DiagnosticTrace() {
         wchar_t path[32768]{};
-        const DWORD length = GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_BACKEND_TRACE", path, 32768);
+        const DWORD length = GetEnvironmentVariableW(L"LULING_TEST_FOLDER_BACKEND_TRACE", path, 32768);
         if (length && length < 32768) {
             file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
                 nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -179,7 +179,7 @@ fs::path CacheDirectory() {
     wchar_t root[32768];
     const DWORD count = GetEnvironmentVariableW(L"LOCALAPPDATA", root, static_cast<DWORD>(std::size(root)));
     if (!count || count >= std::size(root)) return {};
-    return fs::path(root) / L"Pulse" / L"FolderThumbnails";
+    return fs::path(root) / L"Luling" / L"FolderThumbnails";
 }
 struct CacheHeader { uint64_t magic = 0x32544d4854465055ull, signature = 0, created = 0; uint32_t size = 0, bytes = 0; };
 uint64_t Now() { FILETIME time{}; GetSystemTimeAsFileTime(&time); return (uint64_t(time.dwHighDateTime) << 32) | time.dwLowDateTime; }
@@ -346,13 +346,13 @@ bool DecodeFolderThumbnail(const std::wstring& path, UINT pixels, std::vector<ui
     Trace("local_folder_end");
     const UINT cap = std::clamp(pixels, 32u, 512u);
     [[maybe_unused]] unsigned completed_pictures = 0;
-#ifdef PULSE_FOLDER_THUMBNAIL_TESTING
+#ifdef LULING_FOLDER_THUMBNAIL_TESTING
     const ULONGLONG deadline = GetTickCount64() + test_budget_ms;
 #else
     const ULONGLONG deadline = GetTickCount64() + 450;
 #endif
     const auto Expired = [&]() {
-#ifdef PULSE_FOLDER_THUMBNAIL_TESTING
+#ifdef LULING_FOLDER_THUMBNAIL_TESTING
         if (completed_pictures >= test_completed_pictures) return true;
 #endif
         return GetTickCount64() >= deadline;
@@ -440,11 +440,11 @@ bool DecodeFolderThumbnail(const std::wstring& path, UINT pixels, std::vector<ui
     if (made) { width=height=cap; stride=cap*4; }
     return made;
 }
-#ifdef PULSE_FOLDER_THUMBNAIL_TESTING
+#ifdef LULING_FOLDER_THUMBNAIL_TESTING
 void SetFolderThumbnailBudgetForTest(DWORD budget_ms, unsigned completed_pictures) {
     test_budget_ms = budget_ms;
     test_completed_pictures = completed_pictures;
 }
 #endif
-} // namespace pulse::preview
+} // namespace luling::preview
 

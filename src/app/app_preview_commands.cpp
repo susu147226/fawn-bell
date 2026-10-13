@@ -2,7 +2,7 @@
 #include "../ops/clipboard.h"
 #include "../ui/quick_preview_command.h"
 
-namespace pulse {
+namespace luling {
 void HandleQuickPreviewCommand(AppState& s, const ui::QuickPreviewCommand& command) {
     if (!s.quickPreview.visible() || command.target.path.empty()) return;
     if (command.action == ui::QuickPreviewAction::InstallMediaPack) {
@@ -100,4 +100,4 @@ void HandleQuickPreviewCommand(AppState& s, const ui::QuickPreviewCommand& comma
     }
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
-} // namespace pulse
+} // namespace luling

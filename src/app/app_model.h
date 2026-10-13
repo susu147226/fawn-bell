@@ -25,8 +25,8 @@
 #include <cstdint>
 #include <unordered_set>
 
-namespace pulse { struct ContentSizeSummary; struct ContentSelectionRestore; }
-namespace pulse::app {
+namespace luling { struct ContentSizeSummary; struct ContentSelectionRestore; }
+namespace luling::app {
 struct ContentNavigationState;
 
 // When navigating from a descendant to one of its ancestors, returns the
@@ -107,7 +107,7 @@ struct Tab {
     // refreshes keep rows in place until F5, a new sort or reopening.
     bool refresh_keeps_order = false;      // the pending refresh merges into the shown order
     bool order_held = false;               // rows may be out of sort order
-    std::vector<EntryRename> held_renames; // Pulse renames not yet seen by a refresh
+    std::vector<EntryRename> held_renames; // Luling renames not yet seen by a refresh
     // Size order (#58): fingerprint of the folder totals the rows were sorted
     // with, and when they last moved for new totals (GetTickCount64).
     uint64_t folder_size_signature = 0;
@@ -470,7 +470,7 @@ public:
     void RemoveBatch(size_t idx);
     // Follow a rename done from the tray (batch rename) so the card stays live.
     void ReplacePath(const std::wstring& from, const std::wstring& to);
-    // Re-probe local items (moved/deleted outside Pulse); true when any flag flipped.
+    // Re-probe local items (moved/deleted outside Luling); true when any flag flipped.
     bool RefreshExists();
     // Apply a completed background probe without performing I/O on the caller.
     void ApplyMetadata(const std::wstring& path, const WIN32_FILE_ATTRIBUTE_DATA& data);
@@ -595,4 +595,4 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
 // ones, drops duplicates. Returns DefaultSidebarOrder() when nothing survives.
 std::vector<int> NormalizeSidebarOrder(const std::vector<int>& order);
 
-} // namespace pulse::app
+} // namespace luling::app

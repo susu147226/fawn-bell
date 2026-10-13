@@ -10,7 +10,7 @@
 #include <array>
 #include <cwctype>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -284,4 +284,4 @@ void OpenWithIconCache::WorkerLoop() {
     if (SUCCEEDED(com_hr)) CoUninitialize();
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -36,13 +36,13 @@
 #include <thread>
 #include <unordered_set>
 
-using namespace pulse;
+using namespace luling;
 
-namespace pulse {
+namespace luling {
 namespace {
 // Ops and Shell host errors are Simplified protocol text; zh-TW shows the
 // converted form, so classification accepts both.
-// Errors come from OpsManager (localized with Pick) or pulse_shell (Simplified),
+// Errors come from OpsManager (localized with Pick) or luling_shell (Simplified),
 // so accept the Simplified, Traditional and English forms.
 bool ErrorIs(const std::wstring& error, const wchar_t* simplified, const wchar_t* english) {
     return error == simplified || error == l10n::Cn(simplified) || error == english;
@@ -506,7 +506,7 @@ void UpdateOperationWindow(AppState& s, bool allow_conflict_dialog) {
             } else if (ErrorIs(err, L"名称无效", L"Invalid name")) {
                 message = l10n::Get(l10n::StringId::InvalidName);
             } else if (!err.empty()) {
-                // pulse_shell reports Simplified text; known messages are localized,
+                // luling_shell reports Simplified text; known messages are localized,
                 // file names and unknown messages are shown as reported.
                 message = l10n::ServiceErrorText(err);
             } else {
@@ -519,4 +519,4 @@ void UpdateOperationWindow(AppState& s, bool allow_conflict_dialog) {
     }
 }
 
-} // namespace pulse
+} // namespace luling

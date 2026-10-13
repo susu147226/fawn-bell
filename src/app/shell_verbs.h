@@ -2,7 +2,7 @@
 //
 // HKCR\<progid>\shell verbs (打印/编辑/…) and the OpenWithList MRU are plain
 // registry data, so they go into the context menu's first frame without
-// waiting for pulse_shell's COM session. Invocation stays on the ops worker
+// waiting for luling_shell's COM session. Invocation stays on the ops worker
 // (ShellExecuteEx verb / explicit application launch).
 //
 // EnumerateStaticVerbs does registry reads plus version-info lookups for
@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct StaticVerb {
     std::wstring verb;      // registry verb key ("print", "edit", "openas")
@@ -37,8 +37,8 @@ std::wstring MachineStaticVerbCachePath();
 bool LoadMachineStaticVerbCache(std::unordered_map<std::wstring, std::vector<StaticVerb>>& out);
 bool SaveMachineStaticVerbCache(
     const std::unordered_map<std::wstring, std::vector<StaticVerb>>& cache);
-// Walks HKCR file extensions and writes ProgramData\Pulse\shell-verbs.bin.
-// Safe to run from the installer (elevated) or Pulse.exe --seed-shell-verbs.
+// Walks HKCR file extensions and writes ProgramData\Luling\shell-verbs.bin.
+// Safe to run from the installer (elevated) or Luling.exe --seed-shell-verbs.
 bool SeedMachineStaticVerbCache();
 
-} // namespace pulse::app
+} // namespace luling::app

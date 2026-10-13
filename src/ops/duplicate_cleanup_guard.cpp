@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <array>
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 std::wstring Win32Path(const std::wstring& value) {
     if (value.starts_with(L"\\\\?\\")) return value;
@@ -66,4 +66,4 @@ bool DuplicateCleanupGuard::Validate(const std::vector<DuplicateCleanupGroup>& g
     return source == sources.size() && !cancelled();
 }
 
-} // namespace pulse::ops
+} // namespace luling::ops

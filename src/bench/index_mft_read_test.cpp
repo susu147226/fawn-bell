@@ -31,7 +31,7 @@ BOOL WINAPI MockRead(HANDLE, LPVOID out, DWORD bytes, LPDWORD got, LPOVERLAPPED)
 #undef ReadFile
 
 namespace {
-using namespace pulse::index;
+using namespace luling::index;
 void Put16(std::vector<BYTE>& b, size_t off, uint16_t value) { std::memcpy(b.data() + off, &value, 2); }
 std::vector<BYTE> MakeRecord(bool runs) {
     std::vector<BYTE> b(512);

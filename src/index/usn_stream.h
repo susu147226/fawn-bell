@@ -6,7 +6,7 @@
 #include <thread>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 // The collector owns its handle/cursor. Applying records, merging the index
 // and writing cache files never hold its queue lock or delay the next read.
 class UsnStream {

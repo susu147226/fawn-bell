@@ -5,7 +5,7 @@
 #include <shlobj.h>
 #include <windows.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 namespace {
 std::atomic<bool> g_machine_scope{false};
@@ -45,7 +45,7 @@ std::wstring DataDir() {
 std::wstring CacheFilePath() {
     std::wstring dir = DataDir();
     if (dir.empty()) return {};
-    return dir + L"\\pulse-index.bin";
+    return dir + L"\\luling-index.bin";
 }
 
-} // namespace pulse::index
+} // namespace luling::index

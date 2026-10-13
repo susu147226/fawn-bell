@@ -1,10 +1,10 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "../ui/quick_preview_window.h"
 #include <cstdio>
 #include <filesystem>
 #include <functional>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct PreviewDeadlineProbe {
     static inline FILE* log = nullptr;
     static inline int failures = 0;
@@ -92,7 +92,7 @@ struct PreviewDeadlineProbe {
     static bool Run() {
         failures = 0;
         wchar_t layout_only[8]{};
-        if (GetEnvironmentVariableW(L"PULSE_TEST_FIND_LAYOUT", layout_only, ARRAYSIZE(layout_only)) &&
+        if (GetEnvironmentVariableW(L"LULING_TEST_FIND_LAYOUT", layout_only, ARRAYSIZE(layout_only)) &&
             wcscmp(layout_only, L"1") == 0) {
             _wfopen_s(&log, L"bench_data/quick_preview_find_layout_test.log", L"w");
             Check(log != nullptr, "open find layout evidence log");
@@ -212,5 +212,5 @@ struct PreviewDeadlineProbe {
     }
 };
 }
-bool RunPreviewDeadlineTest() { return pulse::ui::PreviewDeadlineProbe::Run(); }
+bool RunPreviewDeadlineTest() { return luling::ui::PreviewDeadlineProbe::Run(); }
 #endif

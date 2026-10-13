@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct WorkItem {
     std::wstring path;
@@ -94,4 +94,4 @@ private:
     std::unordered_map<std::wstring, uint64_t> current_gen_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

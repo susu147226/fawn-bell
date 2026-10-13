@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) { throw "Release build failed" }
 
 $signTool = (Get-Command signtool.exe -ErrorAction Stop).Source
 . "$PSScriptRoot/release_payload.ps1"
-$binaries = $PulseReleaseExecutables
+$binaries = $LulingReleaseExecutables
 foreach ($name in $binaries) {
     $path = Join-Path $buildPath $name
     if (-not (Test-Path -LiteralPath $path)) { throw "Missing release binary: $path" }
@@ -38,7 +38,7 @@ foreach ($name in $binaries) {
 
 & (Join-Path $repo "build_installer.bat") /skipbuild
 if ($LASTEXITCODE -ne 0) { throw "Installer build failed" }
-$installer = Join-Path $repo "dist\PulseSetup-$version.exe"
+$installer = Join-Path $repo "dist\LulingSetup-$version.exe"
 & $signTool sign /sha1 $CodeSigningThumbprint /fd SHA256 /tr $TimestampUrl.AbsoluteUri /td SHA256 $installer
 if ($LASTEXITCODE -ne 0) { throw "Installer signing failed" }
 
@@ -51,7 +51,7 @@ $manifest = Join-Path $repo "dist\update-manifest.json"
     -MinimumWindowsBuild $MinimumWindowsBuild -Output $manifest
 if ($LASTEXITCODE -ne 0) { throw "Update manifest signing failed" }
 
-$buildId = (Get-Content -LiteralPath (Join-Path $buildPath "pulse_build_id.txt") -TotalCount 1).Trim()
+$buildId = (Get-Content -LiteralPath (Join-Path $buildPath "luling_build_id.txt") -TotalCount 1).Trim()
 $hashArtifacts = @($installer, $manifest)
 foreach ($name in $binaries) { $hashArtifacts += Join-Path $buildPath $name }
 $hashes = foreach ($path in $hashArtifacts) {
@@ -72,4 +72,4 @@ $hashManifest = [ordered]@{
     (Join-Path $repo "dist\hashes.json"), $hashManifest + "`n",
     [System.Text.UTF8Encoding]::new($false))
 
-Write-Host "Release package complete: dist\PulseSetup-$version.exe"
+Write-Host "Release package complete: dist\LulingSetup-$version.exe"

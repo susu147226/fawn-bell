@@ -4,7 +4,7 @@
 #include "../ui/ui_renderer.h"
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class NotifyPatch { Applied, NeedFullEnum };
 
@@ -23,4 +23,4 @@ NotifyPatch ApplyDirNotifyBatch(std::vector<fs::DirEntry>& entries, const std::w
                                 const std::vector<fs::DirNotifyEvent>& events,
                                 ui::SortColumn col, ui::SortDirection sort_dir);
 
-} // namespace pulse::app
+} // namespace luling::app

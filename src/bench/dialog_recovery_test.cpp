@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "../ui/dialog_recovery_test.h"
 #include <cstdio>
 #include <filesystem>
@@ -59,8 +59,8 @@ bool RunDialogRecoveryTest() {
             const auto suffix = std::wstring(dark ? L"dark-" : L"light-") +
                 std::to_wstring(static_cast<int>(scale * 100));
             fprintf(log, "Scenario: %s %.0f%%\n", dark ? "dark" : "light", scale * 100);
-            pulse::ui::TestAdvancedSearchRecovery(owner, scale, dark, folder + L"/advanced-" + suffix + L".png", check);
-            pulse::ui::TestColorPickerFallback(owner, scale, dark, folder + L"/color-" + suffix + L".png", check);
+            luling::ui::TestAdvancedSearchRecovery(owner, scale, dark, folder + L"/advanced-" + suffix + L".png", check);
+            luling::ui::TestColorPickerFallback(owner, scale, dark, folder + L"/color-" + suffix + L".png", check);
             check(HasRenderedContent(folder + L"/advanced-" + suffix + L".png"), "advanced screenshot has visible nonuniform rendered pixels");
             check(HasRenderedContent(folder + L"/color-" + suffix + L".png"), "color screenshot has visible nonuniform rendered pixels");
         }

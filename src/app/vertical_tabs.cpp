@@ -5,11 +5,11 @@
 #include <algorithm>
 #include <cwchar>
 
-namespace pulse {
+namespace luling {
 namespace {
-constexpr wchar_t kTabPrefix[] = L"pulse:tab:";
+constexpr wchar_t kTabPrefix[] = L"luling:tab:";
 constexpr size_t kTabPrefixLen = sizeof(kTabPrefix) / sizeof(kTabPrefix[0]) - 1;
-constexpr wchar_t kNewTabRowPath[] = L"pulse:tab:new";
+constexpr wchar_t kNewTabRowPath[] = L"luling:tab:new";
 }
 
 bool IsVerticalTabPath(const std::wstring& path, size_t* index) {
@@ -28,7 +28,7 @@ void ApplyVerticalTabs(AppState& s, ui::WindowViewModel& vm) {
     // FillPaneSlots sets vm.settings_open (the scroll clamp needs the tabs group).
     const app::Tab* active = ActiveTab(s);
     const bool in_settings = vm.settings_open ||
-        (active && active->current_path.starts_with(L"pulse:settings"));
+        (active && active->current_path.starts_with(L"luling:settings"));
     const bool vertical = s.appPrefs.vertical_tabs && !in_settings;
     s.renderer.SetVerticalTabs(vertical);
     s.renderer.SetSidebarCollapsed(s.appPrefs.sidebar_collapsed);
@@ -105,7 +105,7 @@ bool PeekEligible(AppState& s) {
     if (!s.appPrefs.sidebar_collapsed || s.renderer.SidebarAnimating()) return false;
     if (static_cast<float>(s.compositor.Width()) / s.scale < ui::kSidebarRailWindowDip) return false;
     if ((GetKeyState(VK_LBUTTON) & 0x8000) != 0) return false;  // drags keep the rail
-    if (const app::Tab* tab = ActiveTab(s); tab && tab->current_path.starts_with(L"pulse:settings"))
+    if (const app::Tab* tab = ActiveTab(s); tab && tab->current_path.starts_with(L"luling:settings"))
         return false;
     return true;
 }

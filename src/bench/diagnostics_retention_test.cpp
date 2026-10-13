@@ -39,34 +39,34 @@ size_t Count(const std::filesystem::path& dir) {
 }
 void Inject() {
     __try { RaiseException(0xE0424242, 0, 0, nullptr); }
-    __except(pulse::crash::ReportRecoverable(GetExceptionInformation(), "retention-test")) {}
+    __except(luling::crash::ReportRecoverable(GetExceptionInformation(), "retention-test")) {}
 }
 }
 int wmain(int argc, wchar_t** argv) {
     if (argc == 2) {
-        if (!pulse::crash::Initialize({pulse::crash::ProcessRole::Test, false, argv[1]})) return 2;
+        if (!luling::crash::Initialize({luling::crash::ProcessRole::Test, false, argv[1]})) return 2;
         for (int i = 0; i < 14; ++i) Inject();
-        pulse::crash::Shutdown();
+        luling::crash::Shutdown();
         return 0;
     }
     wchar_t temp[MAX_PATH]{}; GetTempPathW(MAX_PATH, temp);
-    const auto root = std::filesystem::path(temp) / (L"PulseM02-" + std::to_wstring(GetCurrentProcessId()));
+    const auto root = std::filesystem::path(temp) / (L"LulingM02-" + std::to_wstring(GetCurrentProcessId()));
     const auto dir = root / L"Diagnostics" / L"Crashes";
     std::wstring error;
-    Check(pulse::diagnostics::ClearCrashReports(root.wstring(), &error), "missing directory succeeds");
+    Check(luling::diagnostics::ClearCrashReports(root.wstring(), &error), "missing directory succeeds");
     std::filesystem::create_directories(dir);
-    Check(pulse::diagnostics::ClearCrashReports(root.wstring(), &error), "empty directory succeeds");
+    Check(luling::diagnostics::ClearCrashReports(root.wstring(), &error), "empty directory succeeds");
     for (int i = 1; i <= 4; ++i) {
         fault = i; error.clear();
-        Check(!pulse::diagnostics::ClearCrashReports(root.wstring(), &error) && !error.empty(), "attribute/enumeration/reparse failure is reported");
+        Check(!luling::diagnostics::ClearCrashReports(root.wstring(), &error) && !error.empty(), "attribute/enumeration/reparse failure is reported");
     }
     fault = 0;
     const auto locked = dir / L"blocked.json";
     HANDLE file = CreateFileW(locked.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW, 0, nullptr);
-    Check(file != INVALID_HANDLE_VALUE && !pulse::diagnostics::ClearCrashReports(root.wstring(), &error) && !error.empty(), "actual Windows sharing violation is reported");
+    Check(file != INVALID_HANDLE_VALUE && !luling::diagnostics::ClearCrashReports(root.wstring(), &error) && !error.empty(), "actual Windows sharing violation is reported");
     CloseHandle(file);
-    Check(pulse::diagnostics::ClearCrashReports(root.wstring(), &error) && error.empty(), "unlocked cleanup succeeds and clears error");
-    Check(pulse::crash::Initialize({pulse::crash::ProcessRole::Test, false, root.wstring()}), "initialize retention worker");
+    Check(luling::diagnostics::ClearCrashReports(root.wstring(), &error) && error.empty(), "unlocked cleanup succeeds and clears error");
+    Check(luling::crash::Initialize({luling::crash::ProcessRole::Test, false, root.wstring()}), "initialize retention worker");
     for (int i = 0; i < 14; ++i) Inject();
     const auto deadline = GetTickCount64() + 5000;
     while (Count(dir) > 10 && GetTickCount64() < deadline) Sleep(50);
@@ -118,7 +118,7 @@ int wmain(int argc, wchar_t** argv) {
     Sleep(1500);
     Check(!std::filesystem::exists(oversized) && Count(dir) == 1,
         "periodic retry releases oversized locked event after unlock");
-    pulse::crash::Shutdown();
+    luling::crash::Shutdown();
     std::filesystem::remove_all(root);
     return failures ? 1 : 0;
 }

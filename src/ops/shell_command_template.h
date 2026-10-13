@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::ops {
+namespace luling::ops {
 inline std::wstring ExpandShellCommand(std::wstring_view command, const std::wstring& path) {
     const std::wstring quoted = QuoteWindowsArgument(path::StripExtendedPathPrefix(path));
     const auto placeholder = [&](size_t offset) {

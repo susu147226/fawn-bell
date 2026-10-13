@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-using namespace pulse::app;
+using namespace luling::app;
 namespace fsys = std::filesystem;
 
 namespace {
@@ -55,10 +55,10 @@ BOOL WINAPI TestNext(HANDLE find, LPWIN32_FIND_DATAW data) {
 
 int wmain() {
     const fsys::path root = fsys::temp_directory_path() /
-        (L"pulse-drop-staging-test-" + std::to_wstring(GetCurrentProcessId()));
+        (L"luling-drop-staging-test-" + std::to_wstring(GetCurrentProcessId()));
     ForceRemove(root);
     const fsys::path temp = root / L"temp";
-    const fsys::path stage_root = temp / L"PulseDrop";
+    const fsys::path stage_root = temp / L"LulingDrop";
     const fsys::path extract = temp / L"7zE44D7D628";
     const fsys::path other = root / L"other";
     fsys::create_directories(extract / L"sub");
@@ -78,7 +78,7 @@ int wmain() {
     Check(!IsTemporaryDropSource((root / L"temp2" / L"x.txt").wstring(), temp.wstring(), stage_root.wstring()),
           L"a sibling sharing the temp folder's name prefix is not temporary");
     Check(!IsTemporaryDropSource((stage_root / L"1-1-1" / L"x.txt").wstring(), temp.wstring(), stage_root.wstring()),
-          L"Pulse's own stage is never staged again");
+          L"Luling's own stage is never staged again");
     Check(!TempDirectory().empty() && TempDirectory().find(L'~') == std::wstring::npos,
           L"the temp folder is reported in long form");
 

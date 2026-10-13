@@ -4,7 +4,7 @@
 #include <atomic>
 #include <mutex>
 
-namespace pulse {
+namespace luling {
 struct SidebarRefreshLoad {
     std::atomic<bool> cancelled{false};
     std::mutex mutex;
@@ -117,4 +117,4 @@ bool TickSidebarRefresh(AppState& state, ULONGLONG now) {
 void CancelSidebarRefresh(AppState& state) {
     if (state.sidebarRefresh) state.sidebarRefresh->cancelled = true;
 }
-} // namespace pulse
+} // namespace luling

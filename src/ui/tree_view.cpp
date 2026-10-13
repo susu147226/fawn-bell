@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cwctype>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 template <class T> using WrlPtr = Microsoft::WRL::ComPtr<T>;
@@ -15,7 +15,7 @@ enum Color : int { kText, kDim, kKey, kString, kNumber, kKeyword, kTag, kAttr, k
 
 constexpr size_t kAutoExpandNodes = 80;  // small documents open one more level
 
-bool Zh() { return pulse::l10n::IsChinese(); }
+bool Zh() { return luling::l10n::IsChinese(); }
 
 std::wstring Unescape(std::wstring_view field) {
     std::wstring out;
@@ -254,10 +254,10 @@ std::wstring TreeView::ErrorText() const {
     const bool zh = Zh();
     std::wstring reason = error_;
     for (const Reason& r : kReasons)
-        if (error_ == r.id) { reason = zh ? pulse::l10n::Cn(r.zh) : r.en; break; }
+        if (error_ == r.id) { reason = zh ? luling::l10n::Cn(r.zh) : r.en; break; }
     if (error_ == L"too-large" || error_line_ == 0) return reason;
-    std::wstring where = zh ? pulse::l10n::Cn(L"\u7B2C ") + std::to_wstring(error_line_) + pulse::l10n::Cn(L" \u884C\uFF0C\u7B2C ") +
-                                  std::to_wstring(error_column_) + pulse::l10n::Cn(L" \u5217\uFF1A")
+    std::wstring where = zh ? luling::l10n::Cn(L"\u7B2C ") + std::to_wstring(error_line_) + luling::l10n::Cn(L" \u884C\uFF0C\u7B2C ") +
+                                  std::to_wstring(error_column_) + luling::l10n::Cn(L" \u5217\uFF1A")
                             : L"Line " + std::to_wstring(error_line_) + L", column " +
                                   std::to_wstring(error_column_) + L": ";
     return where + reason;
@@ -269,8 +269,8 @@ std::vector<std::wstring> TreeView::StatusParts() const {
     if (current_ >= 0) {
         parts.push_back(PathOf(static_cast<size_t>(current_)));
     } else {
-        std::wstring count = std::to_wstring(nodes_.size()) + (pulse::l10n::Pick(L" \u4E2A\u8282\u70B9", L" nodes"));
-        if (truncated_) count += pulse::l10n::Pick(L" \u00B7 \u5DF2\u622A\u65AD", L" \u00B7 truncated");
+        std::wstring count = std::to_wstring(nodes_.size()) + (luling::l10n::Pick(L" \u4E2A\u8282\u70B9", L" nodes"));
+        if (truncated_) count += luling::l10n::Pick(L" \u00B7 \u5DF2\u622A\u65AD", L" \u00B7 truncated");
         parts.push_back(std::move(count));
     }
     return parts;
@@ -846,4 +846,4 @@ void TreeView::Draw(ID2D1DeviceContext* dc, IDWriteFactory2* factory, const D2D1
     dc->PopAxisAlignedClip();
 }
 
-}  // namespace pulse::ui
+}  // namespace luling::ui

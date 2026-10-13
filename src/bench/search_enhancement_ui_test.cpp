@@ -15,8 +15,8 @@ void Check(bool pass, const char* label) {
 }
 void Ranges(std::wstring_view name, std::wstring_view query,
             std::initializer_list<std::pair<UINT32, UINT32>> expected, const char* label) {
-    const auto terms = pulse::ui::NameHighlightTerms({}, query);
-    const auto ranges = pulse::ui::NameMatchRanges(name, terms);
+    const auto terms = luling::ui::NameHighlightTerms({}, query);
+    const auto ranges = luling::ui::NameMatchRanges(name, terms);
     bool same = ranges.size() == expected.size();
     size_t i = 0;
     for (const auto& [start, length] : expected) {
@@ -37,7 +37,7 @@ bool RectInside(D2D1_RECT_F rect, D2D1_RECT_F field) {
         rect.top + epsilon >= field.top && rect.bottom <= field.bottom + epsilon &&
         rect.right + epsilon >= rect.left && rect.bottom + epsilon >= rect.top;
 }
-bool ValidSlots(const pulse::ui::AddressSearchLayout& layout, D2D1_RECT_F field) {
+bool ValidSlots(const luling::ui::AddressSearchLayout& layout, D2D1_RECT_F field) {
     const std::array<D2D1_RECT_F, 5> ordered = {
         layout.scope, layout.input, layout.mode, layout.options, layout.close};
     for (size_t i = 0; i < ordered.size(); ++i) {
@@ -56,7 +56,7 @@ bool ValidSlots(const pulse::ui::AddressSearchLayout& layout, D2D1_RECT_F field)
 void LayoutCase(float width, float scale, bool logical_width) {
     const float physical_width = logical_width ? width * scale : width;
     const auto field = D2D1::RectF(17.0f, 9.0f, 17.0f + physical_width, 9.0f + 36.0f * scale);
-    const auto layout = pulse::ui::LayoutAddressSearch(field, scale);
+    const auto layout = luling::ui::LayoutAddressSearch(field, scale);
     const bool slots_valid = ValidSlots(layout, field);
     const float field_dip = physical_width / scale;
     const bool responsive = layout.scope_label == (field_dip >= 280) &&
@@ -75,7 +75,7 @@ void LayoutCase(float width, float scale, bool logical_width) {
 }
 }
 int main() {
-    using namespace pulse;
+    using namespace luling;
     Ranges(L"报告-中国.txt", L"zhongguo", {{3, 2}}, "full-pinyin highlights original Chinese characters");
     Ranges(L"中国报告.txt", L"zgbg", {{0, 4}}, "initials highlight original character span");
     Ranges(L"重庆音乐.txt", L"chongqing", {{0, 2}}, "polyphonic full-pinyin highlight");

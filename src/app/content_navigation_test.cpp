@@ -1,11 +1,11 @@
-#ifdef PULSE_CONTENT_NAVIGATION_STANDALONE
+#ifdef LULING_CONTENT_NAVIGATION_STANDALONE
 #include "app_internal.h"
 #include "content_navigation.h"
 #include "../common/localization.h"
 #include <cstdio>
 
 int wmain() {
-    using namespace pulse;
+    using namespace luling;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     auto state = std::make_unique<AppState>();
@@ -20,7 +20,7 @@ int wmain() {
     auto* tab = ActiveTab(*state);
     auto results = std::make_shared<index::ContentResultStore>(nullptr, 0);
     index::ContentHit hit;
-    hit.path = L"C:\\PulseNavigationFixture\\hit.txt"; hit.name = L"hit.txt";
+    hit.path = L"C:\\LulingNavigationFixture\\hit.txt"; hit.name = L"hit.txt";
     bool ok = results->Append({hit});
     tab->content_results = results;
     tab->content_count_final = true;
@@ -34,7 +34,7 @@ int wmain() {
     auto check = [&](bool passed, const char* label) {
         printf("[%s] %s\n", passed ? "PASS" : "FAIL", label); ok &= passed;
     };
-    NavigateTo(*state, L"C:\\PulseNavigationFixture");
+    NavigateTo(*state, L"C:\\LulingNavigationFixture");
     check(!tab->content_results && state->addressLiveDue == 0, "leaving search clears pending query but retains history");
     GoBack(*state);
     check(tab->current_path == query && tab->content_results == results,
@@ -48,7 +48,7 @@ int wmain() {
     check(tab->content_results == results && tab->selected_index == 0, "repeated forward/back preserves results");
     tab->search_content_active = true;
     tab->content_count_final = false;
-    NavigateTo(*state, L"C:\\PulseNavigationFixture");
+    NavigateTo(*state, L"C:\\LulingNavigationFixture");
     GoBack(*state);
     check(tab->content_results == results && !tab->content_count_final && tab->search_content_stopped &&
         !tab->search_content_active, "unfinished search returns as retained partial results without a restart");

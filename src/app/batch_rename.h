@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct BatchRenameRule {
     std::wstring find;
@@ -41,4 +41,4 @@ std::wstring ApplyBatchRenameRule(const std::wstring& name, size_t index,
 std::vector<BatchRenameItem> PreviewBatchRename(const std::vector<std::wstring>& paths,
                                                 const BatchRenameRule& rule);
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -1,7 +1,7 @@
 #include "../app/search_query.h"
 #include <iostream>
 
-using namespace pulse;
+using namespace luling;
 
 namespace {
 
@@ -60,9 +60,9 @@ int wmain() {
           L"folder location satisfies content scope");
 
     spec = {};
-    spec.name = L"pulse";
+    spec.name = L"luling";
     spec.name_how = app::NameMatchHow::StartsWith;
-    Check(app::CompileSearchQuery(spec).find(L"pulse*") != std::wstring::npos,
+    Check(app::CompileSearchQuery(spec).find(L"luling*") != std::wstring::npos,
           L"starts-with compiles to wildcard");
 
     spec = {};
@@ -83,12 +83,12 @@ int wmain() {
     spec = {};
     spec.content = L"\u53d1\u7968";
     spec.location = app::LocationScope::CustomFolder;
-    spec.custom_folder = L"C:\\Users\\TestUser\\Desktop\\PulseSearchTest";
+    spec.custom_folder = L"C:\\Users\\TestUser\\Desktop\\LulingSearchTest";
     const std::wstring titled = app::CompileSearchQuery(spec);
     Check(app::SearchDisplayNeedle(titled) == L"\u53d1\u7968",
           L"display needle uses content text not path:");
     Check(app::SearchDisplayNeedle(
-              L"path:C:\\Users\\TestUser\\Desktop\\PulseSearchTest contentmode:any content:\u53d1\u7968")
+              L"path:C:\\Users\\TestUser\\Desktop\\LulingSearchTest contentmode:any content:\u53d1\u7968")
               == L"\u53d1\u7968",
           L"display needle parses a scoped content query");
 

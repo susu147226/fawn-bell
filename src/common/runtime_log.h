@@ -3,7 +3,7 @@
 #include <initializer_list>
 #include <string>
 
-namespace pulse::diagnostics::runtime {
+namespace luling::diagnostics::runtime {
 // Only fixed event/field identifiers and numeric values are accepted. Callers
 // must never encode paths, search terms, URLs or document content as identifiers.
 struct Field { const char* name; uint64_t value; };

@@ -3,7 +3,7 @@
 #include "create_rename_intent.h"
 #include <algorithm>
 
-namespace pulse {
+namespace luling {
 void ApplyOperationIntentCompletion(AppState& state, const ops::CompletedOperation& completed) {
     if (completed.refresh_only || !completed.task_id ||
         (completed.type != ops::OpType::CreateFolder && completed.type != ops::OpType::CreateTextFile)) return;

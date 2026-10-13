@@ -1,10 +1,10 @@
-// Visual contract for Pulse's own confirm dialogs. The open dialog hosts the
-// main window's renderer and is exercised with pulse.exe --picker-live.
+// Visual contract for Luling's own confirm dialogs. The open dialog hosts the
+// main window's renderer and is exercised with luling.exe --picker-live.
 //
-//   pulse_dialog_gallery.exe [--lang zh-CN|en-US] [out_dir]
+//   luling_dialog_gallery.exe [--lang zh-CN|en-US] [out_dir]
 //       Renders every scene offscreen in light, dark and high contrast at 100%
 //       and 150% scale into out_dir (default build-dialog-verify).
-//   pulse_dialog_gallery.exe --live <kind> [--dark] [--out <file>]
+//   luling_dialog_gallery.exe --live <kind> [--dark] [--out <file>]
 //       Opens the real window. kind: confirm-warning, confirm-danger,
 //       confirm-three, confirm-items. The choice is written to --out (UTF-8).
 
@@ -24,8 +24,8 @@
 
 namespace {
 
-using namespace pulse::ui;
-using pulse::l10n::StringId;
+using namespace luling::ui;
+using luling::l10n::StringId;
 
 LRESULT CALLBACK GalleryWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -81,7 +81,7 @@ std::vector<ConfirmScene> ConfirmScenes() {
         ConfirmScene s{L"confirm_warning", {}, {}};
         s.spec.title = L"继续导出诊断信息？";
         s.spec.message = L"诊断包可能包含文件路径和最近打开的位置。只在需要排查问题时发送给开发者。";
-        s.spec.confirm_text = pulse::l10n::Get(StringId::ConfirmContinue);
+        s.spec.confirm_text = luling::l10n::Get(StringId::ConfirmContinue);
         s.spec.tone = ConfirmTone::Warning;
         s.spec.default_choice = ConfirmChoice::Cancel;
         s.visual.focus = kConfirmCancel;
@@ -107,8 +107,8 @@ std::vector<ConfirmScene> ConfirmScenes() {
         ConfirmScene s{L"confirm_three", {}, {}};
         s.spec.title = L"同时导出索引服务的诊断信息？";
         s.spec.message = L"索引服务的日志能帮助排查搜索问题，但会让诊断包更大。";
-        s.spec.confirm_text = pulse::l10n::Get(StringId::DiagnosticsIncludeServiceYes);
-        s.spec.secondary_text = pulse::l10n::Get(StringId::DiagnosticsIncludeServiceNo);
+        s.spec.confirm_text = luling::l10n::Get(StringId::DiagnosticsIncludeServiceYes);
+        s.spec.secondary_text = luling::l10n::Get(StringId::DiagnosticsIncludeServiceNo);
         s.spec.tone = ConfirmTone::Question;
         s.spec.default_choice = ConfirmChoice::Secondary;
         s.visual.focus = kConfirmSecondary;
@@ -119,7 +119,7 @@ std::vector<ConfirmScene> ConfirmScenes() {
         ConfirmScene s{L"confirm_items", {}, {}};
         s.spec.title = L"文件正在被其他程序使用";
         s.spec.message = L"「季度报告.docx」已在下列程序中打开。关闭它们后重试。";
-        s.spec.confirm_text = pulse::l10n::Get(StringId::RecoveryRetry);
+        s.spec.confirm_text = luling::l10n::Get(StringId::RecoveryRetry);
         s.spec.items = {L"Microsoft Word（WINWORD.EXE）", L"Windows 资源管理器（explorer.exe）"};
         s.spec.item_glyph = L"\xE7C4";
         s.spec.note = L"关闭程序前请先保存它里面的改动。";
@@ -134,9 +134,9 @@ int RunGallery(const std::wstring& out_dir) {
     WNDCLASSW window_class{};
     window_class.hInstance = GetModuleHandleW(nullptr);
     window_class.lpfnWndProc = GalleryWndProc;
-    window_class.lpszClassName = L"PulseDialogGallery";
+    window_class.lpszClassName = L"LulingDialogGallery";
     RegisterClassW(&window_class);
-    HWND hwnd = CreateWindowExW(0, window_class.lpszClassName, L"Pulse Dialog Gallery",
+    HWND hwnd = CreateWindowExW(0, window_class.lpszClassName, L"Luling Dialog Gallery",
                                 WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
                                 nullptr, nullptr, window_class.hInstance, nullptr);
     if (!hwnd) return 1;
@@ -219,7 +219,7 @@ int RunLive(const std::wstring& kind, bool dark, const std::wstring& out) {
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return 3;
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
     int argc = 0;
     wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     std::vector<std::wstring> args;
@@ -229,7 +229,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         else args.emplace_back(argv[i]);
     }
     if (argv) LocalFree(argv);
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), language);
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), language);
 
     int result = 0;
     if (!args.empty() && args[0] == L"--live" && args.size() >= 2) {

@@ -1,7 +1,7 @@
 #include "content_navigation.h"
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 void RememberContentNavigation(Tab& tab) {
     if (!tab.content_results) return;
     auto saved = std::make_shared<ContentNavigationState>();

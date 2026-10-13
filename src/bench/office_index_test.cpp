@@ -17,7 +17,7 @@
 #include <cwctype>
 
 namespace {
-using namespace pulse;
+using namespace luling;
 using Microsoft::WRL::ComPtr;
 int failures = 0;
 void Check(bool pass, const char* message) {
@@ -60,7 +60,7 @@ DWORD WorkerPid() {
     PROCESSENTRY32W entry{}; entry.dwSize = sizeof(entry);
     DWORD found = 0;
     if (Process32FirstW(snapshot, &entry)) do {
-        if (entry.th32ParentProcessID == GetCurrentProcessId() && _wcsicmp(entry.szExeFile, L"Pulse.Document.exe") == 0) {
+        if (entry.th32ParentProcessID == GetCurrentProcessId() && _wcsicmp(entry.szExeFile, L"Luling.Document.exe") == 0) {
             HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, entry.th32ProcessID);
             if (process && WaitForSingleObject(process, 0) == WAIT_TIMEOUT) found = entry.th32ProcessID;
             if (process) CloseHandle(process);
@@ -286,7 +286,7 @@ int wmain(int argc, wchar_t** argv) {
     if (argc == 2 && std::wstring_view(argv[1]) == L"--pdf-task") {
         const auto pdf = root / L"中文文档.pdf";
         const auto word = root / L"document.docx";
-        Check(Pdf(pdf, "PulsePdfMarker") && Word(word, "OfficeTaskMarker"), "create isolated PDF and Office task fixtures");
+        Check(Pdf(pdf, "LulingPdfMarker") && Word(word, "OfficeTaskMarker"), "create isolated PDF and Office task fixtures");
         Check(index::IsIndexedContentExtension(L".PDF") && index::IsExtractedDocumentExtension(L".pdf"), "PDF enters document extraction and indexing");
         std::wstring body; uint64_t bytes = 0; DWORD error = 0;
         auto read = [&](const std::filesystem::path& file) {
@@ -294,12 +294,12 @@ int wmain(int argc, wchar_t** argv) {
         };
         {
             index::DocumentReadSession session;
-            Check(read(pdf) && body.find(L"PulsePdfMarker") != std::wstring::npos && body.find(L"合同金额") != std::wstring::npos,
+            Check(read(pdf) && body.find(L"LulingPdfMarker") != std::wstring::npos && body.find(L"合同金额") != std::wstring::npos,
                 "system PDF filter extracts English and mapped Chinese text");
             std::cout << "PDF error=" << error << " chars=" << body.size() << '\n';
             Check(WorkerPid() != 0, "parser belongs to the active task");
             Check(read(word) && body.find(L"OfficeTaskMarker") != std::wstring::npos, "Office STA works after PDF MTA extraction");
-            Check(read(pdf) && body.find(L"PulsePdfMarker") != std::wstring::npos, "PDF works after Office in reused task parser");
+            Check(read(pdf) && body.find(L"LulingPdfMarker") != std::wstring::npos, "PDF works after Office in reused task parser");
             Check(!index::ReadSearchableDocument(pdf.wstring(), 1, body, bytes, &error) && error == ERROR_FILE_TOO_LARGE,
                 "PDF input size limit remains enforced");
             const auto blank = base / L"no-text.pdf"; const auto bad = base / L"broken.pdf";
@@ -316,7 +316,7 @@ int wmain(int argc, wchar_t** argv) {
                 text::Encoding::Auto, [] { return true; }) && error == ERROR_CANCELLED, "cancelled task returns no PDF text");
         }
         Check(WorkerPid() == 0, "cancelled task releases parser");
-        index::ContentSearchRequest request; request.indexed = false; request.root = root.wstring(); request.needle = L"PulsePdfMarker";
+        index::ContentSearchRequest request; request.indexed = false; request.root = root.wstring(); request.needle = L"LulingPdfMarker";
         std::atomic<bool> cancel{false}; size_t hits = 0; index::ContentSearchProgress final;
         Check(index::RunContentSearch(request, cancel, [&](const auto& progress, auto batch) {
             final = progress; hits += batch.size(); return true;
@@ -328,7 +328,7 @@ int wmain(int argc, wchar_t** argv) {
             index::ContentIndexConfig config; config.roots = {{root.wstring(), text::Encoding::Auto}};
             Check(db.Configure(config) && db.WaitUntilIdle(15000), "PDF and Office content indexing completes");
             Check(db.Status().indexed_files == 2 && db.Status().errors == 0, "both document types cached without errors");
-            Check(Search(db, L"PulsePdfMarker").size() == 1 && Search(db, L"合同金额").size() == 1,
+            Check(Search(db, L"LulingPdfMarker").size() == 1 && Search(db, L"合同金额").size() == 1,
                 "cached PDF searches preserve English and Chinese matches");
         }
         std::cout << "Fixture retained: " << base.string() << '\n';

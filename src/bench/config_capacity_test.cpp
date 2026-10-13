@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string_view>
 
-namespace pulse::app { std::wstring fixture; std::wstring GetPulseDataDir() { return fixture; } }
+namespace luling::app { std::wstring fixture; std::wstring GetLulingDataDir() { return fixture; } }
 namespace {
 namespace fs = std::filesystem;
 constexpr size_t limit = 16u * 1024u * 1024u;
@@ -22,19 +22,19 @@ void Boundary(const fs::path& root, bool baseline) {
     const auto path = (root / L"boundary.json").wstring();
     for (bool unicode : {false, true}) for (size_t bytes : {limit - 1, limit, limit + 1}) {
         std::cout << "boundary unicode=" << unicode << " bytes=" << bytes << std::endl;
-        Check(pulse::WriteUtf8FileAtomic(path, L"old-readable"), "seed old readable bytes");
+        Check(luling::WriteUtf8FileAtomic(path, L"old-readable"), "seed old readable bytes");
         const auto old = Bytes(path);
         std::wstring text;
         if (unicode) { text.assign(bytes / 3, L'中'); text.append(bytes % 3, L'x'); }
         else text.assign(bytes, L'x');
         std::vector<uint8_t> encoded;
-        Check(pulse::EncodeUtf8Bytes(text, encoded) && encoded.size() == bytes, "fixture has exact UTF-8 byte length");
+        Check(luling::EncodeUtf8Bytes(text, encoded) && encoded.size() == bytes, "fixture has exact UTF-8 byte length");
         encoded.clear(); encoded.shrink_to_fit();
         SetLastError(ERROR_SUCCESS);
-        const bool saved = pulse::WriteUtf8FileAtomic(path, text);
+        const bool saved = luling::WriteUtf8FileAtomic(path, text);
         const DWORD error = GetLastError();
         std::wstring read;
-        const bool loaded = pulse::ReadUtf8File(path, read);
+        const bool loaded = luling::ReadUtf8File(path, read);
         if (bytes <= limit) {
             Check(saved && loaded && read == text, "within-boundary write and read roundtrip");
         } else if (baseline) {
@@ -49,7 +49,7 @@ void Boundary(const fs::path& root, bool baseline) {
     }
 }
 void Places(const fs::path& root, bool baseline, bool unicode) {
-    using namespace pulse::app;
+    using namespace luling::app;
     fixture = root.wstring(); fs::create_directory(root);
     PlacesCatalog catalog;
     const auto id = catalog.CreateTag(L"capacity", 0x123456);

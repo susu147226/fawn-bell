@@ -2,7 +2,7 @@
 
 #include "setup_common.h"
 
-namespace pulse::setup {
+namespace luling::setup {
 
 std::optional<std::wstring> ReadString(HKEY root, REGSAM view, const wchar_t* key, const wchar_t* value) {
     HKEY h = nullptr;
@@ -52,7 +52,7 @@ std::optional<PreviousInstall> FindPreviousInstall(const wchar_t* key) {
         p.where = where;
         p.dir = NormalizeDir(*dir);
         p.uninstall_string = ReadString(where.root, where.view, key, L"UninstallString").value_or(L"");
-        p.inno = !ReadString(where.root, where.view, key, L"Pulse Setup: Version").has_value();
+        p.inno = !ReadString(where.root, where.view, key, L"Luling Setup: Version").has_value();
         if (auto t = ReadString(where.root, where.view, key, L"Inno Setup: Selected Tasks")) {
             Tasks tasks;
             ApplyTaskList(*t, tasks, true);
@@ -86,14 +86,14 @@ bool WriteUninstallEntry(const RegLocation& where, const wchar_t* key, const Uni
         else if (c >= L'0' && c <= L'9') *part = *part * 10 + static_cast<unsigned>(c - L'0');
     }
 
-    sz(L"DisplayName", L"Pulse " + e.version + e.display_suffix);
+    sz(L"DisplayName", L"Luling " + e.version + e.display_suffix);
     sz(L"DisplayVersion", e.version);
-    sz(L"DisplayIcon", e.dir + L"\\pulse.exe");
+    sz(L"DisplayIcon", e.dir + L"\\luling.exe");
     sz(L"InstallLocation", e.dir + L"\\");
-    // Kept under the Inno names: older Pulse installers and the updater read them.
+    // Kept under the Inno names: older Luling installers and the updater read them.
     sz(L"Inno Setup: App Path", e.dir);
     sz(L"Inno Setup: Selected Tasks", e.tasks);
-    sz(L"Pulse Setup: Version", e.version);
+    sz(L"Luling Setup: Version", e.version);
     sz(L"UninstallString", Quote(e.uninstaller) + e.uninstall_args);
     sz(L"QuietUninstallString", Quote(e.uninstaller) + e.uninstall_args + L" /VERYSILENT");
     sz(L"InstallDate", date);
@@ -111,4 +111,4 @@ bool WriteUninstallEntry(const RegLocation& where, const wchar_t* key, const Uni
     return ok;
 }
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

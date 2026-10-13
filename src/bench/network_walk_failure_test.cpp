@@ -12,7 +12,7 @@
 namespace {
 enum class WalkCase { Normal, Empty, EmptyEof, RootDenied, ChildDenied, Interrupted };
 WalkCase walk_case = WalkCase::Normal;
-const std::wstring root_path = L"\\\\pulse-test.invalid\\synthetic";
+const std::wstring root_path = L"\\\\luling-test.invalid\\synthetic";
 std::wstring fixture_directory;
 int handles_open = 0;
 bool unexpected_path = false;
@@ -45,8 +45,8 @@ DWORD WINAPI TestGetUniversalName(LPCWSTR, DWORD level, LPVOID buffer, LPDWORD b
 HANDLE WINAPI TestFindFirst(LPCWSTR path, FINDEX_INFO_LEVELS, LPVOID data,
                             FINDEX_SEARCH_OPS, LPVOID, DWORD) {
     const std::wstring pattern(path);
-    const bool root = pattern == L"\\\\?\\UNC\\pulse-test.invalid\\synthetic\\*";
-    const bool child = pattern == L"\\\\?\\UNC\\pulse-test.invalid\\synthetic\\child\\*";
+    const bool root = pattern == L"\\\\?\\UNC\\luling-test.invalid\\synthetic\\*";
+    const bool child = pattern == L"\\\\?\\UNC\\luling-test.invalid\\synthetic\\child\\*";
     if (!root && !child) {
         unexpected_path = true;
         SetLastError(ERROR_BAD_NETPATH);
@@ -86,7 +86,7 @@ BOOL WINAPI TestFindClose(HANDLE handle) {
 }
 } // namespace
 
-namespace pulse::index {
+namespace luling::index {
 std::wstring TestUserIndexRoot() { return fixture_directory; }
 }
 
@@ -102,7 +102,7 @@ std::wstring TestUserIndexRoot() { return fixture_directory; }
 #undef FindNextFileW
 #undef FindFirstFileExW
 
-namespace pulse::index {
+namespace luling::index {
 struct NetworkIndexTestAccess {
     static void Prepare(NetworkIndex& index) {
         index.running_ = true;
@@ -149,7 +149,7 @@ struct NetworkIndexTestAccess {
             root.change_pending && !root.info.error.empty() && handles_open == 0;
     }
 };
-} // namespace pulse::index
+} // namespace luling::index
 
 namespace {
 std::vector<char> ReadFixture(const std::wstring& path) {
@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n';
         if (!ok) ++failures;
     };
-    using namespace pulse::index;
+    using namespace luling::index;
     if (argc == 2 && std::string_view(argv[1]) == "--snapshot-banner") {
         NetworkRootInfo root;
         root.path = L"\\\\fixture.invalid\\share";
@@ -172,23 +172,23 @@ int main(int argc, char** argv) {
         std::vector<NetworkRootInfo> roots{root};
         Query query;
         query.path_prefix = L"C:\\private-fixture\\source";
-        check(!pulse::app::UsesNetworkSnapshot(roots, query, false), "local scoped query has no network snapshot hint despite configured roots");
+        check(!luling::app::UsesNetworkSnapshot(roots, query, false), "local scoped query has no network snapshot hint despite configured roots");
         query.path_prefix.clear();
-        check(pulse::app::UsesNetworkSnapshot(roots, query, false), "global query retains configured network snapshot hint");
-        check(!pulse::app::UsesNetworkSnapshot({}, query, false), "global query without network roots has no snapshot hint");
+        check(luling::app::UsesNetworkSnapshot(roots, query, false), "global query retains configured network snapshot hint");
+        check(!luling::app::UsesNetworkSnapshot({}, query, false), "global query without network roots has no snapshot hint");
         query.path_prefix = root.path;
-        check(pulse::app::UsesNetworkSnapshot(roots, query, false), "indexed network root retains snapshot hint");
+        check(luling::app::UsesNetworkSnapshot(roots, query, false), "indexed network root retains snapshot hint");
         query.path_prefix = root.path + L"\\child";
-        check(pulse::app::UsesNetworkSnapshot(roots, query, false), "indexed network descendant retains snapshot hint");
-        check(!pulse::app::UsesNetworkSnapshot(roots, query, true), "live network query leaves hint to existing live banner");
+        check(luling::app::UsesNetworkSnapshot(roots, query, false), "indexed network descendant retains snapshot hint");
+        check(!luling::app::UsesNetworkSnapshot(roots, query, true), "live network query leaves hint to existing live banner");
         query.path_prefix = root.path + L"-other";
-        check(!pulse::app::UsesNetworkSnapshot(roots, query, false), "sibling prefix cannot borrow another root snapshot hint");
+        check(!luling::app::UsesNetworkSnapshot(roots, query, false), "sibling prefix cannot borrow another root snapshot hint");
         query.path_prefix = L"\\\\FIXTURE.INVALID\\SHARE\\child";
-        check(pulse::app::UsesNetworkSnapshot(roots, query, false), "scope comparison reuses case-insensitive production root helper");
+        check(luling::app::UsesNetworkSnapshot(roots, query, false), "scope comparison reuses case-insensitive production root helper");
         roots[0].building = true;
-        check(!pulse::app::UsesNetworkSnapshot(roots, query, false), "building root does not promise snapshot coverage");
+        check(!luling::app::UsesNetworkSnapshot(roots, query, false), "building root does not promise snapshot coverage");
         roots[0].building = false; roots[0].online = false;
-        check(!pulse::app::UsesNetworkSnapshot(roots, query, false), "offline scoped root does not promise snapshot coverage");
+        check(!luling::app::UsesNetworkSnapshot(roots, query, false), "offline scoped root does not promise snapshot coverage");
         std::cout << "Failures: " << failures << '\n';
         return failures ? 1 : 0;
     }
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
     }
 
     const auto temp = std::filesystem::temp_directory_path();
-    const auto fixture = temp / (L"pulse-network-walk-test-" + std::to_wstring(GetCurrentProcessId()) +
+    const auto fixture = temp / (L"luling-network-walk-test-" + std::to_wstring(GetCurrentProcessId()) +
                                  L"-" + std::to_wstring(GetTickCount64()));
     std::error_code ec;
     if (!std::filesystem::create_directory(fixture, ec)) {
@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
     const auto fixture_status = std::filesystem::symlink_status(fixture, ec);
     const bool owned_directory = same_parent && !guard_error && !ec &&
         fixture_status.type() == std::filesystem::file_type::directory &&
-        fixture.filename().wstring().starts_with(L"pulse-network-walk-test-");
+        fixture.filename().wstring().starts_with(L"luling-network-walk-test-");
     std::wcout << L"cleanup root=[" << fixture.wstring() << L"] temp=[" << temp.wstring()
                << L"] lexical_parent_match=" << (fixture.parent_path() == temp)
                << L" directory_parent_match=" << same_parent << L'\n';

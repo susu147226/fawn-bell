@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 struct archive;
@@ -152,4 +152,4 @@ bool ReadZipEntryPrefix(const std::wstring& path, std::string_view name, size_t 
     return ReadMember(path, name, max_bytes, true, data, truncated, error);
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

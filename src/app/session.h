@@ -6,7 +6,7 @@
 #include <string>
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct GroupSessionSnapshot {
     int id = 0;
@@ -58,7 +58,7 @@ struct SessionSnapshot {
     int active_layout_tab = 0;
 };
 
-std::wstring GetPulseDataDir();
+std::wstring GetLulingDataDir();
 bool SaveSession(const SessionSnapshot& snap);
 // Autosave compares the serialized form with the last write and skips unchanged state.
 std::wstring SessionToJson(const SessionSnapshot& snap);
@@ -84,4 +84,4 @@ void RestoreWindowTabs(WindowTabs& tabs,
                        int active_index,
                        const SessionTabLoader& load_tab);
 
-} // namespace pulse::app
+} // namespace luling::app

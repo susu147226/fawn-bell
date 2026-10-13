@@ -11,7 +11,7 @@ output = root / 'bench_data' / 'update-visuals'
 output.mkdir(parents=True, exist_ok=True)
 profile = output / 'profile'
 profile.mkdir(exist_ok=True)
-environment = dict(os.environ, PULSE_TEST_HIDDEN_SHOT='1', PULSE_TEST_DATA_DIR=str(profile))
+environment = dict(os.environ, LULING_TEST_HIDDEN_SHOT='1', LULING_TEST_DATA_DIR=str(profile))
 startup = subprocess.STARTUPINFO()
 startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 startup.wShowWindow = 0
@@ -27,9 +27,9 @@ cases = [
 results = []
 for name, state, language, theme, size, scale in cases:
     image = output / (name + '.png')
-    command = [str(build / 'pulse.exe'), '--test-instance', '--shot', str(image),
+    command = [str(build / 'luling.exe'), '--test-instance', '--shot', str(image),
                '--shot-update-state', state, '--shot-language', language, theme,
-               '--size', size, '--shot-scale', scale, 'pulse:settings:about']
+               '--size', size, '--shot-scale', scale, 'luling:settings:about']
     process = subprocess.run(command, cwd=root, env=environment, startupinfo=startup,
                              capture_output=True, timeout=30)
     passed = process.returncode == 0 and image.exists() and image.stat().st_size > 1000

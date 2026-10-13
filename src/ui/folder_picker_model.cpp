@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 bool IsSeparator(wchar_t ch) { return ch == L'\\' || ch == L'/'; }
@@ -165,7 +165,7 @@ std::wstring NormalizePickerInput(std::wstring_view text) {
         value = value.substr(1, value.size() - 2);
         trim();
     }
-    // Pulse keeps long-path prefixes internally; the picker shows plain paths.
+    // Luling keeps long-path prefixes internally; the picker shows plain paths.
     if (value.rfind(L"\\\\?\\UNC\\", 0) == 0) value = L"\\\\" + value.substr(8);
     else if (value.rfind(L"\\\\?\\", 0) == 0) value = value.substr(4);
     if (value.find(L'%') != std::wstring::npos) {
@@ -252,4 +252,4 @@ std::wstring PickerHistory::Forward(std::wstring current) {
     return next;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

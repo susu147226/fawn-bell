@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::format {
+namespace luling::format {
 
 enum class ByteSizeStyle { Spaced, Compact };
 
@@ -60,4 +60,4 @@ inline std::wstring GroupedInt(uint64_t value) {
     return out;
 }
 
-} // namespace pulse::format
+} // namespace luling::format

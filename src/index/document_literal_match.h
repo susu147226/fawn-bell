@@ -4,7 +4,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::index {
+namespace luling::index {
 // Only used by positive literal task queries. Background extraction reads all text.
 class DocumentLiteralMatch {
 public:

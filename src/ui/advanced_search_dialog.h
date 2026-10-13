@@ -6,7 +6,7 @@
 #include <functional>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct AdvancedSearchDialogResult {
     bool accepted = false;
@@ -26,4 +26,4 @@ AdvancedSearchDialogResult ShowAdvancedSearchDialog(HWND owner,
                                                     AdvancedSearchCountRequest count = {},
                                                     bool selection_outline = false);
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -5,7 +5,7 @@
 #include <cstdio>
 
 int wmain() {
-    using namespace pulse;
+    using namespace luling;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     wchar_t module[32768]{}; GetModuleFileNameW(nullptr, module, ARRAYSIZE(module));

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 enum class SlideTextKind { Title, CenterTitle, Subtitle, Body, Other };
 
@@ -43,4 +43,4 @@ bool ReadPptSlideModel(const std::wstring& path, SlideModel& model, std::wstring
 // Either, by content (ZIP or compound file), not by extension.
 bool ReadSlideModel(const std::wstring& path, SlideModel& model, std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

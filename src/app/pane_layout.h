@@ -1,7 +1,7 @@
 #pragma once
 #include "app_model.h"
 
-namespace pulse::app {
+namespace luling::app {
 inline void LayoutWindowPanes(const SplitContainer& root, const D2D1_RECT_F& bounds,
                               float scale, std::vector<std::pair<Pane*, D2D1_RECT_F>>& out,
                               std::vector<SplitterLayout>* splitters = nullptr) {

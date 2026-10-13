@@ -5,7 +5,7 @@
 #include <chrono>
 #include <atomic>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 bool Transfer(HANDLE pipe, void* bytes, DWORD size, bool write, ULONGLONG deadline = 0, HANDLE cancel = nullptr) {
     if (!deadline) deadline = GetTickCount64() + 1500;

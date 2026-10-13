@@ -33,7 +33,7 @@ static HRESULT WINAPI CacheTestProfile(HWND, int, HANDLE, DWORD, LPWSTR output) 
 
 namespace {
 namespace files = std::filesystem;
-using namespace pulse::fs;
+using namespace luling::fs;
 int failures = 0;
 void Check(bool ok, const char* label) {
     std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -69,7 +69,7 @@ void Run(const files::path& root) {
     const auto old_data = Snapshot(L"old-"), new_data = Snapshot(L"new-");
     auto old = Begin(path);
     auto newer = Begin(path);
-    Check(!files::exists(root / L"Pulse"), "request registration does no disk I/O");
+    Check(!files::exists(root / L"Luling"), "request registration does no disk I/O");
     Check(SaveNetSnapshot(newer, new_data), "new request commits first");
     Check(!SaveNetSnapshot(old, old_data), "late old request is rejected");
     Check(Matches(path, new_data), "fresh disk reload retains the newer directory");

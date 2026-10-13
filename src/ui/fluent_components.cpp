@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace pulse::ui::fluent {
+namespace luling::ui::fluent {
 
 namespace {
 
@@ -211,7 +211,7 @@ float Ease(EasingCurve curve, float value) noexcept {
 }
 
 const wchar_t* OmnibarHintBadge() {
-    return pulse::l10n::Pick(L"\u547D\u4EE4", L"Command");
+    return luling::l10n::Pick(L"\u547D\u4EE4", L"Command");
 }
 
 } // namespace
@@ -2795,4 +2795,4 @@ float Painter::ListRowContentOpacity(const ListRowSpec& spec) noexcept {
     return spec.cut ? 0.55f : 1.0f;
 }
 
-} // namespace pulse::ui::fluent
+} // namespace luling::ui::fluent

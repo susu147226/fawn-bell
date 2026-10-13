@@ -1,4 +1,4 @@
-// Shared DirectWrite typography policy for Pulse-owned UI surfaces.
+// Shared DirectWrite typography policy for Luling-owned UI surfaces.
 #pragma once
 
 #include <windows.h>
@@ -8,9 +8,9 @@
 #include <cstdint>
 #include <string_view>
 
-namespace pulse::ui { class Compositor; }
+namespace luling::ui { class Compositor; }
 
-namespace pulse::ui::typography {
+namespace luling::ui::typography {
 
 enum class FontRole {
     Text,
@@ -51,7 +51,7 @@ void SetUiFontScale(int percent) noexcept;
 int UiFontScalePercent() noexcept;
 float UiFontScale() noexcept;
 
-// Native EDIT controls hosted on Pulse surfaces (address bar and rename,
+// Native EDIT controls hosted on Luling surfaces (address bar and rename,
 // dialog fields, menu filters, Quick Look find) all use this font: the UI text
 // family at `dip` DIPs times the interface font size and the DPI scale, so the
 // editor matches the DirectWrite text around it. The caller owns the HFONT and
@@ -63,7 +63,7 @@ HFONT CreateEditFont(float scale, float dip = 14.0f);
 void InvalidateCaches();
 std::uint64_t Generation() noexcept;
 
-// Pulse lays out in physical pixels on a 96-DPI D2D target. Keep vertical
+// Luling lays out in physical pixels on a 96-DPI D2D target. Keep vertical
 // text boxes stable while preserving DirectWrite's natural horizontal spacing.
 D2D1_RECT_F SnapVerticalBounds(const D2D1_RECT_F& bounds) noexcept;
 
@@ -84,4 +84,4 @@ float MeasureLine(Compositor* compositor, IDWriteTextFormat* format,
 float MeasureWrapped(IDWriteFactory2* factory, IDWriteTextFormat* format,
                      std::wstring_view text, float width);
 
-} // namespace pulse::ui::typography
+} // namespace luling::ui::typography

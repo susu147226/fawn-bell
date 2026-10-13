@@ -8,11 +8,11 @@
 #include <vector>
 #include <utility>
 
-#ifdef PULSE_RECYCLE_METADATA_TEST
-namespace pulse::review { DWORD RecycleReadAmountForReview(DWORD requested); }
+#ifdef LULING_RECYCLE_METADATA_TEST
+namespace luling::review { DWORD RecycleReadAmountForReview(DWORD requested); }
 #endif
 
-namespace pulse::recycle {
+namespace luling::recycle {
 
 struct IndexRecord {
     std::wstring original_path;
@@ -31,7 +31,7 @@ inline uint64_t ReadLittleEndian(const BYTE* bytes, size_t count) {
 inline bool SupportedAbsolutePath(std::wstring_view original) {
     // Validate the exact conversion used by the restore caller. In particular,
     // unknown device namespaces must not become relative paths after stripping.
-    const std::wstring path = pulse::path::StripExtendedPathPrefix(original);
+    const std::wstring path = luling::path::StripExtendedPathPrefix(original);
     const auto sep = [](wchar_t c) { return c == L'\\' || c == L'/'; };
     if (path.size() > 3 && ((path[0] >= L'A' && path[0] <= L'Z') ||
                            (path[0] >= L'a' && path[0] <= L'z')) &&
@@ -104,8 +104,8 @@ inline bool ReadIndex(const std::wstring& path, IndexRecord& out) {
         static_cast<uint64_t>(size.QuadPart) > kMaxIndexBytes) return false;
     std::vector<BYTE> bytes(static_cast<size_t>(size.QuadPart));
     DWORD requested = static_cast<DWORD>(bytes.size());
-#ifdef PULSE_RECYCLE_METADATA_TEST
-    requested = pulse::review::RecycleReadAmountForReview(requested);
+#ifdef LULING_RECYCLE_METADATA_TEST
+    requested = luling::review::RecycleReadAmountForReview(requested);
     if (requested > bytes.size()) return false;
 #endif
     DWORD received = 0;
@@ -114,4 +114,4 @@ inline bool ReadIndex(const std::wstring& path, IndexRecord& out) {
     return ParseIndex(bytes.data(), received, out);
 }
 
-} // namespace pulse::recycle
+} // namespace luling::recycle

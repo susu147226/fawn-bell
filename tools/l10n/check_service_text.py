@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Check that Simplified Chinese text produced by Pulse's helper processes has an
+"""Check that Simplified Chinese text produced by Luling's helper processes has an
 English translation in src/common/service_text.cpp.
 
-The index service, network agent, pulse_shell and preview host report
+The index service, network agent, luling_shell and preview host report
 Simplified Chinese; the UI localizes it with l10n::ServiceText(). Every Han
 literal in the helper sources must be either an exact entry, a literal piece of
 a pattern, or fully matched by a pattern. Literals are split on " · " first, as

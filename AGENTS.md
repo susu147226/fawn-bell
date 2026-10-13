@@ -10,7 +10,7 @@
 
 ## Project Structure & Module Organization
 
-Pulse is a Windows C++20 file manager using Win32, Direct2D, and DirectComposition:
+Luling is a Windows C++20 file manager using Win32, Direct2D, and DirectComposition:
 
 - `src/app/` owns state, navigation, preferences, and the main window; `src/ui/` owns rendering, layouts, Fluent controls, thumbnails, and drag/drop.
 - `src/fs/` and `src/ops/` provide directory snapshots and asynchronous operations.
@@ -29,17 +29,17 @@ Use an x64 Visual Studio developer prompt with MSVC, CMake 3.25+, and Ninja:
 
 ```powershell
 # 默认：仅构建受影响的目标，此处以主程序为例
-cmake --build build --target pulse
+cmake --build build --target luling
 # 仅涉及对应模块时运行；必要时先构建对应测试目标
-.\build\pulse_preview_test.exe
-.\build\pulse_ops_test.exe
+.\build\luling_preview_test.exe
+.\build\luling_ops_test.exe
 # 仅确有全量构建需求时使用
 .\build_release.bat
 ```
 
-`build_release.bat` builds all Release targets; build one target during iteration. For the optional headless suite, configure with `-DPULSE_WITH_SELFTEST=ON`, then run `pulse.exe --selftest` and explicitly wait for it to exit.
+`build_release.bat` builds all Release targets; build one target during iteration. For the optional headless suite, configure with `-DLULING_WITH_SELFTEST=ON`, then run `luling.exe --selftest` and explicitly wait for it to exit.
 
-`build_installer.bat` builds Release and packs `dist\PulseSetup-<version>.exe` with the Pulse setup (`src/setup` bootstrapper + `tools/pack_installer/pack_installer.py`, via `scripts/pack_setup.bat`; needs Python 3). `/skipbuild` packs the existing `build` folder; `build_win81_installer.bat` packs `build-win81` as `-win81`. The installer requires admin, optionally registers and starts the `PulseIndex` service for full-disk MFT/USN indexing, and removes it on uninstall. Crash logs live in `%LOCALAPPDATA%\Pulse` (`pulse_crash.log`, `pulse_shell_host.log`) so installed copies under Program Files can write them.
+`build_installer.bat` builds Release and packs `dist\LulingSetup-<version>.exe` with the Luling setup (`src/setup` bootstrapper + `tools/pack_installer/pack_installer.py`, via `scripts/pack_setup.bat`; needs Python 3). `/skipbuild` packs the existing `build` folder; `build_win81_installer.bat` packs `build-win81` as `-win81`. The installer requires admin, optionally registers and starts the `LulingIndex` service for full-disk MFT/USN indexing, and removes it on uninstall. Crash logs live in `%LOCALAPPDATA%\Luling` (`luling_crash.log`, `luling_shell_host.log`) so installed copies under Program Files can write them.
 
 ## Coding Style & Naming Conventions
 
@@ -55,7 +55,7 @@ Tests are custom `[PASS]/[FAIL]` executables. Put preview cases in `src/bench/pr
 
 默认按本次改动的影响范围验证，禁止每次修复新 bug 都重跑全部历史测试：
 
-- 只构建受影响的目标，只运行与本次 bug 及其直接依赖相关的测试；不默认运行 `build_release.bat`、完整 `pulse.exe --selftest` 或所有测试程序。
+- 只构建受影响的目标，只运行与本次 bug 及其直接依赖相关的测试；不默认运行 `build_release.bat`、完整 `luling.exe --selftest` 或所有测试程序。
 - 优先使用测试筛选或独立测试目标。相关用例无法单独运行时，使用最小可行的定向验证并说明限制，不因测试打包在一起就自动运行完整套件。
 - 只有公共底层改动有证据影响多个模块、影响范围经定向检查后仍无法可靠界定，或用户明确要求时，才扩大测试范围；运行前说明具体原因和拟增加的检查，优先扩到受影响模块，不直接跳到完整回归。完整回归不是每次修复的完成条件。
 - 相关检查通过后停止验证；仅在后续改动、新失败或未解决的相关风险出现时重跑受影响的检查。不因无关历史失败自动扩展修复范围。

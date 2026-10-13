@@ -1,7 +1,7 @@
 #include "search_kinds.h"
 #include "index_query.h"
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 void SplitExts(std::wstring_view raw, std::vector<std::wstring>& out) {
@@ -92,4 +92,4 @@ std::wstring TextExtensionQueryToken() {
            L"cmake;toml;properties";
 }
 
-} // namespace pulse::index
+} // namespace luling::index

@@ -8,7 +8,7 @@
 #include <iterator>
 #include <cstring>
 
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static bool NotifyRestart() {
         bool ok = true;
@@ -266,6 +266,6 @@ struct EngineTestAccess {
 }
 int main(int argc, char** argv) {
     if (argc == 2 && std::string_view(argv[1]) == "--notify-restart-only")
-        return pulse::index::EngineTestAccess::NotifyRestart() ? 0 : 1;
-    return pulse::index::EngineTestAccess::Run() ? 0 : 1;
+        return luling::index::EngineTestAccess::NotifyRestart() ? 0 : 1;
+    return luling::index::EngineTestAccess::Run() ? 0 : 1;
 }

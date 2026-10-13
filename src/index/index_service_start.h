@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 // The caller supplies SCM operations; the same transitions can be tested without
 // stopping or reconfiguring the installed service.
@@ -40,4 +40,4 @@ DWORD EnsureServiceRunning(Query query, Start start, Wait wait) {
     return ERROR_SERVICE_REQUEST_TIMEOUT;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

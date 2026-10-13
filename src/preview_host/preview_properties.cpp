@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-using namespace pulse;
+using namespace luling;
 using Microsoft::WRL::ComPtr;
 using preview::PreviewPropertyValue;
 
@@ -55,7 +55,7 @@ bool ReadUintProperty(IPropertyStore* store, REFPROPERTYKEY key, uint32_t& value
 
 } // namespace
 
-namespace pulse::preview {
+namespace luling::preview {
 
 static std::vector<PreviewPropertyValue> ReadShellProperties(const std::wstring& path) {
     std::vector<PreviewPropertyValue> out;
@@ -143,4 +143,4 @@ uint32_t ReadMediaDurationMs(const std::wstring& path) {
     return ms;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

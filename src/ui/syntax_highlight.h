@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Lightweight, dependency-free syntax colouring for the Quick Look text view.
 // It is a lexer, not a parser: keywords, strings, comments, numbers and a few
@@ -33,4 +33,4 @@ std::vector<SyntaxSpan> HighlightSyntax(std::wstring_view extension, std::wstrin
 // Token colour (0xRRGGBB), VS Code Dark+ / Light+ inspired; 0 for Plain.
 uint32_t SyntaxTokenRgb(SyntaxToken token, bool dark) noexcept;
 
-} // namespace pulse::ui
+} // namespace luling::ui

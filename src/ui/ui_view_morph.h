@@ -17,7 +17,7 @@
 #include <cstddef>
 #include <unordered_map>
 
-namespace pulse::ui::motion {
+namespace luling::ui::motion {
 
 // Critically damped spring x(t) = 1 - (1 + w t) e^(-w t), normalised so that
 // x(1) == 1 exactly (no end snap). t in [0, 1].
@@ -224,4 +224,4 @@ private:
     std::unordered_map<uint64_t, Rects> from_;
 };
 
-} // namespace pulse::ui::motion
+} // namespace luling::ui::motion

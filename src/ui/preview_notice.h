@@ -8,10 +8,10 @@
 #include <cwchar>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 inline std::wstring PreviewNotice(const std::wstring& error, const std::wstring& metadata = {},
     const preview::Integrity& integrity = {}) {
-    using pulse::l10n::Pick;
+    using luling::l10n::Pick;
     if (error == L"docx-reading")
         return Pick(L"正文阅读预览，非 Word 原版排版；表格内图片、页眉页脚和部分嵌入内容可能遗漏。",
                     L"Reading preview, not Word layout. Images in tables, headers, footers and some embedded content may be omitted.");
@@ -105,4 +105,4 @@ inline float DrawPreviewNotice(ID2D1DeviceContext* dc, IDWriteFactory* factory,
     }
     return height;
 }
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -1,7 +1,7 @@
 // Packaged File Explorer context-menu verbs (#48): manifest parsing, item-type
 // matching and the IExplorerCommand -> IContextMenu adapter. `--live` also
 // lists the verbs installed on this machine and their titles; `--pipe` queries
-// real menus through pulse_shell.exe. Both are read-only: nothing is invoked.
+// real menus through luling_shell.exe. Both are read-only: nothing is invoked.
 #include "../shell_host/packaged_ctx_handlers.h"
 #include "../ipc/shell_client.h"
 
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-using namespace pulse::shell;
+using namespace luling::shell;
 
 namespace {
 
@@ -461,10 +461,10 @@ struct PipeResult {
     std::condition_variable cv;
     uint32_t id = 0;
     bool done = false;
-    std::vector<pulse::ipc::CtxMenuItem> items;
+    std::vector<luling::ipc::CtxMenuItem> items;
 };
 
-// One real context-menu query through pulse_shell.exe (closed, never invoked).
+// One real context-menu query through luling_shell.exe (closed, never invoked).
 struct VisibleVerb {
     PackagedCtxVerb verb;
     std::vector<std::wstring> rows;  // invokable titles from the in-process adapter
@@ -480,7 +480,7 @@ void MenuRows(HMENU menu, std::vector<std::wstring>& rows) {
 
 void PipeQuery(PipeResult& result, const std::wstring& path, bool background,
                const std::vector<VisibleVerb>& expected) {
-    auto& client = pulse::ipc::ShellClient::Instance();
+    auto& client = luling::ipc::ShellClient::Instance();
     {
         std::lock_guard<std::mutex> lock(result.mutex);
         result.done = false;
@@ -549,8 +549,8 @@ std::vector<VisibleVerb> VisibleVerbs(const std::wstring& path, bool background)
 
 void Pipe() {
     static PipeResult result;
-    pulse::ipc::ShellClient::Callbacks callbacks;
-    callbacks.ctx_items = [](uint32_t id, std::vector<pulse::ipc::CtxMenuItem> items, bool partial,
+    luling::ipc::ShellClient::Callbacks callbacks;
+    callbacks.ctx_items = [](uint32_t id, std::vector<luling::ipc::CtxMenuItem> items, bool partial,
                              std::vector<std::wstring>) {
         std::lock_guard<std::mutex> lock(result.mutex);
         if (id != result.id) return;
@@ -561,7 +561,7 @@ void Pipe() {
         }
     };
     callbacks.done = [](uint32_t, uint32_t, bool, std::wstring) {};
-    auto& client = pulse::ipc::ShellClient::Instance();
+    auto& client = luling::ipc::ShellClient::Instance();
     client.Start(std::move(callbacks));
     wchar_t windows[MAX_PATH]{};
     GetWindowsDirectoryW(windows, MAX_PATH);
@@ -580,7 +580,7 @@ int wmain(int argc, wchar_t** argv) {
 
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(MAX_PATH, temp);
-    const std::wstring dir = std::wstring(temp) + L"pulse_packaged_ctx_test";
+    const std::wstring dir = std::wstring(temp) + L"luling_packaged_ctx_test";
     const std::wstring file = dir + L"\\Readme.TXT";
     CreateDirectoryW(dir.c_str(), nullptr);
     HANDLE h = CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);

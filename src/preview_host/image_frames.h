@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 struct ApngFrame {
     uint32_t x = 0, y = 0, width = 0, height = 0;
@@ -59,4 +59,4 @@ size_t DefaultIconEntry(const std::vector<IconEntry>& entries);
 //   E\t<width>\t<height>\t<bits>\t<png 0|1>\n   (one per entry, file order)
 std::wstring MakeIconSizesPayload(const std::vector<IconEntry>& entries, size_t selected);
 
-} // namespace pulse::preview
+} // namespace luling::preview

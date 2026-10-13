@@ -2,11 +2,11 @@
 #include <windows.h>
 #include <shellscalingapi.h>
 
-namespace pulse::compat {
+namespace luling::compat {
 // Also exercises the legacy path on development machines without changing the OS.
 inline bool LegacyMode() noexcept {
     wchar_t value[4]{};
-    return GetEnvironmentVariableW(L"PULSE_COMPAT_81", value, ARRAYSIZE(value)) == 1 && value[0] == L'1';
+    return GetEnvironmentVariableW(L"LULING_COMPAT_81", value, ARRAYSIZE(value)) == 1 && value[0] == L'1';
 }
 
 inline FARPROC UserApi(const char* name) noexcept {

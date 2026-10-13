@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "document_metrics.h"
 
-namespace pulse::index::document {
+namespace luling::index::document {
 inline constexpr uint32_t kMagic = 0x39444350;
 inline constexpr uint64_t kMaximumFileBytes = 512ull * 1024 * 1024;
 inline constexpr uint32_t kMaximumTextChars = 8u * 1024 * 1024;
@@ -17,7 +17,7 @@ struct FileVersion {
 };
 inline uint32_t PdfEngineMode() noexcept {
     wchar_t value[16]{};
-    const DWORD length = GetEnvironmentVariableW(L"PULSE_PDF_ENGINE", value, ARRAYSIZE(value));
+    const DWORD length = GetEnvironmentVariableW(L"LULING_PDF_ENGINE", value, ARRAYSIZE(value));
     if (length >= ARRAYSIZE(value)) return 3;
     return wcscmp(value, L"pdfium") == 0 ? 1u : wcscmp(value, L"ifilter") == 0 ? 2u :
         (!length || wcscmp(value, L"auto") == 0) ? 0u : 3u;

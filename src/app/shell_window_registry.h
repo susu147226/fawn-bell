@@ -1,11 +1,11 @@
-// shell_window_registry.h — Pulse panes as shell windows (B站 #1 phase 2a).
+// shell_window_registry.h — Luling panes as shell windows (B站 #1 phase 2a).
 //
 // Each pane showing a folder is registered in IShellWindows as an SWC_BROWSER
 // window whose document serves an IShellView. SHOpenFolderAndSelectItems
 // ("open file location" in WeChat, WPS, browsers…) then finds the pane by
 // folder and calls IShellView::SelectItem, which comes back to the UI thread
 // as a ShellSelectRequest. When no pane shows the folder, the shell runs the
-// folder's open verb (Pulse, with the takeover on) and waits for a window
+// folder's open verb (Luling, with the takeover on) and waits for a window
 // registered as pending for that folder — so a new pane registers at once.
 //
 // Every call into Explorer runs on the registry's own STA thread; the UI
@@ -19,9 +19,9 @@
 
 struct IShellWindows;
 
-namespace pulse::app {
+namespace luling::app {
 
-// Selftest builds: appends a line to PULSE_TEST_SHELL_WINDOWS_LOG, if set.
+// Selftest builds: appends a line to LULING_TEST_SHELL_WINDOWS_LOG, if set.
 void TraceShellWindows(const wchar_t* format, ...);
 
 class ShellWindowRegistry {
@@ -40,7 +40,7 @@ public:
     // UI-side liveness check only; failed thread creation is retried with backoff.
     void EnsureRunning();
     // Revokes every registration and ends the thread, waiting at most
-    // `timeout_ms` (a hung Explorer must not hold up closing Pulse).
+    // `timeout_ms` (a hung Explorer must not hold up closing Luling).
     void Stop(DWORD timeout_ms = 2000);
 
     struct Shared;
@@ -52,4 +52,4 @@ private:
     DWORD start_retry_ms_ = 250;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

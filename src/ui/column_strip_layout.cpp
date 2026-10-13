@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 float ColumnStripWidthDip(const std::vector<float>& widths_dip, size_t slot) noexcept {
     const float fallback = slot == 0 ? kColumnStripChildDefaultDip : kColumnStripDefaultDip;
@@ -71,4 +71,4 @@ ColumnStripLayout LayoutColumnStrip(const D2D1_RECT_F& pane_bounds, float top,
     return out;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

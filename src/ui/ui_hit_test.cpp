@@ -19,7 +19,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 bool MainRenderer::TabItemRect(const WindowViewModel& vm, float window_w, int index,
                                D2D1_RECT_F* out) const {
@@ -497,19 +497,19 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     }
                 }
             } else if (vm.settings_page == 2) {
-                // Pulse menu card: presets 60-62, tabs 64-66, restore 67.
+                // Luling menu card: presets 60-62, tabs 64-66, restore 67.
                 for(int i=0;i<3;++i) {
-                    if(ContainsPt(lay.pulse_preset[i],x,y)) {r.region=HitTestResult::SettingsToggle;r.index=60+i;return r;}
-                    if(ContainsPt(lay.pulse_tab[i],x,y)) {r.region=HitTestResult::SettingsToggle;r.index=64+i;return r;}
+                    if(ContainsPt(lay.luling_preset[i],x,y)) {r.region=HitTestResult::SettingsToggle;r.index=60+i;return r;}
+                    if(ContainsPt(lay.luling_tab[i],x,y)) {r.region=HitTestResult::SettingsToggle;r.index=64+i;return r;}
                 }
-                if(ContainsPt(lay.pulse_restore,x,y)) {r.region=HitTestResult::SettingsToggle;r.index=67;return r;}
+                if(ContainsPt(lay.luling_restore,x,y)) {r.region=HitTestResult::SettingsToggle;r.index=67;return r;}
                 // Preview rows: press to drag (kSettingsMenuRowHit + item);
                 // the fixed rows only report hover. 68 restores the tab's order.
-                if(ContainsPt(lay.pulse_order_reset,x,y)) {r.region=HitTestResult::SettingsToggle;r.index=kSettingsMenuOrderReset;return r;}
-                if(ContainsPt(lay.pulse_preview,x,y)) {
+                if(ContainsPt(lay.luling_order_reset,x,y)) {r.region=HitTestResult::SettingsToggle;r.index=kSettingsMenuOrderReset;return r;}
+                if(ContainsPt(lay.luling_preview,x,y)) {
                     WindowViewModel still=vm;still.settings_menu_drag=-1;
-                    for(const auto& row:LayoutPulsePreview(still,PulsePreviewBox(lay.pulse_preview,scale_),scale_).rows)
-                        if(ContainsPt(row.rect,x,y)) {r.region=HitTestResult::SettingsToggle;r.index=PulseMenuRowHit(row.row);return r;}
+                    for(const auto& row:LayoutLulingPreview(still,LulingPreviewBox(lay.luling_preview,scale_),scale_).rows)
+                        if(ContainsPt(row.rect,x,y)) {r.region=HitTestResult::SettingsToggle;r.index=LulingMenuRowHit(row.row);return r;}
                 }
                 for(int g=0;g<SettingsLayout::kContextCards;++g) {
                     if(g<5 && ContainsPt(lay.context_toggle[g],x,y)) {r.region=HitTestResult::SettingsToggle;r.index=10+g;return r;}
@@ -1331,4 +1331,4 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
     return hitPaneBounds(vm.pane, content, 0, true);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -27,12 +27,12 @@
 //   quick recipes -> one keyword box -> "names | contents" -> clickable pills for
 //   type/date/size/location -> collapsible expert options -> a plain-language
 //   summary with a live result count.
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 using I = l10n::StringId;
 
-constexpr wchar_t kClass[] = L"PulseAdvancedSearchWindow";
+constexpr wchar_t kClass[] = L"LulingAdvancedSearchWindow";
 constexpr float kDlgW = 640.0f;
 constexpr float kPad = 24.0f;
 constexpr float kLabelW = 84.0f;
@@ -159,7 +159,7 @@ struct RowLabel {
 
 class AdvancedSearchWindow {
 public:
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     bool TestDeviceRecovery(HWND host) {
         hwnd_ = host;
         if (!compositor_.Init(host)) return false;
@@ -170,7 +170,7 @@ public:
         return !compositor_.NeedsRecovery() && compositor_.Dc() && compositor_.TextFormat();
     }
 #endif
-#ifdef PULSE_ADVANCED_QUERY_TEST
+#ifdef LULING_ADVANCED_QUERY_TEST
     AdvancedSearchDialogResult TestQuery(app::AdvancedSearchSpec spec, int field,
                                          const std::wstring& value) {
         spec_ = std::move(spec);
@@ -201,7 +201,7 @@ public:
         accent_ = accent;
         count_request_ = std::move(count);
         content_mode_ = !spec_.content.empty();
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(owner ? owner : GetDesktopWindow())) / 96.0f;
+        scale_ = static_cast<float>(luling::compat::WindowDpi(owner ? owner : GetDesktopWindow())) / 96.0f;
         result_ = {};
 
         WNDCLASSEXW wc{ sizeof(wc) };
@@ -249,7 +249,7 @@ public:
     }
 
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     void TestRecovery(HWND owner, float scale, bool dark, const std::wstring& png,
                       const DialogRecoveryCheck& check) {
         owner_ = owner; scale_ = scale; dark_ = dark; more_ = true;
@@ -287,13 +287,13 @@ public:
         Render();
         check(snapshot_saved_, "advanced recovered frame captured before flip presentation");
         snapshot_path_.clear();
-        SetPropW(hwnd_, L"Pulse.Test.RecoveryFailure", reinterpret_cast<HANDLE>(1));
+        SetPropW(hwnd_, L"Luling.Test.RecoveryFailure", reinterpret_cast<HANDLE>(1));
         compositor_.NotifyDeviceLost(DXGI_ERROR_DEVICE_REMOVED); Render();
         const auto attempts = recovery_attempts_;
         for (int i = 0; i < 20; ++i) Render();
         check(compositor_.NeedsRecovery() && recovery_attempts_ == attempts,
               "advanced failed recovery backs off instead of repaint spin");
-        RemovePropW(hwnd_, L"Pulse.Test.RecoveryFailure");
+        RemovePropW(hwnd_, L"Luling.Test.RecoveryFailure");
         Sleep(275); Render();
         check(!compositor_.NeedsRecovery() && state_kept(), "advanced retries transient failure with state retained");
         SendMessageW(edit, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L"changed"));
@@ -896,9 +896,9 @@ private:
             // context happens to reuse the old context's address.
             painter_.SetCompositor(nullptr);
             bool recovered = false;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
             ++recovery_attempts_;
-            if (!GetPropW(hwnd_, L"Pulse.Test.RecoveryFailure"))
+            if (!GetPropW(hwnd_, L"Luling.Test.RecoveryFailure"))
 #endif
                 recovered = compositor_.Recover();
             if (!recovered) {
@@ -1038,7 +1038,7 @@ private:
         close_state.hovered = hover_ == kHitClose;
         close_state.pressed = pressed_ == kHitClose;
         painter_.DrawTitleBarButton(CloseRect(), fluent::TitleBarButtonRole::Close, {}, close_state);
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         if (!snapshot_path_.empty()) {
             // A flip-chain back buffer is no longer the submitted frame after Present.
             const HRESULT drawn = compositor_.Dc()->EndDraw();
@@ -1262,7 +1262,7 @@ private:
     bool selection_outline_ = false;
     ULONGLONG next_recovery_ = 0;
     UINT recovery_delay_ = 250;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     unsigned recovery_attempts_ = 0;
     std::wstring snapshot_path_;
     bool snapshot_saved_ = false;
@@ -1274,7 +1274,7 @@ private:
 
 } // namespace
 
-#ifdef PULSE_ADVANCED_QUERY_TEST
+#ifdef LULING_ADVANCED_QUERY_TEST
 AdvancedSearchDialogResult TestAdvancedSearchQuery(app::AdvancedSearchSpec spec, int field,
                                                   const std::wstring& value) {
     AdvancedSearchWindow window;
@@ -1282,7 +1282,7 @@ AdvancedSearchDialogResult TestAdvancedSearchQuery(app::AdvancedSearchSpec spec,
 }
 #endif
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 void TestAdvancedSearchRecovery(HWND owner, float scale, bool dark, const std::wstring& png,
                                const DialogRecoveryCheck& check) {
     AdvancedSearchWindow window;
@@ -1297,11 +1297,11 @@ AdvancedSearchDialogResult ShowAdvancedSearchDialog(HWND owner, app::AdvancedSea
     return window.Show(owner, std::move(spec), dark, accent, std::move(count), selection_outline);
 }
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 bool TestAdvancedSearchDeviceRecovery(HWND host) {
     AdvancedSearchWindow window;
     return window.TestDeviceRecovery(host);
 }
 #endif
 
-} // namespace pulse::ui
+} // namespace luling::ui

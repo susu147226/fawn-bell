@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "app_input.h"
 #include "app_runtime.h"
 #include "app_navigation.h"
@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct P1MenuTestPeer {
     static bool Seed(FluentMenu& menu, const std::vector<FluentMenuItem>& items) {
         if (!menu.EnsureWindow()) return false;
@@ -32,12 +32,12 @@ struct P1MenuTestPeer {
 };
 }
 
-using namespace pulse;
+using namespace luling;
 void RecordP1StartupRollback(const AppState& s) {
-    if (!GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", nullptr, 0) ||
-        !GetEnvironmentVariableW(L"PULSE_TEST_STARTUP_FAIL", nullptr, 0)) return;
+    if (!GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", nullptr, 0) ||
+        !GetEnvironmentVariableW(L"LULING_TEST_STARTUP_FAIL", nullptr, 0)) return;
     FILE* log = nullptr;
-    const auto path = app::GetPulseDataDir() + L"\\startup-rollback.txt";
+    const auto path = app::GetLulingDataDir() + L"\\startup-rollback.txt";
     if (_wfopen_s(&log, path.c_str(), L"w") || !log) return;
     std::fprintf(log, "WM_DESTROY startupComplete=%d isolatedTest=%d\n", s.startupComplete, s.isolatedTest);
     std::fclose(log);
@@ -117,7 +117,7 @@ int RunMenuIdentityChecks(AppState& s, FILE* log) {
 int RunLayoutRegressionProbe(AppState& s, const wchar_t* output);
 int RunP1RegressionProbe(AppState& s, const wchar_t* output) {
     wchar_t layout_scope[32]{};
-    if (GetEnvironmentVariableW(L"PULSE_TEST_P1_SCOPE", layout_scope, ARRAYSIZE(layout_scope)) &&
+    if (GetEnvironmentVariableW(L"LULING_TEST_P1_SCOPE", layout_scope, ARRAYSIZE(layout_scope)) &&
         std::wstring_view(layout_scope) == L"layout") return RunLayoutRegressionProbe(s, output);
     FILE* log = nullptr;
     if (!s.isolatedTest || _wfopen_s(&log, output, L"w") || !log) return 2;
@@ -135,7 +135,7 @@ int RunP1RegressionProbe(AppState& s, const wchar_t* output) {
     auto* tab = ActiveTab(s);
     if (!tab) { std::fclose(log); return 3; }
     wchar_t fixture_root[32768]{};
-    const DWORD fixture_length = GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", fixture_root, ARRAYSIZE(fixture_root));
+    const DWORD fixture_length = GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", fixture_root, ARRAYSIZE(fixture_root));
     if (!fixture_length || fixture_length >= ARRAYSIZE(fixture_root)) { std::fclose(log); return 3; }
     tab->current_path = std::wstring(fixture_root) + L"\\selection-fixture";
     auto entries = std::make_shared<std::vector<fs::DirEntry>>(3);
@@ -305,7 +305,7 @@ int RunP1RegressionProbe(AppState& s, const wchar_t* output) {
         tab->filter_text.clear();
     }
     wchar_t scope[32]{};
-    if (GetEnvironmentVariableW(L"PULSE_TEST_P1_SCOPE", scope, ARRAYSIZE(scope)) &&
+    if (GetEnvironmentVariableW(L"LULING_TEST_P1_SCOPE", scope, ARRAYSIZE(scope)) &&
         std::wstring_view(scope) == L"selection") {
         std::fclose(log);
         return failures ? 1 : 0;

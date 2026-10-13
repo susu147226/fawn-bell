@@ -34,11 +34,11 @@
 #include <unordered_set>
 #include <vector>
 
-namespace pulse::app { class PlacesCatalog; }
+namespace luling::app { class PlacesCatalog; }
 
-namespace pulse::ui {
+namespace luling::ui {
 
-// SettingsToggle indexes of the Pulse menu preview (右键菜单 page): rows
+// SettingsToggle indexes of the Luling menu preview (右键菜单 page): rows
 // are kSettingsMenuRowHit + BuiltinMenuItem, the fixed rows
 // kSettingsMenuFixedHit + BuiltinFixedRow; 68 restores the tab's order.
 inline constexpr int kSettingsMenuFixedHit = 99990;
@@ -48,7 +48,7 @@ enum class PaneHeaderIcon;
 
 inline constexpr unsigned kSettingsContextExpandedMask = 0x1f00u;
 // Third-party context-menu groups (kSettingsContextExpandedMask) start
-// collapsed under 其他软件添加的项; the Pulse menu card is always open.
+// collapsed under 其他软件添加的项; the Luling menu card is always open.
 inline constexpr unsigned kSettingsDefaultExpandedMask = 0x7u;
 
 class BloomAccentPicker;
@@ -69,7 +69,7 @@ struct TabView {
     int group = -1;         // index into WindowViewModel::tab_groups
     bool hidden = false;    // member of a collapsed group: zero width, not drawn
     bool pinned = false;    // narrow icon-only slot, left cluster, no close
-    float flash = 0.0f;     // 0..1 attention pulse: reopened folder already had this tab
+    float flash = 0.0f;     // 0..1 attention luling: reopened folder already had this tab
 };
 
 // A named, colored tab group shown as a chip at the start of its run.
@@ -345,13 +345,13 @@ struct SidebarItem {
     bool tab_row = false;          // vertical tabs: row stands for a window tab
     int tab_number = 0;            // 1-based position, badged on the icon rail
     bool tab_active = false;
-    float flash = 0.0f;            // tab rows: attention pulse, see TabView::flash
+    float flash = 0.0f;            // tab rows: attention luling, see TabView::flash
 };
 
 enum class SidebarAddAction { None, CreateTag, AddNetwork, AddQuickAccess, NewTab };
 
 struct SidebarGroup {
-    // Logical section id (pulse::app::SidebarSectionId). Collapse/hide masks and
+    // Logical section id (luling::app::SidebarSectionId). Collapse/hide masks and
     // the section menus key off this, not off the display position, because the
     // user can reorder the groups by dragging their headers.
     int id = -1;
@@ -442,7 +442,7 @@ struct TrayDeckView {
     bool hidden = false;             // host has no staging tray (file picker)
     int hovered = -1;                // live display index under the cursor (0 = top)
     std::vector<TrayDestView> dests; // recent drop folders, newest first (max 3)
-    int stale_count = 0;             // staged items moved/deleted outside Pulse
+    int stale_count = 0;             // staged items moved/deleted outside Luling
     bool can_compare = false;        // exactly two existing files staged
     bool comparing = false;          // compare table replaces the card stack
     TrayCompareView compare;
@@ -590,8 +590,8 @@ enum class PackAction : int {
     UseCustom,          // use an FFmpeg already on this PC
     Browse,             // choose that ffmpeg.exe
     UseDetected,        // take the ffmpeg.exe found on PATH
-    OpenFolder,         // %LOCALAPPDATA%\Pulse\packs
-    RemoveOnUninstall,  // delete the packs with Pulse
+    OpenFolder,         // %LOCALAPPDATA%\Luling\packs
+    RemoveOnUninstall,  // delete the packs with Luling
     ImagesInstall,      // image pack: download and install (or cancel)
     ImagesRemove,       // image pack: uninstall
     ImagesEnable,       // image pack: on / off
@@ -711,7 +711,7 @@ struct WindowViewModel {
     std::wstring settings_pack_version;         // installed FFmpeg pack version
     std::wstring settings_pack_custom_path;     // chosen ffmpeg.exe
     std::wstring settings_pack_detected_path;   // ffmpeg.exe found on PATH
-    std::wstring settings_pack_root;            // %LOCALAPPDATA%\Pulse\packs
+    std::wstring settings_pack_root;            // %LOCALAPPDATA%\Luling\packs
     std::wstring settings_pack_notice;          // last action's message, empty when none
     bool settings_pack_installing = false;      // the FFmpeg pack is downloading
     float settings_pack_progress = 0.0f;        // 0..1 while downloading
@@ -782,13 +782,13 @@ struct WindowViewModel {
     int settings_language = 0;    // 0 system, 1 zh-CN, 2 zh-TW, 3 en-US
     BloomAccentPicker* settings_bloom = nullptr;
     bool settings_group_on[5] = { true, true, false, false, true };
-    // 本地右键菜单 › Pulse 菜单 card: selected tab (0 on a file, 1 blank area,
+    // 本地右键菜单 › Luling 菜单 card: selected tab (0 on a file, 1 blank area,
     // 2 row buttons), the hidden-item mask, and where BuiltinMenuItem 0 sits
     // in settings_items.
     int settings_context_tab = 0;
     uint32_t settings_builtin_hidden = 0;
     size_t settings_builtin_first = 0;
-    // Pulse menu order per BuiltinMenuSurface (normalized), and the preview
+    // Luling menu order per BuiltinMenuSurface (normalized), and the preview
     // row being dragged: BuiltinMenuItem or -1, pointer position in px (y,
     // or x on the row-buttons tab) and where inside the row it was grabbed.
     app::BuiltinMenuOrder settings_builtin_order[static_cast<size_t>(app::BuiltinMenuSurface::Count)];
@@ -1364,7 +1364,7 @@ public:
                           float x, float y) const;
     // Settings slider value under x (0 transparency, 1 blur), clamped to the
     // track so a drag may leave the control.
-    // Pulse menu preview drag: where row `item` starts along the drag axis
+    // Luling menu preview drag: where row `item` starts along the drag axis
     // (NaN when it is not in the preview), and the order a drop at (x, y)
     // gives (empty when the pointer is too far outside the preview).
     float SettingsMenuRowStart(const WindowViewModel& vm, const D2D1_RECT_F& rect, int item);
@@ -1481,7 +1481,7 @@ private:
     void DrawTaskPill(const WindowViewModel& vm, const D2D1_RECT_F& area, const Theme& theme);
     void DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsContext(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
-    void DrawSettingsPulseMenu(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    void DrawSettingsLulingMenu(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
 
@@ -1713,4 +1713,4 @@ private:
 
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

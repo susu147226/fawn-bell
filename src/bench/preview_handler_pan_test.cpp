@@ -1,7 +1,7 @@
 #include "../ui/preview_handler_pan.h"
 #include <cstdio>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct PreviewHandlerPanTest {
     struct NativeCanvas { int clicks = 0, cancellations = 0; bool pressed = false; };
@@ -34,7 +34,7 @@ struct PreviewHandlerPanTest {
         WNDCLASSW wc{};
         wc.lpfnWndProc = CanvasProc;
         wc.hInstance = GetModuleHandleW(nullptr);
-        wc.lpszClassName = L"PulsePreviewPanTest";
+        wc.lpszClassName = L"LulingPreviewPanTest";
         RegisterClassW(&wc);
         HWND host = CreateWindowW(wc.lpszClassName, L"", WS_POPUP,
             0, 0, 400, 300, nullptr, nullptr, wc.hInstance, nullptr);
@@ -217,8 +217,8 @@ struct PreviewHandlerPanTest {
     }
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui
 
 int main() {
-    return pulse::ui::PreviewHandlerPanTest::Run() == 0 ? 0 : 1;
+    return luling::ui::PreviewHandlerPanTest::Run() == 0 ? 0 : 1;
 }

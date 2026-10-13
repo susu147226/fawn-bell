@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace pulse::app {
+namespace luling::app {
 // UI-thread request coalescing; periodic ticks never queue behind a slow read.
 class SidebarRefreshSchedule {
 public:
@@ -32,4 +32,4 @@ private:
     bool rebuild_ = false;
     uint64_t next_refresh_ = 0;
 };
-} // namespace pulse::app
+} // namespace luling::app

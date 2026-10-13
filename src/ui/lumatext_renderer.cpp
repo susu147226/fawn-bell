@@ -21,21 +21,21 @@
 #include <vector>
 #include <wrl/client.h>
 
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
 #include <lumatext/lumatext.hpp>
 #endif
 
 #pragma comment(lib, "imm32.lib")
 
-namespace pulse::ui {
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+namespace luling::ui {
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
 void ObserveEditUploadForTest(HWND hwnd, const void* bits, int width, int height);
 #endif
 namespace {
 
 bool EnvironmentEnabled() noexcept {
     wchar_t value[16]{};
-    const DWORD length = GetEnvironmentVariableW(L"PULSE_LUMATEXT", value, ARRAYSIZE(value));
+    const DWORD length = GetEnvironmentVariableW(L"LULING_LUMATEXT", value, ARRAYSIZE(value));
     if (length == 0 || length >= ARRAYSIZE(value)) return true;
     return _wcsicmp(value, L"0") != 0 && _wcsicmp(value, L"off") != 0 &&
            _wcsicmp(value, L"false") != 0;
@@ -67,7 +67,7 @@ bool Contains(const std::wstring& value, const wchar_t* fragment) {
 struct LumaTextRenderer::Impl {
     LumaTextStats stats;
 
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     struct LayoutKey {
         std::wstring text;
         std::uint32_t family = 0;
@@ -428,9 +428,9 @@ struct LumaTextRenderer::Impl {
         profile_desc.dark = profile_desc.light;
         profile_desc.regular_optical_weight = 0.0f;
         profile_desc.bold_optical_weight = 0.0f;
-#if defined(PULSE_TEST_LUMATEXT_INIT_FAILURE)
+#if defined(LULING_TEST_LUMATEXT_INIT_FAILURE)
         wchar_t fail_init[2]{};
-        if (GetEnvironmentVariableW(L"PULSE_TEST_LUMATEXT_INIT_FAILURE", fail_init, ARRAYSIZE(fail_init)))
+        if (GetEnvironmentVariableW(L"LULING_TEST_LUMATEXT_INIT_FAILURE", fail_init, ARRAYSIZE(fail_init)))
             return false;
 #endif
         return lt_render_profile_create(&profile_desc, profile.put()) == LT_OK;
@@ -511,9 +511,9 @@ struct LumaTextRenderer::Impl {
             const bool child = (GetWindowLongPtrW(hwnd, GWL_STYLE) & WS_CHILD) != 0;
             const BOOL ok = UpdateLayeredWindow(hwnd, nullptr, child ? nullptr : &dst_pt, &sz, present_dc,
                                                 &src, 0, &blend, ULW_ALPHA);
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
             if (ok) {
-                pulse::ui::ObserveEditUploadForTest(hwnd, present_bits, w, h);
+                luling::ui::ObserveEditUploadForTest(hwnd, present_bits, w, h);
             }
 #endif
             return ok != FALSE;
@@ -529,8 +529,8 @@ struct LumaTextRenderer::Impl {
         const bool ok = SetDIBitsToDevice(paint_dc, 0, 0, static_cast<DWORD>(w),
                                  static_cast<DWORD>(h), 0, 0, 0, static_cast<UINT>(h),
                                  bits, &info, DIB_RGB_COLORS) > 0;
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
-        if (ok) pulse::ui::ObserveEditUploadForTest(hwnd, bits, w, h);
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
+        if (ok) luling::ui::ObserveEditUploadForTest(hwnd, bits, w, h);
 #endif
         return ok;
     }
@@ -619,7 +619,7 @@ struct LumaTextRenderer::Impl {
         if (lt_text_layout_get_metrics(layout->get(), &metrics) != LT_OK) return false;
         // Dest is an ink clip. Advance-only overflow left the last glyph's
         // optical weight / Mitchell lobe shaved off ("File" → "Fil").
-        const float ink = pulse::ui::typography::InkPad(format);
+        const float ink = luling::ui::typography::InkPad(format);
         if (metrics.width + ink > width + 0.5f) {
             key.width_64 = static_cast<std::int32_t>(
                 std::lround(std::max(1.0f, width - ink) * 64.0f));
@@ -848,7 +848,7 @@ struct LumaTextRenderer::Impl {
         float line_spacing = 0, baseline = 0;
         format->GetLineSpacing(&spacing_method, &line_spacing, &baseline);
         const float tab_stop = format->GetIncrementalTabStop();
-        const auto generation = pulse::ui::typography::Generation();
+        const auto generation = luling::ui::typography::Generation();
         // Caret blinking and drag selection reuse the same layout. Retaining
         // the format prevents its address being recycled into a false hit.
         const bool cacheable = text.size() <= 4096;
@@ -912,10 +912,10 @@ struct LumaTextRenderer::Impl {
 
     IDWriteRenderingParams* DwParams(HWND hwnd) {
         const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        const std::uint64_t generation = pulse::ui::typography::Generation();
+        const std::uint64_t generation = luling::ui::typography::Generation();
         if (!dw_params || dw_params_generation != generation || dw_params_monitor != monitor) {
             dw_params.Reset();
-            pulse::ui::typography::CreateRenderingParams(dw_factory.Get(), monitor, &dw_params);
+            luling::ui::typography::CreateRenderingParams(dw_factory.Get(), monitor, &dw_params);
             dw_params_generation = generation;
             dw_params_monitor = monitor;
         }
@@ -1211,7 +1211,7 @@ LRESULT CALLBACK LumaTextRenderer::EditSelectionProc(HWND hwnd, UINT message, WP
     return result;
 }
 void LumaTextRenderer::SyncEditSelection(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     if (!impl_) return;
     if (message == WM_NCDESTROY || message == WM_KILLFOCUS) {
         if (impl_->mouse_hwnd == hwnd) impl_->mouse_hwnd = nullptr;
@@ -1245,7 +1245,7 @@ void LumaTextRenderer::SyncEditSelection(HWND hwnd, UINT message, WPARAM wparam,
 }
 
 void LumaTextRenderer::SynchronizeEditSelection(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     if (!impl_ || impl_->setting_mouse_selection) return;
     if (msg == WM_NCDESTROY || msg == WM_KILLFOCUS) {
         if (impl_->mouse_hwnd == hwnd) impl_->mouse_hwnd = nullptr;
@@ -1272,7 +1272,7 @@ void LumaTextRenderer::SynchronizeEditSelection(HWND hwnd, UINT msg, WPARAM wPar
 
 LRESULT LumaTextRenderer::CallEditDefaultMouse(HWND hwnd, UINT msg, WPARAM wParam,
                                                LPARAM lParam, IDWriteTextFormat* format) {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     if (format && impl_ && impl_->renderer) {
         TrackEdit(hwnd);
         struct MouseSelectionGuard {
@@ -1331,14 +1331,14 @@ void LumaTextRenderer::Shutdown() noexcept {
     for (HWND hwnd : tracked_edits_)
         RemoveWindowSubclass(hwnd, EditSelectionProc, reinterpret_cast<UINT_PTR>(this));
     tracked_edits_.clear();
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     if (impl_) { impl_->edit_selections.clear(); impl_->mouse_hwnd = nullptr; }
 #endif
     if (impl_) impl_->Shutdown();
 }
 
 bool LumaTextRenderer::Enabled() const noexcept {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     return impl_ && static_cast<bool>(impl_->renderer);
 #else
     return false;
@@ -1350,7 +1350,7 @@ bool LumaTextRenderer::Draw(std::wstring_view text, IDWriteTextFormat* format,
                             const D2D1_COLOR_F& foreground,
                             const D2D1_COLOR_F& background,
                             DWRITE_TEXT_ALIGNMENT alignment) {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     return impl_ && impl_->Draw(text, format, bounds, foreground, background, alignment);
 #else
     (void)text;
@@ -1365,7 +1365,7 @@ bool LumaTextRenderer::Draw(std::wstring_view text, IDWriteTextFormat* format,
 
 bool LumaTextRenderer::Measure(std::wstring_view text, IDWriteTextFormat* format,
                                float& width, float* height) {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     return impl_ && impl_->Measure(text, format, width, height);
 #else
     (void)text;
@@ -1379,7 +1379,7 @@ bool LumaTextRenderer::Measure(std::wstring_view text, IDWriteTextFormat* format
 bool LumaTextRenderer::PaintEdit(HWND hwnd, HDC hdc, IDWriteTextFormat* format,
                                  const D2D1_COLOR_F& foreground,
                                  const D2D1_COLOR_F& background) {
-#if defined(PULSE_HAS_LUMATEXT)
+#if defined(LULING_HAS_LUMATEXT)
     TrackEdit(hwnd);
     return impl_ && impl_->PaintEdit(hwnd, hdc, format, foreground, background);
 #else
@@ -1400,4 +1400,4 @@ void LumaTextRenderer::RecordFallback() noexcept {
     impl_->stats.fallback_draws++;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

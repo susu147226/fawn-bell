@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::setup {
+namespace luling::setup {
 
 struct PayloadFile {
     std::wstring path;      // relative, forward slashes converted to backslashes
@@ -53,4 +53,4 @@ private:
     PayloadInfo info_;
 };
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

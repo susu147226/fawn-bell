@@ -23,7 +23,7 @@ const std::string kManifest =
     "  \"schema\": 1,\n"
     "  \"version\": \"9.8.7\",\n"
     "  \"minimum_windows_build\": 19045,\n"
-    "  \"download_page\": \"https://updates.example.test/pulse\",\n"
+    "  \"download_page\": \"https://updates.example.test/luling\",\n"
     "  \"installer_sha256\": "
         "\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\n"
     "  \"signature\": "
@@ -32,12 +32,12 @@ const std::string kManifest =
     "}\n";
 
 bool TestFallback() {
-    using namespace pulse::app;
-    const std::wstring url = L"https://github.com/jimmgreen/pulse/releases/download/v1.0/PulseSetup.exe";
+    using namespace luling::app;
+    const std::wstring url = L"https://github.com/susu147226/fawn-bell/releases/download/v1.0/LulingSetup.exe";
     const auto proxy = AcceleratedUpdateUrl(url);
     bool passed = Report("release accelerator preserves original URL", proxy == L"https://ghproxy.net/" + url);
     passed &= Report("latest manifest supports acceleration", !AcceleratedUpdateUrl(
-        L"https://github.com/jimmgreen/pulse/releases/latest/download/update-manifest.json").empty());
+        L"https://github.com/susu147226/fawn-bell/releases/latest/download/update-manifest.json").empty());
     for (const auto invalid : {L"https://example.test/a", L"http://github.com/a/b/releases/download/v1/a",
         L"https://github.com.evil/a/b/releases/download/v1/a", L"https://github.com@evil/a/b/releases/download/v1/a",
         L"https://github.com/a/b/blob/main/a", L"https://github.com/a/b/releases/latest/download/",
@@ -136,7 +136,7 @@ bool TestFallback() {
 } // namespace
 
 int main(int argc, char** argv) {
-    using namespace pulse::app;
+    using namespace luling::app;
     if (!TestFallback()) return 1;
     if (argc == 2 && std::string_view(argv[1]) == "--check-live") {
         HWND window = CreateWindowExW(0, L"STATIC", L"Update check test", 0, 0, 0, 0, 0,
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
     passed &= Report("canonical payload is stable",
         CanonicalUpdatePayload(parsed) ==
             "schema=1\nversion=9.8.7\nminimum_windows_build=19045\n"
-            "download_page=https://updates.example.test/pulse\n"
+            "download_page=https://updates.example.test/luling\n"
             "installer_sha256="
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n");
 
@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     passed &= Report("valid newer signed release is offered",
         result.error == UpdateError::None && result.update_available &&
         result.version == L"9.8.7" &&
-        result.download_page == L"https://updates.example.test/pulse");
+        result.download_page == L"https://updates.example.test/luling");
 
     result = ValidateUpdateManifest(kManifest, kPublicKey, "9.8.7", 22631);
     passed &= Report("equal signed version is up to date",

@@ -9,7 +9,7 @@
 #include <utility>
 #include <sherrors.h>
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 using Microsoft::WRL::ComPtr;
 constexpr HRESULT kCancelled = HRESULT_FROM_WIN32(ERROR_CANCELLED);
@@ -248,4 +248,4 @@ ShellTransferResult TransferWithShell(const std::vector<std::wstring>& sources,
     if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
     return result;
 }
-} // namespace pulse::ops
+} // namespace luling::ops

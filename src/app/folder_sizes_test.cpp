@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "folder_sizes.h"
 #include "folder_sizes_ui.h"
 #include "entry_sort.h"
@@ -10,7 +10,7 @@
 #include <fstream>
 #include <functional>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FolderSizesUiTest {
     static bool Run(const std::filesystem::path& root, std::ofstream& log) {
         HWND hwnd = CreateWindowExW(0, L"STATIC", L"Folder sizes", WS_POPUP,
@@ -91,7 +91,7 @@ struct FolderSizesUiTest {
     }
 };
 }
-namespace pulse::app {
+namespace luling::app {
 bool RunFolderSizeIndexClientTest(const std::filesystem::path& fixture, std::ofstream& log);
 bool RunFolderSizesTest() {
     const HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -208,7 +208,7 @@ bool RunFolderSizesTest() {
         check(vm.pane_slots[0].pane.folder_size_labels[0] == L"0 B", "details view receives folder total");
         vm.pane_slots[0].pane.is_file_system = false;
         vm.pane_slots[0].pane.is_search = true;
-        vm.pane_slots[0].pane.path = L"pulse:search:test";
+        vm.pane_slots[0].pane.path = L"luling:search:test";
         FillFolderSizes(*state, vm);
         check(vm.pane_slots[0].pane.folder_size_labels[0] == L"0 B", "search results use each folder's real path");
         auto& search_pane = vm.pane_slots[0].pane;

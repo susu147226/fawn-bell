@@ -7,7 +7,7 @@
 #include <string_view>
 #include <utility>
 
-namespace pulse::ui::math {
+namespace luling::ui::math {
 namespace {
 using Microsoft::WRL::ComPtr;
 using Box = FormulaLayout;
@@ -918,4 +918,4 @@ bool BuildMathLayout(IDWriteFactory2 *factory, IDWriteFontFace *face, const Font
         return false;
     return Layout(factory, face, metrics, font_size, window_scale).Run(root, display, result);
 }
-} // namespace pulse::ui::math
+} // namespace luling::ui::math

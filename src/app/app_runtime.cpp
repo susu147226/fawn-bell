@@ -31,7 +31,7 @@
 #include "duplicate_scan.h"
 #include "search_query.h"
 #include "resource.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include "tray_reveal.h"
 #include "default_file_manager.h"
 #include "../ops/clipboard.h"
@@ -54,7 +54,7 @@
 #include <optional>
 #include <unordered_set>
 
-using namespace pulse;
+using namespace luling;
 
 namespace {
 
@@ -154,7 +154,7 @@ void RefreshDuplicateGroupViews(AppState& s) {
 
 } // namespace
 
-namespace pulse {
+namespace luling {
 namespace {
 app::UpdateProgress UpdateProgressForView(const AppState& s) {
     if (s.shot.active) {
@@ -301,7 +301,7 @@ void OpenFolderInNewTab(AppState& s, const std::wstring& raw) {
     s.tray_controller.RestoreWindow();
     if (!path.empty() && !ActivateExistingFolderTab(s, path)) NewTab(s, path);
     else InvalidateRect(s.hwnd, nullptr, FALSE);
-    // A file (Pulse as a file's default app, a launcher's "open containing
+    // A file (Luling as a file's default app, a launcher's "open containing
     // folder") shows up selected instead of silently opening its folder (#40).
     if (!path.empty()) SelectLaunchedFile(s, raw);
 }
@@ -336,7 +336,7 @@ D2D1_RECT_F ListRect(const AppState& s) {
     const app::Tab* tab = s.pane ? s.pane->ActiveTab() : nullptr;
     if (tab && !tab->banner_message.empty()) extra = 36.0f * s.scale;
     std::wstring virtual_kind;
-    if (tab && app::ParsePulsePath(tab->current_path, &virtual_kind, nullptr) &&
+    if (tab && app::ParseLulingPath(tab->current_path, &virtual_kind, nullptr) &&
         virtual_kind == L"recent") {
         extra += 40.0f * s.scale;
     }
@@ -395,7 +395,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
     vm.filter_editing = s.filterEditing;
     if (app::Tab* tab = ActiveTab(s)) {
         std::wstring kind, rest;
-        if (app::ParsePulsePath(tab->current_path, &kind, &rest) && kind == L"settings") {
+        if (app::ParseLulingPath(tab->current_path, &kind, &rest) && kind == L"settings") {
             vm.settings_open = true;
             vm.settings_page = app::SettingsController::PageFromName(rest);
             vm.settings_scroll = s.settings.scroll();
@@ -454,7 +454,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 // Screenshot fixture for the downloading state (percent).
                 wchar_t fake_progress[8]{};
                 if (s.shot.active && s.isolatedTest &&
-                    GetEnvironmentVariableW(L"PULSE_TEST_PACK_PROGRESS", fake_progress, ARRAYSIZE(fake_progress))) {
+                    GetEnvironmentVariableW(L"LULING_TEST_PACK_PROGRESS", fake_progress, ARRAYSIZE(fake_progress))) {
                     vm.settings_pack_installing = vm.settings_pack_images_installing =
                         vm.settings_pack_raw_installing = vm.settings_pack_archive_installing = true;
                     vm.settings_pack_progress = vm.settings_pack_images_progress =
@@ -489,7 +489,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 if (vm.settings_content_instant) { folder.error = false; folder.status = l10n::Get(l10n::StringId::ContentInstantReady); }
                 vm.settings_content_folders.push_back(std::move(folder));
             }
-            vm.settings_open_folders = s.appPrefs.open_folders_in_pulse;
+            vm.settings_open_folders = s.appPrefs.open_folders_in_luling;
             vm.settings_win_e = s.appPrefs.take_over_win_e;
             vm.settings_this_pc = s.appPrefs.take_over_this_pc;
             vm.settings_explorer_windows = s.appPrefs.take_over_explorer_windows;
@@ -517,11 +517,11 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 : s.appPrefs.language == L"en-US" ? 3 : 0;
             wchar_t version_text[128]{};
             swprintf_s(version_text,
-                l10n::Get(l10n::StringId::VersionFormat).c_str(), PULSE_VERSION_STRING);
+                l10n::Get(l10n::StringId::VersionFormat).c_str(), LULING_VERSION_STRING);
             vm.settings_version = version_text;
             wchar_t build_text[256]{};
             swprintf_s(build_text,
-                l10n::Get(l10n::StringId::BuildIdFormat).c_str(), PULSE_BUILD_ID);
+                l10n::Get(l10n::StringId::BuildIdFormat).c_str(), LULING_BUILD_ID);
             vm.settings_build_id = build_text;
             vm.settings_update_enabled = app::UpdateChecker::Enabled() ||
                 s.shot.update_available;
@@ -579,7 +579,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             vm.settings_index_service = s.index.Connected() && s.index.ServiceMode();
             vm.settings_index_installed = s.settings.service_installed();
             // Index and network-index texts are Simplified (most come from
-            // Pulse.Index.exe); localize them here, at the display boundary.
+            // Luling.Index.exe); localize them here, at the display boundary.
             vm.settings_index_status = l10n::ServiceText(s.index.Status());
             vm.settings_index_migrating = s.settings.migration_pending();
             if (vm.settings_page == 3) {
@@ -590,7 +590,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             }
             if (s.shot.active) {
                 wchar_t simulated[2]{};
-                if (GetEnvironmentVariableW(L"PULSE_TEST_INDEX_MIGRATING", simulated, 2) == 1 &&
+                if (GetEnvironmentVariableW(L"LULING_TEST_INDEX_MIGRATING", simulated, 2) == 1 &&
                     simulated[0] == L'1') vm.settings_index_migrating = true;
             }
             if (vm.settings_index_migrating)
@@ -611,13 +611,13 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                             vm.settings_index_system_groups |= 1u << i;
                 vm.settings_index_system_expanded = s.settings.system_exclusion_expanded();
                 if (s.shot.active && vm.settings_page == 1 && !vm.settings_index_system_known) {
-                    // Shots show the defaults; PULSE_SHOT_SYSTEM_EXPANDED=1 opens the list.
+                    // Shots show the defaults; LULING_SHOT_SYSTEM_EXPANDED=1 opens the list.
                     wchar_t expanded[4]{};
                     vm.settings_index_system_known = true;
                     vm.settings_index_exclude_system = true;
                     vm.settings_index_system_groups = 0x7u;
                     vm.settings_index_system_expanded =
-                        GetEnvironmentVariableW(L"PULSE_SHOT_SYSTEM_EXPANDED", expanded, 4) &&
+                        GetEnvironmentVariableW(L"LULING_SHOT_SYSTEM_EXPANDED", expanded, 4) &&
                         expanded[0] == L'1';
                 }
             }
@@ -627,7 +627,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 index::IndexConfig defaults;
                 index_volumes = index::EnumerateLocalVolumes(defaults);
                 if (!vm.settings_index_installed) vm.settings_index_service = true;
-                vm.settings_index_path = L"C:\\ProgramData\\Pulse\\Index";
+                vm.settings_index_path = L"C:\\ProgramData\\Luling\\Index";
             }
             for (const auto& volume : index_volumes) {
                 ui::IndexVolumeRowView row;
@@ -684,7 +684,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             for (const auto& seen : s.ctxMenuPrefs.seen) {
                 ui::SettingsRowView row;
                 row.key = seen.key;
-                // Pulse's own compress row is stored in Simplified; shell rows
+                // Luling's own compress row is stored in Simplified; shell rows
                 // already use the system language.
                 row.text = seen.key == ipc::CompressCatalogKey()
                     ? std::wstring(l10n::Cn(ipc::CompressCatalogText())) : seen.text;
@@ -695,14 +695,14 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 row.slow_disabled = s.ctxMenuPrefs.ComDisabled(seen.key);
                 vm.settings_items.push_back(std::move(row));
             }
-            // Pulse's own commands: card 5, after the seen catalog (see
+            // Luling's own commands: card 5, after the seen catalog (see
             // SettingsController::ToggleUi).
             vm.settings_builtin_first = vm.settings_items.size();
             vm.settings_builtin_hidden = s.ctxMenuPrefs.builtin_hidden;
             vm.settings_context_tab = s.settings.ContextTab();
             static const int shot_context_tab = [] {
                 wchar_t v[4]{};
-                const DWORD n = GetEnvironmentVariableW(L"PULSE_SHOT_CONTEXT_TAB", v, 4);
+                const DWORD n = GetEnvironmentVariableW(L"LULING_SHOT_CONTEXT_TAB", v, 4);
                 return n == 1 && v[0] >= L'0' && v[0] <= L'2' ? v[0] - L'0' : -1;
             }();
             if (shot_context_tab >= 0) vm.settings_context_tab = shot_context_tab;
@@ -937,7 +937,7 @@ int TrayItemTotalCount(const app::StagingTray& tray) {
 
 // Extended-length prefixes leak into tooltips otherwise: \\?\C:\x -> C:\x.
 std::wstring TrayDisplayPath(const std::wstring& path) {
-    return pulse::path::FriendlyPathText(path);
+    return luling::path::FriendlyPathText(path);
 }
 
 std::wstring TrayItemName(const std::wstring& path) {
@@ -974,7 +974,7 @@ void RefreshStarredViews(AppState& s) {
         app::Tab* tab = pane.ActiveTab();
         if (!tab) return;
         std::wstring kind;
-        if (app::ParsePulsePath(tab->current_path, &kind, nullptr) && kind == L"starred")
+        if (app::ParseLulingPath(tab->current_path, &kind, nullptr) && kind == L"starred")
             LoadVirtualView(s, *tab, tab->current_path);
     });
 }
@@ -984,14 +984,14 @@ void RefreshRecentViews(AppState& s) {
         app::Tab* tab = pane.ActiveTab();
         if (!tab) return;
         std::wstring kind;
-        if (app::ParsePulsePath(tab->current_path, &kind, nullptr) && kind == L"recent")
+        if (app::ParseLulingPath(tab->current_path, &kind, nullptr) && kind == L"recent")
             LoadVirtualView(s, *tab, tab->current_path);
     });
 }
 
 bool IsRecycleTab(const app::Tab* tab) {
     std::wstring kind;
-    return tab && app::ParsePulsePath(tab->current_path, &kind, nullptr) && kind == L"recycle";
+    return tab && app::ParseLulingPath(tab->current_path, &kind, nullptr) && kind == L"recycle";
 }
 
 std::wstring RecycleOccupancyText(const fs::RecycleBinInfo& info) {
@@ -999,7 +999,7 @@ std::wstring RecycleOccupancyText(const fs::RecycleBinInfo& info) {
     wchar_t buf[96]{};
     swprintf_s(buf, l10n::Get(l10n::StringId::RecycleOccupancyFormat).c_str(),
                std::to_wstring(info.items).c_str(),
-               pulse::format::ByteSize(info.bytes).c_str());
+               luling::format::ByteSize(info.bytes).c_str());
     return buf;
 }
 
@@ -1204,20 +1204,20 @@ void ShutdownDetailsSizeWalk(AppState& s) {
 std::wstring DetailsAttributeText(DWORD attrs) {
     struct AttributeName { DWORD bit; const wchar_t* name; };
     const AttributeName values[] = {
-        { FILE_ATTRIBUTE_READONLY, pulse::l10n::Get(pulse::l10n::StringId::AttrReadOnly).c_str() },
-        { FILE_ATTRIBUTE_HIDDEN, pulse::l10n::Get(pulse::l10n::StringId::AttrHidden).c_str() },
-        { FILE_ATTRIBUTE_SYSTEM, pulse::l10n::Get(pulse::l10n::StringId::AttrSystem).c_str() },
-        { FILE_ATTRIBUTE_COMPRESSED, pulse::l10n::Get(pulse::l10n::StringId::AttrCompressed).c_str() },
-        { FILE_ATTRIBUTE_ENCRYPTED, pulse::l10n::Get(pulse::l10n::StringId::AttrEncrypted).c_str() },
-        { FILE_ATTRIBUTE_REPARSE_POINT, pulse::l10n::Get(pulse::l10n::StringId::AttrReparse).c_str() },
+        { FILE_ATTRIBUTE_READONLY, luling::l10n::Get(luling::l10n::StringId::AttrReadOnly).c_str() },
+        { FILE_ATTRIBUTE_HIDDEN, luling::l10n::Get(luling::l10n::StringId::AttrHidden).c_str() },
+        { FILE_ATTRIBUTE_SYSTEM, luling::l10n::Get(luling::l10n::StringId::AttrSystem).c_str() },
+        { FILE_ATTRIBUTE_COMPRESSED, luling::l10n::Get(luling::l10n::StringId::AttrCompressed).c_str() },
+        { FILE_ATTRIBUTE_ENCRYPTED, luling::l10n::Get(luling::l10n::StringId::AttrEncrypted).c_str() },
+        { FILE_ATTRIBUTE_REPARSE_POINT, luling::l10n::Get(luling::l10n::StringId::AttrReparse).c_str() },
     };
     std::wstring result;
     for (const auto& value : values) {
         if (!(attrs & value.bit)) continue;
-        if (!result.empty()) result += pulse::l10n::IsChinese() ? L"、" : L", ";
+        if (!result.empty()) result += luling::l10n::IsChinese() ? L"、" : L", ";
         result += value.name;
     }
-    return result.empty() ? pulse::l10n::Get(pulse::l10n::StringId::AttrNormal).c_str() : result;
+    return result.empty() ? luling::l10n::Get(luling::l10n::StringId::AttrNormal).c_str() : result;
 }
 
 namespace {
@@ -1616,7 +1616,7 @@ static std::wstring ContextStatusHint(AppState& s, StatusHintAction& action) {
         return l10n::Get(I::HintCompare);
     }
     std::wstring kind;
-    app::ParsePulsePath(tab->current_path, &kind, nullptr);
+    app::ParseLulingPath(tab->current_path, &kind, nullptr);
     const int selected = tab->SelectedCount();
     if (s.filterEditing && !s.filterSelectMode) {
         // While typing a filter the selection may be hidden; explain the filter instead.
@@ -1695,7 +1695,7 @@ int TeachTrigger(AppState& s) {
     const app::LayoutTab* layout = s.window_tabs.Active();
     const int selected = tab->SelectedCount();
     std::wstring kind;
-    app::ParsePulsePath(tab->current_path, &kind, nullptr);
+    app::ParseLulingPath(tab->current_path, &kind, nullptr);
     const bool compare = layout && layout->compare;
     if (selected >= 5) return 1;
     if (layout && layout->panes.size() >= 2 && !compare) return 2;
@@ -1893,11 +1893,11 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         s.settings.FillImagePackOffer(image_offer);
         // Fixture for the Quick Look offers while no pack is published.
         wchar_t fake[8]{};
-        if (s.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_PACK_OFFER", fake, ARRAYSIZE(fake))) {
+        if (s.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_PACK_OFFER", fake, ARRAYSIZE(fake))) {
             offer.installable = image_offer.installable = true;
             if (!offer.download_bytes) offer.download_bytes = uint64_t{28} << 20;
             if (!image_offer.download_bytes) image_offer.download_bytes = uint64_t{9} << 20;
-            if (GetEnvironmentVariableW(L"PULSE_TEST_PACK_PROGRESS", fake, ARRAYSIZE(fake))) {
+            if (GetEnvironmentVariableW(L"LULING_TEST_PACK_PROGRESS", fake, ARRAYSIZE(fake))) {
                 offer.installing = image_offer.installing = true;
                 offer.progress = image_offer.progress = static_cast<float>(_wtoi(fake)) / 100.0f;
             }
@@ -1954,7 +1954,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         swprintf_s(count, l10n::Get(l10n::StringId::SelectedCountFormat).c_str(), sel_tab->SelectedCount());
         const std::optional<uint64_t> bytes = ContentSelectionSize(*sel_tab);
         vm.status.selection_text = std::wstring(count) + L"  \u00B7  " +
-            (bytes ? pulse::format::ByteSize(*bytes, true) : l10n::Get(l10n::StringId::LoadingEllipsis));
+            (bytes ? luling::format::ByteSize(*bytes, true) : l10n::Get(l10n::StringId::LoadingEllipsis));
     }
     ops::OpStatus st = s.ops.Status();
     if (st.active || !st.last_error.empty() || !st.summary.empty()) {
@@ -1972,7 +1972,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         std::wstring virtual_kind;
         std::wstring virtual_rest;
         const bool search_visible = active &&
-            app::ParsePulsePath(active->current_path, &virtual_kind, &virtual_rest) &&
+            app::ParseLulingPath(active->current_path, &virtual_kind, &virtual_rest) &&
             virtual_kind == L"search";
         if (!idx.empty() && !vm.status.query_active && (s.paletteSearching || search_visible)) {
             if (!vm.status.status_text.empty()) vm.status.status_text += L"  ·  ";
@@ -1990,7 +1990,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         vm.status.performance_text = std::wstring(perf) + breakdown;
         wchar_t lumaStatsEnabled[8]{};
         const bool showLumaStats = GetEnvironmentVariableW(
-            L"PULSE_LUMATEXT_STATS", lumaStatsEnabled, ARRAYSIZE(lumaStatsEnabled)) > 0;
+            L"LULING_LUMATEXT_STATS", lumaStatsEnabled, ARRAYSIZE(lumaStatsEnabled)) > 0;
         wchar_t compactPerf[160];
         const auto* lumaStats = showLumaStats ? s.compositor.GetLumaTextStats() : nullptr;
         if (lumaStats && s.compositor.LumaTextEnabled()) {
@@ -2311,7 +2311,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
                 swprintf_s(composition,
                     l10n::Get(l10n::StringId::FoldersOnlyFormat).c_str(), folders);
             dv.type_text = composition;
-            dv.size_text = tab->content_results && !contentSize ? l10n::Get(l10n::StringId::LoadingEllipsis) : pulse::format::ByteSize(knownSize, true);
+            dv.size_text = tab->content_results && !contentSize ? l10n::Get(l10n::StringId::LoadingEllipsis) : luling::format::ByteSize(knownSize, true);
             dv.location_text = fs::IsVirtualPath(tab->current_path)
                 ? l10n::Get(l10n::StringId::MultipleLocations)
                 : TrayDisplayPath(tab->current_path);
@@ -2337,9 +2337,9 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
             s.detailsStarred = s.places.IsStarred(dv.path);
             dv.starred = s.detailsStarred;
             if (s.detailsSelValid) {
-                dv.created_text = pulse::format::LocalFileTime(s.detailsCreated);
-                dv.modified_text = pulse::format::LocalFileTime(s.detailsModified);
-                dv.accessed_text = pulse::format::LocalFileTime(s.detailsAccessed);
+                dv.created_text = luling::format::LocalFileTime(s.detailsCreated);
+                dv.modified_text = luling::format::LocalFileTime(s.detailsModified);
+                dv.accessed_text = luling::format::LocalFileTime(s.detailsAccessed);
             }
             dv.location_text = TrayDisplayPath(fs::ParentPath(dv.path));
             dv.attributes_text = DetailsAttributeText(dv.attrs);
@@ -2348,10 +2348,10 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
             if (!dv.is_dir) {
                 dv.subtitle_text = dv.type_text;
                 if (!dv.subtitle_text.empty()) dv.subtitle_text += L" · ";
-                dv.subtitle_text += pulse::format::ByteSize(dv.size_value, true);
-                dv.size_text = pulse::format::ByteSize(dv.size_value, true) + L" (" +
-                               pulse::format::GroupedInt(dv.size_value) +
-                               pulse::l10n::Pick(L" \u5B57\u8282)", L" bytes)");
+                dv.subtitle_text += luling::format::ByteSize(dv.size_value, true);
+                dv.size_text = luling::format::ByteSize(dv.size_value, true) + L" (" +
+                               luling::format::GroupedInt(dv.size_value) +
+                               luling::l10n::Pick(L" \u5B57\u8282)", L" bytes)");
             }
             if (s.detailsMetaPath == dv.path) {
                 dv.owner_text = s.detailsOwner;
@@ -2383,7 +2383,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         if (requestedSizePath != sizeTarget) StartDetailsSizeWalk(s, sizeTarget);
         std::lock_guard<std::mutex> lock(s.detailsSizeMutex);
         if (s.detailsSize.done && s.detailsSize.path == sizeTarget) {
-            vm.details.size_text = pulse::format::ByteSize(s.detailsSize.size, true);
+            vm.details.size_text = luling::format::ByteSize(s.detailsSize.size, true);
             wchar_t contains[96];
             swprintf_s(contains, l10n::Get(l10n::StringId::ContainsFormat).c_str(),
                        s.detailsSize.files, s.detailsSize.dirs);
@@ -2403,16 +2403,16 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.hover_control_index = s.hoverControlIndex;
     vm.hover_sub_index = s.hoverSubIndex;
     if (s.shot.active && s.isolatedTest) {
-        // Hidden checks of the 右键菜单 preview: PULSE_SHOT_MENU_HOVER=<item>
-        // (or f1 / f2 for the fixed rows) hovers a row; PULSE_SHOT_MENU_DRAG=
+        // Hidden checks of the 右键菜单 preview: LULING_SHOT_MENU_HOVER=<item>
+        // (or f1 / f2 for the fixed rows) hovers a row; LULING_SHOT_MENU_DRAG=
         // <item>,<px> holds it with the pointer at that client coordinate.
         wchar_t v[32]{};
-        if (GetEnvironmentVariableW(L"PULSE_SHOT_MENU_HOVER", v, ARRAYSIZE(v)) > 0) {
+        if (GetEnvironmentVariableW(L"LULING_SHOT_MENU_HOVER", v, ARRAYSIZE(v)) > 0) {
             vm.hover_region = static_cast<int>(ui::HitTestResult::SettingsToggle);
             vm.hover_control_index = v[0] == L'f' ? ui::kSettingsMenuFixedHit + _wtoi(v + 1)
                                                   : ui::kSettingsMenuRowHit + _wtoi(v);
         }
-        if (GetEnvironmentVariableW(L"PULSE_SHOT_MENU_DRAG", v, ARRAYSIZE(v)) > 0) {
+        if (GetEnvironmentVariableW(L"LULING_SHOT_MENU_DRAG", v, ARRAYSIZE(v)) > 0) {
             wchar_t* end = nullptr;
             vm.settings_menu_drag = static_cast<int>(wcstol(v, &end, 10));
             if (end && *end == L',') vm.settings_menu_drag_pos = static_cast<float>(wcstod(end + 1, nullptr));
@@ -2449,7 +2449,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         int toolbar_group = -1;
         if (const app::Tab* gt = ActiveTab(s)) {
             std::wstring kind;
-            app::ParsePulsePath(gt->current_path, &kind, nullptr);
+            app::ParseLulingPath(gt->current_path, &kind, nullptr);
             const bool can_group = !gt->content_results &&
                 ((!gt->current_path.empty() && !fs::IsVirtualPath(gt->current_path)) || kind == L"recent" ||
                  kind == L"search" || kind == L"saved-search" || kind == L"tag" || kind == L"recycle");
@@ -2527,7 +2527,7 @@ std::wstring TooltipForHover(AppState& s) {
         std::wstring label = app::LayoutTabTitle(layout_tab);
         const auto* folder = layout_tab.ActiveFolder();
         if (folder && !folder->current_path.empty())
-            label += L" — " + pulse::path::StripExtendedPathPrefix(folder->current_path);
+            label += L" — " + luling::path::StripExtendedPathPrefix(folder->current_path);
         return label;
     }
     case R::TabNew: return text(s.appPrefs.show_hints ? I::TipxNewTab : I::TooltipNewTab);
@@ -2688,7 +2688,7 @@ std::wstring TooltipForHover(AppState& s) {
                 const uint32_t shown = s.renderer.PaintedColumnMask(std::max(0, s.hoverPaneIndex));
                 auto hidden = [&](K kind) { return shown && !(shown & (1u << static_cast<uint32_t>(kind))); };
                 std::wstring view_kind;
-                app::ParsePulsePath(tab->current_path, &view_kind, nullptr);
+                app::ParseLulingPath(tab->current_path, &view_kind, nullptr);
                 const bool search = view_kind == L"search";
                 if (search && hidden(K::Path) && !full.empty()) {
                     const size_t slash = full.find_last_of(L'\\');
@@ -2696,11 +2696,11 @@ std::wstring TooltipForHover(AppState& s) {
                         tooltip += L" · " + full.substr(0, slash);
                 }
                 if (hidden(K::Date) && (entry.mtime.dwLowDateTime || entry.mtime.dwHighDateTime))
-                    tooltip += L" · " + pulse::l10n::Get(pulse::l10n::StringId::ColumnModified) + L" " +
-                               pulse::format::LocalFileTime(entry.mtime);
+                    tooltip += L" · " + luling::l10n::Get(luling::l10n::StringId::ColumnModified) + L" " +
+                               luling::format::LocalFileTime(entry.mtime);
             }
             if (const auto* indices = s.places.TagIndicesForPath(full); indices && !indices->empty()) {
-                tooltip += pulse::l10n::Get(pulse::l10n::StringId::TooltipTags).c_str();
+                tooltip += luling::l10n::Get(luling::l10n::StringId::TooltipTags).c_str();
                 bool first = true;
                 for (int index : *indices) {
                     if (index < 0 || index >= static_cast<int>(s.places.tags.size())) continue;
@@ -2711,17 +2711,17 @@ std::wstring TooltipForHover(AppState& s) {
             }
             if (const app::StarredItem* starred = s.places.FindStarred(full);
                 starred && !starred->badge.empty()) {
-                tooltip += pulse::l10n::Get(pulse::l10n::StringId::TooltipBadge).c_str() + starred->badge;
+                tooltip += luling::l10n::Get(luling::l10n::StringId::TooltipBadge).c_str() + starred->badge;
             }
             if (tab->compare_marks &&
                 static_cast<size_t>(s.hoverControlIndex) < tab->compare_marks->size()) {
                 using CM = ui::CompareMark;
-                using I = pulse::l10n::StringId;
+                using I = luling::l10n::StringId;
                 switch (static_cast<CM>((*tab->compare_marks)[static_cast<size_t>(s.hoverControlIndex)])) {
-                case CM::OnlyHere: tooltip += L" \xB7 " + pulse::l10n::Get(I::CompareOnlyHere); break;
-                case CM::Newer: tooltip += L" \xB7 " + pulse::l10n::Get(I::CompareNewer); break;
-                case CM::Older: tooltip += L" \xB7 " + pulse::l10n::Get(I::CompareOlder); break;
-                case CM::Differs: tooltip += L" \xB7 " + pulse::l10n::Get(I::CompareDiffers); break;
+                case CM::OnlyHere: tooltip += L" \xB7 " + luling::l10n::Get(I::CompareOnlyHere); break;
+                case CM::Newer: tooltip += L" \xB7 " + luling::l10n::Get(I::CompareNewer); break;
+                case CM::Older: tooltip += L" \xB7 " + luling::l10n::Get(I::CompareOlder); break;
+                case CM::Differs: tooltip += L" \xB7 " + luling::l10n::Get(I::CompareDiffers); break;
                 default: break;
                 }
             }
@@ -2752,18 +2752,18 @@ std::wstring TooltipForHover(AppState& s) {
             std::wstring tip =
                 TrayDisplayPath(entries[static_cast<size_t>(s.hoverControlIndex)].item->path);
             if (entries.size() > 1 || TrayItemTotalCount(s.tray) > 1)
-                tip += L"\n" + pulse::l10n::Get(pulse::l10n::StringId::TrayFlingHint);
+                tip += L"\n" + luling::l10n::Get(luling::l10n::StringId::TrayFlingHint);
             return tip;
         }
         return L"";
     }
-    case R::TrayIntent: return pulse::l10n::Get(pulse::l10n::StringId::TipTrayIntent);
+    case R::TrayIntent: return luling::l10n::Get(luling::l10n::StringId::TipTrayIntent);
     case R::TrayRelease:
-        return pulse::l10n::Get(!s.tray.batches().empty() && s.tray.batches().back().move_intent
-            ? pulse::l10n::StringId::TipTrayReleaseMove
-            : pulse::l10n::StringId::TipTrayReleaseCopy);
-    case R::TrayPrev: return pulse::l10n::Get(pulse::l10n::StringId::TrayPrev);
-    case R::TrayNext: return pulse::l10n::Get(pulse::l10n::StringId::TrayNext);
+        return luling::l10n::Get(!s.tray.batches().empty() && s.tray.batches().back().move_intent
+            ? luling::l10n::StringId::TipTrayReleaseMove
+            : luling::l10n::StringId::TipTrayReleaseCopy);
+    case R::TrayPrev: return luling::l10n::Get(luling::l10n::StringId::TrayPrev);
+    case R::TrayNext: return luling::l10n::Get(luling::l10n::StringId::TrayNext);
     default: return L"";
     }
 }
@@ -2879,9 +2879,9 @@ void SyncSavedSearchSidebar(AppState& s) {
         entry.color = ui::HexColor(searches[i].mode == app::SavedSearchMode::Content
             ? 0x0EA5E9 : searches[i].mode == app::SavedSearchMode::Duplicates
                 ? 0xF59E0B : 0x22C55E);
-        entry.path = L"pulse:saved-search:" + std::to_wstring(i);
+        entry.path = L"luling:saved-search:" + std::to_wstring(i);
         s.sidebar.saved_searches.push_back(std::move(entry));
     }
 }
 
-} // namespace pulse
+} // namespace luling

@@ -11,7 +11,7 @@
 
 #pragma comment(lib, "dbghelp.lib")
 
-namespace pulse::app::hang {
+namespace luling::app::hang {
 namespace {
 
 constexpr DWORD kProbeTimeoutMs = 200;  // one WM_NULL round trip
@@ -256,4 +256,4 @@ std::wstring ThreadStackForProbe(DWORD tid) {
     return text;
 }
 
-} // namespace pulse::app::hang
+} // namespace luling::app::hang

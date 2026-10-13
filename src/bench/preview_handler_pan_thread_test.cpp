@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct PreviewHandlerPanThreadTest {
     static constexpr UINT kMouse = WM_APP + 77;
     struct Context {
@@ -147,4 +147,4 @@ struct PreviewHandlerPanThreadTest {
     }
 };
 }
-int wmain() { return pulse::ui::PreviewHandlerPanThreadTest::Run() ? 1 : 0; }
+int wmain() { return luling::ui::PreviewHandlerPanThreadTest::Run() ? 1 : 0; }

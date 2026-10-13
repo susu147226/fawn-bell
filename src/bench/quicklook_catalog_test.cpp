@@ -11,8 +11,8 @@
 #include <set>
 
 namespace {
-using namespace pulse;
-using namespace pulse::ui;
+using namespace luling;
+using namespace luling::ui;
 int failures = 0;
 void Check(bool ok, const char* label) {
     printf("[%s] %s\n", ok ? "PASS" : "FAIL", label);
@@ -162,9 +162,9 @@ void TestLayout() {
 }
 }
 int main() {
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"en-US");
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"en-US");
     TestSupport(); TestCatalog(); TestLayout();
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     TestCatalog(); TestLayout();
     return failures ? 1 : 0;
 }

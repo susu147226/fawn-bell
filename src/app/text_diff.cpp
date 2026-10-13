@@ -8,7 +8,7 @@
 
 #include "../common/text_decode.h"
 
-namespace pulse::diff {
+namespace luling::diff {
 namespace {
 
 constexpr size_t kProbeBytes = 8192;
@@ -426,4 +426,4 @@ void ComputeCharDiff(std::wstring_view left, std::wstring_view right, const Diff
     }
 }
 
-} // namespace pulse::diff
+} // namespace luling::diff

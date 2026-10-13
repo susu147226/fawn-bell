@@ -5,9 +5,9 @@
 #include <thread>
 #include <vector>
 
-using pulse::index::document::AdmissionHandle;
-using pulse::index::document::AcquireAdmission;
-using pulse::index::document::AdmissionContended;
+using luling::index::document::AdmissionHandle;
+using luling::index::document::AcquireAdmission;
+using luling::index::document::AdmissionContended;
 
 namespace {
 int failures = 0;
@@ -34,7 +34,7 @@ bool Spawn(const std::wstring& arguments, const std::vector<HANDLE>& inherited,
     if (!InitializeProcThreadAttributeList(attributes, count, 0, &size)) return false;
     bool ok = UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
         const_cast<HANDLE*>(inherited.data()), inherited.size() * sizeof(HANDLE), nullptr, nullptr) != FALSE;
-    if (ok && job) ok = UpdateProcThreadAttribute(attributes, 0, pulse::index::document::kJobListAttribute,
+    if (ok && job) ok = UpdateProcThreadAttribute(attributes, 0, luling::index::document::kJobListAttribute,
         &job, sizeof(job), nullptr, nullptr) != FALSE;
     STARTUPINFOEXW startup{};
     startup.StartupInfo.cb = sizeof(startup);

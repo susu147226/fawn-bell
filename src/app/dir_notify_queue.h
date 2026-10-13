@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Caller holds the notification queue mutex. A pending full reconciliation
 // supersedes per-entry patches for the same path, but not other paths.
@@ -20,4 +20,4 @@ void QueueDirNotify(std::vector<Batch>& queue, const std::wstring& path,
     queue.push_back({path, overflow, std::move(events)});
 }
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -85,7 +85,7 @@ bool NoMath(const Payload& payload) {
 void TestMarkdown() {
     const std::wstring source = L"# Formula\n\nBefore $x^2 + \\alpha$ after.\n\n$$\n\\frac{a}{b}\n$$\n";
     std::wstring text;
-    Check(pulse::preview::MakeMarkdownDocument(source, text), "Markdown math parses");
+    Check(luling::preview::MakeMarkdownDocument(source, text), "Markdown math parses");
     const auto payload = Parse(text);
     Check(payload.source == source, "source view retains exact LaTeX and delimiters");
     Check(HasMath(payload, L"$x^2 + \\alpha$", 128), "inline range retains dollar delimiters and formula");
@@ -98,14 +98,14 @@ void TestMarkdown() {
         }
     }
     Check(display, "standalone display formula has math block and source delimiters");
-    Check(pulse::preview::MakeMarkdownDocument(L"**Bold $x^2$** and [linked $y_i$](https://example.com)\n", text) &&
+    Check(luling::preview::MakeMarkdownDocument(L"**Bold $x^2$** and [linked $y_i$](https://example.com)\n", text) &&
         HasMath(Parse(text), L"$x^2$", 128) && HasMath(Parse(text), L"$y_i$", 128),
         "math survives nested emphasis and link spans");
     for (const auto& sample : {L"`$x$`\n\n```tex\n$$x^2$$\n```\n", L"Escaped \\$x\\$ and unclosed $y\n"}) {
-        Check(pulse::preview::MakeMarkdownDocument(sample, text) && NoMath(Parse(text)), "code and escaped/unclosed dollars remain literal");
+        Check(luling::preview::MakeMarkdownDocument(sample, text) && NoMath(Parse(text)), "code and escaped/unclosed dollars remain literal");
     }
     text.clear();
-    Check(pulse::preview::AppendMarkdownBlocks(L"Notebook $x_i$\n\n$$x^2$$\n", text, 10000, 1) &&
+    Check(luling::preview::AppendMarkdownBlocks(L"Notebook $x_i$\n\n$$x^2$$\n", text, 10000, 1) &&
         HasMath(Parse(text), L"$x_i$", 128) && HasMath(Parse(text), L"$$x^2$$", 256, L"m"),
         "notebook Markdown blocks share inline and display math parsing");
 }
@@ -177,7 +177,7 @@ void TestStage2(IDWriteFactory2* factory) {
         auto layout = Layout(factory, source, 24, 10000);
         ComPtr<IDWriteInlineObject> object;
         DWRITE_INLINE_OBJECT_METRICS metrics{};
-        const bool valid = layout && pulse::ui::ApplyMathInline(factory, layout.Get(),
+        const bool valid = layout && luling::ui::ApplyMathInline(factory, layout.Get(),
             {0, static_cast<UINT32>(source.size())}, source, 24, display, 10000) &&
             SUCCEEDED(layout->GetInlineObject(0, &object)) && object && SUCCEEDED(object->GetMetrics(&metrics));
         return Measurement{valid, metrics.width, metrics.height};
@@ -225,12 +225,12 @@ void TestStage2(IDWriteFactory2* factory) {
         std::wstring(4097, L'x')}) {
         auto layout = Layout(factory, source, 24, 600);
         ComPtr<IDWriteInlineObject> object;
-        Check(layout && !pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())}, source, 24, false, 600) &&
+        Check(layout && !luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())}, source, 24, false, 600) &&
             SUCCEEDED(layout->GetInlineObject(0, &object)) && !object, "stage2 malformed unsupported and oversized source remain untouched");
     }
     std::wstring payload;
-    pulse::ui::MarkdownView view;
-    Check(pulse::preview::MakeMarkdownDocument(stage2_source, payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
+    luling::ui::MarkdownView view;
+    Check(luling::preview::MakeMarkdownDocument(stage2_source, payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
         view.Source() == stage2_source && view.PlainText().find(L"$f'(x)$") != std::wstring::npos &&
         view.PlainText().find(L"$𝔸$") != std::wstring::npos, "stage2 source and copied text retain primes and supplementary Unicode");
 }
@@ -246,7 +246,7 @@ void TestMath(IDWriteFactory2* factory) {
     valid_formulas.insert(valid_formulas.end(), additional.begin(), additional.end());
     for (const auto& formula : valid_formulas) {
         auto layout = Layout(factory, formula, 20, 600);
-        const bool applied = layout && pulse::ui::ApplyMathInline(factory, layout.Get(),
+        const bool applied = layout && luling::ui::ApplyMathInline(factory, layout.Get(),
             {0, static_cast<UINT32>(formula.size())}, formula, 20, true, 600);
         ComPtr<IDWriteInlineObject> object;
         DWRITE_INLINE_OBJECT_METRICS metrics{};
@@ -262,7 +262,7 @@ void TestMath(IDWriteFactory2* factory) {
         std::wstring(200, L'{') + L"x" + std::wstring(200, L'}'), std::wstring(20000, L'x')};
     for (const auto& formula : invalid) {
         auto layout = Layout(factory, formula, 20, 600);
-        const bool rejected = layout && !pulse::ui::ApplyMathInline(factory, layout.Get(),
+        const bool rejected = layout && !luling::ui::ApplyMathInline(factory, layout.Get(),
             {0, static_cast<UINT32>(formula.size())}, formula, 20, false, 600);
         ComPtr<IDWriteInlineObject> object;
         const bool unchanged = layout && SUCCEEDED(layout->GetInlineObject(0, &object)) && !object;
@@ -275,7 +275,7 @@ void TestMath(IDWriteFactory2* factory) {
         auto text_layout = Layout(factory, formula, 20, 600);
         ComPtr<IDWriteInlineObject> text_object;
         DWRITE_INLINE_OBJECT_METRICS text_metrics{};
-        text_ok = text_layout && pulse::ui::ApplyMathInline(factory, text_layout.Get(),
+        text_ok = text_layout && luling::ui::ApplyMathInline(factory, text_layout.Get(),
             {0, static_cast<UINT32>(formula.size())}, formula, 20, false, 600) &&
             SUCCEEDED(text_layout->GetInlineObject(0, &text_object)) && text_object &&
             SUCCEEDED(text_object->GetMetrics(&text_metrics)) && text_ok;
@@ -289,7 +289,7 @@ void TestMath(IDWriteFactory2* factory) {
         auto accent_layout = Layout(factory, accents[i], 20, 600);
         ComPtr<IDWriteInlineObject> accent_object;
         DWRITE_INLINE_OBJECT_METRICS accent_metrics{};
-        accents_ok = accent_layout && pulse::ui::ApplyMathInline(factory, accent_layout.Get(),
+        accents_ok = accent_layout && luling::ui::ApplyMathInline(factory, accent_layout.Get(),
             {0, static_cast<UINT32>(accents[i].size())}, accents[i], 20, false, 600) &&
             SUCCEEDED(accent_layout->GetInlineObject(0, &accent_object)) && accent_object &&
             SUCCEEDED(accent_object->GetMetrics(&accent_metrics)) && accents_ok;
@@ -302,7 +302,7 @@ void TestMath(IDWriteFactory2* factory) {
     const std::wstring fraction = LR"(\frac{a+b}{c+d})";
     const std::wstring multiline = L"Before " + fraction + L" after\nNext line";
     auto layout = Layout(factory, multiline, 20, 600);
-    bool rows_ok = layout && pulse::ui::ApplyMathInline(factory, layout.Get(),
+    bool rows_ok = layout && luling::ui::ApplyMathInline(factory, layout.Get(),
         {7, static_cast<UINT32>(fraction.size())}, fraction, 20, false, 500);
     DWRITE_LINE_METRICS lines[4]{};
     UINT32 count = 0;
@@ -314,7 +314,7 @@ void TestMath(IDWriteFactory2* factory) {
     Check(rows_ok, "inline fraction reserves ascent and descent before following line");
     const std::wstring wide = LR"(a+b+c+d)";
     layout = Layout(factory, wide, 20, 80);
-    const bool fitted = layout && pulse::ui::ApplyMathInline(factory, layout.Get(),
+    const bool fitted = layout && luling::ui::ApplyMathInline(factory, layout.Get(),
         {0, static_cast<UINT32>(wide.size())}, wide, 20, true, 80);
     object.Reset();
     Check(fitted && SUCCEEDED(layout->GetInlineObject(0, &object)) && object &&
@@ -322,13 +322,13 @@ void TestMath(IDWriteFactory2* factory) {
         "narrow display math obeys available width");
     const std::wstring excessive = LR"(a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p)";
     layout = Layout(factory, excessive, 20, 80);
-    Check(layout && !pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(excessive.size())},
+    Check(layout && !luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(excessive.size())},
         excessive, 20, true, 80), "formula too wide for readable fitting preserves source");
     const auto fixture_end = std::chrono::steady_clock::now();
     std::wstring bounded = L"x";
     for (int i = 0; i < 100; ++i) bounded += LR"(+\frac{x_i}{i+1})";
     layout = Layout(factory, bounded, 20, 100000);
-    Check(layout && pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(bounded.size())},
+    Check(layout && luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(bounded.size())},
         bounded, 20, true, 100000), "larger bounded expression remains supported");
     const auto ended = std::chrono::steady_clock::now();
     std::printf("[TIME] representative checks %.2f ms; 100 fractions %.2f ms\n",
@@ -422,7 +422,7 @@ bool InkInsideBounds(ID2D1DeviceContext* dc, ID2D1Bitmap1* bitmap, bool dark, fl
     return valid && ink > 100;
 }
 bool Render(IDWriteFactory2* factory, bool dark, float scale, bool actual_view = false, bool advanced = false,
-    int stage = 0, const pulse_test::MathRenderProfile* profile = nullptr) {
+    int stage = 0, const luling_test::MathRenderProfile* profile = nullptr) {
     const bool stage2 = stage == 2, stage3 = stage == 3, stage4 = stage == 4, stage5 = stage == 5, architecture = stage == 6;
     ComPtr<ID3D11Device> d3d;
     ComPtr<IDXGIDevice> dxgi;
@@ -439,7 +439,7 @@ bool Render(IDWriteFactory2* factory, bool dark, float scale, bool actual_view =
     std::vector<float> advanced_widths;
     std::vector<ComPtr<IDWriteTextLayout>> advanced_labels;
     std::vector<float> advanced_label_heights;
-    const auto& sheet_formulas = profile ? profile->formulas : architecture ? pulse_test::MathArchitectureFormulas() : stage5 ? pulse_test::MathStage5Formulas() : stage4 ? pulse_test::MathStage4Formulas() : stage3 ? pulse_test::MathStage3Formulas() : stage2 ? stage2_formulas : advanced_formulas;
+    const auto& sheet_formulas = profile ? profile->formulas : architecture ? luling_test::MathArchitectureFormulas() : stage5 ? luling_test::MathStage5Formulas() : stage4 ? luling_test::MathStage4Formulas() : stage3 ? luling_test::MathStage3Formulas() : stage2 ? stage2_formulas : advanced_formulas;
     if (advanced) {
         height = 80;
         for (const auto& formula : sheet_formulas) {
@@ -447,7 +447,7 @@ bool Render(IDWriteFactory2* factory, bool dark, float scale, bool actual_view =
             auto label = Layout(factory, formula, 12, width - 48);
             DWRITE_TEXT_METRICS metrics{};
             DWRITE_TEXT_METRICS label_metrics{};
-            if (!layout || !pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(formula.size())},
+            if (!layout || !luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(formula.size())},
                 formula, 24, true, width - 48) || FAILED(layout->GetMetrics(&metrics)) ||
                 !label || FAILED(label->GetMetrics(&label_metrics))) return false;
             advanced_layouts.push_back(std::move(layout));
@@ -484,7 +484,7 @@ bool Render(IDWriteFactory2* factory, bool dark, float scale, bool actual_view =
             dc->DrawTextLayout(D2D1::Point2F(24, y), advanced_labels[i].Get(), brush.Get());
             ink_bounds.push_back(D2D1::RectF(24, y, width - 24, y + advanced_label_heights[i]));
             y += advanced_label_heights[i] + 12;
-            pulse::ui::DrawMathTextLayout(dc.Get(), advanced_layouts[i].Get(), D2D1::Point2F(24, y), brush.Get());
+            luling::ui::DrawMathTextLayout(dc.Get(), advanced_layouts[i].Get(), D2D1::Point2F(24, y), brush.Get());
             ink_bounds.push_back(D2D1::RectF(24, y, 24 + advanced_widths[i], y + advanced_heights[i]));
             if (stage4 && (sheet_formulas[i] == LR"(\acute{a})" || sheet_formulas[i] == LR"(\grave{a})" ||
                 sheet_formulas[i] == LR"(\breve{a})" || sheet_formulas[i] == LR"(\check{a})" || sheet_formulas[i] == LR"(\mathring{a})"))
@@ -505,7 +505,7 @@ bool Render(IDWriteFactory2* factory, bool dark, float scale, bool actual_view =
         return valid && SavePng(dc.Get(), bitmap.Get(), std::filesystem::path(L"bench_data") / filename);
     }
     if (actual_view) {
-        const std::wstring source = profile ? profile->markdown : architecture ? pulse_test::MathArchitectureSource() : stage5 ? pulse_test::MathStage5Source() : stage4 ? pulse_test::MathStage4Source() : stage3 ? pulse_test::MathStage3Source() : stage2 ? stage2_source : LR"(# Markdown math preview
+        const std::wstring source = profile ? profile->markdown : architecture ? luling_test::MathArchitectureSource() : stage5 ? luling_test::MathStage5Source() : stage4 ? luling_test::MathStage4Source() : stage3 ? luling_test::MathStage3Source() : stage2 ? stage2_source : LR"(# Markdown math preview
 
 Prose $E=mc^2$ continues after a formula. An inline fraction $\frac{a+b}{c+d}$ reserves line height.
 The next sentence verifies paragraph wrapping and separation.
@@ -539,9 +539,9 @@ $$\frac{a}{b}$$
 ```
 )";
         std::wstring payload;
-        bool valid = pulse::preview::MakeMarkdownDocument(source, payload);
-        pulse::ui::MarkdownView view;
-        const auto theme = pulse::ui::MakeTheme(dark, pulse::ui::HexColor(0x0078d4));
+        bool valid = luling::preview::MakeMarkdownDocument(source, payload);
+        luling::ui::MarkdownView view;
+        const auto theme = luling::ui::MakeTheme(dark, luling::ui::HexColor(0x0078d4));
         for (int column = 0; column < 2; ++column) {
             view.Clear();
             valid = view.SetPayload(payload, L"bench_data/math_preview.md") && valid;
@@ -554,7 +554,7 @@ $$\frac{a}{b}$$
         }
         std::wstring selection_payload;
         const std::wstring selection_source = profile ? profile->copy_probe : architecture ? LR"(\(a+b=c\))" : stage5 ? LR"(\(\boxed{x}\))" : stage4 ? LR"(\(\acute{x}\))" : stage3 ? LR"(\(x_i^2\))" : stage2 ? L"$f'(𝔸)$" : L"$x^2$";
-        valid = pulse::preview::MakeMarkdownDocument(selection_source, selection_payload) &&
+        valid = luling::preview::MakeMarkdownDocument(selection_source, selection_payload) &&
             view.SetPayload(selection_payload, L"bench_data/math_preview.md") && valid;
         const auto hidden_rect = D2D1::RectF(0, (height + 20) * scale, 740 * scale, (height + 200) * scale);
         view.Draw(dc.Get(), factory, hidden_rect, theme, dark, scale, nullptr, 2, 0, 0, {});
@@ -598,16 +598,16 @@ $$\frac{a}{b}$$
         for (int column = 0; column < 2; ++column) {
             const float available = column == 0 ? 440.0f : 220.0f;
             auto layout = Layout(factory, formula, 22, available);
-            ok = layout && pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(formula.size())},
+            ok = layout && luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(formula.size())},
                 formula, 22, true, available) && ok;
-            if (layout) pulse::ui::DrawMathTextLayout(dc.Get(), layout.Get(), D2D1::Point2F(column == 0 ? 24.0f : 510.0f, y + 24), brush.Get());
+            if (layout) luling::ui::DrawMathTextLayout(dc.Get(), layout.Get(), D2D1::Point2F(column == 0 ? 24.0f : 510.0f, y + 24), brush.Get());
         }
         y += 106;
     }
     const std::wstring inline_source = LR"(Line one with \frac{a}{b} followed by prose.)";
     auto inline_layout = Layout(factory, inline_source + L"\nLine two must not overlap the fraction.", 20, 700);
-    ok = inline_layout && pulse::ui::ApplyMathInline(factory, inline_layout.Get(), {14, 11}, LR"(\frac{a}{b})", 20, false, 600) && ok;
-    if (inline_layout) pulse::ui::DrawMathTextLayout(dc.Get(), inline_layout.Get(), D2D1::Point2F(24, 940), brush.Get());
+    ok = inline_layout && luling::ui::ApplyMathInline(factory, inline_layout.Get(), {14, 11}, LR"(\frac{a}{b})", 20, false, 600) && ok;
+    if (inline_layout) luling::ui::DrawMathTextLayout(dc.Get(), inline_layout.Get(), D2D1::Point2F(24, 940), brush.Get());
     ok = SUCCEEDED(dc->EndDraw()) && ok;
     dc->SetTarget(nullptr);
     std::filesystem::create_directories(L"bench_data");
@@ -634,9 +634,9 @@ int wmain(int argc, wchar_t** argv) {
     Check(SUCCEEDED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory2),
         reinterpret_cast<IUnknown**>(factory.GetAddressOf()))), "create DirectWrite factory");
     if (structures || reliable) {
-        if (factory) failures += reliable ? pulse_test::TestMathReliable(factory.Get()) : pulse_test::TestMathStructures(factory.Get());
+        if (factory) failures += reliable ? luling_test::TestMathReliable(factory.Get()) : luling_test::TestMathStructures(factory.Get());
         if (factory && render) {
-            const auto& profile = reliable ? pulse_test::MathReliableProfile() : pulse_test::MathStructuresProfile();
+            const auto& profile = reliable ? luling_test::MathReliableProfile() : luling_test::MathStructuresProfile();
             for (float scale : {1.0f, 1.5f, 2.0f})
                 for (bool dark : {false, true}) {
                     Check(Render(factory.Get(), dark, scale, false, true, 0, &profile), "render complete selected gallery with bounded ink");
@@ -649,13 +649,13 @@ int wmain(int argc, wchar_t** argv) {
         return failures ? 1 : 0;
     }
     if (architecture || compatibility) {
-        if (factory) failures += pulse_test::TestMathArchitecture(factory.Get(), compatibility && !architecture);
+        if (factory) failures += luling_test::TestMathArchitecture(factory.Get(), compatibility && !architecture);
     } else if (stage5) {
-        if (factory) failures += pulse_test::TestMathStage5(factory.Get());
+        if (factory) failures += luling_test::TestMathStage5(factory.Get());
     } else if (stage4) {
-        if (factory) failures += pulse_test::TestMathStage4(factory.Get());
+        if (factory) failures += luling_test::TestMathStage4(factory.Get());
     } else if (stage3) {
-        if (factory) failures += pulse_test::TestMathStage3(factory.Get());
+        if (factory) failures += luling_test::TestMathStage3(factory.Get());
     } else if (stage2) {
         if (factory) TestStage2(factory.Get());
     } else {

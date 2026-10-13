@@ -3,7 +3,7 @@
 #include "ops_manager.h"
 #include "../common/display_path.h"
 
-namespace pulse::ops {
+namespace luling::ops {
 
 inline OpStatus PresentOperationStatus(OpStatus status) {
     if (status.phase == OpPhase::Completed) status.percent = 100.0f;
@@ -15,4 +15,4 @@ inline OpStatus PresentOperationStatus(OpStatus status) {
     return status;
 }
 
-} // namespace pulse::ops
+} // namespace luling::ops

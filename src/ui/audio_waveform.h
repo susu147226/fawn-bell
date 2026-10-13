@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // Loudness envelope of an audio file for the Quick Look audio preview.
 // Decoding runs on a detached worker (Media Foundation source reader, loaded on
@@ -63,4 +63,4 @@ private:
 bool FfmpegWaveform(const std::wstring& ffmpeg, const std::wstring& path, const std::atomic<bool>& stop,
                     const std::function<void(const std::vector<float>&, float)>& publish);
 
-} // namespace pulse::ui
+} // namespace luling::ui

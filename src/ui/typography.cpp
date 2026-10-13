@@ -12,7 +12,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace pulse::ui::typography {
+namespace luling::ui::typography {
 namespace {
 
 std::mutex g_fallback_mutex;
@@ -21,7 +21,7 @@ IDWriteFontFallback* g_fallback = nullptr;
 bool g_fallback_traditional = false;
 
 bool TraditionalChinese() noexcept {
-    return pulse::l10n::effective_language() == pulse::l10n::Language::ZhTW;
+    return luling::l10n::effective_language() == luling::l10n::Language::ZhTW;
 }
 std::atomic_uint64_t g_generation{1};
 std::atomic_int g_text_render_mode{0};
@@ -49,7 +49,7 @@ bool FamilyExists(IDWriteFactory2* factory, const wchar_t* family) {
 const wchar_t* ResolveFamily(IDWriteFactory2* factory, FontRole role) {
     const bool traditional = TraditionalChinese();
     const bool chinese = traditional ||
-        pulse::l10n::effective_language() == pulse::l10n::Language::ZhCN;
+        luling::l10n::effective_language() == luling::l10n::Language::ZhCN;
     const wchar_t* const text_zh[] = {
         L"Microsoft YaHei UI", L"Microsoft YaHei", L"Segoe UI", nullptr};
     // Taiwan glyph forms; YaHei only if JhengHei is missing.
@@ -135,7 +135,7 @@ void ApplyFallbackInternal(IDWriteFactory2* factory, IDWriteTextFormat* format) 
 } // namespace
 
 const wchar_t* LocaleName() noexcept {
-    return pulse::l10n::LocaleName();
+    return luling::l10n::LocaleName();
 }
 
 bool HasIconFont(IDWriteFactory2* factory) {
@@ -145,9 +145,9 @@ bool HasIconFont(IDWriteFactory2* factory) {
 }
 
 const wchar_t* PreferredTextFamily() noexcept {
-    switch (pulse::l10n::effective_language()) {
-    case pulse::l10n::Language::ZhCN: return L"Microsoft YaHei UI";
-    case pulse::l10n::Language::ZhTW: return L"Microsoft JhengHei UI";
+    switch (luling::l10n::effective_language()) {
+    case luling::l10n::Language::ZhCN: return L"Microsoft YaHei UI";
+    case luling::l10n::Language::ZhTW: return L"Microsoft JhengHei UI";
     default: return L"Segoe UI Variable Text";
     }
 }
@@ -231,7 +231,7 @@ void SetTextRenderMode(TextRenderMode mode) noexcept {
 }
 
 UINT TextBackendChangedMessage() noexcept {
-    static const UINT message = RegisterWindowMessageW(L"Pulse.TextBackendChanged");
+    static const UINT message = RegisterWindowMessageW(L"Luling.TextBackendChanged");
     return message;
 }
 
@@ -409,4 +409,4 @@ float MeasureWrapped(IDWriteFactory2* factory, IDWriteTextFormat* format,
     return std::ceil(metrics.height);
 }
 
-} // namespace pulse::ui::typography
+} // namespace luling::ui::typography

@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Normalized key for per-folder preferences; empty for virtual views and
 // nonabsolute paths, which are never persisted.
@@ -39,4 +39,4 @@ private:
     ui::ViewMode default_ = ui::ViewMode::Details;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

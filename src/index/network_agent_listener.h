@@ -1,7 +1,7 @@
 #pragma once
 #include "network_agent_security.h"
 
-namespace pulse::index::agent {
+namespace luling::index::agent {
 // Keep a listening instance alive while the previous request is dispatched so
 // another process cannot claim the endpoint between short-lived connections.
 class PipeListener {
@@ -39,4 +39,4 @@ private:
     bool overlapped_ = false;
     HANDLE pipe_ = INVALID_HANDLE_VALUE;
 };
-} // namespace pulse::index::agent
+} // namespace luling::index::agent

@@ -1,4 +1,4 @@
-// pixel_ops.h - pixel arithmetic of pulse-imgpack: fitting, area downscaling
+// pixel_ops.h - pixel arithmetic of luling-imgpack: fitting, area downscaling
 // fed one row at a time (a 16k EXR never has to sit in memory), and the HDR
 // path (PQ / HLG to linear, BT.2020 to BT.709, auto exposure, filmic curve,
 // sRGB). Pure functions, covered by imgpack_test.

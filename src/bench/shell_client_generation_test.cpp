@@ -1,14 +1,14 @@
-#define PULSE_SHELL_CLIENT_TEST
+#define LULING_SHELL_CLIENT_TEST
 #include "../ipc/shell_client.cpp"
 #include <filesystem>
 #include <fstream>
 #include <set>
 #include <chrono>
 
-namespace pulse::l10n {
+namespace luling::l10n {
 const wchar_t* Pick(const wchar_t*, const wchar_t* english) noexcept { return english; }
 }
-namespace pulse::ipc {
+namespace luling::ipc {
 struct ShellClientTestAccess {
     static std::unique_ptr<ShellClient, void(*)(ShellClient*)> Make() {
         return {new ShellClient, [](ShellClient* client) { delete client; }};
@@ -36,7 +36,7 @@ struct ShellClientTestAccess {
 };
 }
 namespace {
-using namespace pulse::ipc;
+using namespace luling::ipc;
 int failures = 0;
 void Check(bool value, const char* name) {
     printf("[%s] %s\n", value ? "PASS" : "FAIL", name); fflush(stdout); if (!value) ++failures;

@@ -23,7 +23,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 float MainRenderer::ListRowHeightDip(const PaneViewModel& vm) const {
     if (DetailsShowsSnippet(vm)) return std::max(row_height_dip_, kDetailsSnippetMinRowDip);
@@ -361,9 +361,9 @@ MainRenderer::DetailsColumnLayout MainRenderer::DetailsColumns(
 }
 
 MainRenderer::ColumnAutoWidths MainRenderer::AutoColumnWidths() const {
-    using pulse::l10n::StringId;
-    const std::wstring language = pulse::l10n::Get(StringId::TypeFolder) +
-        pulse::l10n::Get(StringId::DateToday);
+    using luling::l10n::StringId;
+    const std::wstring language = luling::l10n::Get(StringId::TypeFolder) +
+        luling::l10n::Get(StringId::DateToday);
     if (auto_widths_scale_ == scale_ && auto_widths_language_ == language)
         return auto_widths_;
     ColumnAutoWidths out;
@@ -379,7 +379,7 @@ MainRenderer::ColumnAutoWidths MainRenderer::AutoColumnWidths() const {
         };
         const float pad = 16.0f + 4.0f;   // 8 DIP inset per side + rounding slack
         const float sort_icon = 15.0f;    // header chevron when the column is sorted
-        auto header_w = [&](StringId id) { return measure(header, pulse::l10n::Get(id)) + sort_icon; };
+        auto header_w = [&](StringId id) { return measure(header, luling::l10n::Get(id)) + sort_icon; };
         std::vector<std::wstring> dates;
         if (list_smart_date_) {
             dates = SmartDateSamples();
@@ -397,8 +397,8 @@ MainRenderer::ColumnAutoWidths MainRenderer::AutoColumnWidths() const {
             StringId::TypeImage, StringId::TypeVideo, StringId::TypeAudio, StringId::TypeArchive,
             StringId::TypeApplication, StringId::Unavailable};
         const float chip = TypeChipWidthDip(L"XLSX");
-        for (StringId id : kinds) type = std::max(type, measure(fmt, pulse::l10n::Get(id)) + chip);
-        type = std::max(type, measure(fmt, L"AutoCAD " + pulse::l10n::Get(StringId::TypeFile)) + chip);
+        for (StringId id : kinds) type = std::max(type, measure(fmt, luling::l10n::Get(id)) + chip);
+        type = std::max(type, measure(fmt, L"AutoCAD " + luling::l10n::Get(StringId::TypeFile)) + chip);
         float size = std::max(header_w(StringId::ColumnSize), measure(fmt, L"1023.9") + kSizeUnitDip);
         out.date = std::clamp(date + pad, 72.0f, 176.0f);
         out.created = std::clamp(created + pad, 72.0f, 176.0f);
@@ -1263,7 +1263,7 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
                                       const Theme& theme) {
     if (pane.is_changes) {
         const std::wstring& message = !pane.change_empty_text.empty() ? pane.change_empty_text :
-            pulse::l10n::Get(pulse::l10n::StringId::NoMatches);
+            luling::l10n::Get(luling::l10n::StringId::NoMatches);
         ComPtr<IDWriteTextLayout> explanation;
         const float width = std::max(1.0f, bounds.right - bounds.left - 32 * scale_);
         if (SUCCEEDED(compositor_->DwriteFactory()->CreateTextLayout(message.c_str(),
@@ -1286,8 +1286,8 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
         const int count = 2 - first;
         const SearchEmptyLayout layout = MakeSearchEmptyLayout(bounds, scale_, count);
         if (layout.show_art) DrawNoSelectionSvg(layout.art, theme.bg.r > 0.5f ? 0.68f : 1.0f);
-        painter_.DrawText(pulse::l10n::Get(pane.is_file_system ? pulse::l10n::StringId::EmptyFilterTry
-                                                               : pulse::l10n::StringId::NoMatches),
+        painter_.DrawText(luling::l10n::Get(pane.is_file_system ? luling::l10n::StringId::EmptyFilterTry
+                                                               : luling::l10n::StringId::NoMatches),
                           layout.title, compositor_->HeaderFormat(), theme.text,
                           fluent::HorizontalAlignment::Center);
         for (int i = 0; i < count; ++i) {
@@ -1299,8 +1299,8 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
             painter_.FillRoundedRect(rc, 6.0f * scale_,
                                      hovered ? theme.fill_input_hover : theme.fill_input);
             painter_.StrokeRoundedRect(rc, 6.0f * scale_, theme.stroke_card);
-            painter_.DrawText(pulse::l10n::Get(action == 0 ? pulse::l10n::StringId::HintActSearchSub
-                                                           : pulse::l10n::StringId::EmptyActClearFilter),
+            painter_.DrawText(luling::l10n::Get(action == 0 ? luling::l10n::StringId::HintActSearchSub
+                                                           : luling::l10n::StringId::EmptyActClearFilter),
                               rc, compositor_->SmallFormat(), theme.accent_text,
                               fluent::HorizontalAlignment::Center);
         }
@@ -1311,8 +1311,8 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
         const int count = app::SearchEmptyActions(pane.search_query, actions);
         const SearchEmptyLayout layout = MakeSearchEmptyLayout(bounds, scale_, count);
         if (layout.show_art) DrawNoSelectionSvg(layout.art, theme.bg.r > 0.5f ? 0.68f : 1.0f);
-        painter_.DrawText(pulse::l10n::Get(count > 0 ? pulse::l10n::StringId::EmptySearchTry
-                                                     : pulse::l10n::StringId::NoMatches),
+        painter_.DrawText(luling::l10n::Get(count > 0 ? luling::l10n::StringId::EmptySearchTry
+                                                     : luling::l10n::StringId::NoMatches),
                           layout.title, compositor_->HeaderFormat(), theme.text,
                           fluent::HorizontalAlignment::Center);
         for (int i = 0; i < count; ++i) {
@@ -1323,11 +1323,11 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
             painter_.FillRoundedRect(rc, 6.0f * scale_,
                                      hovered ? theme.fill_input_hover : theme.fill_input);
             painter_.StrokeRoundedRect(rc, 6.0f * scale_, theme.stroke_card);
-            const pulse::l10n::StringId label =
-                actions[i] == app::SearchEmptyAction::ClearFilters ? pulse::l10n::StringId::EmptyActClearFilters :
-                actions[i] == app::SearchEmptyAction::SearchContent ? pulse::l10n::StringId::EmptyActContent :
-                pulse::l10n::StringId::EmptyActEverywhere;
-            painter_.DrawText(pulse::l10n::Get(label), rc, compositor_->SmallFormat(), theme.accent_text,
+            const luling::l10n::StringId label =
+                actions[i] == app::SearchEmptyAction::ClearFilters ? luling::l10n::StringId::EmptyActClearFilters :
+                actions[i] == app::SearchEmptyAction::SearchContent ? luling::l10n::StringId::EmptyActContent :
+                luling::l10n::StringId::EmptyActEverywhere;
+            painter_.DrawText(luling::l10n::Get(label), rc, compositor_->SmallFormat(), theme.accent_text,
                               fluent::HorizontalAlignment::Center);
         }
         return;
@@ -1337,8 +1337,8 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
             fluent::EmptyStateSpec empty;
             empty.bounds = bounds;
             empty.glyph = L"\xE75C";
-            empty.title = pulse::l10n::Get(pulse::l10n::StringId::RecycleEmpty);
-            empty.message = pulse::l10n::Get(pulse::l10n::StringId::RecycleEmptyMessage);
+            empty.title = luling::l10n::Get(luling::l10n::StringId::RecycleEmpty);
+            empty.message = luling::l10n::Get(luling::l10n::StringId::RecycleEmptyMessage);
             painter_.DrawEmptyState(empty);
             return;
         }
@@ -1349,19 +1349,19 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
                 fluent::EmptyStateSpec fallback;
                 fallback.bounds = bounds;
                 fallback.glyph = pane.is_starred ? L"\xE735" : L"\xE823";
-                fallback.title = pulse::l10n::Get(pane.is_starred
-                    ? pulse::l10n::StringId::NoStarred : pulse::l10n::StringId::NoRecent);
+                fallback.title = luling::l10n::Get(pane.is_starred
+                    ? luling::l10n::StringId::NoStarred : luling::l10n::StringId::NoRecent);
                 painter_.DrawEmptyState(fallback);
                 return;
             }
-            const std::wstring title = pulse::l10n::Get(pane.is_starred
-                ? pulse::l10n::StringId::NoStarred
-                : pane.recent_filter != 0 ? pulse::l10n::StringId::NoFilteredResults
-                                          : pulse::l10n::StringId::NoRecent);
-            const std::wstring message = pulse::l10n::Get(pane.is_starred
-                ? pulse::l10n::StringId::NoStarredMessage
-                : pane.recent_filter != 0 ? pulse::l10n::StringId::TryOtherType
-                                          : pulse::l10n::StringId::NoRecentMessage);
+            const std::wstring title = luling::l10n::Get(pane.is_starred
+                ? luling::l10n::StringId::NoStarred
+                : pane.recent_filter != 0 ? luling::l10n::StringId::NoFilteredResults
+                                          : luling::l10n::StringId::NoRecent);
+            const std::wstring message = luling::l10n::Get(pane.is_starred
+                ? luling::l10n::StringId::NoStarredMessage
+                : pane.recent_filter != 0 ? luling::l10n::StringId::TryOtherType
+                                          : luling::l10n::StringId::NoRecentMessage);
             painter_.DrawText(title, layout.title, compositor_->HeaderFormat(), theme.text,
                               fluent::HorizontalAlignment::Center);
             if (layout.show_message) {
@@ -1380,11 +1380,11 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
             fluent::EmptyStateSpec fallback;
             fallback.bounds = bounds;
             fallback.glyph = kIconFile;
-            fallback.title = pulse::l10n::Get(pulse::l10n::StringId::NoContent);
+            fallback.title = luling::l10n::Get(luling::l10n::StringId::NoContent);
             painter_.DrawEmptyState(fallback);
             return;
         }
-        painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::NoContent), layout.title,
+        painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::NoContent), layout.title,
                           compositor_->HeaderFormat(), theme.text,
                           fluent::HorizontalAlignment::Center);
         return;
@@ -1397,11 +1397,11 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
         DrawFolderIcon((layout.art.left + layout.art.right - icon) * 0.5f,
                        (layout.art.top + layout.art.bottom - icon) * 0.5f, icon, theme);
     }
-    painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::FolderEmpty), layout.title,
+    painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::FolderEmpty), layout.title,
                       compositor_->HeaderFormat(), theme.text,
                       fluent::HorizontalAlignment::Center);
     if (layout.show_message) {
-        painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::FolderEmptyMessage), layout.message,
+        painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::FolderEmptyMessage), layout.message,
                           compositor_->SmallFormat(), theme.text_secondary,
                           fluent::HorizontalAlignment::Center);
     }
@@ -1412,7 +1412,7 @@ void MainRenderer::DrawPaneEmptyState(const WindowViewModel& vm, const PaneViewM
                                  hovered ? theme.fill_input_hover : theme.fill_input);
         painter_.StrokeRoundedRect(layout.action, 6.0f * scale_, theme.stroke_card);
         const float iconW = 32.0f * scale_;
-        painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::NewFolder),
+        painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::NewFolder),
             D2D1::RectF(layout.action.left + 8.0f * scale_, layout.action.top,
                         layout.action.right - iconW, layout.action.bottom),
             compositor_->SmallFormat(), theme.text, fluent::HorizontalAlignment::Center);
@@ -1620,9 +1620,9 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
         D2D1_RECT_F track = RecentFilterRect(bounds, pane_header_height_ + bannerH, scale_, 0);
         track.right = RecentFilterRect(bounds, pane_header_height_ + bannerH, scale_, 2).right;
         painter_.DrawSegmentedTrack(track);
-        static constexpr pulse::l10n::StringId labels[] = {
-            pulse::l10n::StringId::FilterAll, pulse::l10n::StringId::FilterFolders,
-            pulse::l10n::StringId::FilterFiles,
+        static constexpr luling::l10n::StringId labels[] = {
+            luling::l10n::StringId::FilterAll, luling::l10n::StringId::FilterFolders,
+            luling::l10n::StringId::FilterFiles,
         };
         for (int i = 0; i < 3; ++i) {
             fluent::SegmentedItemSpec segment;
@@ -1632,7 +1632,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             segment.bounds.top += 3.0f * scale_;
             segment.bounds.bottom -= 3.0f * scale_;
             segment.shared_track = true;
-            segment.text = pulse::l10n::Get(labels[i]);
+            segment.text = luling::l10n::Get(labels[i]);
             segment.position = i == 0 ? fluent::SegmentPosition::First
                              : i == 2 ? fluent::SegmentPosition::Last
                                       : fluent::SegmentPosition::Middle;
@@ -1665,7 +1665,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             chip.drop_down = i < 3;
             chip.state.hovered = IsHovered(vm, HitTestResult::SearchFilter, i) &&
                                  vm.hover_pane_index == pane_index;
-            const bool active = (i == 0 && spec.kind != pulse::index::SearchKind::Any) ||
+            const bool active = (i == 0 && spec.kind != luling::index::SearchKind::Any) ||
                                 (i == 1 && spec.date != app::DatePreset::Any) ||
                                 (i == 2 && spec.size != app::SizePreset::Any) ||
                                 (i == 3 && !spec.content.empty());
@@ -1677,7 +1677,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
     }
 
     if (pane.is_changes) {
-        const std::wstring labels[] = { pane.change_time_label, pane.change_type_label, pulse::l10n::Get(pulse::l10n::StringId::ChangeMore) };
+        const std::wstring labels[] = { pane.change_time_label, pane.change_type_label, luling::l10n::Get(luling::l10n::StringId::ChangeMore) };
         for (int i = 0; i < 3; ++i) {
             if (i == 2 && !pane.change_has_more) continue;
             fluent::ButtonSpec button;
@@ -1750,28 +1750,28 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             const float cw = columns.widths[static_cast<size_t>(col)];
             switch (columns.kinds[static_cast<size_t>(col)]) {
             case ColumnKind::Name:
-                drawCol(pulse::l10n::Get(pulse::l10n::StringId::ColumnName), SortColumn::Name, cw, false);
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnName), SortColumn::Name, cw, false);
                 break;
             case ColumnKind::Path:
-                drawCol(pulse::l10n::Get(pulse::l10n::StringId::ColumnPath), SortColumn::Path, cw, false);
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnPath), SortColumn::Path, cw, false);
                 break;
             case ColumnKind::Date:
                 drawCol(pane.date_column_label.empty()
-                            ? pulse::l10n::Get(pulse::l10n::StringId::ColumnModified)
+                            ? luling::l10n::Get(luling::l10n::StringId::ColumnModified)
                             : pane.date_column_label,
                         SortColumn::Mtime, cw, false);
                 break;
             case ColumnKind::Type:
-                drawCol(pulse::l10n::Get(pulse::l10n::StringId::ColumnType), SortColumn::Type, cw, false);
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnType), SortColumn::Type, cw, false);
                 break;
             case ColumnKind::Size:
-                drawCol(pulse::l10n::Get(pulse::l10n::StringId::ColumnSize), SortColumn::Size, cw, true);
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnSize), SortColumn::Size, cw, true);
                 break;
             case ColumnKind::Created:
-                drawCol(pulse::l10n::Get(pulse::l10n::StringId::ColumnCreated), SortColumn::Created, cw, false);
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnCreated), SortColumn::Created, cw, false);
                 break;
             case ColumnKind::Accessed:
-                drawCol(pulse::l10n::Get(pulse::l10n::StringId::ColumnAccessed), SortColumn::Accessed, cw, false);
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnAccessed), SortColumn::Accessed, cw, false);
                 break;
             }
         }
@@ -2124,8 +2124,8 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
         }
     }
     const bool folder_size_animate = motion::SystemAnimationsEnabled() && !IsHighContrast();
-    const std::wstring folder_size_offer = pulse::l10n::Get(pulse::l10n::StringId::FolderSizeCalculate);
-    const std::wstring folder_size_scanning = pulse::l10n::Get(pulse::l10n::StringId::Calculating);
+    const std::wstring folder_size_offer = luling::l10n::Get(luling::l10n::StringId::FolderSizeCalculate);
+    const std::wstring folder_size_scanning = luling::l10n::Get(luling::l10n::StringId::Calculating);
     const size_t entryCount = vm.EntryCount();
     if (entryCount == 0) return;
     const D2D1_RECT_F viewport = D2D1::RectF(x, y, x + w, y + h);
@@ -2640,7 +2640,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     }
                     case ColumnKind::Type: {
                         const bool deleted_change = vm.is_changes &&
-                            e.type_text == pulse::l10n::Get(pulse::l10n::StringId::ChangeDeleted);
+                            e.type_text == luling::l10n::Get(luling::l10n::StringId::ChangeDeleted);
                         float typeLeft = left;
                         const std::wstring chip = vm.is_changes ? std::wstring() : TypeChipLabel(e.name, e.is_dir);
                         const float chipW = TypeChipWidthDip(chip) * scale_;
@@ -3022,7 +3022,7 @@ void MainRenderer::DrawGroupHeaders(const PaneViewModel& vm, const ViewLayout& l
 
         float rule_right = text_right;
         if (!show_select && g.bytes > 0) {
-            const std::wstring bytes = pulse::format::ByteSize(g.bytes, true);
+            const std::wstring bytes = luling::format::ByteSize(g.bytes, true);
             const float bytes_w = MeasureLayoutText(compositor_, factory, small_fmt, bytes) + 1.0f;
             const float bx = rc.right - 8.0f * scale_ - bytes_w;
             if (bx > x + 24.0f * scale_) {
@@ -3156,4 +3156,4 @@ int MainRenderer::ItemFromPointInPane(const PaneViewModel& vm,
     return vm.SourceIndex(idx);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -1,6 +1,6 @@
 // ffmpeg_playback_test - Quick Look playback through the FFmpeg preview pack.
 // Pure helpers always run; the integration part needs a real FFmpeg with
-// libx265 (PULSE_TEST_FFMPEG=<ffmpeg.exe>, else C:\ffmpeg\bin) and is skipped
+// libx265 (LULING_TEST_FFMPEG=<ffmpeg.exe>, else C:\ffmpeg\bin) and is skipped
 // without one.
 #include "../ui/ffmpeg_playback.h"
 #include "../ui/audio_waveform.h"
@@ -11,8 +11,8 @@
 #include <cstdio>
 #include <string>
 
-using namespace pulse;
-using namespace pulse::ui;
+using namespace luling;
+using namespace luling::ui;
 
 namespace {
 int g_failed = 0, g_passed = 0;
@@ -140,7 +140,7 @@ void PureHelpers() {
 void Integration(const std::wstring& fixture_exe, const std::wstring& ffmpeg_exe) {
     wchar_t tmp[MAX_PATH];
     GetTempPathW(MAX_PATH, tmp);
-    const std::wstring dir = std::wstring(tmp) + L"pulse_ffmpeg_playback_" + std::to_wstring(GetCurrentProcessId());
+    const std::wstring dir = std::wstring(tmp) + L"luling_ffmpeg_playback_" + std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(dir.c_str(), nullptr);
     const std::wstring video = dir + L"\\clip hevc.mkv";
     const std::wstring audio = dir + L"\\tone.wv";
@@ -307,12 +307,12 @@ int main(int argc, char**) {
     ProbeCancellation();
     PureHelpers();
     LevelsMath();
-    std::wstring ffmpeg_exe = Env(L"PULSE_TEST_FFMPEG");
+    std::wstring ffmpeg_exe = Env(L"LULING_TEST_FFMPEG");
     if (ffmpeg_exe.empty() && GetFileAttributesW(L"C:\\ffmpeg\\bin\\ffmpeg.exe") != INVALID_FILE_ATTRIBUTES)
         ffmpeg_exe = L"C:\\ffmpeg\\bin\\ffmpeg.exe";
     if (ffmpeg_exe.empty()) std::printf("  (no FFmpeg: integration part skipped)\n");
     else {
-        const std::wstring pack_exe = Env(L"PULSE_TEST_PACK_FFMPEG");
+        const std::wstring pack_exe = Env(L"LULING_TEST_PACK_FFMPEG");
         Integration(ffmpeg_exe, pack_exe.empty() ? ffmpeg_exe : pack_exe);
     }
     std::printf("ffmpeg_playback_test: %d passed, %d failed\n", g_passed, g_failed);

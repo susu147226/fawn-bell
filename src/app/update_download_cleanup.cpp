@@ -9,7 +9,7 @@
 #include <vector>
 #include <algorithm>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 struct Handle {
     HANDLE value = INVALID_HANDLE_VALUE;
@@ -61,7 +61,7 @@ bool ReadReceipt(const std::wstring& path, Receipt& receipt, Handle& file, bool 
 }
 bool WriteReceipt(const std::wstring& path, const Receipt& receipt) {
     DATA_BLOB input{sizeof(Receipt), reinterpret_cast<BYTE*>(const_cast<Receipt*>(&receipt))}, output{};
-    if (!CryptProtectData(&input, L"Pulse update download ownership", nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &output)) return false;
+    if (!CryptProtectData(&input, L"Luling update download ownership", nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &output)) return false;
     Handle file{CreateFileW(path.c_str(), GENERIC_WRITE | DELETE, 0, nullptr, CREATE_NEW,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr)};
     DWORD written = 0;
@@ -122,13 +122,13 @@ unsigned CollectOne(const std::wstring& root, const Identity& root_id, const std
         const std::wstring_view entry(item.cFileName);
         if (entry == L"." || entry == L"..") continue;
         if ((item.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) ||
-            (entry != L"receipt.dat" && entry != L"PulseSetup.exe")) { layout = false; break; }
-        if (entry == L"PulseSetup.exe") has_file = true;
+            (entry != L"receipt.dat" && entry != L"LulingSetup.exe")) { layout = false; break; }
+        if (entry == L"LulingSetup.exe") has_file = true;
     } while (FindNextFileW(search, &item));
     const DWORD enumeration_error = GetLastError(); FindClose(search);
     if (!layout || enumeration_error != ERROR_NO_MORE_FILES) return 2;
     if (has_file) {
-        Handle installer{CreateFileW((path + L"\\PulseSetup.exe").c_str(), DELETE | FILE_READ_ATTRIBUTES, FILE_SHARE_READ,
+        Handle installer{CreateFileW((path + L"\\LulingSetup.exe").c_str(), DELETE | FILE_READ_ATTRIBUTES, FILE_SHARE_READ,
             nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, nullptr)};
         if (installer.value == INVALID_HANDLE_VALUE) return 0;
         Identity file_id;
@@ -156,7 +156,7 @@ bool CreateUpdateDownloadPackage(const std::wstring& root, UpdateDownloadPackage
     Handle directory{OpenDirectory(directory_path, true)};
     Receipt receipt; receipt.root = root_id; receipt.creator = GetCurrentProcessId();
     receipt.process_created = ProcessTime(GetCurrentProcess()); receipt.created = Now();
-    const auto file_path = directory_path + L"\\PulseSetup.exe";
+    const auto file_path = directory_path + L"\\LulingSetup.exe";
     Handle installer{CreateFileW(file_path.c_str(), GENERIC_WRITE | FILE_READ_ATTRIBUTES | DELETE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr)};
     const bool ready = directory.value != INVALID_HANDLE_VALUE && Info(directory.value, true, receipt.directory) &&
         installer.value != INVALID_HANDLE_VALUE && Info(installer.value, false, receipt.file) &&
@@ -173,7 +173,7 @@ bool CreateUpdateDownloadPackage(const std::wstring& root, UpdateDownloadPackage
 HANDLE OpenUpdateDownloadPackage(const UpdateDownloadPackage& package, DWORD access, DWORD sharing) {
     const auto slash = package.directory.find_last_of(L'\\');
     if (slash == std::wstring::npos || package.directory.substr(0, slash) != package.root ||
-        !Name(package.directory.substr(slash + 1)) || package.file != package.directory + L"\\PulseSetup.exe") return INVALID_HANDLE_VALUE;
+        !Name(package.directory.substr(slash + 1)) || package.file != package.directory + L"\\LulingSetup.exe") return INVALID_HANDLE_VALUE;
     Handle parent; Identity root_id;
     if (!Root(package.root, parent, root_id, false)) return INVALID_HANDLE_VALUE;
     Handle directory{OpenDirectory(package.directory)}; Identity directory_id;
@@ -229,7 +229,7 @@ void StartUpdateDownloadCleanup() {
             try {
                 wchar_t local[MAX_PATH]{};
                 if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, local)))
-                    CollectUpdateDownloads(std::wstring(local) + L"\\PulseUpdateDownloads");
+                    CollectUpdateDownloads(std::wstring(local) + L"\\LulingUpdateDownloads");
             } catch (...) { /* A future startup retries the same durable receipts. */ }
         }).detach();
     } catch (...) { /* The immutable receipt remains available on the next startup. */ }

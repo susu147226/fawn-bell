@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct MarkdownImageInfo {
     bool ready = false;
     std::wstring path;

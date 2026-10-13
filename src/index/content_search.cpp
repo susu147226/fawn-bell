@@ -16,7 +16,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 struct Candidate {
@@ -638,4 +638,4 @@ bool RunContentSearch(const ContentSearchRequest& request, const std::atomic<boo
     return !cancelled.load() && enumeration_error == ERROR_SUCCESS;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

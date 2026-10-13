@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <algorithm>
 
-using namespace pulse;
+using namespace luling;
 namespace {
 int failures = 0;
 void Check(bool ok, const char* label) {

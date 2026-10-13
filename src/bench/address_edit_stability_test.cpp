@@ -2,7 +2,7 @@
 #include "../common/localization.h"
 #include <iostream>
 
-void Render(pulse::AppState&);
+void Render(luling::AppState&);
 namespace {
 struct Messages { int margins=0,positions=0,redraw=0,hidden=0,text=0,size=0,selection=0; bool trace=false; };
 LRESULT CALLBACK Observe(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR data) {
@@ -26,7 +26,7 @@ LRESULT CALLBACK Observe(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_P
 }
 }
 int main() {
-    using namespace pulse;
+    using namespace luling;
     OleInitialize(nullptr); l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
     auto owned=std::make_unique<AppState>(); auto& s=*owned;
     s.isolatedTest=true; s.appPrefs.persist=false; s.searchHistory.persist=false;

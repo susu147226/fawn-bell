@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse {
+namespace luling {
 inline bool SidebarResizeHit(const AppState& s, int x, int y) {
     const auto bounds = s.renderer.SidebarRect(static_cast<float>(s.compositor.Width()),
         static_cast<float>(s.compositor.Height()));

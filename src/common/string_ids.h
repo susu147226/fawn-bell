@@ -1,5 +1,5 @@
-#ifndef PULSE_STRING_IDS_H
-#define PULSE_STRING_IDS_H
+#ifndef LULING_STRING_IDS_H
+#define LULING_STRING_IDS_H
 
 #define IDS_SETTINGS                    1000
 #define IDS_SETTINGS_GENERAL            1001
@@ -285,7 +285,7 @@
 #define IDS_FIXED_DISK                  1280
 #define IDS_PERFORMANCE_FORMAT          1281
 #define IDS_SETTINGS_ABOUT_DIAGNOSTICS  1282
-#define IDS_ABOUT_PULSE                 1283
+#define IDS_ABOUT_LULING                 1283
 #define IDS_VERSION_FORMAT              1284
 #define IDS_BUILD_ID_FORMAT             1285
 #define IDS_DIAGNOSTICS                 1286
@@ -1345,7 +1345,7 @@
 #define IDS_NOTIFY_ICON_ALWAYS 2509
 #define IDS_NOTIFY_ICON_BACKGROUND 2510
 #define IDS_NOTIFY_ICON_NEVER 2511
-#define IDS_EXIT_PULSE 2512
+#define IDS_EXIT_LULING 2512
 #define IDS_LIST_SELECTION_OUTLINE 2513
 #define IDS_LIST_SELECTION_OUTLINE_DESC 2514
 #define IDS_SIDEBAR_HIDE_CLOUD 2515
@@ -1371,7 +1371,7 @@
 // File operations that track items (delete, restore) label their speed with this unit.
 #define IDS_OP_ITEMS_PER_SECOND 2533
 #define IDS_CONTEXT_SLOW_DISABLED 2534
-// The configured index folder holds non-Pulse entries, so the service will not use it.
+// The configured index folder holds non-Luling entries, so the service will not use it.
 #define IDS_SETTINGS_INDEX_DIR_NOT_PRIVATE 2535
 // Settings > Search and index: built-in system folder exclusions.
 #define IDS_SETTINGS_SYSTEM_FOLDERS 2536
@@ -1387,8 +1387,8 @@
 #define IDS_SETTINGS_SYSTEM_FOLDERS_TIP 2546
 #define IDS_CONTEXT_ACTION_STRIP 2547
 #define IDS_CONTEXT_FOLDER_PROPERTIES 2548
-#define IDS_CONTEXT_PULSE_MENU 2549
-#define IDS_CONTEXT_PULSE_MENU_DESC 2550
+#define IDS_CONTEXT_LULING_MENU 2549
+#define IDS_CONTEXT_LULING_MENU_DESC 2550
 #define IDS_CONTEXT_TAB_ITEM 2551
 #define IDS_CONTEXT_TAB_BACKGROUND 2552
 #define IDS_CONTEXT_TAB_ROW 2553
@@ -1408,7 +1408,7 @@
 // Split view: hover button on the divider between two panes.
 #define IDS_SPLIT_SWAP_LR 2567
 #define IDS_SPLIT_SWAP_TB 2568
-// 右键菜单 › Pulse 菜单 preview: drag rows to reorder.
+// 右键菜单 › Luling 菜单 preview: drag rows to reorder.
 #define IDS_CONTEXT_ORDER_RESET 2569
 #define IDS_CONTEXT_ORDER_HINT 2570
 #define IDS_CONTEXT_ORDER_HINT_ROW 2571

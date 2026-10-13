@@ -12,7 +12,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 float ScaleDip(float scale, float value);
 D2D1_RECT_F DipRect(float scale, float x, float y, float width, float height);
@@ -40,4 +40,4 @@ void BeginSurface(Compositor& compositor, fluent::Painter& painter,
                   bool backdrop_enabled, float scale);
 void EndSurface(Compositor& compositor);
 
-} // namespace pulse::ui
+} // namespace luling::ui

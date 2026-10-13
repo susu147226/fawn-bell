@@ -1,4 +1,4 @@
-// shell_tag_menu.cpp - File Explorer "Pulse tags >" submenu (see header).
+// shell_tag_menu.cpp - File Explorer "Luling tags >" submenu (see header).
 #include "shell_tag_menu.h"
 #include "shell_tag_registry.h"
 #include "shell_tag_com.h"
@@ -20,14 +20,14 @@
 
 #pragma comment(lib, "shlwapi.lib")
 
-namespace pulse {
+namespace luling {
 bool ToggleTagForSelection(AppState& s, const app::TagId& tag_id,
                            const std::vector<std::wstring>& paths);
 }
 
 
 
-namespace pulse {
+namespace luling {
 namespace {
 
 constexpr ULONGLONG kHeadlessExitDelayMs = 1500; // let ADS writes drain
@@ -57,7 +57,7 @@ std::wstring IconDirectory() {
     PWSTR base = nullptr;
     std::wstring dir;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &base)) && base)
-        dir = std::wstring(base) + L"\\Pulse\\tagicons";
+        dir = std::wstring(base) + L"\\Luling\\tagicons";
     CoTaskMemFree(base);
     return dir;
 }
@@ -185,4 +185,4 @@ void TickShellTagMenu(AppState& s, ULONGLONG now) {
     }
 }
 
-} // namespace pulse
+} // namespace luling

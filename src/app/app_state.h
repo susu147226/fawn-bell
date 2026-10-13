@@ -70,7 +70,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace pulse {
+namespace luling {
 
 constexpr UINT WM_WORKER_RESULT = WM_APP + 1;
 constexpr UINT WM_OPS_NOTIFY = WM_APP + 2;
@@ -106,7 +106,7 @@ constexpr UINT WM_SHELL_SELECT = WM_APP + 68;  // app::ShellSelectRequest* (shel
 constexpr UINT WM_EXPLORER_TAKEOVER = WM_APP + 69;  // app::ExplorerTakeoverRequest* (shell_window_sync.h)
 constexpr UINT WM_NETWORK_LIVE_SEARCH = WM_APP + 71;  // shared_ptr<LiveNetworkSearch>* (#74 live walk progressed)
 constexpr UINT WM_SHELL_VERB_SEED = WM_APP + 70;
-constexpr UINT WM_EXIT_PULSE = WM_APP + 72;  // palette "Exit Pulse" (#57)  // ShellVerbSeed* (machine verb cache read off the UI thread)
+constexpr UINT WM_EXIT_LULING = WM_APP + 72;  // palette "Exit Luling" (#57)  // ShellVerbSeed* (machine verb cache read off the UI thread)
 constexpr UINT kTimerUi = 1;
 constexpr UINT WM_NETWORK_LOCATIONS = WM_APP + 73;
 constexpr UINT WM_ASSOC_CHANGED = WM_APP + 74;  // SHCNE_ASSOCCHANGED: default programs changed
@@ -309,7 +309,7 @@ struct AppState {
     bool safeMode = false;
     bool startupComplete = false; // WM_CREATE committed loaded/restored state; rollback must not save.
     bool isolatedTest = false;
-    bool isolatedTestPersist = false; // selftest builds: test instance saves into PULSE_TEST_DATA_DIR
+    bool isolatedTestPersist = false; // selftest builds: test instance saves into LULING_TEST_DATA_DIR
     bool contentIndexObserver = false;
     D2D1_COLOR_F accentColor;
     float scale = 1.0f;
@@ -471,7 +471,7 @@ struct AppState {
     // Middle-click tabs open after the opener, in click order (browser style).
     const void* backgroundTabOpener = nullptr;
     size_t backgroundTabRun = 0;
-    // Attention pulse on a tab reused instead of opening a duplicate (key is
+    // Attention luling on a tab reused instead of opening a duplicate (key is
     // only compared, never dereferenced).
     const app::LayoutTab* tabFlashKey = nullptr;
     ULONGLONG tabFlashAt = 0;
@@ -580,7 +580,7 @@ struct AppState {
     bool tagDragActive = false;
     POINT tagDragStartPt{};
     int tagDragTag = -1;                 // places.tags index of the dragged tag
-    std::wstring tagDragPath;            // pulse:tag:<index> at press time
+    std::wstring tagDragPath;            // luling:tag:<index> at press time
     int tagDragLastY = 0;
     float tagDragGrabDy = 0.0f;          // cursor y minus dragged slot top at activation
     float tagDragFloatTop = 0.0f;        // dragged slot top (px, cursor-delta driven)
@@ -807,4 +807,4 @@ inline std::wstring ClipboardPath(const std::wstring& p) {
     return path::StripExtendedPathPrefix(p);
 }
 
-} // namespace pulse
+} // namespace luling

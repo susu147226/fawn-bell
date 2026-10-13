@@ -2,7 +2,7 @@
 #pragma once
 #include "app_state.h"
 
-namespace pulse {
+namespace luling {
 
 // The updater must keep the window open if session/preferences cannot be saved.
 bool PrepareSessionForUpdate(AppState& s);
@@ -129,4 +129,4 @@ void QueueVisibleTagDiscovery(AppState& s);
 void ApplyTagAdsDiscoveries(AppState& s, const std::vector<TagAdsDiscovery>& discoveries);
 std::wstring SelectedFullPath(AppState& s);
 void SyncSavedSearchSidebar(AppState& s);
-} // namespace pulse
+} // namespace luling

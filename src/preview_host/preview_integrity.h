@@ -4,7 +4,7 @@
 #include <limits>
 #include <string_view>
 
-namespace pulse::preview {
+namespace luling::preview {
 inline uint64_t IntegrityNumber(std::wstring_view value) {
     uint64_t n = 0;
     if (value.empty()) return 0;

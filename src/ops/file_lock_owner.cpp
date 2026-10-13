@@ -11,7 +11,7 @@
 
 #pragma comment(lib, "rstrtmgr.lib")
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 
 // sherrors.h values; spelled out so this file does not pull in the Shell headers.
@@ -288,4 +288,4 @@ std::wstring CurrentModuleDirectory() {
     return ParentPart(buffer);
 }
 
-} // namespace pulse::ops
+} // namespace luling::ops

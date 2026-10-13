@@ -8,17 +8,17 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct AppPrefs {
     bool persist = true;
     bool launch_on_startup = false;
     bool keep_running_on_close = false;
-    // notify_icon_mode: the notification-area icon while closing keeps Pulse
+    // notify_icon_mode: the notification-area icon while closing keeps Luling
     // running: 0 always, 1 only while the window is closed to it, 2 never
     // (a second launch brings the window back; #57).
     int notify_icon_mode = 0;
-    bool open_folders_in_pulse = false;
+    bool open_folders_in_luling = false;
     bool take_over_win_e = false;
     bool take_over_this_pc = false; // HKCU This PC open verb (default_file_manager.h)
     bool integration_enabled = false;
@@ -26,10 +26,10 @@ struct AppPrefs {
     bool integration_win_e = true;
     bool integration_this_pc = true;
     bool integration_configured = false; // runtime: new-format preferences were loaded
-    bool integration_residual = false; // runtime: some association still belongs to Pulse
+    bool integration_residual = false; // runtime: some association still belongs to Luling
     bool integration_incomplete = false;
     bool take_over_explorer_windows = false; // experimental choice; runtime is gated by integration_enabled
-    bool shell_tag_menu = false;    // File Explorer "Pulse tags" submenu (shell_tag_menu.cpp syncs HKCU)   // registry is the source of truth (not in app.json)
+    bool shell_tag_menu = false;    // File Explorer "Luling tags" submenu (shell_tag_menu.cpp syncs HKCU)   // registry is the source of truth (not in app.json)
     bool verify_copies = false;
     bool show_status_performance = false;
     bool show_pinned_tab_names = true;
@@ -47,7 +47,7 @@ struct AppPrefs {
     int folder_sort_mode = 0;
     // Optional Details columns for every folder (ui/details_column_set.h bits).
     uint32_t details_columns = ui::kDetailsColumnsDefault;
-    // Where Pulse opens. home_folder is the default location; empty means This PC.
+    // Where Luling opens. home_folder is the default location; empty means This PC.
     // startup_open: 0 restore the last tabs, 1 open the default location.
     // new_tab_open: 0 the current folder, 1 the default location.
     int startup_open = 0;
@@ -130,7 +130,7 @@ struct AppPrefs {
 
     // HKCU "File Explorer" launch verb used by Win+E and the taskbar Explorer
     // pin ({52205fd8-...}\shell\opennewwindow). Original values are kept by
-    // shell_integration_registry and restored only while Pulse still owns them.
+    // shell_integration_registry and restored only while Luling still owns them.
     bool ReadWinE() const;
     bool ApplyWinE(bool on);
 
@@ -150,4 +150,4 @@ int NormalizeUiFontScale(int percent) noexcept;
 // interface fonts still fit (112% -> at least 32, 125% -> at least 35).
 int EffectiveRowHeightDip(int list_row_height, int ui_font_scale) noexcept;
 
-} // namespace pulse::app
+} // namespace luling::app

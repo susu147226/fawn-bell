@@ -2,7 +2,7 @@
 #include <windowsx.h>
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 bool Contains(const D2D1_RECT_F& rect, float x, float y) {
     return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;

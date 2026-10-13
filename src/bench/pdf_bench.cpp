@@ -6,23 +6,23 @@
 
 int wmain(int argc, wchar_t** argv) {
     if (argc < 4 || argc > 5) return 2;
-    SetEnvironmentVariableW(L"PULSE_PDF_ENGINE", argv[1]);
-    pulse::index::DocumentReadSession session;
+    SetEnvironmentVariableW(L"LULING_PDF_ENGINE", argv[1]);
+    luling::index::DocumentReadSession session;
     std::wstring body; uint64_t bytes = 0; DWORD error = 0;
-    pulse::index::DocumentReadMetrics metrics;
-    const auto start = pulse::index::DocumentMicros();
+    luling::index::DocumentReadMetrics metrics;
+    const auto start = luling::index::DocumentMicros();
     const auto cancel_us = argc >= 5 ? _wcstoui64(argv[4], nullptr, 10) * 1000 : 0;
-    const bool ok = pulse::index::ReadSearchableDocument(argv[2], pulse::index::document::kMaximumFileBytes,
-        body, bytes, &error, pulse::text::Encoding::Auto,
-        [&] { return cancel_us && pulse::index::DocumentMicros() - start >= cancel_us; },
+    const bool ok = luling::index::ReadSearchableDocument(argv[2], luling::index::document::kMaximumFileBytes,
+        body, bytes, &error, luling::text::Encoding::Auto,
+        [&] { return cancel_us && luling::index::DocumentMicros() - start >= cancel_us; },
         argv[3], false, &metrics);
-    const auto elapsed = pulse::index::DocumentMicros() - start;
+    const auto elapsed = luling::index::DocumentMicros() - start;
     SIZE_T peak = 0, private_bytes = 0, peak_private_bytes = 0;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     PROCESSENTRY32W entry{sizeof(entry)};
     if (snapshot != INVALID_HANDLE_VALUE) {
         if (Process32FirstW(snapshot, &entry)) do {
-            if (entry.th32ParentProcessID != GetCurrentProcessId() || _wcsicmp(entry.szExeFile, L"Pulse.Document.exe")) continue;
+            if (entry.th32ParentProcessID != GetCurrentProcessId() || _wcsicmp(entry.szExeFile, L"Luling.Document.exe")) continue;
             HANDLE child = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, entry.th32ProcessID);
             PROCESS_MEMORY_COUNTERS_EX memory{}; memory.cb = sizeof(memory);
             if (child && GetProcessMemoryInfo(child, reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory))) {

@@ -35,7 +35,7 @@ static BOOL WINAPI TestChanges(HANDLE h, LPVOID b, DWORD n, BOOL tree, DWORD fil
 #include "../app/app_worker.cpp"
 // Isolate enumeration/worker lifetime from unrelated cache, link, sort and
 // logging services. The production WorkerPool and enumeration run unchanged.
-namespace pulse::app {
+namespace luling::app {
 std::wstring FindGitRoot(const std::wstring&) { return {}; }
 void ResolveLinksInPlace(const std::wstring&,std::vector<fs::DirEntry>&,const std::function<bool()>&) {}
 ScopedEntryGrouping::ScopedEntryGrouping(int,const std::wstring&) {}
@@ -46,13 +46,13 @@ void SortEntries(std::vector<fs::DirEntry>& entries, ui::SortColumn col, ui::Sor
     std::sort(entries.begin(), entries.end(), [&](const fs::DirEntry& a, const fs::DirEntry& b) { if (tick) tick(); return EntryLess(a, b, col, dir); });
 }
 }
-namespace pulse::fs {
+namespace luling::fs {
 NetSnapshotWriteTicket BeginNetSnapshotWrite(const std::wstring&) {return {};}
 bool SaveNetSnapshot(const NetSnapshotWrite&,const SnapshotPtr&) {return true;}
 bool QueryDirectoryIdentity(const std::wstring&,DirectoryIdentity&) {return false;}
 }
-namespace pulse::diagnostics::runtime { void Event(const char*,std::initializer_list<Field>) noexcept {} }
-using namespace pulse::fs;
+namespace luling::diagnostics::runtime { void Event(const char*,std::initializer_list<Field>) noexcept {} }
+using namespace luling::fs;
 static NtCreateFile_t real_open;
 static NtQueryDirectoryFile_t real_query;
 static std::atomic<int> open_mode{0};
@@ -122,8 +122,8 @@ int main() {
         open_mode=mode==0?1:mode==2?2:0;pending=mode==1;fallback_block=mode==2;
         std::atomic<unsigned> callbacks{0};
         {
-            pulse::app::WorkerPool pool;pool.Start([&](auto){++callbacks;});
-            pool.Refresh(dir.wstring(),pulse::ui::SortColumn::Name,pulse::ui::SortDirection::Asc);
+            luling::app::WorkerPool pool;pool.Start([&](auto){++callbacks;});
+            pool.Refresh(dir.wstring(),luling::ui::SortColumn::Name,luling::ui::SortDirection::Asc);
             Check(WaitForSingleObject(entered,2000)==WAIT_OBJECT_0,"M03-001 production WorkerPool reaches injected block");
             const auto stopped=GetTickCount64();pool.Stop();
             const auto elapsed=GetTickCount64()-stopped;
@@ -138,11 +138,11 @@ int main() {
     ResetEvent(entered);ResetEvent(release_io);open_mode=1;
     std::atomic<unsigned> published{0};
     {
-        pulse::app::WorkerPool pool;pool.Start([&](auto){++published;});
-        const auto generation=pool.Refresh(dir.wstring(),pulse::ui::SortColumn::Name,pulse::ui::SortDirection::Asc);
+        luling::app::WorkerPool pool;pool.Start([&](auto){++published;});
+        const auto generation=pool.Refresh(dir.wstring(),luling::ui::SortColumn::Name,luling::ui::SortDirection::Asc);
         Check(WaitForSingleObject(entered,2000)==WAIT_OBJECT_0,"M03-001 replaced navigation reaches blocked open");
         pool.CancelGeneration(generation);open_mode=0;
-        pool.Refresh(dir.wstring(),pulse::ui::SortColumn::Name,pulse::ui::SortDirection::Asc);
+        pool.Refresh(dir.wstring(),luling::ui::SortColumn::Name,luling::ui::SortDirection::Asc);
         for(int i=0;i<100 && !published.load();++i) Sleep(5);
         Check(published==1,"M03-001 replacement navigation publishes while old request is blocked");
         pool.Stop();

@@ -10,7 +10,7 @@
 #include "markdown_document.h"
 #include "table_document.h"
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr size_t kMaxNotebookBytes = 48u * 1024u * 1024u;  // outputs carry base64 pictures
@@ -389,4 +389,4 @@ bool MakeNotebookDocument(const std::wstring& path, std::wstring& payload, uint3
     return true;
 }
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

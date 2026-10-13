@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 inline constexpr float kColumnStripDefaultDip = 200.0f;
 inline constexpr float kColumnStripChildDefaultDip = 220.0f;
@@ -52,4 +52,4 @@ ColumnStripLayout LayoutColumnStrip(const D2D1_RECT_F& pane_bounds, float top,
                                     const std::vector<float>& widths_dip,
                                     float scale, float scroll_from_right_dip = 0.0f) noexcept;
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -8,7 +8,7 @@
 #include <numeric>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -271,4 +271,4 @@ uint64_t FolderSizeSignature(const FolderSizeLookup& sizes) {
     return signature;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

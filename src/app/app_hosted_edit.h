@@ -3,10 +3,10 @@
 #include "app_runtime.h"
 #include <commctrl.h>
 
-namespace pulse {
+namespace luling {
 std::wstring FormatAddressPath(const std::wstring& text);
 // The location typed address-bar text opens (#54): %VAR% and shell: shortcuts
-// expand first; This PC (empty) and pulse: views pass through untouched.
+// expand first; This PC (empty) and luling: views pass through untouched.
 // *shortcut is set when the text was such a shortcut.
 std::wstring AddressNavigationTarget(const std::wstring& text, bool* shortcut = nullptr);
 void PlaceHostedEdit(HWND hwnd, HWND owner, const D2D1_RECT_F& cell, float scale,
@@ -63,4 +63,4 @@ LRESULT CALLBACK RenameEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                                        UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData);
 LRESULT CALLBACK TagRenameEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
                                           UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData);
-} // namespace pulse
+} // namespace luling

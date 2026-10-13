@@ -33,7 +33,7 @@ using std::min;
 #include <string>
 #include <vector>
 
-using namespace pulse;
+using namespace luling;
 
 namespace {
 int passed = 0, failed = 0;
@@ -337,7 +337,7 @@ bool WriteEmfFixture(const std::wstring& path) {
     HDC reference = GetDC(nullptr);
     if (!reference) return false;
     const RECT frame{0, 0, 200, 100};
-    HDC dc = CreateEnhMetaFileW(reference, path.c_str(), &frame, L"Pulse preview test\0");
+    HDC dc = CreateEnhMetaFileW(reference, path.c_str(), &frame, L"Luling preview test\0");
     ReleaseDC(nullptr, reference);
     if (!dc) return false;
     const HGDIOBJ brush = SelectObject(dc, GetStockObject(DC_BRUSH));
@@ -358,7 +358,7 @@ bool WriteEmfPlusFixture(const std::wstring& path) {
     bool ok = false;
     {
         Gdiplus::Metafile metafile(path.c_str(), reference, Gdiplus::EmfTypeEmfPlusOnly,
-                                   L"Pulse preview test");
+                                   L"Luling preview test");
         if (metafile.GetLastStatus() == Gdiplus::Ok) {
             Gdiplus::Graphics graphics(&metafile);
             if (graphics.GetLastStatus() == Gdiplus::Ok) {
@@ -371,7 +371,7 @@ bool WriteEmfPlusFixture(const std::wstring& path) {
     return ok;
 }
 
-using pulse_test::Result;
+using luling_test::Result;
 
 // True when more than 1% of the raster is darker than near-white, i.e. the
 // preview actually drew something.
@@ -387,10 +387,10 @@ bool HasInk(const Result& result) {
     return ink * 100 > count;
 }
 
-using pulse_test::Host;
+using luling_test::Host;
 }
 
-// Diagnostic: pulse_preview_test --probe <file> [pixels] [out.bmp]
+// Diagnostic: luling_preview_test --probe <file> [pixels] [out.bmp]
 // Prints what the Word readers see in <file> and what the preview host returns
 // for a grid thumbnail request, and saves that bitmap. Read-only on <file>.
 static int RunProbe(const std::wstring& file, uint32_t pixels, const wchar_t* bmp_path) {
@@ -465,7 +465,7 @@ int wmain(int argc, wchar_t** argv) {
     if (argc >= 4 && wcscmp(argv[1], L"--coverage") == 0) {
         const int depth = argc >= 5 ? _wtoi(argv[4]) : 4;
         const int samples = argc >= 6 ? _wtoi(argv[5]) : 5;
-        return pulse_test::RunCoverage(argv[2], argv[3], depth > 0 ? depth : 4, samples > 0 ? samples : 5);
+        return luling_test::RunCoverage(argv[2], argv[3], depth > 0 ? depth : 4, samples > 0 ? samples : 5);
     }
     if (argc >= 3 && wcscmp(argv[1], L"--probe") == 0) {
         const uint32_t pixels = argc >= 4 ? static_cast<uint32_t>(_wtoi(argv[3])) : 256u;
@@ -506,7 +506,7 @@ int wmain(int argc, wchar_t** argv) {
 
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring root = std::wstring(temp) + L"PulsePreviewTest-" +
+    const std::wstring root = std::wstring(temp) + L"LulingPreviewTest-" +
                               std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(root.c_str(), nullptr);
     const auto path = [&](const wchar_t* name) { return root + L"\\" + name; };
@@ -543,17 +543,17 @@ int wmain(int argc, wchar_t** argv) {
     const double host_start_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - host_begin)
             .count();
-    // Every first preview of a session pays this: Pulse launches the host on
+    // Every first preview of a session pays this: Luling launches the host on
     // demand and reuses it afterwards.
     std::wprintf(L"[INFO] preview host start %.2f ms\n", host_start_ms);
     Check(host_started, L"start isolated preview host");
 
-    // Manual inspection: PULSE_PREVIEW_DUMP="a.7z;b.rar" writes each preview's
+    // Manual inspection: LULING_PREVIEW_DUMP="a.7z;b.rar" writes each preview's
     // text (or its failure) to <file>.preview.txt as UTF-8, then exits.
-    // PULSE_PREVIEW_DUMP_SIZE=<edge> requests that edge instead of 1024 (grid
+    // LULING_PREVIEW_DUMP_SIZE=<edge> requests that edge instead of 1024 (grid
     // thumbnails are 256 and below).
     if (wchar_t dump[4096]{}; host_started &&
-        GetEnvironmentVariableW(L"PULSE_PREVIEW_DUMP", dump, ARRAYSIZE(dump))) {
+        GetEnvironmentVariableW(L"LULING_PREVIEW_DUMP", dump, ARRAYSIZE(dump))) {
         std::wstring list = dump;
         size_t start = 0;
         while (start < list.size()) {
@@ -565,7 +565,7 @@ int wmain(int argc, wchar_t** argv) {
             Result r;
             const auto t0 = std::chrono::steady_clock::now();
             wchar_t sizeText[16]{};
-            const uint32_t edge = GetEnvironmentVariableW(L"PULSE_PREVIEW_DUMP_SIZE", sizeText, ARRAYSIZE(sizeText))
+            const uint32_t edge = GetEnvironmentVariableW(L"LULING_PREVIEW_DUMP_SIZE", sizeText, ARRAYSIZE(sizeText))
                 ? static_cast<uint32_t>(wcstoul(sizeText, nullptr, 10)) : 1024u;
             const bool ok = host.Request(target, r, MAXDWORD, edge ? edge : 1024u);
             const double ms = std::chrono::duration<double, std::milli>(
@@ -611,11 +611,11 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     if (!vector_only) {
-        // PULSE_PREVIEW_BENCH=<file>: time a real document's first preview against
+        // LULING_PREVIEW_BENCH=<file>: time a real document's first preview against
         // its repeats. This is where shell providers (Office, PDF) show their
         // one-time handler load, and it runs on the freshly started host on purpose.
         wchar_t bench_path[32768]{};
-        if (GetEnvironmentVariableW(L"PULSE_PREVIEW_BENCH", bench_path, ARRAYSIZE(bench_path))) {
+        if (GetEnvironmentVariableW(L"LULING_PREVIEW_BENCH", bench_path, ARRAYSIZE(bench_path))) {
             double bench_first = 0.0;
             std::vector<double> bench_repeats;
             for (int i = 0; i < 5; ++i) {
@@ -661,7 +661,7 @@ int wmain(int argc, wchar_t** argv) {
         expectText(L"utf16le.txt", L"A");
         expectText(L"utf16be.txt", L"B");
         expectText(L"acp.txt", L"A");
-        expectText(L"settings.lpm", L"pulse");
+        expectText(L"settings.lpm", L"luling");
 
         Result hex;
         Check(host.Request(path(L"sample.bin"), hex) &&
@@ -1068,7 +1068,7 @@ int wmain(int argc, wchar_t** argv) {
                                                     1u << 20, member, &zipError);
         const std::string xml(member.begin(), member.end());
         Check(deflated && member.size() == 1455 && xml.rfind("<w:document>", 0) == 0 &&
-              xml.find("\xE7\xAC\xAC" "39" "\xE6\xAE\xB5" " Pulse") != std::string::npos,
+              xml.find("\xE7\xAC\xAC" "39" "\xE6\xAE\xB5" " Luling") != std::string::npos,
               L"zip member inflates through libarchive");
         const bool stored = preview::ReadZipEntry(path(L"package.docx"), "/[content_types].XML",
                                                   1u << 20, member, &zipError);

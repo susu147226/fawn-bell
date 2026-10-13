@@ -10,13 +10,13 @@
 #include <map>
 #include <windowsx.h>
 
-void Render(pulse::AppState&);
-bool WaitForShotReady(pulse::AppState&);
+void Render(luling::AppState&);
+bool WaitForShotReady(luling::AppState&);
 
 // Explicit isolated shot hook only. It exercises real navigation, view models,
 // hit testing and size-cell clicks, without touching files in the viewed tree.
-int RunFolderSizeExperienceProbe(pulse::AppState& s, const wchar_t* output) {
-    using namespace pulse;
+int RunFolderSizeExperienceProbe(luling::AppState& s, const wchar_t* output) {
+    using namespace luling;
     FILE* log = nullptr;
     if (_wfopen_s(&log, output, L"w") || !log) return 2;
     unsigned checks = 0, failures = 0;
@@ -48,7 +48,7 @@ int RunFolderSizeExperienceProbe(pulse::AppState& s, const wchar_t* output) {
     };
     wchar_t sample_dir[32768]{};
     if (s.isolatedTest && s.shot.active &&
-        GetEnvironmentVariableW(L"PULSE_TEST_FOLDER_SIZE_SAMPLE_DIR", sample_dir, ARRAYSIZE(sample_dir))) {
+        GetEnvironmentVariableW(L"LULING_TEST_FOLDER_SIZE_SAMPLE_DIR", sample_dir, ARRAYSIZE(sample_dir))) {
         NavigateTo(s, sample_dir);
         check(ready(), "isolated known-size fixture loads");
         pump(1500);

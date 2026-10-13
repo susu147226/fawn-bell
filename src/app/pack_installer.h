@@ -16,7 +16,7 @@
 #include <string>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class PackInstallOutcome : uint32_t { None, Installed, Failed, Cancelled };
 
@@ -63,4 +63,4 @@ private:
     std::thread worker_;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

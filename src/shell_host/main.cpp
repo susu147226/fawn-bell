@@ -1,7 +1,7 @@
 #include "../common/windows_compat.h"
-// main.cpp — pulse_shell.exe: windowless STA+COM shell-operation proxy.
+// main.cpp — luling_shell.exe: windowless STA+COM shell-operation proxy.
 //
-// Pipe server on \\.\pipe\pulse_shell_<ui-pid> (ui-pid passed as argv[1],
+// Pipe server on \\.\pipe\luling_shell_<ui-pid> (ui-pid passed as argv[1],
 // defaults to own pid for standalone runs). Requests are read on a dedicated
 // thread and marshalled to the STA main thread (message-only window), where
 // IFileOperation executes synchronously with an IFileOperationProgressSink
@@ -35,7 +35,7 @@
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "uuid.lib")
 
-using namespace pulse::ipc;
+using namespace luling::ipc;
 
 namespace {
 
@@ -73,14 +73,14 @@ struct HostState {
 } g;
 
 // Crash-only diagnostics (plan §11: crashes are a normal design case).
-// Log under %LOCALAPPDATA%\Pulse: an installed copy lives in Program Files,
+// Log under %LOCALAPPDATA%\Luling: an installed copy lives in Program Files,
 // where the exe directory is not writable for a non-admin user.
 void HostLog(const wchar_t* msg) {
     wchar_t dir[MAX_PATH]{};
     if (FAILED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, dir))) return;
-    std::wstring path = std::wstring(dir) + L"\\Pulse";
+    std::wstring path = std::wstring(dir) + L"\\Luling";
     CreateDirectoryW(path.c_str(), nullptr);
-    path += L"\\pulse_shell_host.log";
+    path += L"\\luling_shell_host.log";
     if (HANDLE f = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
             OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr); f != INVALID_HANDLE_VALUE) {
         char buf[512];
@@ -260,7 +260,7 @@ private:
 std::wstring ToParsingPath(std::wstring path) {
     // IFileOperation / SHCreateItemFromParsingName reject \\?\ prefixes
     // (ERROR_INVALID_PARAMETER) even for short paths.
-    return pulse::path::StripExtendedPathPrefix(path);
+    return luling::path::StripExtendedPathPrefix(path);
 }
 
 HRESULT MakeItem(const std::wstring& path, IShellItem** out) {
@@ -363,8 +363,8 @@ std::wstring CanonPath(std::wstring p) {
 
 bool ReadRecycleOriginal(const std::wstring& i_path, std::wstring& original) {
     original.clear();
-    pulse::recycle::IndexRecord record;
-    if (!pulse::recycle::ReadIndex(i_path, record)) return false;
+    luling::recycle::IndexRecord record;
+    if (!luling::recycle::ReadIndex(i_path, record)) return false;
     original = std::move(record.original_path);
     return true;
 }
@@ -392,7 +392,7 @@ bool RestoreSelectedRecyclePayload(const std::wstring& payload, std::wstring& er
 
 bool RestoreOneFromRecycle(const std::wstring& payload, std::wstring& error) {
     const std::wstring wanted = CanonPath(payload);
-    const std::wstring sid = pulse::CurrentUserSidString();
+    const std::wstring sid = luling::CurrentUserSidString();
     if (wanted.size() < 3 || wanted[1] != L':' || sid.empty()) {
         error = L"无法确定当前用户的回收站";
         return false;
@@ -615,7 +615,7 @@ bool ClientIsExpected() {
 DWORD WINAPI ReaderThread(LPVOID) {
     __try {
         return ReaderThreadImpl();
-    } __except (pulse::crash::ReportFatal(GetExceptionInformation(), "shell-reader")) {
+    } __except (luling::crash::ReportFatal(GetExceptionInformation(), "shell-reader")) {
         TerminateProcess(GetCurrentProcess(), GetExceptionCode());
         return 0;
     }
@@ -778,21 +778,21 @@ std::map<uint32_t, CtxSlot> g_ctx_sessions;
 int g_ctx_threads = 0;
 std::vector<HANDLE> g_abandoned_threads;
 
-// Test hook (#65): PULSE_SHELL_TEST_STUCK_HANDLER=<file name> adds, to menus
+// Test hook (#65): LULING_SHELL_TEST_STUCK_HANDLER=<file name> adds, to menus
 // for that file only, a handler whose QueryContextMenu never returns, like a
 // third-party extension that hangs.
 constexpr wchar_t kTestStuckHandler[] = L"{50554C53-4500-4D41-4E47-000000000065}";
 
 bool TestStuckHandlerFor(const std::wstring& path) {
     wchar_t name[MAX_PATH]{};
-    const DWORD length = GetEnvironmentVariableW(L"PULSE_SHELL_TEST_STUCK_HANDLER", name,
+    const DWORD length = GetEnvironmentVariableW(L"LULING_SHELL_TEST_STUCK_HANDLER", name,
                                                  ARRAYSIZE(name));
     if (length == 0 || length >= ARRAYSIZE(name) || path.size() <= length) return false;
     return path[path.size() - length - 1] == L'\\' &&
            _wcsicmp(path.c_str() + path.size() - length, name) == 0;
 }
 
-using pulse::shell::CtxItemOut;
+using luling::shell::CtxItemOut;
 
 void SendCtxItems(uint32_t session_id, const std::vector<CtxItemOut>& items,
                   uint32_t flags = 0,
@@ -840,14 +840,14 @@ UINT QueryContextMenuFlags(const CtxSessionData& d) {
 // collection so fallback and worker paths cannot drift.
 void CollectCtxItems(IContextMenu* menu, IContextMenu2* menu2, HMENU hmenu,
                      bool background, std::vector<CtxItemOut>& out) {
-    pulse::shell::CtxHandlerSlot slot;
+    luling::shell::CtxHandlerSlot slot;
     slot.menu = menu;
     slot.menu2 = menu2;
     slot.hmenu = hmenu;
     slot.id_first = kCtxIdFirst;
     slot.id_last = kCtxIdLast;
     if (menu) menu->QueryInterface(IID_PPV_ARGS(&slot.menu3));
-    pulse::shell::CollectHandlerItems(slot, background, out);
+    luling::shell::CollectHandlerItems(slot, background, out);
     if (slot.menu3) slot.menu3->Release();
     slot.menu = nullptr;
     slot.menu2 = nullptr;
@@ -951,14 +951,14 @@ struct HandlerWorker {
         if (exit_event) CloseHandle(exit_event);
         if (thread) CloseHandle(thread);
     }
-    pulse::shell::CtxHandlerDesc desc;
+    luling::shell::CtxHandlerDesc desc;
     std::vector<std::wstring> paths;
     bool background = false;
     HWND owner = nullptr;
     UINT id_first = 0;
     UINT id_last = 0;
     UINT qcm_flags = 0;
-    pulse::shell::CtxHandlerSlot slot;
+    luling::shell::CtxHandlerSlot slot;
     std::vector<CtxItemOut> items;
     HANDLE done_event = nullptr;
     HANDLE exit_event = nullptr;
@@ -979,14 +979,14 @@ DWORD HandlerWorkerThreadImpl(LPVOID param) {
 
     const ULONGLONG t0 = GetTickCount64();
     if (w->desc.clsid_text == kTestStuckHandler) Sleep(INFINITE);
-    pulse::shell::CtxBind bind;
-    if (pulse::shell::BindCtxSelection(w->paths, w->background, bind)) {
-        const HRESULT hr = pulse::shell::QueryOneHandler(
+    luling::shell::CtxBind bind;
+    if (luling::shell::BindCtxSelection(w->paths, w->background, bind)) {
+        const HRESULT hr = luling::shell::QueryOneHandler(
             w->desc, bind, w->owner, w->id_first, w->id_last, w->qcm_flags, w->slot);
         if (SUCCEEDED(hr) && w->slot.menu)
-            pulse::shell::CollectHandlerItems(w->slot, w->background, w->items);
+            luling::shell::CollectHandlerItems(w->slot, w->background, w->items);
         else
-            pulse::shell::ReleaseHandlerSlot(w->slot);
+            luling::shell::ReleaseHandlerSlot(w->slot);
     }
     w->elapsed_ms = static_cast<uint32_t>(GetTickCount64() - t0);
     if (w->done_event) SetEvent(w->done_event);
@@ -1021,7 +1021,7 @@ DWORD HandlerWorkerThreadImpl(LPVOID param) {
         }
         if (invoked || exiting) break;
     }
-    pulse::shell::ReleaseHandlerSlot(w->slot);
+    luling::shell::ReleaseHandlerSlot(w->slot);
     CoUninitialize();
     return 0;
 }
@@ -1096,7 +1096,7 @@ void JoinHandlerWorkers(std::vector<std::unique_ptr<HandlerWorker>>& workers) {
 // The coordinator can be tested with one controlled worker, without loading
 // installed providers or writing the user's host diagnostic log.
 struct CtxSessionApi {
-    decltype(&pulse::shell::EnumerateCtxHandlers) enumerate = pulse::shell::EnumerateCtxHandlers;
+    decltype(&luling::shell::EnumerateCtxHandlers) enumerate = luling::shell::EnumerateCtxHandlers;
     decltype(&BuildCtxMenu) fallback = BuildCtxMenu;
     decltype(&HostLog) log = HostLog;
     HandlerWorkerApi worker;
@@ -1159,7 +1159,7 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
     if (TestStuckHandlerFor(data->paths.front()) &&
         std::find(data->disabled_clsids.begin(), data->disabled_clsids.end(),
                   kTestStuckHandler) == data->disabled_clsids.end()) {
-        pulse::shell::CtxHandlerDesc stuck;
+        luling::shell::CtxHandlerDesc stuck;
         stuck.clsid_text = kTestStuckHandler;
         handlers.insert(handlers.begin(), std::move(stuck));
     }
@@ -1208,7 +1208,7 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
             if (w->desc.explorer_command) {
                 std::vector<std::wstring> rows;
                 invokable_texts(w->items, rows);
-                if (pulse::shell::PackagedRowsDuplicate(rows, classic_rows)) continue;
+                if (luling::shell::PackagedRowsDuplicate(rows, classic_rows)) continue;
             }
             out.insert(out.end(), w->items.begin(), w->items.end());
         }
@@ -1277,7 +1277,7 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
 
     auto dispatch_invoke = [&](std::unique_ptr<CtxInvokeMsg> inv) {
         if (!inv) return;
-        uint32_t live = pulse::shell::FindItemId(
+        uint32_t live = luling::shell::FindItemId(
             items, inv->item_id, inv->verb, inv->text);
         if (!workers.empty()) {
             HandlerWorker* target = nullptr;
@@ -1372,7 +1372,7 @@ int CtxCrashFilter(EXCEPTION_POINTERS* ep) {
                ep->ExceptionRecord->ExceptionCode,
                ep->ExceptionRecord->ExceptionAddress, hm ? mod : L"?");
     HostLog(buf);
-    pulse::crash::ReportRecoverable(ep, "shell-context-menu");
+    luling::crash::ReportRecoverable(ep, "shell-context-menu");
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -1486,7 +1486,7 @@ DWORD WINAPI ParentWatchdog(LPVOID param) {
 DWORD WINAPI PackagedVerbsPrewarm(LPVOID) {
     const HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     const ULONGLONG start = GetTickCount64();
-    const size_t count = pulse::shell::PackagedContextMenuVerbs().size();
+    const size_t count = luling::shell::PackagedContextMenuVerbs().size();
     wchar_t buf[96];
     swprintf_s(buf, L"Packaged verbs prewarmed %llums count=%zu",
                GetTickCount64() - start, count);
@@ -1497,7 +1497,7 @@ DWORD WINAPI PackagedVerbsPrewarm(LPVOID) {
 
 // A handler thread that never returned cannot be stopped (#65). Once nothing
 // else runs in the host, end the process: that reclaims those threads, and
-// Pulse starts a fresh host on its next request.
+// Luling starts a fresh host on its next request.
 void MaybeRecycleHost() {
     if (g.requests_in_flight.load() != 0) return;
     std::lock_guard<std::mutex> lock(g_ctx_mutex); // keeps new sessions out
@@ -1540,11 +1540,11 @@ LRESULT CALLBACK HostWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 } // namespace
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
-    pulse::crash::Initialize({pulse::crash::ProcessRole::Shell, false, {}});
+    luling::crash::Initialize({luling::crash::ProcessRole::Shell, false, {}});
     // IFileOperation creates its conflict/confirmation UI in this process.
     // Declare PMv2 before COM or any HWND exists so Windows does not bitmap-scale
     // those dialogs on high-DPI displays.
-    pulse::compat::EnableDpiAwareness();
+    luling::compat::EnableDpiAwareness();
 
     DWORD ui_pid = GetCurrentProcessId();
     if (__argc > 1) {
@@ -1561,7 +1561,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
     if (FAILED(hr)) return 1;
 
     std::wstring pipe_name = PipeNameFor(ui_pid);
-    pulse::CurrentUserSecurityAttributes pipe_security;
+    luling::CurrentUserSecurityAttributes pipe_security;
     if (!pipe_security) {
         HostLog(L"Cannot create pipe security descriptor");
         CoUninitialize();
@@ -1581,9 +1581,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
     wc.cbSize = sizeof(wc);
     wc.lpfnWndProc = HostWndProc;
     wc.hInstance = hInstance;
-    wc.lpszClassName = L"PulseShellHost";
+    wc.lpszClassName = L"LulingShellHost";
     RegisterClassExW(&wc);
-    g.hwnd_msg = CreateWindowExW(0, wc.lpszClassName, L"PulseShellHost", 0,
+    g.hwnd_msg = CreateWindowExW(0, wc.lpszClassName, L"LulingShellHost", 0,
         0, 0, 0, 0, HWND_MESSAGE, nullptr, hInstance, nullptr);
     if (!g.hwnd_msg) {
         CloseHandle(g.pipe);

@@ -2,7 +2,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <thread>
-namespace pulse::app {
+namespace luling::app {
 namespace {
 std::atomic<unsigned> active_workers{0};
 constexpr unsigned kWorkerLimit = 4;

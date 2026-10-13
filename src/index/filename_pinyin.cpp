@@ -11,7 +11,7 @@ struct PinyinRange { char32_t begin, end; const uint16_t* table; };
 #include "../../third_party/ib-pinyin-cpp/ascii_data.inc"
 #undef P
 #undef F
-namespace pulse::index {
+namespace luling::index {
 namespace {
 char32_t ReadCharacter(std::wstring_view text, size_t pos, size_t& width) {
     char32_t c = text[pos];

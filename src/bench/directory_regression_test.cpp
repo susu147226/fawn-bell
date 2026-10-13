@@ -37,24 +37,24 @@ int main() {
     std::atomic<int> success{0};
     std::vector<std::thread> readers;
     for (int i = 0; i < 16; ++i) readers.emplace_back([&] {
-        try { std::vector<pulse::fs::DirEntry> out; pulse::fs::EnumerateDirectory(dir.wstring(), out); if(out.size()==1) ++success; } catch (...) {}
+        try { std::vector<luling::fs::DirEntry> out; luling::fs::EnumerateDirectory(dir.wstring(), out); if(out.size()==1) ++success; } catch (...) {}
     });
     for(auto& t : readers) t.join();
     Check(success == 16, "DIR-02 concurrent cold NT initialization");
-    std::vector<pulse::fs::DirEntry> out;
+    std::vector<luling::fs::DirEntry> out;
     next_error = ERROR_ACCESS_DENIED;
     bool threw = false;
-    try { pulse::fs::EnumerateFindFirstFileEx(dir.wstring(), out); } catch (...) { threw = true; }
+    try { luling::fs::EnumerateFindFirstFileEx(dir.wstring(), out); } catch (...) { threw = true; }
     Check(threw && out.empty(), "DIR-03 fallback enumeration rejects non-EOF and partial snapshot");
     next_error = 0;
-    pulse::fs::EnumerateFindFirstFileEx(dir.wstring(), out);
+    luling::fs::EnumerateFindFirstFileEx(dir.wstring(), out);
     Check(out.size() == 1, "DIR-03 normal EOF succeeds");
     open_entered = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     open_release = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     block_open = true;
     std::atomic<int> calls{0};
     {
-        pulse::fs::DirWatch watch;
+        luling::fs::DirWatch watch;
         Check(watch.Start(dir.wstring(), [&](bool, auto) { ++calls; }), "DIR-01 watcher starts");
         Check(WaitForSingleObject(open_entered, 3000)==WAIT_OBJECT_0, "DIR-01 blocked open reached");
         const auto start = std::chrono::steady_clock::now();
@@ -62,17 +62,17 @@ int main() {
         Check(std::chrono::steady_clock::now()-start < std::chrono::milliseconds(200), "DIR-01 Stop does not join blocked provider");
     }
     SetEvent(open_release);
-    for(int i=0;i<300 && pulse::fs::active_watchers.load();++i) Sleep(10);
-    Check(calls==0 && pulse::fs::active_watchers.load()==0, "DIR-01 late worker drains without callback after destruction");
+    for(int i=0;i<300 && luling::fs::active_watchers.load();++i) Sleep(10);
+    Check(calls==0 && luling::fs::active_watchers.load()==0, "DIR-01 late worker drains without callback after destruction");
     HANDLE armed = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     {
-        pulse::fs::DirWatch watch;
+        luling::fs::DirWatch watch;
         watch.Start(dir.wstring(), [&](bool overflow, auto) { if(overflow) SetEvent(armed); });
         Check(WaitForSingleObject(armed, 3000)==WAIT_OBJECT_0 && watch.Armed(), "DIR-04 nonrecursive initial arm requests reconciliation");
         watch.Stop();
     }
-    for(int i=0;i<300 && pulse::fs::active_watchers.load();++i) Sleep(10);
-    Check(pulse::fs::active_watchers.load()==0, "watcher resources drain after cancellation");
+    for(int i=0;i<300 && luling::fs::active_watchers.load();++i) Sleep(10);
+    Check(luling::fs::active_watchers.load()==0, "watcher resources drain after cancellation");
     CloseHandle(armed); CloseHandle(open_entered); CloseHandle(open_release);
     std::filesystem::remove_all(dir);
     return failures ? 1 : 0;

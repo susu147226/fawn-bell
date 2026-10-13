@@ -1,7 +1,7 @@
 #include "folder_size_scanner.h"
 #include <utility>
 
-namespace pulse::app::folder_size {
+namespace luling::app::folder_size {
 namespace {
 std::wstring ChildPath(const std::wstring& parent, const wchar_t* name) {
     return parent + (parent.back() == L'\\' ? L"" : L"\\") + name;
@@ -125,4 +125,4 @@ void Scan::Step(const std::atomic<bool>& stopping, const Lookup& lookup, const C
         }
     }
 }
-} // namespace pulse::app::folder_size
+} // namespace luling::app::folder_size

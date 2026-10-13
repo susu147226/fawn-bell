@@ -1,14 +1,14 @@
-// index_protocol.h — pulse.exe <-> Pulse.Index.exe named-pipe protocol.
+// index_protocol.h — luling.exe <-> Luling.Index.exe named-pipe protocol.
 #pragma once
 #include "../ipc/protocol.h"
 #include "index_engine.h"
 
-namespace pulse::index {
+namespace luling::index {
 
 inline constexpr uint32_t kIndexMagic = 0x58444950; // 'PIDX'
-inline constexpr wchar_t kPipeName[] = L"\\\\.\\pipe\\PulseIndex";
-inline constexpr wchar_t kServiceName[] = L"PulseIndex";
-inline constexpr wchar_t kMutexName[] = L"Local\\Pulse.Index.Singleton";
+inline constexpr wchar_t kPipeName[] = L"\\\\.\\pipe\\LulingIndex";
+inline constexpr wchar_t kServiceName[] = L"LulingIndex";
+inline constexpr wchar_t kMutexName[] = L"Local\\Luling.Index.Singleton";
 inline constexpr size_t kIndexMaxRequestPayload = 256 * 1024;
 inline constexpr size_t kIndexMaxPayload = 48 * 1024 * 1024;
 
@@ -37,4 +37,4 @@ inline ipc::MsgHeader MakeIndexHdr(uint32_t type, uint32_t id, uint32_t size) {
     return h;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

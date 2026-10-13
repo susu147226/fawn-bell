@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace pulse::index::agent {
+namespace luling::index::agent {
 struct Identity {
     std::wstring user;
     std::wstring logon;
@@ -63,11 +63,11 @@ inline std::wstring EndpointSuffix(const Identity& owner) {
 }
 inline std::wstring PipeName(const Identity& owner = ProcessIdentity()) {
     const auto suffix = EndpointSuffix(owner);
-    return suffix.empty() ? std::wstring{} : L"\\\\.\\pipe\\PulseNetworkIndex-" + suffix;
+    return suffix.empty() ? std::wstring{} : L"\\\\.\\pipe\\LulingNetworkIndex-" + suffix;
 }
 inline std::wstring SingletonName(const Identity& owner = ProcessIdentity()) {
     const auto suffix = EndpointSuffix(owner);
-    return suffix.empty() ? std::wstring{} : L"Local\\Pulse.Index.NetworkAgent-" + suffix;
+    return suffix.empty() ? std::wstring{} : L"Local\\Luling.Index.NetworkAgent-" + suffix;
 }
 class EndpointSecurity {
 public:
@@ -122,4 +122,4 @@ struct Security {
 };
 inline bool AuthorizeClient(HANDLE pipe, const Identity& owner) { return AuthorizedClient(pipe, owner); }
 inline bool AuthorizeServer(HANDLE pipe) { return AuthorizedServer(pipe); }
-} // namespace pulse::index::agent
+} // namespace luling::index::agent

@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 
 enum class VolumeKind : uint32_t {
     Fixed = 0,
@@ -78,4 +78,4 @@ bool ConfigureExcludePath(const std::wstring& path, bool enabled, std::wstring* 
 // group is "all" for the master switch or one of kSystemExclusionGroups.
 bool ConfigureSystemExclusion(const std::wstring& group, bool enabled, std::wstring* error = nullptr);
 
-} // namespace pulse::index
+} // namespace luling::index

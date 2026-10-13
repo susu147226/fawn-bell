@@ -7,12 +7,12 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 using AboutRow = std::pair<std::wstring, std::wstring>;  // label, value
 
-inline constexpr const wchar_t* kPulseHomepage = L"https://github.com/jimmgreen/pulse";
-inline constexpr const wchar_t* kPulseReleasesPage = L"https://github.com/jimmgreen/pulse/releases";
+inline constexpr const wchar_t* kLulingHomepage = L"https://github.com/susu147226/fawn-bell";
+inline constexpr const wchar_t* kLulingReleasesPage = L"https://github.com/susu147226/fawn-bell/releases";
 // Other free, open-source apps by the same author, recommended on the About page.
 inline constexpr const wchar_t* kLumenPdfHomepage = L"https://github.com/jimmgreen/LumenPDF";
 inline constexpr const wchar_t* kLumaShotHomepage = L"https://github.com/jimmgreen/LumaShot";
@@ -29,4 +29,4 @@ std::wstring AboutRowsText(const std::vector<AboutRow>& rows);
 
 bool CopyTextToClipboard(HWND owner, const std::wstring& text);
 
-} // namespace pulse::app
+} // namespace luling::app

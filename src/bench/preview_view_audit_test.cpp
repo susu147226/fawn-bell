@@ -30,12 +30,12 @@ int wmain() {
     check(SUCCEEDED(hr),"create offscreen WARP drawing target");
     if (FAILED(hr)) return 1;
     dc->SetTarget(bitmap.Get());
-    pulse::ui::MarkdownView view;
+    luling::ui::MarkdownView view;
     std::wstring payload = L"PULSEMD\t1\nT\t20\t0\t0\nR\n";
     for(int c=0;c<20;++c) payload += L"B\tt\t\t0\t0\t\tcell" + std::to_wstring(c) + L"\t\n";
     payload += L"E\n";
     check(view.SetPayload(payload,L"C:\\fixture.md"),"parse wide Markdown table");
-    auto draw = [&] { dc->BeginDraw(); view.Draw(dc.Get(),factory.Get(),D2D1::RectF(0,0,300,300),pulse::ui::MakeTheme(false,D2D1::ColorF(0.2f,0.4f,0.8f)),false,1,nullptr,1,0,0,{}); return SUCCEEDED(dc->EndDraw()); };
+    auto draw = [&] { dc->BeginDraw(); view.Draw(dc.Get(),factory.Get(),D2D1::RectF(0,0,300,300),luling::ui::MakeTheme(false,D2D1::ColorF(0.2f,0.4f,0.8f)),false,1,nullptr,1,0,0,{}); return SUCCEEDED(dc->EndDraw()); };
     check(draw() && view.ScrollHorizontal(-100),"wide table has reachable horizontal range");
     const auto last = static_cast<uint32_t>(view.PlainText().find(L"cell19"));
     view.Reveal(last);
@@ -50,13 +50,13 @@ int wmain() {
         if(view.HitTest(static_cast<float>(x),static_cast<float>(y),offset) && (offset==1 || offset==5)) split_cluster=true;
     }
     check(!split_cluster,"production Markdown hit testing never splits UTF-16 or combining clusters");
-    pulse::ui::TableView table;
+    luling::ui::TableView table;
     check(table.SetPayload(L"PULSETBL\t1\nS\tcsv\tHeader only\t1\t1\t0\tcomma\t1\nR\tNeedle\n"),"parse header-only CSV");
     ComPtr<ID2D1Bitmap1> readback;
     hr=dc->CreateBitmap(D2D1::SizeU(800,600),nullptr,0,D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ|D2D1_BITMAP_OPTIONS_CANNOT_DRAW,D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED)),&readback);
     auto table_hash=[&](bool match) {
         dc->BeginDraw();dc->Clear(D2D1::ColorF(D2D1::ColorF::White));
-        table.Draw(dc.Get(),factory.Get(),D2D1::RectF(0,0,300,300),pulse::ui::MakeTheme(false,D2D1::ColorF(0.2f,0.4f,0.8f)),false,1,D2D1::ColorF(D2D1::ColorF::White),match?std::vector<pulse::ui::TableView::Highlight>{{0,6,true}}:std::vector<pulse::ui::TableView::Highlight>{});
+        table.Draw(dc.Get(),factory.Get(),D2D1::RectF(0,0,300,300),luling::ui::MakeTheme(false,D2D1::ColorF(0.2f,0.4f,0.8f)),false,1,D2D1::ColorF(D2D1::ColorF::White),match?std::vector<luling::ui::TableView::Highlight>{{0,6,true}}:std::vector<luling::ui::TableView::Highlight>{});
         if(FAILED(dc->EndDraw())||!readback||FAILED(readback->CopyFromBitmap(nullptr,bitmap.Get(),nullptr)))return uint64_t{0};
         D2D1_MAPPED_RECT mapped{};if(FAILED(readback->Map(D2D1_MAP_OPTIONS_READ,&mapped)))return uint64_t{0};
         uint64_t hash=1469598103934665603ull;
@@ -71,20 +71,20 @@ int wmain() {
     if(exists) { fonts->GetFontFamily(index,&family); family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL,DWRITE_FONT_STRETCH_NORMAL,DWRITE_FONT_STYLE_NORMAL,&font); font->CreateFontFace(&face); }
     check(face != nullptr,"Cambria Math available for physical spacing regression");
     if(face) {
-        auto syntax=pulse::ui::ParseMathSyntax(L"a\\hspace{10pt}b");
-        auto baseline=pulse::ui::ParseMathSyntax(L"ab");
-        auto metrics=pulse::ui::math::ReadFontMathMetrics(face.Get());
+        auto syntax=luling::ui::ParseMathSyntax(L"a\\hspace{10pt}b");
+        auto baseline=luling::ui::ParseMathSyntax(L"ab");
+        auto metrics=luling::ui::math::ReadFontMathMetrics(face.Get());
         for(float scale: {1.0f,1.5f,2.0f}) {
-            pulse::ui::math::FormulaLayout box, base;
-            const bool ordinary = baseline && pulse::ui::math::BuildMathLayout(factory.Get(),face.Get(),metrics,baseline.root,16*scale,false,base,scale);
-            check(ordinary && syntax && pulse::ui::math::BuildMathLayout(factory.Get(),face.Get(),metrics,syntax.root,16*scale,false,box,scale) && std::abs(box.width-base.width-10*96/72.27f*scale)<0.05f,"explicit pt spacing follows production device scale");
+            luling::ui::math::FormulaLayout box, base;
+            const bool ordinary = baseline && luling::ui::math::BuildMathLayout(factory.Get(),face.Get(),metrics,baseline.root,16*scale,false,base,scale);
+            check(ordinary && syntax && luling::ui::math::BuildMathLayout(factory.Get(),face.Get(),metrics,syntax.root,16*scale,false,box,scale) && std::abs(box.width-base.width-10*96/72.27f*scale)<0.05f,"explicit pt spacing follows production device scale");
         }
     }
     const auto file=std::filesystem::current_path()/L"bench_data"/(L"xml-attribute-audit-"+std::to_wstring(GetCurrentProcessId())+L".xml");
     {std::ofstream out(file); out << "<root title=\"A&amp;B &quot;quoted&quot; &lt;x&gt;\" tab=\"&#9;\"><child/></root>";}
-    std::wstring tree_payload; uint32_t bytes=0;bool cut=false;pulse::ipc::PreviewTextEncoding encoding{};
-    pulse::ui::TreeView tree;
-    bool parsed=pulse::preview::MakeTreeDocument(file.wstring(),L".xml",tree_payload,bytes,cut,encoding) && tree.SetPayload(tree_payload);
+    std::wstring tree_payload; uint32_t bytes=0;bool cut=false;luling::ipc::PreviewTextEncoding encoding{};
+    luling::ui::TreeView tree;
+    bool parsed=luling::preview::MakeTreeDocument(file.wstring(),L".xml",tree_payload,bytes,cut,encoding) && tree.SetPayload(tree_payload);
     tree.Reveal(0); const auto copied=tree.CurrentValue();
     ComPtr<IStream> stream;
     ComPtr<IXmlReader> reader;

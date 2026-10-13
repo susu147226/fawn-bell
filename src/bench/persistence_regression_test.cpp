@@ -9,20 +9,20 @@
 #include <cstdio>
 #include <string_view>
 #include <deque>
-namespace pulse::app { static std::wstring fixture; std::wstring GetPulseDataDir() { return fixture; } }
+namespace luling::app { static std::wstring fixture; std::wstring GetLulingDataDir() { return fixture; } }
 static int failures;
 static void Check(bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); failures += !ok; }
 static int TagAdsOnly() {
-    using namespace pulse::app;
+    using namespace luling::app;
     const auto dir = std::filesystem::absolute(L"bench_data/tag-ads-diagnostic-" +
         std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
     if (!std::filesystem::create_directory(dir)) return 2;
     fixture = dir.wstring();
     const auto file = fixture + L"\\private.txt";
-    Check(pulse::WriteUtf8FileAtomic(file, L"private"), "create exclusive private fixture");
+    Check(luling::WriteUtf8FileAtomic(file, L"private"), "create exclusive private fixture");
     Check(WriteTagAdsV2(file, {}), "deleting absent ADS is idempotent");
     Check(WriteTagAdsV2(file, {{L"t", L"label", 0x123456}}), "create private ADS");
-    HANDLE held = CreateFileW((file + L":Pulse.Tag").c_str(), GENERIC_READ, FILE_SHARE_READ,
+    HANDLE held = CreateFileW((file + L":Luling.Tag").c_str(), GENERIC_READ, FILE_SHARE_READ,
         nullptr, OPEN_EXISTING, 0, nullptr);
     Check(held != INVALID_HANDLE_VALUE, "hold private ADS against deletion");
     TagAdsUpdate removal; removal.path = file;
@@ -51,7 +51,7 @@ static int TagAdsOnly() {
     for (int i = 0; i < 65; ++i) {
         wchar_t name[32]{}; swprintf_s(name, L"\\batch-%03d.txt", i);
         TagAdsUpdate update; update.path = fixture + name;
-        created = pulse::WriteUtf8FileAtomic(update.path, L"private batch") && created;
+        created = luling::WriteUtf8FileAtomic(update.path, L"private batch") && created;
         batch.push_back(std::move(update));
     }
     Check(created, "create 65 exclusive private batch files");
@@ -80,7 +80,7 @@ static int TagAdsOnly() {
     ApplyTagAdsNotice(batch_notice, diagnostics, batch_title, batch_message, false);
     Check(batch_title.empty() && batch_message.empty(), "only fully completed batch clears banner");
     std::wstring journal_text;
-    Check(pulse::ReadUtf8File(journal, journal_text) && journal_text == L"PULSE_ADS_PENDING_1\n",
+    Check(luling::ReadUtf8File(journal, journal_text) && journal_text == L"LULING_ADS_PENDING_1\n",
         "final persisted journal contains no pending items");
     std::deque<std::function<void()>> jobs;
     std::vector<TagAdsFailure> last_result;
@@ -98,14 +98,14 @@ static int TagAdsOnly() {
     for (int i = 65; i < 130; ++i) {
         wchar_t name[32]{}; swprintf_s(name, L"\\batch-%03d.txt", i);
         TagAdsUpdate update; update.path = fixture + name;
-        created = pulse::WriteUtf8FileAtomic(update.path, L"private batch") && created;
+        created = luling::WriteUtf8FileAtomic(update.path, L"private batch") && created;
         batch.push_back(std::move(update));
     }
     Check(created, "create additional exclusive batch files");
     QueueTagAdsDrain(batch, enqueue, publish);
     Check(pump() == 3 && jobs.empty() && last_result.empty(), "130 items automatically drain across three jobs");
     Check(WriteTagAdsV2(batch.front().path, {{L"t", L"locked", 0}}), "prepare failed head ADS");
-    held = CreateFileW((batch.front().path + L":Pulse.Tag").c_str(), GENERIC_READ, FILE_SHARE_READ,
+    held = CreateFileW((batch.front().path + L":Luling.Tag").c_str(), GENERIC_READ, FILE_SHARE_READ,
         nullptr, OPEN_EXISTING, 0, nullptr);
     Check(held != INVALID_HANDLE_VALUE, "lock failed head ADS");
     QueueTagAdsDrain(batch, enqueue, publish);
@@ -122,10 +122,10 @@ static int TagAdsOnly() {
     jobs.clear(); // WorkerPool shutdown rejects/destroys queued serial continuations.
     Check(HasPendingTagAds(batch.back().path), "cancelled continuation preserves pending journal");
     QueueTagAdsDrain({}, enqueue, publish);
-    Check(pump() == 2 && last_result.empty() && pulse::ReadUtf8File(journal, journal_text) &&
-        journal_text == L"PULSE_ADS_PENDING_1\n", "startup trigger resumes cancelled drain to durable completion");
+    Check(pump() == 2 && last_result.empty() && luling::ReadUtf8File(journal, journal_text) &&
+        journal_text == L"LULING_ADS_PENDING_1\n", "startup trigger resumes cancelled drain to durable completion");
     fixture = (dir / L"bad-profile").wstring(); std::filesystem::create_directory(fixture);
-    Check(pulse::WriteUtf8FileAtomic(fixture + L"\\tag_ads_pending.dat", L"invalid"), "create malformed private journal");
+    Check(luling::WriteUtf8FileAtomic(fixture + L"\\tag_ads_pending.dat", L"invalid"), "create malformed private journal");
     Check(!SyncTagAdsUpdates({removal}, &diagnostics).empty() && diagnostics.size() == 1 &&
         diagnostics[0].stage == TagAdsFailureStage::JournalRead && !diagnostics[0].unsupported,
         "malformed journal reports read stage without unsupported claim");
@@ -157,7 +157,7 @@ static int TagAdsOnly() {
 }
 int main(int argc, char** argv) {
     if (argc == 2 && std::string_view(argv[1]) == "--tag-ads") return TagAdsOnly();
-    using namespace pulse; using namespace pulse::app;
+    using namespace luling; using namespace luling::app;
     auto dir = std::filesystem::absolute(L"bench_data/persistence-regression-" + std::to_wstring(GetCurrentProcessId()));
     std::filesystem::create_directories(dir); fixture = dir.wstring();
     const auto config = fixture + L"\\app.json";
@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
     Check(order==L"otheraddremove", "PERSIST-04 serial FIFO keeps unrelated IO available");
     const auto file=fixture+L"\\tagged.txt";WriteUtf8FileAtomic(file,L"fixture");
     Check(WriteTagAdsV2(file,{{L"t",L"label",0xABCDEF}}), "PERSIST-04 create ADS");
-    locked=CreateFileW((file+L":Pulse.Tag").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,0,nullptr);
+    locked=CreateFileW((file+L":Luling.Tag").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,0,nullptr);
     Check(!WriteTagAdsV2(file,{}), "PERSIST-04 deletion failure reported");
     TagAdsUpdate removal; removal.path=file;
     Check(!SyncTagAdsUpdates({removal}).empty() && HasPendingTagAds(file), "PERSIST-04 failed delete retains authoritative pending intent");

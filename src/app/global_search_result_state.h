@@ -2,7 +2,7 @@
 #include "../common/path_utils.h"
 #include <string>
 
-namespace pulse::app {
+namespace luling::app {
 struct GlobalProviderStatus {
     bool local_ready = false, network_ready = false;
     DWORD local_error = 0, network_error = 0;

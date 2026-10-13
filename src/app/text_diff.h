@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::diff {
+namespace luling::diff {
 
 enum class LoadStatus : uint8_t { Ok, Binary, TooLarge, ReadFailed };
 
@@ -70,4 +70,4 @@ struct CharSpan {
 void ComputeCharDiff(std::wstring_view left, std::wstring_view right, const DiffOptions& options,
                      std::vector<CharSpan>& left_spans, std::vector<CharSpan>& right_spans);
 
-} // namespace pulse::diff
+} // namespace luling::diff

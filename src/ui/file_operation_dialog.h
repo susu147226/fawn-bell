@@ -10,7 +10,7 @@
 #include <functional>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct FileOperationCallbacks {
     std::function<void()> cancel;
@@ -83,4 +83,4 @@ ConflictDialogResult ShowFileConflictDialog(HWND owner,
                                             bool dark,
                                             D2D1_COLOR_F accent);
 
-} // namespace pulse::ui
+} // namespace luling::ui

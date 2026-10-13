@@ -13,7 +13,7 @@
 #include "doc_payload.h"
 #include "zip_entry.h"
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr size_t kMaxPartBytes = 64u * 1024u * 1024u;
@@ -537,4 +537,4 @@ bool MakeDocxDocument(const std::wstring& path, std::wstring& payload, uint32_t&
     return true;
 }
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

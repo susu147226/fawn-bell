@@ -1,12 +1,12 @@
 // preview_packs.h - Optional preview packs (FFmpeg media, modern image codecs).
 //
-// A pack is a set of helper executables Pulse never ships in the installer.
+// A pack is a set of helper executables Luling never ships in the installer.
 // The user installs one from Settings > Preview packs (or from the prompt
 // Quick Look shows when Windows lacks a decoder); afterwards the preview host
 // calls it only when the native path - WIC, Media Foundation, the shell
 // provider - could not make the preview. Without a pack nothing changes.
 //
-// Layout under %LOCALAPPDATA%\Pulse\packs:
+// Layout under %LOCALAPPDATA%\Luling\packs:
 //   packs.json                  user settings, written by the app
 //   <key>\installed.json        {"version":"7.1.1","dir":"7.1.1"}
 //   <key>\<dir>\ffmpeg.exe ...  the pack's files
@@ -23,7 +23,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::packs {
+namespace luling::packs {
 
 enum class PackId : uint32_t { Media = 0, Images = 1, Raw = 2, Archives = 3 };
 inline constexpr uint32_t kPackCount = 4;
@@ -43,20 +43,20 @@ inline const wchar_t* PackKey(PackId id) {
 inline const wchar_t* PackMainTool(PackId id) {
     switch (id) {
     case PackId::Media: return L"ffmpeg.exe";
-    case PackId::Images: return L"pulse-imgpack.exe";
-    case PackId::Raw: return L"pulse-rawpack.exe";
+    case PackId::Images: return L"luling-imgpack.exe";
+    case PackId::Raw: return L"luling-rawpack.exe";
     case PackId::Archives: return L"7z.exe";
     }
     return L"";
 }
 
-// %LOCALAPPDATA%\Pulse\packs, empty when the variable is unavailable. Tests and
+// %LOCALAPPDATA%\Luling\packs, empty when the variable is unavailable. Tests and
 // --test-instance runs redirect LOCALAPPDATA, which isolates packs as well.
 inline std::wstring PacksRoot() {
     wchar_t root[32768];
     const DWORD count = GetEnvironmentVariableW(L"LOCALAPPDATA", root, static_cast<DWORD>(std::size(root)));
     if (!count || count >= std::size(root)) return {};
-    return std::wstring(root, count) + L"\\Pulse\\packs";
+    return std::wstring(root, count) + L"\\Luling\\packs";
 }
 
 inline std::wstring PacksSettingsPath() {
@@ -240,4 +240,4 @@ inline std::wstring PackToolPath(PackId id, std::wstring_view exe) {
     return IsRegularFile(path) ? path : std::wstring{};
 }
 
-} // namespace pulse::packs
+} // namespace luling::packs

@@ -3,15 +3,15 @@
 #include "app_internal.h"
 #include "../common/localization.h"
 
-namespace pulse {
+namespace luling {
 namespace {
-// Test instances leave the hotkey to the installed Pulse. Selftest builds can
-// opt in (PULSE_TEST_GLOBAL_HOTKEY) to drive the popup with the hotkey stored
+// Test instances leave the hotkey to the installed Luling. Selftest builds can
+// opt in (LULING_TEST_GLOBAL_HOTKEY) to drive the popup with the hotkey stored
 // in their own isolated data dir.
 bool HotkeyAllowed(const AppState& s) {
     if (!s.isolatedTest) return true;
-#ifdef PULSE_WITH_SELFTEST
-    return GetEnvironmentVariableW(L"PULSE_TEST_GLOBAL_HOTKEY", nullptr, 0) > 0;
+#ifdef LULING_WITH_SELFTEST
+    return GetEnvironmentVariableW(L"LULING_TEST_GLOBAL_HOTKEY", nullptr, 0) > 0;
 #else
     return false;
 #endif

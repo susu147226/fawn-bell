@@ -10,7 +10,7 @@
 #include <cwctype>
 #include <cmath>
 
-namespace pulse {
+namespace luling {
 namespace {
 using I=l10n::StringId;
 using H=ui::HitTestResult;
@@ -31,9 +31,9 @@ int Dropdown(AppState& s, int index, std::vector<ui::FluentMenuItem> items) {
     POINT corners[]={{static_cast<LONG>(std::lround(r.left)),static_cast<LONG>(std::lround(r.top))},
         {static_cast<LONG>(std::lround(r.right)),static_cast<LONG>(std::lround(r.bottom))}};
     MapWindowPoints(s.hwnd,nullptr,corners,2);
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
     wchar_t snapshot[32768]{};
-    if(s.isolatedTest && GetEnvironmentVariableW(L"PULSE_TEST_DROPDOWN_SHOT",snapshot,ARRAYSIZE(snapshot))) {
+    if(s.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_DROPDOWN_SHOT",snapshot,ARRAYSIZE(snapshot))) {
         s.menu->SetDropdownRect({corners[0].x,corners[0].y,corners[1].x,corners[1].y});
         for(auto& item:items) if(item.checked) item.glyph=L"\xE73E";
         s.menu->SaveDebugSnapshot(snapshot,items);
@@ -114,7 +114,7 @@ void ContentOptions(AppState& s) {
 }
 }
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 bool TestSettingsFilter(const std::wstring& query,I expected) {
     const auto items=FilterSettings(query);
     for(const auto& item:items) if(item.command>0 && destinations[item.command-1].title==expected) return true;
@@ -126,7 +126,7 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
     switch(hit.region) {
     case H::SettingsFind: FindSetting(s);break;
     case H::SettingsToggle: {
-        // Pulse menu preview: pressing a movable row arms a drag (app_input
+        // Luling menu preview: pressing a movable row arms a drag (app_input
         // follows the pointer and drops); the fixed rows do nothing.
         if(hit.index<ui::kSettingsMenuFixedHit) return false;
         if(hit.index<ui::kSettingsMenuRowHit) return true;
@@ -222,7 +222,7 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
             if(app::CopyTextToClipboard(s.hwnd,app::AboutRowsText(BuildVm(s,false).settings_about_rows)))
                 s.renderer.NotifyCopied(static_cast<int>(H::SettingsAboutAction),0);
         } else if(hit.index>=1 && hit.index<=4) {
-            static constexpr const wchar_t* kPages[]={app::kPulseHomepage,app::kPulseReleasesPage,
+            static constexpr const wchar_t* kPages[]={app::kLulingHomepage,app::kLulingReleasesPage,
                                                       app::kLumenPdfHomepage,app::kLumaShotHomepage};
             ShellExecuteW(s.hwnd,L"open",kPages[hit.index-1],nullptr,nullptr,SW_SHOWNORMAL);
         }
@@ -237,4 +237,4 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
     }
     InvalidateRect(s.hwnd,nullptr,FALSE);return true;
 }
-} // namespace pulse
+} // namespace luling

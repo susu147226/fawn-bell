@@ -16,7 +16,7 @@
 #include <string_view>
 #include <thread>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 using folder_size::Key;
 using folder_size::Within;
@@ -26,7 +26,7 @@ constexpr uint64_t kWatchLeaseMs = 60000;
 constexpr size_t kScanConcurrency = 2;
 // Volume overview rows use the index/explicit calculation, not N full-tree scans.
 bool OverviewPath(const std::wstring& key) {
-    const auto p = pulse::path::StripExtendedPathPrefix(key);
+    const auto p = luling::path::StripExtendedPathPrefix(key);
     return p.size() >= 3 && p[1] == L':' &&
         (p.size() == 3 || p.find(L'\\', 3) == std::wstring::npos);
 }
@@ -45,7 +45,7 @@ bool ExpensiveAutomaticPath(const std::wstring& key) {
     return std::any_of(system_roots.begin(), system_roots.end(), [&](const auto& root) { return Within(key, root); });
 }
 bool VolumeRoot(const std::wstring& key) {
-    const auto p = pulse::path::StripExtendedPathPrefix(key);
+    const auto p = luling::path::StripExtendedPathPrefix(key);
     return p.size() == 3 && p[1] == L':';
 }
 constexpr size_t kWatchLimit = 16;
@@ -125,7 +125,7 @@ struct FolderSizes::Impl {
         wake.notify_all();
     }
     UINT DriveType(const std::wstring& path) {
-        const auto plain = pulse::path::StripExtendedPathPrefix(path);
+        const auto plain = luling::path::StripExtendedPathPrefix(path);
         if (plain.size() < 3 || plain[1] != L':') return DRIVE_REMOTE;
         const auto root = plain.substr(0, 3);
         const auto found = drive_types.find(root);
@@ -704,4 +704,4 @@ void FolderSizes::Stop() {
     if (state.worker.joinable()) state.worker.join();
     if (state.index_worker.joinable()) { CancelSynchronousIo(state.index_worker.native_handle()); state.index_worker.join(); }
 }
-} // namespace pulse::app
+} // namespace luling::app

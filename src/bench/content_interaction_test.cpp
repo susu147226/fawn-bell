@@ -7,7 +7,7 @@
 #include <cstdio>
 
 int wmain() {
-    using namespace pulse;
+    using namespace luling;
     OleInitialize(nullptr);
     l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
     auto owned=std::make_unique<AppState>(); auto& s=*owned;
@@ -78,7 +78,7 @@ int wmain() {
     check(!tab.loading && tab.virtual_title.find(L"3")!=std::wstring::npos && tab.virtual_title.find(L"27")!=std::wstring::npos,
         "in-progress search keeps populated list and counts visible");
     wchar_t shot[32768]{};
-    if(GetEnvironmentVariableW(L"PULSE_CONTENT_UI_SHOT",shot,ARRAYSIZE(shot))) {
+    if(GetEnvironmentVariableW(L"LULING_CONTENT_UI_SHOT",shot,ARRAYSIZE(shot))) {
         check(s.compositor.Init(s.hwnd),"initialize isolated visual fixture");
         if(s.compositor.Dc()) {
             s.renderer.SetCompositor(&s.compositor);

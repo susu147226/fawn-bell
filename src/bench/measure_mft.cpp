@@ -1,6 +1,6 @@
 #include "../index/usn_enum_page.h"
 // measure_mft.cpp — Stage 0 MFT / USN journal benchmark
-// Usage: pulse_bench_mft [drive_letter]
+// Usage: luling_bench_mft [drive_letter]
 //   drive_letter: e.g. C (default C)
 
 #include <windows.h>
@@ -185,9 +185,9 @@ static bool enum_mft(HANDLE hvol, wchar_t /*letter*/) {
             failed = true;
             break;
         }
-        pulse::index::MftEnumPage page{};
+        luling::index::MftEnumPage page{};
         if (bytes_read > buffer.size() ||
-            !pulse::index::ParseMftEnumPage({buffer.data(), bytes_read},
+            !luling::index::ParseMftEnumPage({buffer.data(), bytes_read},
                                           med.StartFileReferenceNumber, page)) {
             std::wcout << L"FSCTL_ENUM_USN_DATA returned an invalid or non-advancing page.\n";
             failed = true;
@@ -254,7 +254,7 @@ int main() {
 int wmain(int argc, wchar_t* argv[]) {
     std::ios::sync_with_stdio(false);
 
-    if (argc > 2) return usage("pulse_bench_mft");
+    if (argc > 2) return usage("luling_bench_mft");
 
     wchar_t drive = L'C';
     if (argc == 2 && argv[1][0] != 0) {

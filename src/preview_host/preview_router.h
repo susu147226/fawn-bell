@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 // Requests at or below this edge, or flagged kPreviewRequestFlagGrid, are
 // list/grid thumbnails; the rest are the details pane and Quick Look.
@@ -82,4 +82,4 @@ bool RunDecoders(const DecoderEntry (&table)[N], const DecodeRequest& request,
     return false;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

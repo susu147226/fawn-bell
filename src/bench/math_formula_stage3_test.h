@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse_test {
+namespace luling_test {
 int TestMathStage3(IDWriteFactory2* factory);
 const std::wstring& MathStage3Source();
 const std::vector<std::wstring>& MathStage3Formulas();

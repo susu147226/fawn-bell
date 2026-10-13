@@ -27,10 +27,10 @@ void operator delete(void* memory, size_t) noexcept { std::free(memory); }
 void operator delete[](void* memory, size_t) noexcept { std::free(memory); }
 
 namespace {
-using pulse::index::ReadTaskTextLiteral;
-using pulse::index::TaskTextLiteralResult;
-using pulse::index::TaskTextLiteralReader;
-using pulse::text::Encoding;
+using luling::index::ReadTaskTextLiteral;
+using luling::index::TaskTextLiteralResult;
+using luling::index::TaskTextLiteralReader;
+using luling::text::Encoding;
 constexpr size_t kChunk = 64 * 1024;
 int failures = 0;
 void Check(bool condition, const char* label) {
@@ -69,7 +69,7 @@ bool Compare(const std::vector<uint8_t>& bytes, std::wstring_view needle, Encodi
     if (read_bytes) *read_bytes = result.bytes_read;
     std::wstring full;
     uint64_t old_bytes = 0;
-    const bool old_ok = pulse::text::ReadFile(fixture.path, bytes.size(), full, old_bytes, &old_error, encoding);
+    const bool old_ok = luling::text::ReadFile(fixture.path, bytes.size(), full, old_bytes, &old_error, encoding);
     if (ok != old_ok) { std::printf("error=%lu old_error=%lu\n", error, old_error); return false; }
     if (!ok) return error == old_error && result.version.empty();
     BY_HANDLE_FILE_INFORMATION id{};
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
             std::wstring decoded;
             std::vector<uint8_t> needle_bytes(raw.begin(), raw.end());
             for (Encoding encoding : {Encoding::Auto, Encoding::System, Encoding::Gb18030}) {
-                if (pulse::text::Decode(needle_bytes, decoded, encoding) && !decoded.empty())
+                if (luling::text::Decode(needle_bytes, decoded, encoding) && !decoded.empty())
                     boundary_ok = Compare(bytes, decoded, encoding) && boundary_ok;
                 boundary_ok = Compare(bytes, L"absent", encoding) && boundary_ok;
             }
@@ -320,7 +320,7 @@ int main(int argc, char** argv) {
         bool metadata_ok = false;
         GetProcessHandleCount(GetCurrentProcess(), &before_handles);
         const bool skipped = reader.Read(fixture.path, bytes.size(), result, &error, Encoding::Auto, {},
-            [&](const pulse::index::TaskTextMetadata& metadata) {
+            [&](const luling::index::TaskTextMetadata& metadata) {
                 metadata_ok = metadata.size == bytes.size() && metadata.modified && !metadata.version.empty();
                 return false;
             });
@@ -330,7 +330,7 @@ int main(int argc, char** argv) {
               "preflight cache/filter skip reads no body and releases the opened handle");
         std::wstring opened_version;
         Check(reader.Read(fixture.path, bytes.size(), result, &error, Encoding::Auto, {},
-            [&](const pulse::index::TaskTextMetadata& metadata) { opened_version.assign(metadata.version); return true; }) &&
+            [&](const luling::index::TaskTextMetadata& metadata) { opened_version.assign(metadata.version); return true; }) &&
             !result.skipped && result.version == opened_version && Find(result.body, L"needle", false) != std::wstring::npos,
             "preflight and completed read use the same version and reset a previous skip");
         bool cancelled = false;

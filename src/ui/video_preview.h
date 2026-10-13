@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FfmpegFrame;
 
 // MFPlay is loaded on demand (including on Windows N without Media Foundation).
@@ -77,4 +77,4 @@ private:
     int region_radius_ = 0;
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

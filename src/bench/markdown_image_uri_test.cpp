@@ -76,7 +76,7 @@ struct Canvas {
 };
 }
 
-namespace pulse::ui {
+namespace luling::ui {
 struct ThumbnailCacheTestAccess {
     static void Run(Canvas& canvas, const std::filesystem::path& root) {
         const std::vector<std::pair<std::wstring, std::wstring>> valid{
@@ -149,7 +149,7 @@ int main() {
         Canvas canvas;
         const bool ready = canvas.Init(1);
         Check(ready, "initialize private WARP and DirectWrite surface");
-        if (ready) pulse::ui::ThumbnailCacheTestAccess::Run(canvas, root);
+        if (ready) luling::ui::ThumbnailCacheTestAccess::Run(canvas, root);
     }
     if (root.parent_path() != parent || !root.filename().wstring().starts_with(L"markdown-uri-")) return 2;
     std::error_code error;

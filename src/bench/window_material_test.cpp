@@ -7,9 +7,9 @@
 
 namespace {
 
-using pulse::ui::Compositor;
-using pulse::ui::ComPtr;
-using pulse::ui::WindowMaterial;
+using luling::ui::Compositor;
+using luling::ui::ComPtr;
+using luling::ui::WindowMaterial;
 
 bool Report(const char* name, bool passed) {
     std::printf("[%s] %s\n", passed ? "PASS" : "FAIL", name);
@@ -131,7 +131,7 @@ int wmain() {
     wchar_t temp[MAX_PATH]{};
     if (!GetTempPathW(ARRAYSIZE(temp), temp)) return 2;
     wchar_t dir[MAX_PATH]{};
-    swprintf_s(dir, L"%sPulseMaterialTest_%lu_%llu", temp, GetCurrentProcessId(),
+    swprintf_s(dir, L"%sLulingMaterialTest_%lu_%llu", temp, GetCurrentProcessId(),
                GetTickCount64());
     if (!CreateDirectoryW(dir, nullptr)) return 2;
     const std::wstring root = dir;
@@ -145,7 +145,7 @@ int wmain() {
     passed &= Report("create bitmap fixtures", passed);
 
     HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, L"STATIC",
-                                L"Pulse material test", WS_POPUP | WS_VISIBLE,
+                                L"Luling material test", WS_POPUP | WS_VISIBLE,
                                 -32000, -32000, 320, 240, nullptr, nullptr,
                                 GetModuleHandleW(nullptr), nullptr);
     Compositor compositor;

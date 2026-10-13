@@ -10,7 +10,7 @@
 #include <psapi.h>
 #include <cstdio>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 struct PdfTrace {
@@ -18,7 +18,7 @@ struct PdfTrace {
     LARGE_INTEGER start{}, frequency{};
     PdfTrace() {
         wchar_t path[32768]{};
-        const DWORD length = GetEnvironmentVariableW(L"PULSE_TEST_PDF_TRACE", path, ARRAYSIZE(path));
+        const DWORD length = GetEnvironmentVariableW(L"LULING_TEST_PDF_TRACE", path, ARRAYSIZE(path));
         if (!length || length >= ARRAYSIZE(path)) return;
         file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -349,4 +349,4 @@ bool RasterizePdfFile(const std::wstring& path, UINT max_edge,
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 void AddQuarterArc(ID2D1GeometrySink* sink, D2D1_POINT_2F end, float radius,
@@ -144,4 +144,4 @@ void FillRoundedAccent(ID2D1DeviceContext* dc, ID2D1Brush* brush,
     dc->PopLayer();
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

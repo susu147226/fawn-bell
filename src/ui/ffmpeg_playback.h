@@ -22,7 +22,7 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct FfmpegMediaInfo {
     int64_t duration = 0;            // 100 ns, 0 when unknown
@@ -131,4 +131,4 @@ private:
     std::atomic<float> gain_{1.0f};
 };
 
-} // namespace pulse::ui
+} // namespace luling::ui

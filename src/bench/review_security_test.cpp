@@ -8,8 +8,8 @@
 #include <atomic>
 
 namespace fs = std::filesystem;
-namespace agent = pulse::index::agent;
-namespace security = pulse::index::security;
+namespace agent = luling::index::agent;
+namespace security = luling::index::security;
 
 int main() {
     int failures = 0;
@@ -106,7 +106,7 @@ int main() {
     descriptor(L"O:AUG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)", false, "M05 untrusted owner cannot control a nominally private DACL");
     descriptor(L"O:BAG:SYD:P(A;;FA;;;SY)(A;;FA;;;BA)", false, "M05 directory without private child inheritance rejected");
 
-    using namespace pulse::index;
+    using namespace luling::index;
     const auto root = fs::absolute(fs::path("bench_data") / ("security-p1-" + std::to_string(GetCurrentProcessId())));
     const fs::path artifact = L"v9/0123456789abcdef/base-a.bin";
     auto write = [](const fs::path& path, const char* text) {

@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 inline uint64_t ChangeNow() {
     FILETIME ft{};
     GetSystemTimeAsFileTime(&ft);

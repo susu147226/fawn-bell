@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 command_icons::Icon CommandIconForResource(int resource_id) noexcept {
@@ -283,4 +283,4 @@ int FluentSvgIdForGlyph(std::wstring_view glyph) {
     return 0;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

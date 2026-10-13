@@ -3,8 +3,8 @@
 #include "../common/runtime_log.h"
 #include <thread>
 
-#include "pulse_update_config.h"
-#include "pulse_version.h"
+#include "luling_update_config.h"
+#include "luling_version.h"
 
 #include <bcrypt.h>
 #include <wincrypt.h>
@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 constexpr size_t kMaximumManifestBytes = 1024 * 1024;
@@ -285,11 +285,11 @@ uint32_t CurrentWindowsBuild() {
 
 UpdateResult CheckConfiguredManifest(const std::atomic<bool>& cancelled, uint64_t operation_id) {
     UpdateResult result;
-#if PULSE_UPDATE_ENABLED
+#if LULING_UPDATE_ENABLED
     std::string document;
     UpdateError category = UpdateError::Network;
     DWORD error = ERROR_SUCCESS;
-    if (!ReadUpdateWithFallback(PULSE_UPDATE_MANIFEST_URL, kMaximumManifestBytes, cancelled,
+    if (!ReadUpdateWithFallback(LULING_UPDATE_MANIFEST_URL, kMaximumManifestBytes, cancelled,
             [&] { document.clear(); return true; },
             [&](const void* data, DWORD size) { document.append(static_cast<const char*>(data), size); return true; },
             category, error)) {
@@ -298,8 +298,8 @@ UpdateResult CheckConfiguredManifest(const std::atomic<bool>& cancelled, uint64_
         return result;
     }
     diagnostics::runtime::Event("update_manifest_received", {{"operation", operation_id}, {"bytes", document.size()}});
-    auto validated = ValidateUpdateManifest(document, PULSE_UPDATE_PUBLIC_KEY_HEX,
-                                  PULSE_VERSION_STRING_A,
+    auto validated = ValidateUpdateManifest(document, LULING_UPDATE_PUBLIC_KEY_HEX,
+                                  LULING_VERSION_STRING_A,
                                   CurrentWindowsBuild());
     diagnostics::runtime::Event("update_manifest_validated", {{"operation", operation_id},
         {"error", static_cast<uint64_t>(validated.error)}});
@@ -378,7 +378,7 @@ struct UpdateChecker::State {
 
 UpdateChecker::~UpdateChecker() { Stop(); }
 
-bool UpdateChecker::Enabled() noexcept { return PULSE_UPDATE_ENABLED != 0; }
+bool UpdateChecker::Enabled() noexcept { return LULING_UPDATE_ENABLED != 0; }
 bool UpdateChecker::checking() const noexcept { return state_ && state_->checking; }
 
 bool UpdateChecker::CheckAsync(HWND notify, UINT message) {
@@ -430,4 +430,4 @@ void UpdateChecker::Stop() {
     state_.reset();
 }
 
-} // namespace pulse::app
+} // namespace luling::app

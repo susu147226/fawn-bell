@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cwctype>
 
-namespace pulse::index {
+namespace luling::index {
 namespace {
 
 #pragma pack(push, 1)
@@ -48,9 +48,9 @@ std::wstring DeltaFilePath(wchar_t letter) {
     if (dir.empty()) return {};
     wchar_t name[40];
     if (letter)
-        swprintf_s(name, L"pulse-index-%c.dlt", static_cast<wchar_t>(towupper(letter)));
+        swprintf_s(name, L"luling-index-%c.dlt", static_cast<wchar_t>(towupper(letter)));
     else
-        swprintf_s(name, L"pulse-index.dlt");
+        swprintf_s(name, L"luling-index.dlt");
     return dir + L"\\" + name;
 }
 
@@ -310,4 +310,4 @@ bool DeltaLog::Replay(const std::wstring& path, uint64_t expected_built, ReplayF
     return ok;
 }
 
-} // namespace pulse::index
+} // namespace luling::index

@@ -25,7 +25,7 @@
 #include <optional>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
 // d2d1.lib does not export effect CLSIDs. Values from d2d1effects.h / d2d1effects_2.h.
@@ -210,9 +210,9 @@ FILE* MaterialLogFile() {
         wchar_t path[MAX_PATH]{};
         if (!GetEnvironmentVariableW(L"LOCALAPPDATA", dir, MAX_PATH))
             return nullptr;
-        swprintf_s(path, L"%s\\Pulse", dir);
+        swprintf_s(path, L"%s\\Luling", dir);
         CreateDirectoryW(path, nullptr);
-        swprintf_s(path, L"%s\\Pulse\\material.log", dir);
+        swprintf_s(path, L"%s\\Luling\\material.log", dir);
         FILE* f = nullptr;
         _wfopen_s(&f, path, L"a");
         return f;
@@ -862,7 +862,7 @@ ID2D1Bitmap* WindowMaterial::SourceBitmap(const std::wstring& path) {
     return nullptr;
 }
 
-#ifdef PULSE_WINDOW_MATERIAL_TESTING
+#ifdef LULING_WINDOW_MATERIAL_TESTING
 void WindowMaterial::SetDecodeDelayForTesting(DWORD delay_ms) {
     EnsureDecodeWorker();
     if (decode_worker_) {
@@ -1075,4 +1075,4 @@ bool WindowMaterial::DrawBackdrop(ID2D1DeviceContext* dc, const D2D1_RECT_F& des
     return true;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

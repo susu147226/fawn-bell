@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse_test {
+namespace luling_test {
 struct MathRenderProfile {
     std::wstring title;
     std::wstring file_prefix;

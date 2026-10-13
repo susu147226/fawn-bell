@@ -7,7 +7,7 @@
 #include <optional>
 #include <vector>
 
-namespace pulse::app::folder_size {
+namespace luling::app::folder_size {
 struct CompletedSubtree {
     std::wstring path;
     FolderSizeValue value;
@@ -41,4 +41,4 @@ private:
     std::vector<Frame> stack_;
     void FinishFrame();
 };
-} // namespace pulse::app::folder_size
+} // namespace luling::app::folder_size

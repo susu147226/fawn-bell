@@ -7,7 +7,7 @@
 #include <wrl/client.h>
 #include <new>
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 using Microsoft::WRL::ComPtr;
 constexpr HRESULT kCancelled = HRESULT_FROM_WIN32(ERROR_CANCELLED);

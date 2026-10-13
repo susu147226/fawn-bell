@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace pulse::ipc {
+namespace luling::ipc {
 // One absolute deadline covers every fragment of a frame. A zero deadline is
 // reserved for cancellable idle reads owned by an independent client worker.
 template<class Stopped>

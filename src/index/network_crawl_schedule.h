@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <chrono>
 
-namespace pulse::index::crawl_schedule {
+namespace luling::index::crawl_schedule {
 
 using Clock = std::chrono::steady_clock;
 
@@ -65,4 +65,4 @@ inline Clock::time_point UnwatchedDue(Clock::time_point last_crawl_end, Clock::d
                                                : ReconcileInterval(last_crawl));
 }
 
-} // namespace pulse::index::crawl_schedule
+} // namespace luling::index::crawl_schedule

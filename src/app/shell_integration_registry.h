@@ -3,8 +3,8 @@
 #include <windows.h>
 #include <string>
 
-namespace pulse::app {
-#ifdef PULSE_INTEGRATION_TEST
+namespace luling::app {
+#ifdef LULING_INTEGRATION_TEST
 using IntegrationWriteHook = bool (*)(const std::wstring&, const std::wstring&);
 void SetIntegrationWriteHookForTesting(IntegrationWriteHook hook);
 #endif
@@ -14,7 +14,7 @@ enum class ShellIntegrationKind { Folders, WinE, ThisPc, Directory, Drive };
 
 // Uses HKCU (redirectable with RegOverridePredefKey in isolated tests).
 // A false restore result can mean that legacy registrations had no exact
-// backup: matching Pulse overrides are removed, unrelated values stay put.
+// backup: matching Luling overrides are removed, unrelated values stay put.
 bool ApplyShellIntegration(ShellIntegrationKind kind, const std::wstring& exe, bool on);
 bool ReadShellIntegration(ShellIntegrationKind kind, const std::wstring& exe);
 bool HasShellIntegrationOwnership(ShellIntegrationKind kind, const std::wstring& exe);
@@ -29,4 +29,4 @@ bool UpgradeShellIntegration(ShellIntegrationKind kind, const std::wstring& prev
                              const std::wstring& exe);
 bool ShellCommandTargetsExecutable(const std::wstring& command, const std::wstring& exe);
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -55,7 +55,7 @@ try {
     [Array]::Copy($parameters.Q.Y, 0, $public, 33, 32)
     $publicHex = [Convert]::ToHexString($public).ToLowerInvariant()
     if ($ExpectedPublicKey -and $publicHex -ne $ExpectedPublicKey.Trim().ToLowerInvariant()) {
-        throw "Signing key does not match the public key embedded in Pulse"
+        throw "Signing key does not match the public key embedded in Luling"
     }
 
     $manifest = [ordered]@{
@@ -69,7 +69,7 @@ try {
     [System.IO.File]::WriteAllText(
         $outputPath, $manifest + "`n", [System.Text.UTF8Encoding]::new($false))
     Write-Host "Update manifest written to $outputPath"
-    Write-Host "PULSE_UPDATE_PUBLIC_KEY_HEX=$publicHex"
+    Write-Host "LULING_UPDATE_PUBLIC_KEY_HEX=$publicHex"
 } finally {
     $ecdsa.Dispose()
 }

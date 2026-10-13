@@ -52,7 +52,7 @@ def ensure(packs, repository, tag, source_tag=None, asset_directory=None, gh=Non
         state = json.loads(gh('release', 'view', source_tag, '--repo', repository, '--json', 'isDraft'))
         if state['isDraft']:
             raise ValueError('Source pack release must be published')
-    with tempfile.TemporaryDirectory(prefix='pulse-release-packs-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='luling-release-packs-') as temporary:
         root = Path(temporary)
         uploads = []
         for pack in packs:
@@ -67,7 +67,7 @@ def ensure(packs, repository, tag, source_tag=None, asset_directory=None, gh=Non
                        '--pattern', name, '--dir', str(root))
                     validate(root / name, entry)
                     uploads.append(str(root / name))
-            manifest = root / f"pulse-pack-{pack['id']}-{pack['version']}.json"
+            manifest = root / f"luling-pack-{pack['id']}-{pack['version']}.json"
             manifest.write_text(json.dumps(pack, indent=2) + '\n', encoding='utf-8')
             uploads.append(str(manifest))
         # No upload happens until all payload files match the compiled catalog.
@@ -78,7 +78,7 @@ def ensure(packs, repository, tag, source_tag=None, asset_directory=None, gh=Non
             for entry in pack['files']:
                 gh('release', 'download', tag, '--repo', repository, '--pattern', entry['download_name'], '--dir', str(verified))
                 validate(verified / entry['download_name'], entry)
-            name = f"pulse-pack-{pack['id']}-{pack['version']}.json"
+            name = f"luling-pack-{pack['id']}-{pack['version']}.json"
             gh('release', 'download', tag, '--repo', repository, '--pattern', name, '--dir', str(verified))
             if json.loads((verified / name).read_text(encoding='utf-8')) != pack:
                 raise ValueError(f'Remote manifest differs from catalog: {name}')
@@ -86,7 +86,7 @@ def ensure(packs, repository, tag, source_tag=None, asset_directory=None, gh=Non
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--repository', default='jimmgreen/pulse')
+    parser.add_argument('--repository', default='susu147226/fawn-bell')
     parser.add_argument('--tag', required=True)
     parser.add_argument('--source-tag')
     parser.add_argument('--asset-directory', type=Path)

@@ -7,9 +7,9 @@
 #include <vector>
 #include <windows.h>
 
-namespace pulse::app {
+namespace luling::app {
 static std::wstring fixture;
-std::wstring GetPulseDataDir() { return fixture; }
+std::wstring GetLulingDataDir() { return fixture; }
 }
 static int failures = 0;
 static void Check(bool ok, const char* name) {
@@ -17,7 +17,7 @@ static void Check(bool ok, const char* name) {
     failures += !ok;
 }
 int main() {
-    using namespace pulse;
+    using namespace luling;
     const auto dir = std::filesystem::absolute(L"bench_data/audit-persistence-" + std::to_wstring(GetCurrentProcessId()));
     std::filesystem::create_directories(dir);
     app::fixture = dir.wstring();

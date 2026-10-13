@@ -3,7 +3,7 @@
 // Headless coverage for the parts `--shot` cannot reach (interactive menus,
 // OLE drag & drop): menu model construction + hit-test + verb dispatch,
 // IDataObject CF_HDROP contents, drop-effect modifier semantics, breadcrumb
-// splitting, and real ops-layer create/move through pulse_shell.exe.
+// splitting, and real ops-layer create/move through luling_shell.exe.
 // All file operations are confined to bench_data/opstest/selftest_1b2 and
 // cleaned up afterwards.
 #include "selftest_1b2.h"
@@ -102,7 +102,7 @@ bool RunTagColorCommandTest();
 bool RunPreviewDeadlineTest();
 bool RunTagDeleteViewTest();
 
-namespace pulse::ui {
+namespace luling::ui {
 struct FluentMenuTestPeer {
     static bool SeedCachedEditor(FluentMenu& menu) {
         HWND external = menu.external_edit_;
@@ -340,9 +340,9 @@ struct FluentMenuTestPeer {
         return menu.result_ == 120;
     }
 };
-} // namespace pulse::ui
+} // namespace luling::ui
 
-namespace pulse::app {
+namespace luling::app {
 struct TabControllerTestAccess {
     static void Duplicate(TabController& controller, WindowTabs& tabs, size_t index) {
         controller.DuplicateTab(tabs, index);
@@ -369,7 +369,7 @@ std::wstring WorkspaceRoot() {
     if (executable_separator == std::wstring::npos) return L".";
     current.resize(executable_separator);
 
-    // Support both Ninja's build/pulse.exe and multi-config build/Release/pulse.exe.
+    // Support both Ninja's build/luling.exe and multi-config build/Release/luling.exe.
     for (int depth = 0; depth < 4; ++depth) {
         if (IsFile(current + L"\\CMakeLists.txt") &&
             IsFile(current + L"\\src\\app\\selftest_1b2.cpp")) {
@@ -508,11 +508,11 @@ void TestBreadcrumb() {
     Check(longp.size() == 4 && longp[3].path == L"C:\\A\\B",
           L"breadcrumb: long-path prefix stripped");
     const std::wstring search_path =
-        L"pulse:search:path:C:\\Users\\TestUser\\Desktop\\PulseSearchTest content:\u53d1\u7968";
+        L"luling:search:path:C:\\Users\\TestUser\\Desktop\\LulingSearchTest content:\u53d1\u7968";
     auto search = ui::SplitBreadcrumb(search_path);
     Check(search.size() == 1, L"breadcrumb: search query is a single segment");
     if (search.size() == 1) {
-        Check(search[0].path == search_path, L"breadcrumb: search click keeps pulse:search:");
+        Check(search[0].path == search_path, L"breadcrumb: search click keeps luling:search:");
         Check(search[0].text.find(L'\\') == std::wstring::npos,
               L"breadcrumb: search label has no backslash");
     }
@@ -648,15 +648,15 @@ void TestMouseHistoryNavigation() {
     auto state = std::make_unique<AppState>();
     state->places.persist = false;
     Pane pane;
-    pane.NewTab(L"pulse:settings/general");
+    pane.NewTab(L"luling:settings/general");
     state->pane = &pane;
     auto* tab = pane.ActiveTab();
-    tab->back_stack.push(L"pulse:settings/about");
-    tab->back_stack.push(L"pulse:settings/appearance");
+    tab->back_stack.push(L"luling:settings/about");
+    tab->back_stack.push(L"luling:settings/appearance");
     WNDCLASSW wc{};
     wc.lpfnWndProc = NavigationTestProc;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseMouseHistorySelftest";
+    wc.lpszClassName = L"LulingMouseHistorySelftest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_POPUP,
                                 0, 0, 1, 1, nullptr, nullptr, wc.hInstance, nullptr);
@@ -667,28 +667,28 @@ void TestMouseHistoryNavigation() {
     SendMessageW(hwnd, WM_XBUTTONDOWN, MAKEWPARAM(MK_XBUTTON1, XBUTTON1), 0);
     Check(tab->back_stack.size() == 2, L"mouse history: button down does not navigate");
     SendMessageW(hwnd, WM_XBUTTONUP, MAKEWPARAM(0, XBUTTON1), 0);
-    Check(tab->current_path == L"pulse:settings/appearance" && tab->back_stack.size() == 1 &&
+    Check(tab->current_path == L"luling:settings/appearance" && tab->back_stack.size() == 1 &&
           tab->forward_stack.size() == 1, L"mouse history: side button back navigates exactly once");
     SendMessageW(hwnd, WM_XBUTTONUP, MAKEWPARAM(0, XBUTTON2), 0);
-    Check(tab->current_path == L"pulse:settings/general" && tab->forward_stack.empty(),
+    Check(tab->current_path == L"luling:settings/general" && tab->forward_stack.empty(),
           L"mouse history: side button forward restores location");
     SendMessageW(hwnd, WM_XBUTTONUP, MAKEWPARAM(0, XBUTTON2), 0);
-    Check(tab->current_path == L"pulse:settings/general" && tab->back_stack.size() == 2,
+    Check(tab->current_path == L"luling:settings/general" && tab->back_stack.size() == 2,
           L"mouse history: empty forward history is a no-op");
     HWND edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD, 0, 0, 1, 1,
                                 hwnd, nullptr, wc.hInstance, nullptr);
     Check(edit != nullptr, L"mouse history: child edit created");
     if (edit) SendMessageW(edit, WM_XBUTTONUP, MAKEWPARAM(0, XBUTTON1), 0);
-    Check(tab->current_path == L"pulse:settings/appearance",
+    Check(tab->current_path == L"luling:settings/appearance",
           L"mouse history: side button over child edit reaches navigation");
     SendMessageW(hwnd, WM_APPCOMMAND, 0, MAKELPARAM(0, APPCOMMAND_BROWSER_FORWARD));
-    Check(tab->current_path == L"pulse:settings/general",
+    Check(tab->current_path == L"luling:settings/general",
           L"mouse history: driver browser command navigates forward");
     Check(!HandleBrowserNavigation(*state, MAKELPARAM(0, APPCOMMAND_VOLUME_UP)),
           L"mouse history: unrelated commands remain unhandled");
     tab->back_stack = {};
     SendMessageW(hwnd, WM_XBUTTONUP, MAKEWPARAM(0, XBUTTON1), 0);
-    Check(tab->current_path == L"pulse:settings/general",
+    Check(tab->current_path == L"luling:settings/general",
           L"mouse history: empty back history is a no-op");
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
     DestroyWindow(hwnd);
@@ -742,7 +742,7 @@ void TestFilterControls() {
     auto state = std::make_unique<AppState>();
     state->places.persist = false; state->appPrefs.persist = false; state->isolatedTest = true;
     WNDCLASSW wc{}; wc.lpfnWndProc = BlankPaneTestProc;
-    wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"PulseFilterControlsSelftest";
+    wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"LulingFilterControlsSelftest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_POPUP,
         0, 0, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);
@@ -757,7 +757,7 @@ void TestFilterControls() {
         state->pane = state->window_tabs.Active()->panes.front().get();
         auto* tab = state->pane->ActiveTab();
         auto entries = std::make_shared<std::vector<fs::DirEntry>>(2);
-        (*entries)[0].name = L"PulseSetup-1.0.11.exe";
+        (*entries)[0].name = L"LulingSetup-1.0.11.exe";
         (*entries)[1].name = L"Documents"; (*entries)[1].is_dir = true;
         tab->SetSnapshot(entries);
         ShowFilterEditor(*state);
@@ -831,7 +831,7 @@ void TestRenameOutsideClick() {
     WNDCLASSW wc{};
     wc.lpfnWndProc = BlankPaneTestProc;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseRenameOutsideSelftest";
+    wc.lpszClassName = L"LulingRenameOutsideSelftest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_POPUP,
         0, 0, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);
@@ -1013,7 +1013,7 @@ void TestBlankPaneClickNavigation() {
     WNDCLASSW wc{};
     wc.lpfnWndProc = BlankPaneTestProc;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseBlankPaneClickSelftest";
+    wc.lpszClassName = L"LulingBlankPaneClickSelftest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_POPUP,
         0, 0, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);
@@ -1026,7 +1026,7 @@ void TestBlankPaneClickNavigation() {
         state->compositor.RecreateTextFormats(1.0f);
         state->renderer.SetCompositor(&state->compositor);
         state->renderer.SetScale(1.0f);
-        state->window_tabs.NewTab(L"C:\\PulseBlankClickTest\\Child");
+        state->window_tabs.NewTab(L"C:\\LulingBlankClickTest\\Child");
         state->pane = state->window_tabs.Active()->panes.front().get();
         auto* tab = state->pane->ActiveTab();
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state.get()));
@@ -1035,7 +1035,7 @@ void TestBlankPaneClickNavigation() {
             for (int i = 0; i < 40; ++i) {
                 SidebarEntry entry;
                 entry.label = L"Scroll fixture " + std::to_wstring(i);
-                entry.path = L"C:\\PulseSidebarFixture\\" + std::to_wstring(i);
+                entry.path = L"C:\\LulingSidebarFixture\\" + std::to_wstring(i);
                 state->sidebar.quick_access.push_back(std::move(entry));
             }
             state->trayCards[L"sidebar-test-ghost"].ghost = true;
@@ -1169,7 +1169,7 @@ void TestBlankPaneClickNavigation() {
         state->appPrefs.blank_click_action = kBlankClickBack;
         tab->selected.insert(0);
         tab->back_stack = {};
-        tab->back_stack.push(L"C:\\PulseBlankClickSelection");
+        tab->back_stack.push(L"C:\\LulingBlankClickSelection");
         press();
         Check(tab->SelectedCount() == 0 && state->blankClickTab == tab,
               L"blank pane: first click clears the selection and still arms back");
@@ -1178,7 +1178,7 @@ void TestBlankPaneClickNavigation() {
               L"blank pane: clearing a selection with one click stays put");
         SendMessageW(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, point);
         release();
-        Check(tab->current_path == fs::NormalizePath(L"C:\\PulseBlankClickSelection"),
+        Check(tab->current_path == fs::NormalizePath(L"C:\\LulingBlankClickSelection"),
               L"blank pane: double click that clears a selection goes back");
         tab->current_path = initial_folder;
         tab->back_stack = {};
@@ -1199,21 +1199,21 @@ void TestBlankPaneClickNavigation() {
               L"blank pane: enabled single click does not navigate");
         SendMessageW(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, point);
         release();
-        Check(tab->current_path == fs::NormalizePath(L"C:\\PulseBlankClickTest") && GetCapture() != hwnd,
+        Check(tab->current_path == fs::NormalizePath(L"C:\\LulingBlankClickTest") && GetCapture() != hwnd,
               L"blank pane: restored folder without history navigates to parent on release");
         tab->back_stack = {};
-        tab->back_stack.push(L"C:\\PulseBlankClickHistory");
+        tab->back_stack.push(L"C:\\LulingBlankClickHistory");
         press();
         release();
         SendMessageW(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, point);
         release();
-        Check(tab->current_path == fs::NormalizePath(L"C:\\PulseBlankClickHistory"),
+        Check(tab->current_path == fs::NormalizePath(L"C:\\LulingBlankClickHistory"),
               L"blank pane: available history takes precedence over parent");
         {
             // Up (B站 #11): the parent folder even when there is history.
             const std::wstring up_from = tab->current_path;
             const auto saved_back = tab->back_stack;
-            tab->back_stack.push(L"C:\\PulseBlankClickUpHistory");
+            tab->back_stack.push(L"C:\\LulingBlankClickUpHistory");
             state->appPrefs.blank_click_action = kBlankClickUp;
             press();
             Check(state->blankClickTab == tab, L"blank pane: up mode arms the blank click");
@@ -1227,18 +1227,18 @@ void TestBlankPaneClickNavigation() {
             tab->back_stack = saved_back;
         }
         const std::wstring folder = tab->current_path;
-        tab->current_path = L"pulse:search:showbox";
+        tab->current_path = L"luling:search:showbox";
         tab->back_stack.push(folder);
         const auto history_size = tab->back_stack.size();
         press();
         Check(state->marqueePending && !state->blankClickTab,
               L"blank pane: search results allow selection without arming navigation");
         release();
-        Check(tab->current_path == L"pulse:search:showbox" && tab->back_stack.size() == history_size,
+        Check(tab->current_path == L"luling:search:showbox" && tab->back_stack.size() == history_size,
               L"blank pane: search results preserve query and back history on blank click");
         SendMessageW(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, point);
         release();
-        Check(tab->current_path == L"pulse:search:showbox",
+        Check(tab->current_path == L"luling:search:showbox",
               L"blank pane: double click in search results does not navigate");
         tab->current_path = folder;
         tab->back_stack.pop();
@@ -1268,12 +1268,12 @@ void TestBlankPaneClickNavigation() {
         release();
         Check(tab->current_path == before,
               L"blank pane: navigation during press invalidates release");
-        tab->back_stack.push(L"C:\\PulseBlankClickDouble");
+        tab->back_stack.push(L"C:\\LulingBlankClickDouble");
         press();
         release();
         SendMessageW(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, point);
         release();
-        Check(tab->current_path == fs::NormalizePath(L"C:\\PulseBlankClickDouble"),
+        Check(tab->current_path == fs::NormalizePath(L"C:\\LulingBlankClickDouble"),
               L"blank pane: double click release does not navigate twice");
         tab->back_stack = {};
         tab->current_path = L"C:\\";
@@ -1291,7 +1291,7 @@ void TestBlankPaneClickNavigation() {
         tab->current_path = L"C:\\";
         auto& layout = *state->window_tabs.Active();
         auto other = std::make_unique<Pane>();
-        other->NewTab(L"C:\\PulseBlankClickSplit\\Child");
+        other->NewTab(L"C:\\LulingBlankClickSplit\\Child");
         Pane* right = other.get();
         layout.panes.push_back(std::move(other));
         layout.layout = LayoutPreset::TwoVertical;
@@ -1308,7 +1308,7 @@ void TestBlankPaneClickNavigation() {
             SendMessageW(hwnd, WM_LBUTTONUP, 0, right_point);
             SendMessageW(hwnd, WM_LBUTTONDBLCLK, MK_LBUTTON, right_point);
             SendMessageW(hwnd, WM_LBUTTONUP, 0, right_point);
-            Check(right->ActiveTab()->current_path == fs::NormalizePath(L"C:\\PulseBlankClickSplit") &&
+            Check(right->ActiveTab()->current_path == fs::NormalizePath(L"C:\\LulingBlankClickSplit") &&
                   tab->current_path == L"C:\\",
                   L"blank pane: split click navigates only the clicked pane");
             // Growing the layout from a This PC pane clones This PC, not C:\ (#68).
@@ -1360,13 +1360,13 @@ void TestNotificationToast() {
 
 void TestNavigationReturnSelection() {
     Check(NavigationReturnChildName(
-              L"C:\\projects\\pulse", L"C:\\projects") == L"pulse",
+              L"C:\\projects\\luling", L"C:\\projects") == L"luling",
           L"navigation: parent return selects the folder just left");
     Check(NavigationReturnChildName(
-              L"C:\\projects\\pulse\\src\\app", L"C:\\projects") == L"pulse",
+              L"C:\\projects\\luling\\src\\app", L"C:\\projects") == L"luling",
           L"navigation: deep ancestor return selects its immediate child");
     Check(NavigationReturnChildName(
-              L"C:\\projects\\pulse", L"D:\\archive").empty(),
+              L"C:\\projects\\luling", L"D:\\archive").empty(),
           L"navigation: unrelated destination has no return selection");
     Check(NavigationReturnChildName(
               L"\\\\192.0.2.10\\示例共享盘-2025\\00_软件",
@@ -1521,7 +1521,7 @@ void TestAddressSearchHistoryInteraction(float scale = 1.0f, bool dark = false) 
     WNDCLASSW fixture_class{};
     fixture_class.lpfnWndProc = DefWindowProcW;
     fixture_class.hInstance = GetModuleHandleW(nullptr);
-    fixture_class.lpszClassName = L"PulseHistoryTestFixture";
+    fixture_class.lpszClassName = L"LulingHistoryTestFixture";
     RegisterClassW(&fixture_class);
     state->hwnd = CreateWindowExW(WS_EX_TOPMOST, fixture_class.lpszClassName, L"", WS_POPUP,
         40, 40, static_cast<int>(1000 * scale), static_cast<int>(600 * scale),
@@ -1537,7 +1537,7 @@ void TestAddressSearchHistoryInteraction(float scale = 1.0f, bool dark = false) 
     state->renderer.SetScale(scale);
     ShowWindow(state->hwnd, SW_SHOWNORMAL);
     Pane pane;
-    pane.view.current_path = L"C:\\pulse-history-test-no-disk-access";
+    pane.view.current_path = L"C:\\luling-history-test-no-disk-access";
     state->pane = &pane;
     AdvancedSearchSpec spec;
     spec.name = L"saved-history-query";
@@ -1599,7 +1599,7 @@ void TestAddressSearchHistoryInteraction(float scale = 1.0f, bool dark = false) 
     state->pendingIndexSearches.clear();
     run_popup(2);
     std::wstring raw;
-    ParsePulsePath(pane.view.current_path, nullptr, &raw);
+    ParseLulingPath(pane.view.current_path, nullptr, &raw);
     const auto submitted = ParseSearchQuery(raw);
     Check(submitted.name == L"new-unmatched-query-72941" &&
           !state->pendingIndexSearches.empty() && state->searchHistory.entries.size() == 2,
@@ -1629,7 +1629,7 @@ void TestGlobalSearchHandoff() {
     GlobalSearchHandoff request;
     request.query = L"季度 预算";
     std::wstring kind, rest;
-    bool parsed = ParsePulsePath(GlobalSearchHandoffPath(request), &kind, &rest);
+    bool parsed = ParseLulingPath(GlobalSearchHandoffPath(request), &kind, &rest);
     auto spec = ParseSearchQuery(rest);
     Check(parsed && kind == L"search" && spec.name == request.query && spec.content.empty() &&
           spec.location == LocationScope::Indexed,
@@ -1637,7 +1637,7 @@ void TestGlobalSearchHandoff() {
     request.content = true;
     request.folder = L"C:\\Users\\TestUser\\Documents";
     const auto scoped = GlobalSearchHandoffPath(request);
-    parsed = ParsePulsePath(scoped, &kind, &rest);
+    parsed = ParseLulingPath(scoped, &kind, &rest);
     spec = ParseSearchQuery(rest, request.folder);
     Check(parsed && kind == L"search" && spec.content == request.query && spec.name.empty() &&
           spec.location == LocationScope::CurrentFolder && spec.custom_folder == request.folder,
@@ -1810,7 +1810,7 @@ void CALLBACK AdvancedTestTimer(HWND, UINT, UINT_PTR timer, DWORD) {
         KillTimer(nullptr, timer);
         return;
     }
-    HWND dialog = FindAdvancedTestWindow(L"PulseAdvancedSearchWindow");
+    HWND dialog = FindAdvancedTestWindow(L"LulingAdvancedSearchWindow");
     if (!dialog) return;
     RECT rect{};
     GetClientRect(dialog, &rect);
@@ -1850,7 +1850,7 @@ void CALLBACK AdvancedTestTimer(HWND, UINT, UINT_PTR timer, DWORD) {
         return;
     }
     if (advanced_test_stage == 2) {
-        HWND menu = FindAdvancedTestWindow(L"PulseFluentMenu");
+        HWND menu = FindAdvancedTestWindow(L"LulingFluentMenu");
         if (!menu || !IsWindowVisible(menu)) return;
         PostMessageW(menu, WM_KEYDOWN, VK_DOWN, 0);
         PostMessageW(menu, WM_KEYDOWN, VK_RETURN, 0);
@@ -1858,7 +1858,7 @@ void CALLBACK AdvancedTestTimer(HWND, UINT, UINT_PTR timer, DWORD) {
         return;
     }
     if (advanced_test_stage == 3) {
-        HWND menu = FindAdvancedTestWindow(L"PulseFluentMenu");
+        HWND menu = FindAdvancedTestWindow(L"LulingFluentMenu");
         if (menu && IsWindowVisible(menu)) return;
         click(80, 368);
         advanced_test_stage = 4;
@@ -1897,7 +1897,7 @@ void TestAdvancedSearchDialog() {
 
 // No image capture: exercise the actual dialog's mouse target and editing path.
 void CALLBACK AdvancedEditClickTimer(HWND, UINT, UINT_PTR timer, DWORD) {
-    HWND dialog = FindAdvancedTestWindow(L"PulseAdvancedSearchWindow");
+    HWND dialog = FindAdvancedTestWindow(L"LulingAdvancedSearchWindow");
     if (!dialog) return;
     KillTimer(nullptr, timer);
     RECT rc{};
@@ -2655,7 +2655,7 @@ void TestContextMenuPrefs() {
           loaded.explorer_cap == ipc::kDefaultExplorerCap,
           L"prefs: factory Explorer cap keeps the whole shell list");
 
-    // Pulse's own commands (#41, #44-⑩): hide, persist, filter, restore.
+    // Luling's own commands (#41, #44-⑩): hide, persist, filter, restore.
     {
         ContextMenuPrefs builtin;
         builtin.persist = false;
@@ -2669,7 +2669,7 @@ void TestContextMenuPrefs() {
         Check(reread.FromJson(builtin.ToJson()) && reread.builtin_hidden == builtin.builtin_hidden &&
                   !reread.BuiltinVisible(BuiltinMenuItem::Tags) &&
                   reread.BuiltinVisible(BuiltinMenuItem::CopyPath),
-              L"prefs: hidden Pulse commands round-trip");
+              L"prefs: hidden Luling commands round-trip");
         Check(RowActionMask(reread.builtin_hidden) == (kRowActionNewTab | kRowActionMore) &&
                   RowActionMask(0) == kRowActionsAll,
               L"prefs: hiding the row star keeps the new-tab and more buttons");
@@ -2680,7 +2680,7 @@ void TestContextMenuPrefs() {
                                          CmdOpenTerminal, CmdProperties };
         bool kept_ok = menu.size() == kept_ids.size();
         for (size_t i = 0; kept_ok && i < menu.size(); ++i) kept_ok = menu[i].command == kept_ids[i];
-        Check(kept_ok, L"menu: hidden Pulse commands are dropped, the rest keep their order");
+        Check(kept_ok, L"menu: hidden Luling commands are dropped, the rest keep their order");
         Check(!menu.empty() && menu[1].separator_after && !menu.back().separator_after,
               L"menu: dropping the tail leaves no trailing separator");
 
@@ -2704,7 +2704,7 @@ void TestContextMenuPrefs() {
         auto untouched = BuildItemMenu(false, L"");
         const size_t untouched_size = untouched.size();
         ApplyBuiltinMenuPrefs(untouched, ContextMenuPrefs{});
-        Check(untouched.size() == untouched_size, L"menu: default prefs keep every Pulse command");
+        Check(untouched.size() == untouched_size, L"menu: default prefs keep every Luling command");
         Check(BuiltinItemForCommand(CmdOpen) == BuiltinMenuItem::Count &&
                   BuiltinItemForCommand(CmdProperties) == BuiltinMenuItem::Count &&
                   BuiltinItemForCommand(CmdUnpinQuickAccess) == BuiltinMenuItem::QuickAccess,
@@ -2724,7 +2724,7 @@ void TestContextMenuPrefs() {
                   ordered_read.BuiltinOrder(BuiltinMenuSurface::Item) == copy_first &&
                   ordered_read.BuiltinOrderCustom(BuiltinMenuSurface::Item) &&
                   !ordered_read.BuiltinOrderCustom(BuiltinMenuSurface::Background),
-              L"prefs: a moved Pulse menu order round-trips per surface");
+              L"prefs: a moved Luling menu order round-trips per surface");
         ContextMenuPrefs default_order;
         default_order.persist = false;
         default_order.SetBuiltinOrder(BuiltinMenuSurface::Item, BuiltinMenuDefaultOrder(BuiltinMenuSurface::Item));
@@ -2745,7 +2745,7 @@ void TestContextMenuPrefs() {
         bool moved_ok = moved.size() == moved_ids.size();
         for (size_t i = 0; moved_ok && i < moved.size(); ++i) moved_ok = moved[i].command == moved_ids[i];
         Check(moved_ok && moved[5].separator_after && !moved[2].separator_after,
-              L"menu: a moved Pulse command takes its new place, groups keep their separators");
+              L"menu: a moved Luling command takes its new place, groups keep their separators");
 
         auto undo_first = BuiltinMenuDefaultOrder(BuiltinMenuSurface::Item);
         undo_first.erase(std::find(undo_first.begin(), undo_first.end(), BuiltinMenuItem::Undo));
@@ -2774,12 +2774,12 @@ void TestContextMenuPrefs() {
               L"prefs: the row buttons carry their order to the renderer");
 
         builtin.ResetToDefaults();
-        Check(builtin.builtin_hidden == 0, L"prefs: restore defaults shows every Pulse command again");
+        Check(builtin.builtin_hidden == 0, L"prefs: restore defaults shows every Luling command again");
         ContextMenuPrefs legacy;
         legacy.persist = false;
         Check(legacy.FromJson(L"{\"version\":1,\"categories\":{\"software\":true}}") &&
                   legacy.builtin_hidden == 0,
-              L"prefs: files without pulse_items show every Pulse command");
+              L"prefs: files without luling_items show every Luling command");
     }
 
     std::vector<ShellMenuEntry> many;
@@ -2827,7 +2827,7 @@ void TestContextMenuPrefs() {
           L"prefs: an older catalog migrates keys and keeps its overrides");
 }
 
-// Diagnostic entry (PULSE_SELFTEST_CASE=context-verbs): dumps the real registry
+// Diagnostic entry (LULING_SELFTEST_CASE=context-verbs): dumps the real registry
 // static verbs for a few extensions plus what the UI-side pref filter keeps, so
 // "why is this verb missing from the right-click menu" is answerable without
 // guessing. Read-only: no menu opens and nothing is invoked.
@@ -2891,39 +2891,39 @@ void DumpContextVerbs() {
 
 void TestAppPrefsAndSettingsPath() {
     std::wstring kind, rest;
-    Check(ParsePulsePath(L"pulse:settings:general", &kind, &rest) &&
+    Check(ParseLulingPath(L"luling:settings:general", &kind, &rest) &&
           kind == L"settings" && rest == L"general",
           L"settings: parse general path");
-    Check(ParsePulsePath(L"pulse:settings:context", &kind, &rest) &&
+    Check(ParseLulingPath(L"luling:settings:context", &kind, &rest) &&
           kind == L"settings" && rest == L"context",
           L"settings: parse context path");
-    Check(ParsePulsePath(L"pulse:settings:index", &kind, &rest) &&
+    Check(ParseLulingPath(L"luling:settings:index", &kind, &rest) &&
           kind == L"settings" && rest == L"index",
           L"settings: parse index path");
-    Check(MakeSettingsPath() == L"pulse:settings:general",
+    Check(MakeSettingsPath() == L"luling:settings:general",
           L"settings: default page is general");
-    Check(MakeSettingsPath(L"context") == L"pulse:settings:context",
+    Check(MakeSettingsPath(L"context") == L"luling:settings:context",
           L"settings: context page path");
-    Check(MakeSettingsPath(L"index") == L"pulse:settings:index",
+    Check(MakeSettingsPath(L"index") == L"luling:settings:index",
           L"settings: index page path");
-    Check(fs::IsVirtualPath(L"pulse:settings:general"),
-          L"settings: pulse:settings is virtual");
+    Check(fs::IsVirtualPath(L"luling:settings:general"),
+          L"settings: luling:settings is virtual");
 
     AppPrefs prefs;
     prefs.persist = false;
     Check(prefs.FromJson(L"{\"launch_on_startup\":true,\"keep_running_on_close\":true}") &&
           prefs.launch_on_startup && prefs.keep_running_on_close &&
-          !prefs.open_folders_in_pulse,
+          !prefs.open_folders_in_luling,
           L"appprefs: parse json");
     Check(prefs.ApplyLaunchOnStartup(false) && !prefs.launch_on_startup,
           L"appprefs: persist=false toggle does not write Run key");
-    Check(prefs.ApplyFolderOpen(true) && prefs.open_folders_in_pulse,
+    Check(prefs.ApplyFolderOpen(true) && prefs.open_folders_in_luling,
           L"appprefs: persist=false folder-open toggle does not write HKCU");
     const std::wstring json = prefs.ToJson();
     AppPrefs loaded;
     loaded.persist = false;
     Check(loaded.FromJson(json) && !loaded.launch_on_startup && loaded.keep_running_on_close &&
-          loaded.open_folders_in_pulse && loaded.language == L"system" &&
+          loaded.open_folders_in_luling && loaded.language == L"system" &&
           !loaded.show_status_performance,
           L"appprefs: json round-trip");
     {
@@ -2941,21 +2941,21 @@ void TestAppPrefsAndSettingsPath() {
     }
     Check(json.find(L"\"launch_on_startup\":false") != std::wstring::npos &&
           json.find(L"\"keep_running_on_close\":true") != std::wstring::npos &&
-          json.find(L"\"open_folders_in_pulse\":true") != std::wstring::npos &&
+          json.find(L"\"open_folders_in_luling\":true") != std::wstring::npos &&
           json.find(L"\"language\":\"system\"") != std::wstring::npos &&
           json.find(L"\"show_status_performance\":false") != std::wstring::npos,
           L"appprefs: json contains both flags");
     Check(prefs.FromJson(L"{\"show_status_performance\":true}") &&
           prefs.show_status_performance,
           L"appprefs: parse show_status_performance");
-    Check(FolderOpenCommandLine(L"C:\\Pulse\\pulse.exe") ==
-              L"\"C:\\Pulse\\pulse.exe\" \"%1\"",
+    Check(FolderOpenCommandLine(L"C:\\Luling\\luling.exe") ==
+              L"\"C:\\Luling\\luling.exe\" \"%1\"",
           L"appprefs: folder-open command quotes exe and %1");
-    Check(FolderOpenCommandIsOurs(L"\"C:\\Pulse\\pulse.exe\" \"%1\"",
-                                  L"C:\\Pulse\\pulse.exe"),
+    Check(FolderOpenCommandIsOurs(L"\"C:\\Luling\\luling.exe\" \"%1\"",
+                                  L"C:\\Luling\\luling.exe"),
           L"appprefs: folder-open command matches our exe");
     Check(!FolderOpenCommandIsOurs(L"\"C:\\Windows\\explorer.exe\" \"%1\"",
-                                   L"C:\\Pulse\\pulse.exe"),
+                                   L"C:\\Luling\\luling.exe"),
           L"appprefs: folder-open command ignores explorer");
     AppPrefs density;
     density.persist = false;
@@ -3071,7 +3071,7 @@ void TestDragDropPure() {
           L"dnd: no copy/move allowed -> link");
 
     Check(ui::FirstDroppableFolder({}).empty(), L"dnd: no sources -> no header folder");
-    Check(ui::FirstDroppableFolder({ L"C:\\pulse_no_such_file.txt" }).empty(),
+    Check(ui::FirstDroppableFolder({ L"C:\\luling_no_such_file.txt" }).empty(),
           L"dnd: missing path is not a header folder");
     wchar_t windir[MAX_PATH]{};
     if (GetWindowsDirectoryW(windir, ARRAYSIZE(windir)) > 0) {
@@ -3097,7 +3097,7 @@ void TestDragDropPure() {
 void TestDirWatch() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring dir = std::wstring(temp) + L"PulseWatchTest-" +
+    const std::wstring dir = std::wstring(temp) + L"LulingWatchTest-" +
                              std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(dir.c_str(), nullptr);
 
@@ -3118,7 +3118,7 @@ void TestDirWatch() {
     const std::wstring file = dir + L"\\created.txt";
     HANDLE hf = CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr,
                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    const char body[] = "pulse";
+    const char body[] = "luling";
     DWORD written = 0;
     if (hf != INVALID_HANDLE_VALUE) {
         WriteFile(hf, body, sizeof(body) - 1, &written, nullptr);
@@ -3181,12 +3181,12 @@ void TestFolderViews() {
     prefs.folder_views.Set(long_path, ViewMode::Content);
     Check(prefs.folder_views.Find(L"\\\\?\\UNC\\SERVER\\share\\图片\\") == ViewMode::Tiles,
           L"folder views: UNC aliases agree");
-    Check(!prefs.folder_views.Set(L"pulse:settings", ViewMode::List) &&
+    Check(!prefs.folder_views.Set(L"luling:settings", ViewMode::List) &&
           !prefs.folder_views.Set(L"relative", ViewMode::List),
           L"folder views: virtual and nonabsolute paths are not persisted");
     Check(prefs.folder_views.Set(L"", ViewMode::Tiles) &&
           prefs.folder_views.Find(L"") == ViewMode::Tiles &&
-          !prefs.folder_views.Find(L"pulse:settings") && !prefs.folder_views.Find(L"relative"),
+          !prefs.folder_views.Find(L"luling:settings") && !prefs.folder_views.Find(L"relative"),
           L"folder views: This PC keeps its own choice without leaking into virtual views");
     AppPrefs reloaded;
     reloaded.persist = false;
@@ -3314,7 +3314,7 @@ void TestFolderSorts() {
     Check(prefs.folder_sorts.Find(L"\\\\?\\c:\\b\\") == newest &&
           prefs.folder_sorts.Find(L"C:/B/") == newest,
           L"folder sorts: case, separators, trailing slash and extended prefix agree");
-    Check(!prefs.folder_sorts.Set(L"pulse:search:x", newest) &&
+    Check(!prefs.folder_sorts.Set(L"luling:search:x", newest) &&
           !prefs.folder_sorts.Set(L"", newest) &&
           !prefs.folder_sorts.Set(L"relative", newest) &&
           !prefs.folder_sorts.Set(L"C:\\Bad", { static_cast<SortColumn>(9), SortDirection::Asc }),
@@ -3353,20 +3353,20 @@ void TestFolderSorts() {
           reloaded.folder_views.Default() == ViewMode::Details && !reloaded.folder_sorts.Find(unc),
           L"folder sorts: old preferences load with name order and details view");
     {
-        using pulse::app::GroupBy;
+        using luling::app::GroupBy;
         prefs.folder_groups.Set(L"C:\\G1", GroupBy::Size);
-        prefs.folder_groups.Set(L"pulse:recent", GroupBy::None);
+        prefs.folder_groups.Set(L"luling:recent", GroupBy::None);
         prefs.folder_groups.ApplyToAll(GroupBy::Type);
         Check(prefs.folder_groups.Resolve(L"C:\\G1") == GroupBy::Type &&
               prefs.folder_groups.Resolve(L"C:\\Fresh") == GroupBy::Type &&
-              prefs.folder_groups.Resolve(L"pulse:recent") == GroupBy::None &&
-              prefs.folder_groups.Resolve(L"pulse:recycle") == GroupBy::Date &&
+              prefs.folder_groups.Resolve(L"luling:recent") == GroupBy::None &&
+              prefs.folder_groups.Resolve(L"luling:recycle") == GroupBy::Date &&
               prefs.folder_groups.Resolve(L"") == GroupBy::None,
               L"folder groups: apply to all covers real folders and keeps virtual views (#75)");
         reloaded.FromJson(prefs.ToJson());
         Check(reloaded.folder_groups.Default() == GroupBy::Type &&
               reloaded.folder_groups.Resolve(L"C:\\Fresh") == GroupBy::Type &&
-              reloaded.folder_groups.Resolve(L"pulse:recent") == GroupBy::None,
+              reloaded.folder_groups.Resolve(L"luling:recent") == GroupBy::None,
               L"folder groups: applied default survives reload");
         prefs.folder_groups.Set(L"C:\\G1", GroupBy::None);
         Check(prefs.folder_groups.Resolve(L"C:\\G1") == GroupBy::None,
@@ -3439,7 +3439,7 @@ void TestFolderSorts() {
         Check(sort_of(active) == newest && active->view_mode == ViewMode::Tiles,
               L"folder sorts: apply to all overrides earlier per-folder choices");
         const std::wstring real_path = active->current_path;
-        active->current_path = L"pulse:recent";
+        active->current_path = L"luling:recent";
         Check(!ApplyViewToAllFolders(*state, false), L"folder sorts: apply to all ignores virtual views");
         active->current_path = real_path;
         SetGroupBy(*state, 4);
@@ -3450,7 +3450,7 @@ void TestFolderSorts() {
         active->NavigateTo(a);
         StartLoadingPath(*state, *active, a);
         Check(active->group_by == 3, L"folder groups: apply to all overrides earlier per-folder grouping");
-        active->current_path = L"pulse:recent";
+        active->current_path = L"luling:recent";
         Check(!ApplyGroupToAllFolders(*state, 3, false), L"folder groups: apply to all ignores virtual views");
         active->current_path = real_path;
         state->appPrefs.folder_groups.Clear();
@@ -3488,7 +3488,7 @@ void TestStartupLocation() {
 
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring root = std::wstring(temp) + L"PulseStartupLocation-" +
+    const std::wstring root = std::wstring(temp) + L"LulingStartupLocation-" +
                               std::to_wstring(GetCurrentProcessId());
     const std::wstring work = root + L"\\work";
     const std::wstring home = root + L"\\home";
@@ -3637,7 +3637,7 @@ void TestLockedItemPrompt() {
 void TestTrayReveal() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring root = std::wstring(temp) + L"PulseTrayReveal-" +
+    const std::wstring root = std::wstring(temp) + L"LulingTrayReveal-" +
                               std::to_wstring(GetCurrentProcessId());
     const std::wstring work = root + L"\\work";
     const std::wstring other = root + L"\\other";
@@ -3774,7 +3774,7 @@ void TestTrayReveal() {
 void TestNavigateAlwaysEnumerates() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring parent = std::wstring(temp) + L"PulseEnumParent-" +
+    const std::wstring parent = std::wstring(temp) + L"LulingEnumParent-" +
                                 std::to_wstring(GetCurrentProcessId());
     const std::wstring child = parent + L"\\child";
     CreateDirectoryW(parent.c_str(), nullptr);
@@ -3840,7 +3840,7 @@ void TestNavigateAlwaysEnumerates() {
 void TestSnapshotPatch() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring dir = std::wstring(temp) + L"PulsePatchTest-" +
+    const std::wstring dir = std::wstring(temp) + L"LulingPatchTest-" +
                              std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(dir.c_str(), nullptr);
     const std::wstring a = dir + L"\\alpha.txt";
@@ -3904,7 +3904,7 @@ void TestSnapshotPatch() {
 void TestSnapshotPatchBatch() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring dir = std::wstring(temp) + L"PulsePatchBatch-" +
+    const std::wstring dir = std::wstring(temp) + L"LulingPatchBatch-" +
                              std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(dir.c_str(), nullptr);
     const auto full = [&](const wchar_t* name) { return dir + L"\\" + name; };
@@ -4022,7 +4022,7 @@ void TestSnapshotPatchBatch() {
 void TestSnapshotPatchHoldsRows() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring dir = std::wstring(temp) + L"PulsePatchHold-" +
+    const std::wstring dir = std::wstring(temp) + L"LulingPatchHold-" +
                              std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(dir.c_str(), nullptr);
     const auto full = [&](const wchar_t* name) { return dir + L"\\" + name; };
@@ -4223,35 +4223,35 @@ void TestSnapshotStorePutKeepsWorkerGeneration() {
     fs::DirEntry a;
     a.name = L"a.txt";
     first->push_back(a);
-    store.Update(L"C:\\pulse-gen", 3, first);
+    store.Update(L"C:\\luling-gen", 3, first);
 
     auto incremental = std::make_shared<std::vector<fs::DirEntry>>(*first);
     fs::DirEntry b;
     b.name = L"b.txt";
     incremental->push_back(b);
-    Check(store.Put(L"C:\\pulse-gen", incremental) == 3,
+    Check(store.Put(L"C:\\luling-gen", incremental) == 3,
           L"snapshot: Put keeps the last worker generation");
 
     auto worker = std::make_shared<std::vector<fs::DirEntry>>();
     fs::DirEntry c;
     c.name = L"c.txt";
     worker->push_back(c);
-    store.Update(L"C:\\pulse-gen", 4, worker);
-    auto snap = store.Peek(L"C:\\pulse-gen");
+    store.Update(L"C:\\luling-gen", 4, worker);
+    auto snap = store.Peek(L"C:\\luling-gen");
     Check(snap && snap->size() == 1 && snap->front().name == L"c.txt",
           L"snapshot: later worker Update is not discarded after Put");
 
-    store.Update(L"C:\\pulse-gen", 2, first);
-    snap = store.Peek(L"C:\\pulse-gen");
+    store.Update(L"C:\\luling-gen", 2, first);
+    snap = store.Peek(L"C:\\luling-gen");
     Check(snap && snap->front().name == L"c.txt",
           L"snapshot: older worker generation is still ignored");
 
-    store.MarkDirty(L"C:\\pulse-gen");
+    store.MarkDirty(L"C:\\luling-gen");
     uint64_t gen = 0;
-    Check(!store.GetOrStart(L"C:\\pulse-gen", gen) && gen == 4,
+    Check(!store.GetOrStart(L"C:\\luling-gen", gen) && gen == 4,
           L"snapshot: dirty GetOrStart does not bump past the worker generation");
-    store.Update(L"C:\\pulse-gen", 5, first);
-    snap = store.Peek(L"C:\\pulse-gen");
+    store.Update(L"C:\\luling-gen", 5, first);
+    snap = store.Peek(L"C:\\luling-gen");
     Check(snap && snap->front().name == L"a.txt",
           L"snapshot: worker Update after dirty GetOrStart still applies");
 }
@@ -4519,7 +4519,7 @@ void TestHiddenFiles() {
     FillPaneViewModel(vm, pane);
     Check(vm.EntryCount() == 0, L"hidden: name filtering composes with hidden filtering");
     tab.filter_text.clear();
-    tab.current_path = L"pulse:recycle";
+    tab.current_path = L"luling:recycle";
     tab.SetSnapshot(entries);
     FillPaneViewModel(vm, pane);
     Check(vm.EntryCount() == 4, L"hidden: recycle payloads remain accessible");
@@ -4590,9 +4590,9 @@ void TestSplitLayout() {
     Check(!palQ.empty() && palQ[0].command == CmdLayoutFourGrid, L"menu: palette filters by query");
     {
         bool offers_exit = false;
-        for (const auto& it : BuildCommandPalette(l10n::Get(l10n::StringId::ExitPulse), {}, {}, false))
-            offers_exit = offers_exit || it.command == CmdExitPulse;
-        Check(offers_exit, L"menu: the palette offers Exit Pulse (#57)");
+        for (const auto& it : BuildCommandPalette(l10n::Get(l10n::StringId::ExitLuling), {}, {}, false))
+            offers_exit = offers_exit || it.command == CmdExitLuling;
+        Check(offers_exit, L"menu: the palette offers Exit Luling (#57)");
     }
     auto palLong = BuildCommandPalette(L"", { L"\\\\?\\C:\\Users\\TestUser" }, {}, false);
     bool recent_ok = false;
@@ -4808,7 +4808,7 @@ void TestQuickAccess() {
     PlacesCatalog cat;
     cat.persist = false;
     Check(cat.SetQuickAccessPinned({L"C:\\", L"C:\\Projects", L"c:/projects/",
-                                   L"\\\\offline-host\\share\\folder", L"pulse:recent"}, true) &&
+                                   L"\\\\offline-host\\share\\folder", L"luling:recent"}, true) &&
           cat.quick_access_paths.size() == 3, L"quick access: roots, UNC and normalized deduplication");
     Check(!cat.SetQuickAccessPinned({L"C:\\Projects"}, true), L"quick access: pin is idempotent");
     cat.ToggleStarred(L"C:\\Projects", PlaceItemKind::Folder);
@@ -4858,7 +4858,7 @@ void TestQuickAccess() {
         AppendQuickAccessCommand(state, menu, {L"C:\\one", L"C:\\two"});
         Check(menu.size() == 1 && menu[0].command == CmdUnpinQuickAccess &&
               menu[0].text == L"从快速访问取消固定", L"quick access: all pinned offers unpin");
-        state.ctxMenuPrefs.SetItemEnabled(L"pulse:quick-access", false);
+        state.ctxMenuPrefs.SetItemEnabled(L"luling:quick-access", false);
         menu.clear();
         AppendQuickAccessCommand(state, menu, {L"C:\\one"});
         Check(menu.empty(), L"quick access: menu preference is respected");
@@ -5098,10 +5098,10 @@ void TestQuickAccess() {
     }
 
     wchar_t previous[32768]{};
-    GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
+    GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
     const auto test_dir = kSandbox + L"\\quick_access_profile";
     std::filesystem::create_directories(test_dir);
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", test_dir.c_str());
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", test_dir.c_str());
     {
         cat.persist = true;
         Check(cat.SetQuickAccessBadge(L"C:\\badge dir", L"盘 \"A\"", 0x123456) &&
@@ -5115,35 +5115,35 @@ void TestQuickAccess() {
         WriteUtf8FileAtomic(test_dir + L"\\places.json", L"{\"starred_items\":[]}");
         Check(loaded.Load() && loaded.quick_access_paths.empty(), L"quick access: old profile defaults empty");
     }
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous[0] ? previous : nullptr);
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous[0] ? previous : nullptr);
     cat.persist = false;
     Check(compat::WindowDpi(GetDesktopWindow()) > 0 &&
           compat::SystemMetricsForDpi(SM_CXSIZEFRAME, 144) > 0, L"compat: current DPI path");
     wchar_t previous_compat[16]{};
-    GetEnvironmentVariableW(L"PULSE_COMPAT_81", previous_compat, ARRAYSIZE(previous_compat));
-    SetEnvironmentVariableW(L"PULSE_COMPAT_81", L"1");
+    GetEnvironmentVariableW(L"LULING_COMPAT_81", previous_compat, ARRAYSIZE(previous_compat));
+    SetEnvironmentVariableW(L"LULING_COMPAT_81", L"1");
     Check(!compat::ModernWindows() && compat::WindowDpi(GetDesktopWindow()) > 0 &&
           compat::SystemMetricsForDpi(SM_CXSIZEFRAME, 144) > 0, L"compat: legacy DPI path");
-    SetEnvironmentVariableW(L"PULSE_COMPAT_81", previous_compat[0] ? previous_compat : nullptr);
+    SetEnvironmentVariableW(L"LULING_COMPAT_81", previous_compat[0] ? previous_compat : nullptr);
 }
 
 void TestPlacesAndIndex() {
-    Check(fs::IsVirtualPath(L"pulse:tag:0") && fs::IsVirtualPath(L"pulse:search:foo") &&
-          fs::IsVirtualPath(L"pulse:starred"),
-          L"places: pulse: paths are virtual");
+    Check(fs::IsVirtualPath(L"luling:tag:0") && fs::IsVirtualPath(L"luling:search:foo") &&
+          fs::IsVirtualPath(L"luling:starred"),
+          L"places: luling: paths are virtual");
     Check(!fs::IsVirtualPath(L"C:\\Users"), L"places: filesystem path is not virtual");
     std::wstring kind, rest;
-    Check(ParsePulsePath(L"pulse:tag:3", &kind, &rest) && kind == L"tag" && rest == L"3",
+    Check(ParseLulingPath(L"luling:tag:3", &kind, &rest) && kind == L"tag" && rest == L"3",
           L"places: parse tag virtual path");
-    Check(ParsePulsePath(L"pulse:search:hello", &kind, &rest) && kind == L"search" && rest == L"hello",
+    Check(ParseLulingPath(L"luling:search:hello", &kind, &rest) && kind == L"search" && rest == L"hello",
           L"places: parse search virtual path");
-    Check(ParsePulsePath(L"pulse:starred", &kind, &rest) && kind == L"starred" && rest.empty(),
+    Check(ParseLulingPath(L"luling:starred", &kind, &rest) && kind == L"starred" && rest.empty(),
           L"places: parse starred virtual path");
-    Check(MakeStarredPath() == L"pulse:starred", L"places: starred path helper");
-    Check(ParsePulsePath(L"pulse:recent", &kind, &rest) && kind == L"recent" && rest.empty() &&
-          MakeRecentPath() == L"pulse:recent", L"places: recent virtual path");
-    Check(ParsePulsePath(L"pulse:recycle", &kind, &rest) && kind == L"recycle" && rest.empty() &&
-          MakeRecyclePath() == L"pulse:recycle" && fs::IsRecycleViewPath(L"pulse:recycle"),
+    Check(MakeStarredPath() == L"luling:starred", L"places: starred path helper");
+    Check(ParseLulingPath(L"luling:recent", &kind, &rest) && kind == L"recent" && rest.empty() &&
+          MakeRecentPath() == L"luling:recent", L"places: recent virtual path");
+    Check(ParseLulingPath(L"luling:recycle", &kind, &rest) && kind == L"recycle" && rest.empty() &&
+          MakeRecyclePath() == L"luling:recycle" && fs::IsRecycleViewPath(L"luling:recycle"),
           L"places: recycle virtual path");
 
     PlacesCatalog cat;
@@ -5191,7 +5191,7 @@ void TestPlacesAndIndex() {
           L"places: unstar removes only that index");
     Check(!cat.ToggleStarred(L"C:\\proj\\folder") && cat.starred_items.empty(),
           L"places: unstar last folder clears the index");
-    Check(!cat.ToggleStarred(L"pulse:starred") && cat.starred_items.empty(),
+    Check(!cat.ToggleStarred(L"luling:starred") && cat.starred_items.empty(),
           L"places: virtual paths cannot be starred");
     for (int i = 0; i < 105; ++i)
         cat.RecordRecent(L"C:\\recent\\item" + std::to_wstring(i), PlaceItemKind::File);
@@ -5488,8 +5488,8 @@ void TestRecycleAndBatchRename() {
           item.deleted.dwHighDateTime == 2,
           L"recycle: parse Windows $I v2 metadata");
 
-    const std::wstring fixture = std::wstring(temp) + L"PulseRecycleFixture_" + suffix;
-    const std::wstring sid = pulse::CurrentUserSidString();
+    const std::wstring fixture = std::wstring(temp) + L"LulingRecycleFixture_" + suffix;
+    const std::wstring sid = luling::CurrentUserSidString();
     const std::wstring own = fixture + L"\\" + sid;
     const std::wstring other = fixture + L"\\S-1-5-21-111-222-333-9999";
     const bool fixture_ready = !sid.empty() && CreateDirectoryW(fixture.c_str(), nullptr) &&
@@ -5594,15 +5594,15 @@ void TestRecycleAndBatchRename() {
     rule = {};
     rule.pattern = L"same{ext}";
     const auto collided = PreviewBatchRename(
-        { L"C:\\pulse_ren_a.txt", L"C:\\pulse_ren_b.txt" }, rule);
+        { L"C:\\luling_ren_a.txt", L"C:\\luling_ren_b.txt" }, rule);
     Check(collided.size() == 2 &&
               collided[0].status == BatchRenameStatus::Collision &&
               collided[1].status == BatchRenameStatus::Collision &&
               collided[0].new_name == L"same.txt",
           L"batch-rename: two files mapping to the same name collide");
 
-    const std::wstring a = std::wstring(temp) + L"pulse_batch_a.txt";
-    const std::wstring b = std::wstring(temp) + L"pulse_batch_b.txt";
+    const std::wstring a = std::wstring(temp) + L"luling_batch_a.txt";
+    const std::wstring b = std::wstring(temp) + L"luling_batch_b.txt";
     HANDLE fa = CreateFileW(a.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
                             FILE_ATTRIBUTE_NORMAL, nullptr);
     HANDLE fb = CreateFileW(b.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
@@ -5614,11 +5614,11 @@ void TestRecycleAndBatchRename() {
     const auto preview = PreviewBatchRename({ a, b }, rule);
     Check(preview.size() == 2 && preview[0].status == BatchRenameStatus::Ok &&
           preview[1].status == BatchRenameStatus::Ok &&
-          preview[0].new_name == L"renamed-pulse_batch_a.txt",
+          preview[0].new_name == L"renamed-luling_batch_a.txt",
           L"batch-rename: preview two files");
     rule.prefix.clear();
-    rule.find = L"pulse_batch";
-    rule.replace = L"pulse_batch";
+    rule.find = L"luling_batch";
+    rule.replace = L"luling_batch";
     const auto unchanged = PreviewBatchRename({ a }, rule);
     Check(!unchanged.empty() && unchanged[0].status == BatchRenameStatus::Unchanged,
           L"batch-rename: unchanged when name stays the same");
@@ -5656,15 +5656,15 @@ void TestRecycleAndBatchRename() {
     }
     Check(recycle_in_access, L"sidebar: recycle bin sits in the quick access group");
 
-    const auto crumbs = ui::SplitBreadcrumb(L"pulse:recycle");
-    Check(crumbs.size() == 2 && crumbs[0].path.empty() && crumbs[1].path == L"pulse:recycle",
+    const auto crumbs = ui::SplitBreadcrumb(L"luling:recycle");
+    Check(crumbs.size() == 2 && crumbs[0].path.empty() && crumbs[1].path == L"luling:recycle",
           L"recycle: breadcrumb is This PC / Recycle Bin");
 }
 
 void TestOpsThroughShell() {
     std::wstring dir = kSandbox;
     g_ops.Start([] {});
-    Sleep(800); // let the ops worker bring up pulse_shell.exe
+    Sleep(800); // let the ops worker bring up luling_shell.exe
 
     Check(ops::TerminalCommandLine(L"C:\\A\\B") == L"-d \"C:\\A\\B\"",
           L"ops: wt.exe command line");
@@ -5734,7 +5734,7 @@ void TestOpsThroughShell() {
     }
 
     // Explorer context-menu session end-to-end: REQ_CTX_QUERY through the pipe,
-    // pulse_shell builds the real IContextMenu on its session STA thread, the
+    // luling_shell builds the real IContextMenu on its session STA thread, the
     // filtered/flattened items come back via RSP_CTX_ITEMS. No invoke here
     // (it would launch an app); the session is closed like a dismissed menu.
     {
@@ -6164,7 +6164,7 @@ void TestTrayStack() {
           L"tray stack: new strings resolve (localization range covers them)");
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(MAX_PATH, temp);
-    const std::wstring dir = std::wstring(temp) + L"PulseTrayStackSelftest-" +
+    const std::wstring dir = std::wstring(temp) + L"LulingTrayStackSelftest-" +
         std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
     CreateDirectoryW(dir.c_str(), nullptr);
     std::vector<std::wstring> files;
@@ -6174,7 +6174,7 @@ void TestTrayStack() {
                                FILE_ATTRIBUTE_NORMAL, nullptr);
         if (h != INVALID_HANDLE_VALUE) {
             DWORD written = 0;
-            WriteFile(h, "pulse", 5, &written, nullptr);
+            WriteFile(h, "luling", 5, &written, nullptr);
             CloseHandle(h);
         }
         files.push_back(p);
@@ -6199,7 +6199,7 @@ void TestTrayStack() {
     WNDCLASSW wc{};
     wc.lpfnWndProc = BlankPaneTestProc;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"PulseTrayStackSelftest";
+    wc.lpszClassName = L"LulingTrayStackSelftest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_POPUP,
         0, 0, 1000, 700, nullptr, nullptr, wc.hInstance, nullptr);
@@ -6210,7 +6210,7 @@ void TestTrayStack() {
         state->compositor.RecreateTextFormats(1.0f);
         state->renderer.SetCompositor(&state->compositor);
         state->renderer.SetScale(1.0f);
-        state->window_tabs.NewTab(L"C:\\PulseTrayStackFixture");
+        state->window_tabs.NewTab(L"C:\\LulingTrayStackFixture");
         state->pane = state->window_tabs.Active()->panes.front().get();
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state.get()));
         TrayStackSettle(*state, 900);
@@ -6400,7 +6400,7 @@ void TestLinkResolve() {
 
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp), temp);
-    const std::wstring dir = std::wstring(temp) + L"PulseLinkTest-" +
+    const std::wstring dir = std::wstring(temp) + L"LulingLinkTest-" +
                              std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(dir.c_str(), nullptr);
     const std::wstring target_file = dir + L"\\target.txt";
@@ -6465,7 +6465,7 @@ void TestLinkResolve() {
                     FolderSortMode::Mixed),
         L"sort: mixed mode orders folders and files by name alone");
     wchar_t live_link[32768]{};
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_LINK", live_link, ARRAYSIZE(live_link))) {
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_LINK", live_link, ARRAYSIZE(live_link))) {
         std::vector<fs::DirEntry> entries;
         const auto parent = fs::ParentPath(live_link);
         fs::EnumerateDirectory(parent, entries);
@@ -6489,9 +6489,9 @@ void TestLinkResolve() {
 }
 
 void TestDetailsMeta() {
-    Check(pulse::format::GroupedInt(0) == L"0", L"meta: grouped int zero");
-    Check(pulse::format::GroupedInt(12345) == L"12,345", L"meta: grouped int small");
-    Check(pulse::format::GroupedInt(2895851315ull) == L"2,895,851,315",
+    Check(luling::format::GroupedInt(0) == L"0", L"meta: grouped int zero");
+    Check(luling::format::GroupedInt(12345) == L"12,345", L"meta: grouped int small");
+    Check(luling::format::GroupedInt(2895851315ull) == L"2,895,851,315",
           L"meta: grouped int large");
     Check(FormatAccessMask(FILE_ALL_ACCESS, false) == L"完全控制",
           L"meta: mask full control");
@@ -6853,13 +6853,13 @@ void TestStagingTraySession() {
     saved.details_panel = true;
     const std::wstring json = SessionToJson(saved);
     wchar_t previous[32768]{};
-    GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
+    GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
     const auto data_dir = WorkspacePath((L"bench_data/tray-session-" + std::to_wstring(GetCurrentProcessId())).c_str());
     std::filesystem::create_directories(data_dir);
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", data_dir.c_str());
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", data_dir.c_str());
     SessionSnapshot snap;
     Check(SaveSession(saved) && LoadSession(snap), L"session: complete file round trip loads");
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous[0] ? previous : nullptr);
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous[0] ? previous : nullptr);
     std::filesystem::remove_all(data_dir);
     const auto& batches = snap.tray.batches();
     Check(batches.size() == 2 && batches[0].items.size() == 2 && !batches[0].move_intent &&
@@ -6998,7 +6998,7 @@ void TestLayoutOwnedTabs() {
 void TestUtf8PersistFile() {
     wchar_t temp_dir[MAX_PATH]{};
     GetTempPathW(ARRAYSIZE(temp_dir), temp_dir);
-    const std::wstring path = std::wstring(temp_dir) + L"pulse-utf8-persist-test.json";
+    const std::wstring path = std::wstring(temp_dir) + L"luling-utf8-persist-test.json";
     const std::wstring json =
         L"{\"name\":\"紧急修补\",\"unc\":\"\\\\192.0.2.10\\示例共享盘\"}\n";
     Check(WriteUtf8FileAtomic(path, json), L"utf8file: write Chinese JSON");
@@ -7241,10 +7241,10 @@ void TestDetailsPreviewInteraction() {
     }
 
     wchar_t previous[32768]{};
-    GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
+    GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous, ARRAYSIZE(previous));
     const auto data_dir = std::wstring(kSandbox) + L"\\preview-session";
     std::filesystem::create_directories(data_dir);
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", data_dir.c_str());
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", data_dir.c_str());
     SessionSnapshot saved, loaded;
     saved.details_panel = true;
     saved.details_preview_only = true;
@@ -7266,7 +7266,7 @@ void TestDetailsPreviewInteraction() {
     SessionSnapshot legacy;
     LoadSession(legacy);
     Check(!legacy.details_preview_only, L"preview: older sessions default to expanded details");
-    SetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", previous[0] ? previous : nullptr);
+    SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous[0] ? previous : nullptr);
 }
 
 int RunSelfTest1B2() {
@@ -7286,103 +7286,103 @@ int RunSelfTest1B2() {
         ? g_log_local : nullptr;
 
     wchar_t tag_delete_case[64]{};
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", tag_delete_case, ARRAYSIZE(tag_delete_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", tag_delete_case, ARRAYSIZE(tag_delete_case)) &&
         wcscmp(tag_delete_case, L"tag-delete-view") == 0) {
         const bool passed = ::RunTagDeleteViewTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
     wchar_t skip_visual[8]{};
-    g_skip_visual = GetEnvironmentVariableW(L"PULSE_SELFTEST_NO_SCREENSHOTS", skip_visual, ARRAYSIZE(skip_visual)) > 0;
+    g_skip_visual = GetEnvironmentVariableW(L"LULING_SELFTEST_NO_SCREENSHOTS", skip_visual, ARRAYSIZE(skip_visual)) > 0;
     if (g_skip_visual) LogLine(L"[SKIP] Screenshot capture disabled\n");
     wchar_t test_case[64]{};
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"audit-tabs") == 0) {
         TestAuditTabs();
         LogLine(L"\n== audit-tabs: %d passed, %d failed ==\n", g_pass, g_fail);
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"tab-pin-boundary") == 0) {
         const bool passed = ::RunTabPinBoundaryTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"tray-tags") == 0) {
         const bool passed = ::RunTrayTagsUiTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"preview-deadline") == 0) {
         const bool passed = ::RunPreviewDeadlineTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"tag-color-command") == 0) {
         const bool passed = ::RunTagColorCommandTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"dialog-recovery") == 0) {
         const bool passed = ::RunDialogRecoveryTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"tray-completion") == 0) {
         const int result = ::RunTrayCompletionTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return result;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"operation-intent-ui") == 0) {
         const bool passed = ::RunOperationIntentUiTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         (wcscmp(test_case, L"content-pattern-selection") == 0 || wcscmp(test_case, L"content-history-order") == 0)) {
         const bool passed = wcscmp(test_case, L"content-pattern-selection") == 0 ?
             ::RunContentPatternSelectionTest() : ::RunContentHistoryOrderTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"listing-selection-restore") == 0) {
         const bool passed = ::RunListingSelectionRestoreTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"workspace-restore") == 0) {
         const bool passed = ::RunWorkspaceRestoreTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"column-resize-ui") == 0) {
         const bool passed = RunColumnResizeUiTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"folder-sizes") == 0) {
         const bool passed = RunFolderSizesTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"pane-header-icons") == 0) {
         const bool passed = RunPaneHeaderIconTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"folder-views") == 0) {
         TestFolderViews();
         TestFolderSorts();
@@ -7393,7 +7393,7 @@ int RunSelfTest1B2() {
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"tray-session") == 0) {
         TestStagingTrayDeletion();
         TestStagingTraySession();
@@ -7401,7 +7401,7 @@ int RunSelfTest1B2() {
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"pr-shell") == 0) {
         TestMenuModel();
         TestShellMenuMerge();
@@ -7410,13 +7410,13 @@ int RunSelfTest1B2() {
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"pin-reorder") == 0) {
         TestQuickAccessPinReorder();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"snapshot-patch") == 0) {
         TestSnapshotPatch();
         TestSnapshotPatchBatch();
@@ -7425,26 +7425,26 @@ int RunSelfTest1B2() {
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"context-verbs") == 0) {
         DumpContextVerbs();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"release-panels-hidden") == 0) {
         TestDetailsPreviewInteraction();
         TestHiddenFiles();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"tray-stack") == 0) {
         TestTrayStack();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"list-columns") == 0) {
         TestListColumns();
         TestOptionalColumns();
@@ -7452,74 +7452,74 @@ int RunSelfTest1B2() {
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"filter-controls") == 0) {
         TestFilterControls();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"filename-render") == 0) {
         const bool passed = RunFilenameRenderTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"filter-search-ui") == 0) {
         const bool passed = RunNameHighlightUiTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"folder-shortcut") == 0) {
         TestLinkResolve();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"operation-toast") == 0) {
         TestNotificationToast();
         const bool passed = RunOperationToastTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed && !g_fail ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"address-editor") == 0) {
         const bool passed = RunAddressEditorTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"rename-editor") == 0) {
         const bool passed = RunRenameEditorTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"rename-outside") == 0) {
         TestRenameOutsideClick();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"change-app") == 0) {
         const bool passed = RunChangeTrackingAppTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"change-ui") == 0) {
         const bool passed = RunChangeTrackingUiTest();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return passed ? 0 : 1;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"blank-pane") == 0) {
         TestBlankPaneClickNavigation();
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
-    if (GetEnvironmentVariableW(L"PULSE_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
         wcscmp(test_case, L"advanced-edit") == 0) {
         TestAdvancedEditClicks();
         if (g_log) { fclose(g_log); g_log = nullptr; }
@@ -7616,4 +7616,4 @@ int RunSelfTest1B2() {
     return g_fail == 0 ? 0 : 1;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

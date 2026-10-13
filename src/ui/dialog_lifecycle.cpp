@@ -2,7 +2,7 @@
 #include <dwmapi.h>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 bool OwnedBy(HWND window, HWND owner) {
     if (IsChild(owner, window)) return true;

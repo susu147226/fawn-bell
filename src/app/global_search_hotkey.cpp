@@ -1,6 +1,6 @@
 #include "global_search_hotkey.h"
 
-namespace pulse {
+namespace luling {
 void GlobalSearchHotkey::Reset() {
     if (registered_) UnregisterHotKey(window_, kId);
     registered_ = false;

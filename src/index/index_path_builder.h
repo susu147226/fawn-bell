@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 
 // Return an entire absolute path or an empty failure; never a truncated suffix.
 template<class Parent, class Name>
@@ -42,4 +42,4 @@ std::wstring BuildCompleteIndexPath(int32_t id, int32_t count, Parent parent, Na
     return result.size() <= max_chars ? result : std::wstring();
 }
 
-} // namespace pulse::index
+} // namespace luling::index

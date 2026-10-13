@@ -8,7 +8,7 @@
 #include <thread>
 #include <unordered_map>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 struct Queue {
     std::mutex mutex;

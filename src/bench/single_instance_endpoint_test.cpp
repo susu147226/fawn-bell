@@ -5,7 +5,7 @@
 #include <string>
 
 namespace {
-using Coordinator = pulse::app::SingleInstanceCoordinator;
+using Coordinator = luling::app::SingleInstanceCoordinator;
 Coordinator* primary = nullptr;
 std::wstring received;
 int opens = 0, tags = 0;
@@ -20,10 +20,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             if (accepted == Coordinator::OpenAcceptance::New) { ++opens; received = request.path; }
             return TRUE;
         }
-        pulse::app::ShellTagRequest tag;
-        if (pulse::app::DecodeShellTagRequest(data, tag)) {
+        luling::app::ShellTagRequest tag;
+        if (luling::app::DecodeShellTagRequest(data, tag)) {
             ++tags; received = tag.path;
-            return tag.action == pulse::app::ShellTagAction::Remove && !tag.operation_id.empty();
+            return tag.action == luling::app::ShellTagAction::Remove && !tag.operation_id.empty();
         }
         return FALSE;
     }
@@ -86,8 +86,8 @@ int wmain(int argc, wchar_t** argv) {
         if (std::wstring_view(argv[3]) == L"tag") {
             wchar_t* command[]{argv[0], const_cast<wchar_t*>(L"--tag-remove"),
                 const_cast<wchar_t*>(L"private-tag"), argv[4]};
-            auto request = pulse::app::ParseShellTagArgs(4, command);
-            return request && pulse::app::ForwardShellTagRequest(*request, argv[2]) ? 0 : 3;
+            auto request = luling::app::ParseShellTagArgs(4, command);
+            return request && luling::app::ForwardShellTagRequest(*request, argv[2]) ? 0 : 3;
         }
         return sender.ForwardOpenPath(argv[4], 5000) ? 0 : 4;
     }
@@ -100,7 +100,7 @@ int wmain(int argc, wchar_t** argv) {
     const auto root = parent / (L"singleton-" + std::to_wstring(GetCurrentProcessId()) +
         L"-" + std::to_wstring(GetTickCount64()));
     fs::create_directories(root / L"A"); fs::create_directories(root / L"B");
-    const auto name = L"Local\\Pulse.PrivateEndpointTest-" + root.filename().wstring();
+    const auto name = L"Local\\Luling.PrivateEndpointTest-" + root.filename().wstring();
     HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, (name + L".Ready").c_str());
     HANDLE stop = CreateEventW(nullptr, TRUE, FALSE, (name + L".Stop").c_str());
     Coordinator coordinator;
@@ -124,7 +124,7 @@ int wmain(int argc, wchar_t** argv) {
     check(!isolated.PublishEndpoint(window), "unowned coordinator cannot publish");
     check(Coordinator::FindPrimaryWindow(name) == window, "discovery verifies published process and nonce");
     fs::current_path(root / L"A");
-    for (const auto& path : {L".", L"..\\B\\file with spaces.txt", L"", L"pulse:starred", L"MyComputerFolder"}) {
+    for (const auto& path : {L".", L"..\\B\\file with spaces.txt", L"", L"luling:starred", L"MyComputerFolder"}) {
         received = L"not received";
         const int before = opens;
         HANDLE sender = Spawn(L"--sender \"" + name + L"\" open \"" + path + L"\"", (root / L"B").wstring());
@@ -149,18 +149,18 @@ int wmain(int argc, wchar_t** argv) {
         normalized == L"\\\\server\\share\\folder", "UNC normalization is lexical without network access");
     check(!Coordinator::NormalizeLaunchPath(std::wstring(L"a\0b", 3), normalized),
         "invalid embedded NUL is rejected rather than converted to empty wakeup");
-    pulse::app::ShellTagRequest tag{L"tag", L"C:\\file", pulse::app::ShellTagAction::Remove, L"operation"};
-    const auto encoded = pulse::app::EncodeShellTagRequest(tag);
-    COPYDATASTRUCT tag_data{pulse::app::ShellTagMessageId(),
+    luling::app::ShellTagRequest tag{L"tag", L"C:\\file", luling::app::ShellTagAction::Remove, L"operation"};
+    const auto encoded = luling::app::EncodeShellTagRequest(tag);
+    COPYDATASTRUCT tag_data{luling::app::ShellTagMessageId(),
         static_cast<DWORD>((encoded.size() + 1) * sizeof(wchar_t)), const_cast<wchar_t*>(encoded.c_str())};
-    pulse::app::ShellTagRequest decoded;
-    check(pulse::app::DecodeShellTagRequest(&tag_data, decoded) &&
+    luling::app::ShellTagRequest decoded;
+    check(luling::app::DecodeShellTagRequest(&tag_data, decoded) &&
         decoded.action == tag.action && decoded.operation_id == tag.operation_id,
         "tag wire roundtrip retains explicit action and retry ID");
     std::wstring legacy = L"tag\nC:\\file";
     tag_data.cbData = static_cast<DWORD>((legacy.size() + 1) * sizeof(wchar_t)); tag_data.lpData = legacy.data();
-    check(pulse::app::DecodeShellTagRequest(&tag_data, decoded) &&
-        decoded.action == pulse::app::ShellTagAction::Add && decoded.operation_id.empty(),
+    check(luling::app::DecodeShellTagRequest(&tag_data, decoded) &&
+        decoded.action == luling::app::ShellTagAction::Add && decoded.operation_id.empty(),
         "legacy tag request defaults to add without synthesizing retry identity");
     coordinator.Release();
     check(!Coordinator::FindPrimaryWindow(name), "released endpoint is not replaced by same-class decoy");

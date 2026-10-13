@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 
 // Fill e.link_target* when lnk_path is a readable shortcut whose target
 // currently exists. Clears prior target metadata before reading, returns false
@@ -24,4 +24,4 @@ void ResolveLinksInPlace(const std::wstring& parent_path,
                          std::vector<fs::DirEntry>& entries,
                          const std::function<bool()>& cancel);
 
-} // namespace pulse::app
+} // namespace luling::app

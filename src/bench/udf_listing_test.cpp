@@ -83,19 +83,19 @@ bool Write(const std::wstring& path,const std::vector<unsigned char>& bytes) {
     if(f==INVALID_HANDLE_VALUE)return false;
     DWORD got=0;const bool ok=WriteFile(f,bytes.data(),static_cast<DWORD>(bytes.size()),&got,nullptr)&&got==bytes.size();CloseHandle(f);return ok;
 }
-bool Read(const std::wstring& path,pulse::preview::UdfListing& listing,const pulse::preview::UdfLimits& limits={}) {
+bool Read(const std::wstring& path,luling::preview::UdfListing& listing,const luling::preview::UdfLimits& limits={}) {
     HANDLE f=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(f==INVALID_HANDLE_VALUE)return false;
     LARGE_INTEGER size{};GetFileSizeEx(f,&size);
-    const bool result=pulse::preview::ReadUdfListing(f,static_cast<uint64_t>(size.QuadPart),listing,limits);CloseHandle(f);return result;
+    const bool result=luling::preview::ReadUdfListing(f,static_cast<uint64_t>(size.QuadPart),listing,limits);CloseHandle(f);return result;
 }
-bool Contains(const pulse::preview::UdfListing& listing,const wchar_t* name,uint64_t size) {
+bool Contains(const luling::preview::UdfListing& listing,const wchar_t* name,uint64_t size) {
     return std::any_of(listing.entries.begin(),listing.entries.end(),[&](const auto& e){return e.path==name&&e.size==size;});
 }
 }
 int wmain(int argc, wchar_t** argv) {
     if (argc==3 && std::wstring(argv[1])==L"--image") {
-        pulse::preview::UdfListing listing;
+        luling::preview::UdfListing listing;
         const bool ok=Read(argv[2],listing);
         Check(ok&&!listing.incomplete&&listing.reason.empty(),"external UDF image has complete native directory traversal");
         Check(Contains(listing,L"阅读.txt",12345)&&Contains(listing,L"folder/nested.txt",54321),"external authoring tool preserves Unicode nested paths and exact sizes");
@@ -105,14 +105,14 @@ int wmain(int argc, wchar_t** argv) {
     const auto root=std::filesystem::absolute(std::filesystem::path(L"bench_data")/(L"udf_native_"+std::to_wstring(GetCurrentProcessId())));
     std::filesystem::create_directories(root);
     const std::wstring path=(root/L"physical.iso").wstring();
-    pulse::preview::UdfListing listing;
+    luling::preview::UdfListing listing;
     for(bool meta : {false,true})for(bool efe : {false,true})for(uint16_t mode : {uint16_t{0},uint16_t{1},uint16_t{3}}) {
         Fixture fixture(meta,mode,efe);Check(Write(path,fixture.bytes),"write physical/metadata FE/EFE allocation fixture");
         Check(Read(path,listing)&&!listing.incomplete&&listing.reason.empty()&&listing.entries.size()==3&&
               Contains(listing,L"阅读.txt",12345)&&Contains(listing,L"folder/nested.txt",54321),
               "UDF reads Unicode nested sizes with short/long/inline directory allocation");
         std::wstring text,error;uint32_t read=0;
-        Check(pulse::preview::MakeArchiveListing(path,text,read,&error)&&text.starts_with(L"PULSEARC\t1\tUDF\t-\t0\n")&&
+        Check(luling::preview::MakeArchiveListing(path,text,read,&error)&&text.starts_with(L"PULSEARC\t1\tUDF\t-\t0\n")&&
               text.find(L"阅读.txt")!=std::wstring::npos&&text.find(L"nested.txt")!=std::wstring::npos&&error.empty(),"archive integration emits complete native UDF tree");
     }
     for (uint16_t revision : {uint16_t{0x102},uint16_t{0x150},uint16_t{0x200},uint16_t{0x201},uint16_t{0x250},uint16_t{0x260}}) {
@@ -140,14 +140,14 @@ int wmain(int argc, wchar_t** argv) {
     Write(path,fixture.bytes);
     Check(Read(path,listing)&&listing.incomplete&&listing.reason==L"udf-limit"&&listing.entries.size()==3,"directory cycle is bounded and cannot become a complete tree");
     fixture=Fixture();Write(path,fixture.bytes);
-    pulse::preview::UdfLimits limits;limits.max_entries=1;
+    luling::preview::UdfLimits limits;limits.max_entries=1;
     Check(Read(path,listing,limits)&&listing.incomplete&&listing.reason==L"udf-limit"&&listing.entries.size()==1,"entry budget retains only explicitly partial results");
     limits={};limits.max_ms=0;Check(!Read(path,listing,limits)&&listing.reason==L"udf-limit","expired deadline stops before reading");
     limits={};limits.max_bytes=1;Check(!Read(path,listing,limits)&&listing.reason==L"udf-limit","read-byte budget stops allocation and IO");
     std::atomic_bool cancel{true};limits={};limits.cancelled=&cancel;
     Check(!Read(path,listing,limits)&&listing.reason==L"udf-cancelled","explicit cancellation stops before reading");
-    pulse_test::Host host;const bool started=host.Start();Check(started,"start real preview host for native UDF IPC");
-    if(started){pulse_test::Result result;Check(host.Request(path,result)&&result.response.kind==pulse::ipc::PreviewContentKind::Archive&&
+    luling_test::Host host;const bool started=host.Start();Check(started,"start real preview host for native UDF IPC");
+    if(started){luling_test::Result result;Check(host.Request(path,result)&&result.response.kind==luling::ipc::PreviewContentKind::Archive&&
         result.text.starts_with(L"PULSEARC\t1\tUDF\t-\t0\n")&&result.text.find(L"阅读.txt")!=std::wstring::npos,"native Unicode UDF listing survives real preview-host IPC");}
     host.Stop();std::filesystem::remove_all(root);
     return failures ? 1 : 0;

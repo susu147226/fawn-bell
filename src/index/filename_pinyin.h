@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <array>
 #include <string_view>
-namespace pulse::index {
+namespace luling::index {
 enum class PinyinMatchKind : uint8_t { None, Full, Initials };
 struct PinyinMatch {
     PinyinMatchKind kind = PinyinMatchKind::None;

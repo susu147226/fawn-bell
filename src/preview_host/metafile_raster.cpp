@@ -26,7 +26,7 @@ using std::min;
 #include <cmath>
 #include <cstring>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 // Refuse absurd declared extents instead of allocating for them.
@@ -117,4 +117,4 @@ bool RasterizeMetaFile(const std::wstring& path, UINT max_edge,
     return true;
 }
 
-} // namespace pulse::preview
+} // namespace luling::preview

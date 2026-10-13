@@ -32,7 +32,7 @@ int wmain(int argc, wchar_t** argv) {
     if (argc > 1 && std::wstring_view(argv[1]) == L"--sleep") { Sleep(30000); return 0; }
     if (argc == 3 && std::wstring_view(argv[1]) == L"--orphan-parent") {
         wchar_t self[32768]{}; GetModuleFileNameW(nullptr, self, 32768);
-        pulse::ffmpeg::Process process;
+        luling::ffmpeg::Process process;
         if (!process.Start(self, L"--sleep", {})) return 2;
         { std::ofstream output{std::filesystem::path(argv[2])}; output << GetProcessId(child); }
         Sleep(30000);
@@ -47,8 +47,8 @@ int wmain(int argc, wchar_t** argv) {
     // Windows/CRT initialize persistent handles on the first process launch and output.
     printf("Warm process-launch infrastructure before counting per-launch resources.\n");
     {
-        pulse::ffmpeg::Process warmup;
-        pulse::ffmpeg::LaunchOptions options;
+        luling::ffmpeg::Process warmup;
+        luling::ffmpeg::LaunchOptions options;
         if (!warmup.Start(self, L"--sleep", options)) return 2;
         if (job_copy) { CloseHandle(job_copy); job_copy = nullptr; }
     }
@@ -58,8 +58,8 @@ int wmain(int argc, wchar_t** argv) {
         DWORD before = 0, after = 0;
         GetProcessHandleCount(GetCurrentProcess(), &before);
         {
-            pulse::ffmpeg::Process process;
-            pulse::ffmpeg::LaunchOptions options;
+            luling::ffmpeg::Process process;
+            luling::ffmpeg::LaunchOptions options;
             options.memory_limit = 128u * 1024 * 1024;
             const bool started = process.Start(self, L"--sleep", options);
             if (mode) {
@@ -86,7 +86,7 @@ int wmain(int argc, wchar_t** argv) {
     }
     const auto fixture = std::filesystem::absolute(L"bench_data/ffmpeg-orphan-" + std::to_wstring(GetCurrentProcessId()) + L".txt");
     std::filesystem::create_directories(fixture.parent_path());
-    auto command = pulse::ffmpeg::QuoteArgument(self) + L" --orphan-parent " + pulse::ffmpeg::QuoteArgument(fixture.wstring());
+    auto command = luling::ffmpeg::QuoteArgument(self) + L" --orphan-parent " + luling::ffmpeg::QuoteArgument(fixture.wstring());
     STARTUPINFOW startup{sizeof(startup)};
     PROCESS_INFORMATION parent{};
     const bool launched = CreateProcessW(self, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,

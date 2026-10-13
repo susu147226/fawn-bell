@@ -1,4 +1,4 @@
-# Builds the image preview pack (pulse-imgpack.exe + LGPL DLLs).
+# Builds the image preview pack (luling-imgpack.exe + LGPL DLLs).
 #   powershell -ExecutionPolicy Bypass -File packs\images\build.ps1 [-VcpkgRoot C:\vcpkg] [-Work build\imgpack]
 # Everything vcpkg writes (install tree, build trees, downloads, binary cache)
 # stays under -Work: the shared vcpkg checkout and the user profile are never
@@ -73,12 +73,12 @@ Step 'stage'
 $pack = Join-Path $Work 'pack'
 if (Test-Path $pack) { Remove-Item -Recurse -Force $pack }
 New-Item -ItemType Directory -Force -Path $pack | Out-Null
-Copy-Item (Join-Path $cmakeDir 'pulse-imgpack.exe') $pack
+Copy-Item (Join-Path $cmakeDir 'luling-imgpack.exe') $pack
 Get-ChildItem (Join-Path $prefix 'bin') -Filter *.dll | ForEach-Object { Copy-Item $_.FullName $pack }
 
 # Licences of everything linked in (the vcpkg copyright file of each port).
 $notices = New-Object System.Text.StringBuilder
-[void]$notices.AppendLine('Pulse image preview pack - third-party notices')
+[void]$notices.AppendLine('Luling image preview pack - third-party notices')
 [void]$notices.AppendLine('heif.dll and libde265.dll are LGPL-3.0 libraries; you may replace them with')
 [void]$notices.AppendLine('compatible builds of the same version. Sources: https://github.com/strukturag')
 [void]$notices.AppendLine('')
@@ -96,7 +96,7 @@ Get-ChildItem (Join-Path $prefix 'share') -Directory | Sort-Object Name | ForEac
 [IO.File]::WriteAllText((Join-Path $pack 'THIRD_PARTY_NOTICES.txt'), $notices.ToString(), (New-Object Text.UTF8Encoding $false))
 
 Step 'smoke'
-$exe = Join-Path $pack 'pulse-imgpack.exe'
+$exe = Join-Path $pack 'luling-imgpack.exe'
 $formats = & $exe formats
 $formats | ForEach-Object { Write-Output "  $_" }
 if (-not ($formats -match 'hevc=1') -or -not ($formats -match 'av1=1')) { throw 'HEVC or AV1 decoder missing' }

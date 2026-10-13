@@ -7,7 +7,7 @@
 #include <string_view>
 #include <unordered_map>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 std::wstring FileNameOf(const std::wstring& path) {
@@ -214,4 +214,4 @@ std::vector<BatchRenameItem> PreviewBatchRename(const std::vector<std::wstring>&
     return items;
 }
 
-} // namespace pulse::app
+} // namespace luling::app

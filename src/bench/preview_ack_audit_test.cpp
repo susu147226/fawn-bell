@@ -21,17 +21,17 @@ int wmain(int argc,wchar_t**) {
     STARTUPINFOW startup{sizeof(startup)};PROCESS_INFORMATION process{};
     bool ok=CreateProcessW(self,command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&process)!=FALSE;
     HANDLE pipe=INVALID_HANDLE_VALUE;const auto deadline=GetTickCount64()+5000;
-    const auto name=pulse::ipc::PreviewPipeName(GetCurrentProcessId());
+    const auto name=luling::ipc::PreviewPipeName(GetCurrentProcessId());
     while(ok&&pipe==INVALID_HANDLE_VALUE&&GetTickCount64()<deadline){pipe=CreateFileW(name.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,0,nullptr);if(pipe==INVALID_HANDLE_VALUE)Sleep(10);}
     ok=ok&&pipe!=INVALID_HANDLE_VALUE;
     // Kill only this isolated test helper if a broken ACK handshake deadlocks.
     std::atomic<bool> done{false};
     std::thread watchdog([&]{const auto end=GetTickCount64()+5000;while(!done&&GetTickCount64()<end)Sleep(10);if(!done&&process.hProcess)TerminateProcess(process.hProcess,99);});
     for(uint32_t id=1;ok&&id<=2;++id){
-        pulse::ipc::PreviewRequest request{};request.request_id=id;request.path_chars=static_cast<uint32_t>(path.wstring().size());request.pixel_size=128;
-        ok=pulse::ipc::WriteAll(pipe,&request,sizeof(request))&&pulse::ipc::WriteAll(pipe,path.c_str(),request.path_chars*sizeof(wchar_t));
-        pulse::ipc::PreviewResponse response{};
-        ok=ok&&pulse::ipc::ReadAll(pipe,&response,sizeof(response));
+        luling::ipc::PreviewRequest request{};request.request_id=id;request.path_chars=static_cast<uint32_t>(path.wstring().size());request.pixel_size=128;
+        ok=luling::ipc::WriteAll(pipe,&request,sizeof(request))&&luling::ipc::WriteAll(pipe,path.c_str(),request.path_chars*sizeof(wchar_t));
+        luling::ipc::PreviewResponse response{};
+        ok=ok&&luling::ipc::ReadAll(pipe,&response,sizeof(response));
         ok=ok&&response.request_id==id&&response.status==2&&response.mapping_chars==0;
         if(ok&&(response.text_chars||response.error_chars||response.property_count))ok=false;
     }

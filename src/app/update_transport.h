@@ -4,7 +4,7 @@
 #include <functional>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 // Streams an HTTPS response with a size limit, cancellation, and a total deadline.
 bool ReadUpdateResponse(std::wstring_view url, uint64_t maximum_bytes,
                         const std::atomic<bool>& cancelled,

@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstdio>
 
-namespace pulse_test {
+namespace luling_test {
 using Microsoft::WRL::ComPtr;
 const MathRenderProfile& MathStructuresProfile() {
     static const MathRenderProfile profile = [] {
@@ -43,8 +43,8 @@ const MathRenderProfile& MathStructuresProfile() {
     return profile;
 }
 int TestMathStructures(IDWriteFactory2* factory) {
-    using namespace pulse::ui;
-    using namespace pulse::ui::math;
+    using namespace luling::ui;
+    using namespace luling::ui::math;
     int failures = 0;
     const auto check = [&failures](bool valid, const char* name) {
         std::printf("[%s] structures %s\n", valid ? "PASS" : "FAIL", name);
@@ -172,7 +172,7 @@ int TestMathStructures(IDWriteFactory2* factory) {
     std::wstring payload;
     MarkdownView view;
     const auto& profile = MathStructuresProfile();
-    check(pulse::preview::MakeMarkdownDocument(profile.markdown, payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
+    check(luling::preview::MakeMarkdownDocument(profile.markdown, payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
         view.Source() == profile.markdown && view.PlainText().find(profile.copy_probe) != std::wstring::npos,
         "complete structure gallery preserves original source and copied formula delimiters");
     std::printf("[COVERAGE] Complete structures gallery: all %zu cases, no first-N sampling.\n", profile.formulas.size());

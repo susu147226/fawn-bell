@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 
 struct AppPrefs;
 
@@ -24,7 +24,7 @@ std::wstring DefaultFileManagerSummary(const AppPrefs& prefs);
 // File Explorer; other programs' registrations stay untouched).
 bool ApplyDefaultFileManager(AppPrefs& prefs, bool on);
 
-// HKCU CLSID\{20D04FE0-...}\shell\open: double-clicking This PC opens Pulse.
+// HKCU CLSID\{20D04FE0-...}\shell\open: double-clicking This PC opens Luling.
 bool ReadThisPcOpen(const std::wstring& exe);
 bool ApplyThisPcOpen(AppPrefs& prefs, bool on);
 
@@ -32,4 +32,4 @@ bool ApplyThisPcOpen(AppPrefs& prefs, bool on);
 // "shell:" prefix) and shell:MyComputerFolder. Quotes and case are ignored.
 bool IsThisPcArgument(std::wstring_view raw);
 
-} // namespace pulse::app
+} // namespace luling::app

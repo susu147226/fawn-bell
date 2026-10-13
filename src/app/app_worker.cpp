@@ -13,7 +13,7 @@
 #include <chrono>
 #include <cstdio>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 
@@ -312,7 +312,7 @@ WorkResult WorkerPool::Process(const WorkItem& item) {
     // Timing output for large directories (visible in a debugger or ETW).
     if (res.snapshot && res.snapshot->size() >= 10000) {
         wchar_t msg[256];
-        swprintf_s(msg, L"[Pulse] %s: %zu items, enum=%.2f ms sort=%.2f ms\n",
+        swprintf_s(msg, L"[Luling] %s: %zu items, enum=%.2f ms sort=%.2f ms\n",
             item.path.c_str(), res.snapshot->size(), res.enum_ms, res.sort_ms);
         OutputDebugStringW(msg);
     }
@@ -390,4 +390,4 @@ void WorkerPool::WorkerThread() {
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

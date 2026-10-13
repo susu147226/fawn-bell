@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pack Pulse release files into a self-extracting setup.
+"""Pack Luling release files into a self-extracting setup.
 
 Layout of the produced executable:
 
@@ -39,13 +39,13 @@ TRAILER = struct.Struct("<8sQQ32s")
 # Similar executables sit next to each other so the solid LZMA2 window can
 # share their common static-CRT and library code (measured: ~1.1 MB saved).
 DEFAULT_LAYOUT = [
-    ("{build}/pulse.exe", "pulse.exe"),
-    ("{build}/Pulse.Index.exe", "Pulse.Index.exe"),
-    ("{build}/Pulse.Preview.exe", "Pulse.Preview.exe"),
-    ("{build}/pulse_elevated.exe", "pulse_elevated.exe"),
-    ("{build}/pulse_shell.exe", "pulse_shell.exe"),
-    ("{build}/pulse_integration.exe", "pulse_integration.exe"),
-    ("{build}/Pulse.Document.exe", "Pulse.Document.exe"),
+    ("{build}/luling.exe", "luling.exe"),
+    ("{build}/Luling.Index.exe", "Luling.Index.exe"),
+    ("{build}/Luling.Preview.exe", "Luling.Preview.exe"),
+    ("{build}/luling_elevated.exe", "luling_elevated.exe"),
+    ("{build}/luling_shell.exe", "luling_shell.exe"),
+    ("{build}/luling_integration.exe", "luling_integration.exe"),
+    ("{build}/Luling.Document.exe", "Luling.Document.exe"),
     ("{build}/lumatext.dll", "lumatext.dll"),
     ("{build}/pdfium.dll", "pdfium.dll"),
     ("{build}/licenses/PDFium/*", "licenses/PDFium/"),

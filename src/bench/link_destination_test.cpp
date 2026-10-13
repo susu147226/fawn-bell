@@ -48,8 +48,8 @@ static bool MakeJunction(const std::filesystem::path& path, const std::filesyste
 }
 
 static void TestNotifyRefresh(const std::filesystem::path& root,
-    const std::vector<pulse::fs::DirEntry>& initial, bool junction, bool symlink) {
-    using namespace pulse;
+    const std::vector<luling::fs::DirEntry>& initial, bool junction, bool symlink) {
+    using namespace luling;
     const auto event = [](DWORD action, const wchar_t* name, const wchar_t* old_name = L"") {
         fs::DirNotifyEvent result;
         result.action = action;
@@ -130,7 +130,7 @@ static void TestNotifyRefresh(const std::filesystem::path& root,
 }
 
 int main() {
-    using namespace pulse;
+    using namespace luling;
     const auto root = std::filesystem::absolute(L"bench_data/link-destination-" +
         std::to_wstring(GetCurrentProcessId()));
     std::filesystem::create_directories(root / L"target");
@@ -190,11 +190,11 @@ int main() {
     virtual_url.name = L"site.URL";
     virtual_url.full_path = (root / L"site.URL").wstring();
     std::vector<fs::DirEntry> virtual_entries{virtual_url};
-    app::ResolveLinksInPlace(L"pulse:search:", virtual_entries, {});
+    app::ResolveLinksInPlace(L"luling:search:", virtual_entries, {});
     Check(virtual_entries[0].link_destination == find(L"site.URL").link_destination,
         "virtual listing uses its explicit full path");
     DeleteFileW((root / L"site.URL").c_str());
-    app::ResolveLinksInPlace(L"pulse:search:", virtual_entries, {});
+    app::ResolveLinksInPlace(L"luling:search:", virtual_entries, {});
     Check(virtual_entries[0].link_destination.empty(), "deleted URL clears old destination");
     fs::DirEntry reused;
     Check(app::ResolveLink((root / L"live.lnk").wstring(), reused) && reused.link_target_size != 0,

@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 bool IsEpubExtension(std::wstring_view extension);
 
@@ -19,4 +19,4 @@ bool IsEpubExtension(std::wstring_view extension);
 bool MakeEpubDocument(const std::wstring& path, std::wstring& payload, uint32_t& bytes_read,
                       bool& truncated);
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

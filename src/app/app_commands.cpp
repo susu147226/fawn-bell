@@ -56,9 +56,9 @@
 #include <thread>
 #include <unordered_set>
 
-using namespace pulse;
+using namespace luling;
 
-namespace pulse {
+namespace luling {
 HANDLE g_shell_watch_stop = nullptr;
 HANDLE g_shell_watch_thread = nullptr;
 std::atomic<uint32_t> g_shell_seed_generation{0};
@@ -518,7 +518,7 @@ void ShowTrayBatchMenu(AppState& s, POINT screen_pt) {
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 static thread_local CreateTagPickerTestIo* create_tag_test_io = nullptr;
 CreateTagPickerTestIo* SetCreateTagPickerTestIo(CreateTagPickerTestIo* io) {
     auto* previous = create_tag_test_io; create_tag_test_io = io; return previous;
@@ -569,7 +569,7 @@ void ShowCreateTagPicker(AppState& s, POINT screen_pt) {
         s.menu->SetInitialFilterText(name);
         int command;
         bool committed;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
         if (create_tag_test_io) {
             const auto choice = create_tag_test_io->menu(rebuild(name), rebuild);
             command = choice.command; name = choice.name; committed = choice.committed;
@@ -586,7 +586,7 @@ void ShowCreateTagPicker(AppState& s, POINT screen_pt) {
         if (command == kCustomColor) {
             uint32_t picked = selected_rgb;
             bool accepted;
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
             if (create_tag_test_io) accepted = create_tag_test_io->color(picked);
             else
 #endif
@@ -704,7 +704,7 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
         auto* tab = pane.ActiveTab();
         if (!tab) return;
         std::wstring kind, reference;
-        app::ParsePulsePath(tab->current_path, &kind, &reference);
+        app::ParseLulingPath(tab->current_path, &kind, &reference);
         if (kind == L"tag" && s.places.ResolveTagRef(reference) == tag_id)
             affected.push_back(tab);
     });
@@ -969,8 +969,8 @@ void DispatchMenuCommand(AppState& s, int cmd) {
     case app::CmdSettings:
         OpenSettingsTab(s, 0);
         break;
-    case app::CmdExitPulse:
-        PostMessageW(s.hwnd, WM_EXIT_PULSE, 0, 0);
+    case app::CmdExitLuling:
+        PostMessageW(s.hwnd, WM_EXIT_LULING, 0, 0);
         break;
     case app::CmdSettingsContextMenu:
         OpenSettingsTab(s, 2);
@@ -1056,7 +1056,7 @@ std::vector<ui::FluentMenuItem> BuildFinderItemMenu(
     // right after 打开 (item menus only; pointless in a real folder view).
     const app::Tab* tab = ActiveTab(s);
     std::wstring view_kind;
-    if (tab && app::ParsePulsePath(tab->current_path, &view_kind, nullptr) &&
+    if (tab && app::ParseLulingPath(tab->current_path, &view_kind, nullptr) &&
         view_kind == L"search") {
         ui::FluentMenuItem open_path;
         open_path.command = app::CmdOpenPath;
@@ -1102,7 +1102,7 @@ std::wstring CommonExtension(const app::Tab& tab,
 }
 
 bool IsDriveRootPath(std::wstring path) {
-    path = pulse::path::StripExtendedPathPrefix(path);
+    path = luling::path::StripExtendedPathPrefix(path);
     if (path.size() >= 2 && path[1] == L':') {
         if (path.size() == 2) return true;
         if (path.size() == 3 && (path[2] == L'\\' || path[2] == L'/')) return true;
@@ -1253,7 +1253,7 @@ void ApplyShellVerbSeed(AppState& s, ShellVerbSeed& seed) {
 }
 
 // Fired on WM_RBUTTONDOWN (prefetch) and again on menu open (no-op when the
-// target is unchanged): pulse_shell starts building the COM menu while the
+// target is unchanged): luling_shell starts building the COM menu while the
 // Fluent menu fades in.
 void StartCtxQuery(AppState& s, std::vector<std::wstring> paths,
                           bool background, const std::wstring& ext) {
@@ -1376,7 +1376,7 @@ void ShowBackgroundContextMenu(AppState& s, POINT screen_pt) {
     app::Tab* tab = ActiveTab(s);
     if (!tab) return;
     std::wstring kind;
-    app::ParsePulsePath(tab->current_path, &kind, nullptr);
+    app::ParseLulingPath(tab->current_path, &kind, nullptr);
     app::BackgroundViewOptions view_options;
     view_options.view_mode = tab->view_mode;
     view_options.sort_column = tab->sort_column;
@@ -1773,7 +1773,7 @@ void ShowSortDropdown(AppState& s) {
     auto* tab = ActiveTab(s);
     if (!tab) return;
     std::wstring kind;
-    app::ParsePulsePath(tab->current_path, &kind, nullptr);
+    app::ParseLulingPath(tab->current_path, &kind, nullptr);
     app::BackgroundViewOptions options;
     options.sort_column = tab->sort_column;
     options.sort_direction = tab->sort_direction;
@@ -1815,7 +1815,7 @@ void ShowGroupDropdown(AppState& s) {
     options.group_by = tab->group_by;
     {
         std::wstring kind;
-        app::ParsePulsePath(tab->current_path, &kind, nullptr);
+        app::ParseLulingPath(tab->current_path, &kind, nullptr);
         options.group_virtual = kind == L"search" || kind == L"saved-search" || kind == L"tag" || kind == L"recycle";
         options.can_apply_group_all = !tab->content_results && !tab->current_path.empty() &&
                                       !fs::IsVirtualPath(tab->current_path);
@@ -1886,7 +1886,7 @@ void ShowAdvancedSearch(AppState& s, bool require_scope) {
     std::wstring rest;
     if (tab) {
         std::wstring kind;
-        app::ParsePulsePath(tab->current_path, &kind, &rest);
+        app::ParseLulingPath(tab->current_path, &kind, &rest);
         if (kind != L"search") rest.clear();
     }
     app::AdvancedSearchSpec spec = app::ParseSearchQuery(rest, current);
@@ -1935,7 +1935,7 @@ void ShowSearchFilterMenu(AppState& s, int chip, RECT control_rect) {
     app::Tab* tab = ActiveTab(s);
     if (!tab) return;
     std::wstring kind, rest;
-    app::ParsePulsePath(tab->current_path, &kind, &rest);
+    app::ParseLulingPath(tab->current_path, &kind, &rest);
     if (kind != L"search") return;
     app::AdvancedSearchSpec spec = app::ParseSearchQuery(rest, {});
     constexpr int kTypeCustomCmd = 9;
@@ -2489,4 +2489,4 @@ void SetThemeMode(AppState& s, int mode) {
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-} // namespace pulse
+} // namespace luling

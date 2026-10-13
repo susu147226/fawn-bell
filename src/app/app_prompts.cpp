@@ -8,7 +8,7 @@
 #include <cwchar>
 #include <string>
 
-namespace pulse {
+namespace luling {
 namespace {
 
 std::wstring Text(l10n::StringId id) { return l10n::Get(id); }
@@ -88,4 +88,4 @@ bool AskRetryRecovery(AppState& s, size_t count, bool uncertain_destructive, boo
     return Ask(s, spec) == ui::ConfirmChoice::Confirm;
 }
 
-} // namespace pulse
+} // namespace luling

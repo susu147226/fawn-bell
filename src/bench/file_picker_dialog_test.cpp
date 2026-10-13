@@ -13,7 +13,7 @@
 #include <thread>
 
 namespace {
-using namespace pulse::ui;
+using namespace luling::ui;
 constexpr int kPathId = 101;
 constexpr int kFilenameId = 102;
 constexpr int kSearchId = 103;
@@ -26,7 +26,7 @@ HWND OwnPicker() {
         wchar_t name[80]{};
         GetClassNameW(hwnd, name, 80);
         if (process == GetCurrentProcessId() &&
-            std::wstring_view(name) == L"PulseFolderPickerWindow") {
+            std::wstring_view(name) == L"LulingFolderPickerWindow") {
             *reinterpret_cast<HWND*>(context) = hwnd;
             return FALSE;
         }
@@ -104,7 +104,7 @@ struct Fixture {
         wchar_t temp[MAX_PATH]{};
         GetTempPathW(MAX_PATH, temp);
         root = std::filesystem::path(temp) /
-            (L"PulsePickerInteraction-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
+            (L"LulingPickerInteraction-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
              std::to_wstring(GetTickCount64()));
         std::filesystem::create_directories(root / L"nested");
         for (const auto* name : {L"alpha.txt", L"two words.txt", L"blocked.bin", L"background.png",
@@ -136,14 +136,14 @@ int RunFilePickerDialogTest(int argc, wchar_t** argv) {
     }
     // Surface regression runs without activating any window on the user's desktop.
     if (input_surfaces) {
-        const auto name = L"PulsePickerInputs_" + std::to_wstring(GetCurrentProcessId());
+        const auto name = L"LulingPickerInputs_" + std::to_wstring(GetCurrentProcessId());
         HDESK desktop = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
         if (!desktop || !SetThreadDesktop(desktop)) return 3;
         // Windows releases this process-owned desktop when the test exits.
     }
     if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) return 3;
-    pulse::compat::EnableDpiAwareness();
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"en-US");
+    luling::compat::EnableDpiAwareness();
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"en-US");
     int failures = 0;
     const auto check = [&](const char* name, bool pass) {
         std::printf("[%s] %s\n", pass ? "PASS" : "FAIL", name);
@@ -158,8 +158,8 @@ int RunFilePickerDialogTest(int argc, wchar_t** argv) {
             spec.initial_path = fixture.root.wstring();
             const auto outcome = Run(spec, [&](HWND hwnd, const std::atomic<bool>&) {
                 wchar_t snapshot[32768]{};
-                if (GetEnvironmentVariableW(L"PULSE_PICKER_TEST_SNAPSHOT", snapshot, 32768)) {
-                    SetPropW(hwnd, L"Pulse.PickerTestSnapshot", snapshot);
+                if (GetEnvironmentVariableW(L"LULING_PICKER_TEST_SNAPSHOT", snapshot, 32768)) {
+                    SetPropW(hwnd, L"Luling.PickerTestSnapshot", snapshot);
                     Send(hwnd, WM_PAINT);
                     check("embedded picker snapshot is saved", std::filesystem::exists(snapshot));
                 }

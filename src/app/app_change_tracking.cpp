@@ -8,7 +8,7 @@
 #include <cwctype>
 #include <unordered_set>
 
-namespace pulse {
+namespace luling {
 namespace {
 using I = l10n::StringId;
 using K = index::ChangeKind;
@@ -68,7 +68,7 @@ ui::ChangeBadge Badge(const index::ChangeSummary& summary, int days) {
 }
 std::wstring RootOf(const app::Tab& tab) {
     std::wstring kind, rest;
-    app::ParsePulsePath(tab.current_path, &kind, &rest);
+    app::ParseLulingPath(tab.current_path, &kind, &rest);
     return kind == L"changes" ? rest : std::wstring{};
 }
 std::wstring HitPath(AppState& s, const ui::HitTestResult& hit) {
@@ -198,7 +198,7 @@ void OpenChangeView(AppState& s, const std::wstring& root) {
         tab->change_kind = UINT32_MAX;
     }
     s.changes.popover.visible = false;
-    NavigateTo(s, L"pulse:changes:" + fs::NormalizePath(root));
+    NavigateTo(s, L"luling:changes:" + fs::NormalizePath(root));
 }
 
 void ApplyChangeDetails(AppState& s, uint32_t request, const index::ChangeResponse& result) {

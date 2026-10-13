@@ -4,7 +4,7 @@
 #include <dwrite_2.h>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // A deliberately bounded TeX subset. Failure leaves the text layout unchanged.
 bool ApplyMathInline(IDWriteFactory2* factory, IDWriteTextLayout* layout, DWRITE_TEXT_RANGE range,
@@ -15,4 +15,4 @@ bool ApplyMathInline(IDWriteFactory2* factory, IDWriteTextLayout* layout, DWRITE
 void DrawMathTextLayout(ID2D1DeviceContext* dc, IDWriteTextLayout* layout, D2D1_POINT_2F origin,
                         ID2D1SolidColorBrush* brush);
 
-} // namespace pulse::ui
+} // namespace luling::ui

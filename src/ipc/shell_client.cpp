@@ -3,12 +3,12 @@
 #include "deadline_pipe.h"
 #include "../common/localization.h"
 
-namespace pulse::ipc {
-#ifdef PULSE_SHELL_CLIENT_TEST
+namespace luling::ipc {
+#ifdef LULING_SHELL_CLIENT_TEST
 std::function<void()> shell_test_before_disconnect;
 std::wstring shell_test_child_command;
 #endif
-#ifdef PULSE_SHELL_RECONNECT_TEST_CLIENT
+#ifdef LULING_SHELL_RECONNECT_TEST_CLIENT
 void ObserveShellPendingReadForReview();
 #endif
 
@@ -80,10 +80,10 @@ bool ShellClient::SpawnChild() {
 
     std::wstring cmd = L"\"";
     cmd += exe_dir;
-    cmd += L"pulse_shell.exe\" ";
+    cmd += L"luling_shell.exe\" ";
     cmd += std::to_wstring(GetCurrentProcessId());
 
-#ifdef PULSE_SHELL_CLIENT_TEST
+#ifdef LULING_SHELL_CLIENT_TEST
     if (!shell_test_child_command.empty()) cmd = shell_test_child_command + L" " + std::to_wstring(GetCurrentProcessId());
 #endif
     STARTUPINFOW si{ sizeof(si) };
@@ -94,11 +94,11 @@ bool ShellClient::SpawnChild() {
         const DWORD gle = GetLastError();
         fprintf(stderr, "[shell_client] CreateProcess failed gle=%lu cmd=%ls\n", gle, cmd.c_str());
         if (gle == ERROR_FILE_NOT_FOUND) {
-            last_error_ = l10n::Pick(L"\u627E\u4E0D\u5230 pulse_shell.exe\uFF08\u9700\u4E0E Pulse \u653E\u5728\u540C\u4E00\u76EE\u5F55\uFF09",
-                                     L"pulse_shell.exe not found (it must be in the same folder as Pulse)");
+            last_error_ = l10n::Pick(L"\u627E\u4E0D\u5230 luling_shell.exe\uFF08\u9700\u4E0E Luling \u653E\u5728\u540C\u4E00\u76EE\u5F55\uFF09",
+                                     L"luling_shell.exe not found (it must be in the same folder as Luling)");
         } else {
-            last_error_ = l10n::Pick(L"\u65E0\u6CD5\u542F\u52A8 pulse_shell.exe\uFF08\u9519\u8BEF ",
-                                     L"Could not start pulse_shell.exe (error ") +
+            last_error_ = l10n::Pick(L"\u65E0\u6CD5\u542F\u52A8 luling_shell.exe\uFF08\u9519\u8BEF ",
+                                     L"Could not start luling_shell.exe (error ") +
                           std::to_wstring(gle) + l10n::Pick(L"\uFF09", L")");
         }
         return false;
@@ -135,14 +135,14 @@ bool ShellClient::EnsureConnected() {
                 server_pid == child_.dwProcessId)
                 break;
             CloseHandle(h);
-            last_error_ = L"pulse_shell.exe pipe identity mismatch";
+            last_error_ = L"luling_shell.exe pipe identity mismatch";
             return false;
         }
         const DWORD err = GetLastError();
         if (err == ERROR_PIPE_BUSY) {
             WaitNamedPipeW(name.c_str(), 200);
             if (GetTickCount64() > deadline) {
-                last_error_ = l10n::Pick(L"pulse_shell.exe \u7BA1\u9053\u5FD9\u788C", L"pulse_shell.exe pipe is busy");
+                last_error_ = l10n::Pick(L"luling_shell.exe \u7BA1\u9053\u5FD9\u788C", L"luling_shell.exe pipe is busy");
                 return false;
             }
             continue;
@@ -153,11 +153,11 @@ bool ShellClient::EnsureConnected() {
                 GetExitCodeProcess(child_.hProcess, &code);
                 fprintf(stderr, "[shell_client] child exited early code=%lu\n", code);
                 KillChild(); // reset child_started_ and close both process/thread handles
-                last_error_ = l10n::Pick(L"pulse_shell.exe \u542F\u52A8\u540E\u7ACB\u5373\u9000\u51FA", L"pulse_shell.exe exited right after starting");
+                last_error_ = l10n::Pick(L"luling_shell.exe \u542F\u52A8\u540E\u7ACB\u5373\u9000\u51FA", L"luling_shell.exe exited right after starting");
                 return false;
             }
             if (GetTickCount64() > deadline) {
-                last_error_ = l10n::Pick(L"pulse_shell.exe \u672A\u54CD\u5E94\u7BA1\u9053", L"pulse_shell.exe did not respond on its pipe");
+                last_error_ = l10n::Pick(L"luling_shell.exe \u672A\u54CD\u5E94\u7BA1\u9053", L"luling_shell.exe did not respond on its pipe");
                 return false;
             }
             Sleep(50);
@@ -199,7 +199,7 @@ bool ShellClient::SendFrame(uint32_t type, uint32_t id, const std::vector<uint8_
     return true;
 }
 
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
 bool InterceptShellSubmitForReview(ShellClient&, uint32_t type, uint32_t id);
 #endif
 
@@ -209,7 +209,7 @@ uint32_t ShellClient::Submit(uint32_t type, const std::vector<uint8_t>& payload,
     p.type = type; p.payload = payload;
     do { p.id = next_id_.fetch_add(1); } while (p.id == 0);
     if (accepted) accepted(p.id);
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     if (InterceptShellSubmitForReview(*this, type, p.id)) return p.id;
 #endif
     bool sent = false;
@@ -367,7 +367,7 @@ bool ShellClient::ReadFull(const std::shared_ptr<Connection>& connection, void* 
         // Stop cancels while holding send_mutex, but joins outside it. Keep the
         // OVERLAPPED and event alive until cancellation has actually completed.
         if (!ok && error == ERROR_IO_PENDING) {
-#ifdef PULSE_SHELL_RECONNECT_TEST_CLIENT
+#ifdef LULING_SHELL_RECONNECT_TEST_CLIENT
             ObserveShellPendingReadForReview();
 #endif
             ok = GetOverlappedResult(pipe, &overlapped, &got, TRUE);
@@ -472,7 +472,7 @@ void ShellClient::ReaderThread() {
         }
 
         if (!running_.load()) break;
-#ifdef PULSE_SHELL_CLIENT_TEST
+#ifdef LULING_SHELL_CLIENT_TEST
         if (shell_test_before_disconnect) shell_test_before_disconnect();
 #endif
         HandleDisconnect(connection);
@@ -535,4 +535,4 @@ void ShellClient::HandleDisconnect(const std::shared_ptr<Connection>& connection
     }
 }
 
-} // namespace pulse::ipc
+} // namespace luling::ipc

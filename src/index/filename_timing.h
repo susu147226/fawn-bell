@@ -7,7 +7,7 @@
 #include "index_maintenance_probe.h"
 #include "../common/runtime_log.h"
 
-namespace pulse::index {
+namespace luling::index {
 enum class FilenameStage : size_t { Wait, Topology, Journal, Notify, DeltaFlush, Merge, Rebuild, Recovery, NamePoolCompact, Count };
 
 // Opt-in worker-owned counters; when enabled, an idle worker writes once per minute. The fixed file

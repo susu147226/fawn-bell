@@ -40,9 +40,9 @@
 #include <thread>
 #include <unordered_set>
 
-using namespace pulse;
+using namespace luling;
 
-namespace pulse {
+namespace luling {
 std::wstring FormatAddressPath(const std::wstring& text) {
     std::wstring t = text;
     if (t.empty()) return L"C:\\";
@@ -58,7 +58,7 @@ std::wstring AddressNavigationTarget(const std::wstring& text, bool* shortcut) {
     const app::AddressShortcut resolved = app::ResolveAddressShortcut(text);
     if (shortcut) *shortcut = resolved.resolved;
     if (!resolved.resolved) return FormatAddressPath(text);
-    if (resolved.path.empty() || resolved.path.starts_with(L"pulse:")) return resolved.path;
+    if (resolved.path.empty() || resolved.path.starts_with(L"luling:")) return resolved.path;
     return FormatAddressPath(resolved.path);
 }
 
@@ -743,4 +743,4 @@ LRESULT CALLBACK TagRenameEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
     return DefPresentedHostedEditProc(s, hwnd, msg, wParam, lParam);
 }
 
-} // namespace pulse
+} // namespace luling

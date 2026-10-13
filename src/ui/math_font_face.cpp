@@ -2,7 +2,7 @@
 
 #include <dwrite.h>
 
-namespace pulse::ui::math {
+namespace luling::ui::math {
 
 FontMathMetrics ReadFontMathMetrics(IDWriteFontFace* face) noexcept {
     FontMathMetrics result;

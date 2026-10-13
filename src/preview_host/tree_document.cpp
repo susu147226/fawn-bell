@@ -10,7 +10,7 @@
 #include <vector>
 #include <utility>
 
-namespace pulse::preview {
+namespace luling::preview {
 namespace {
 
 constexpr size_t kMaxBytes = 16u * 1024u * 1024u;
@@ -496,4 +496,4 @@ bool MakeTreeDocument(const std::wstring& path, std::wstring_view extension, std
     return true;
 }
 
-}  // namespace pulse::preview
+}  // namespace luling::preview

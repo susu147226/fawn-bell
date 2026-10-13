@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse_test {
+namespace luling_test {
 
 namespace {
 
@@ -25,7 +25,7 @@ struct ExtStats {
     std::vector<std::wstring> samples;
     std::wstring handler;
     int tested = 0, system_ok = 0, bitmap = 0, text = 0, hex = 0, archive = 0, failed = 0;
-    double system_ms = 0, pulse_ms = 0;
+    double system_ms = 0, luling_ms = 0;
 };
 
 bool SkippedDirectory(const WIN32_FIND_DATAW& data) {
@@ -111,7 +111,7 @@ bool SystemThumbnail(const std::wstring& path) {
 const char* Verdict(const ExtStats& s) {
     if (s.tested == 0) return "not-tested";
     if (s.system_ok == s.tested) return "shell-covers";
-    if (s.bitmap == s.tested) return s.system_ok ? "pulse-completes" : "pulse-fills";
+    if (s.bitmap == s.tested) return s.system_ok ? "luling-completes" : "luling-fills";
     if (s.bitmap > 0) return "partial";
     if (s.archive == s.tested) return "archive-listing";
     if (s.text == s.tested) return "text";
@@ -167,9 +167,9 @@ int RunCoverage(const std::wstring& root, const std::wstring& csv_path, int dept
             s->system_ms += NowMs() - t;
             Result r;
             t = NowMs();
-            const bool received = host.Request(file, r, MAXDWORD, 256, pulse::ipc::PreviewRequestKind::Content,
-                                               pulse::ipc::kPreviewRequestFlagGrid);
-            s->pulse_ms += NowMs() - t;
+            const bool received = host.Request(file, r, MAXDWORD, 256, luling::ipc::PreviewRequestKind::Content,
+                                               luling::ipc::kPreviewRequestFlagGrid);
+            s->luling_ms += NowMs() - t;
             if (!received) {
                 ++s->failed;
                 host.Stop();  // a crashed or wedged host: start a fresh one
@@ -177,21 +177,21 @@ int RunCoverage(const std::wstring& root, const std::wstring& csv_path, int dept
                 continue;
             }
             switch (r.response.kind) {
-            case pulse::ipc::PreviewContentKind::Bitmap: ++s->bitmap; break;
-            case pulse::ipc::PreviewContentKind::Text: ++s->text; break;
-            case pulse::ipc::PreviewContentKind::Hex: ++s->hex; break;
-            case pulse::ipc::PreviewContentKind::Archive: ++s->archive; break;
+            case luling::ipc::PreviewContentKind::Bitmap: ++s->bitmap; break;
+            case luling::ipc::PreviewContentKind::Text: ++s->text; break;
+            case luling::ipc::PreviewContentKind::Hex: ++s->hex; break;
+            case luling::ipc::PreviewContentKind::Archive: ++s->archive; break;
             default: ++s->failed; break;
             }
         }
-        std::printf("%-10s files=%-6llu shell=%d/%d pulse-bitmap=%d/%d  %s\n", Utf8(ext).c_str(),
+        std::printf("%-10s files=%-6llu shell=%d/%d luling-bitmap=%d/%d  %s\n", Utf8(ext).c_str(),
                     static_cast<unsigned long long>(s->files), s->system_ok, s->tested, s->bitmap, s->tested,
                     Verdict(*s));
     }
 
     std::string out = "\xEF\xBB\xBF";
-    out += "extension,files,size_mb,shell_handler,sampled,shell_thumbnail,pulse_bitmap,pulse_text,pulse_hex,"
-           "pulse_archive,pulse_failed,shell_avg_ms,pulse_avg_ms,verdict,sample\n";
+    out += "extension,files,size_mb,shell_handler,sampled,shell_thumbnail,luling_bitmap,luling_text,luling_hex,"
+           "luling_archive,luling_failed,shell_avg_ms,luling_avg_ms,verdict,sample\n";
     for (const auto& [ext, s] : order) {
         char line[512];
         std::snprintf(line, sizeof(line), ",%llu,%.1f,", static_cast<unsigned long long>(s->files),
@@ -199,7 +199,7 @@ int RunCoverage(const std::wstring& root, const std::wstring& csv_path, int dept
         out += Csv(ext) + line + Csv(s->handler);
         std::snprintf(line, sizeof(line), ",%d,%d,%d,%d,%d,%d,%d,%.1f,%.1f,%s,", s->tested, s->system_ok,
                       s->bitmap, s->text, s->hex, s->archive, s->failed,
-                      s->tested ? s->system_ms / s->tested : 0.0, s->tested ? s->pulse_ms / s->tested : 0.0,
+                      s->tested ? s->system_ms / s->tested : 0.0, s->tested ? s->luling_ms / s->tested : 0.0,
                       Verdict(*s));
         out += line + Csv(s->samples.empty() ? std::wstring() : s->samples.front()) + "\n";
     }
@@ -215,4 +215,4 @@ int RunCoverage(const std::wstring& root, const std::wstring& csv_path, int dept
     return saved ? 0 : 1;
 }
 
-} // namespace pulse_test
+} // namespace luling_test

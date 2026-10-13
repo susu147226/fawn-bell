@@ -13,7 +13,7 @@
 #include <fstream>
 #include <string_view>
 
-namespace pulse_test {
+namespace luling_test {
 using Microsoft::WRL::ComPtr;
 namespace {
 struct Case { std::string id, expectation; bool display; std::wstring source; };
@@ -52,20 +52,20 @@ Measurement Measure(IDWriteFactory2* factory, std::wstring_view source, bool dis
     auto layout = Layout(factory, source);
     ComPtr<IDWriteInlineObject> object;
     DWRITE_INLINE_OBJECT_METRICS metrics{};
-    const bool valid = layout && pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())},
+    const bool valid = layout && luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())},
         source, 24, display, 20000) && SUCCEEDED(layout->GetInlineObject(0, &object)) && object && SUCCEEDED(object->GetMetrics(&metrics));
     return {valid, metrics.width, metrics.height, metrics.baseline};
 }
 std::string Structures(std::wstring_view source) {
-    using pulse::ui::MathNodeKind;
-    const auto syntax = pulse::ui::ParseMathSyntax(source);
+    using luling::ui::MathNodeKind;
+    const auto syntax = luling::ui::ParseMathSyntax(source);
     if (!syntax) return {};
     constexpr std::array kinds{MathNodeKind::Fraction, MathNodeKind::Radical, MathNodeKind::Script,
         MathNodeKind::Environment, MathNodeKind::Fence, MathNodeKind::Accent, MathNodeKind::Decoration, MathNodeKind::Arrow,
         MathNodeKind::Brace, MathNodeKind::Phantom};
     constexpr std::array names{"fraction", "radical", "script", "environment", "fence", "accent", "decoration", "arrow", "brace", "phantom"};
     std::array<size_t, 10> counts{};
-    const auto count = [&kinds, &counts](const auto& self, const pulse::ui::MathNode& node) -> void {
+    const auto count = [&kinds, &counts](const auto& self, const luling::ui::MathNode& node) -> void {
         for (size_t i = 0; i < kinds.size(); ++i) if (node.kind == kinds[i]) ++counts[i];
         for (const auto& child : node.children) self(self, child);
     };
@@ -131,7 +131,7 @@ int TestMathArchitecture(IDWriteFactory2* factory, bool compatibility_only) {
             DWRITE_TEXT_METRICS before{}, after{};
             ComPtr<IDWriteInlineObject> object;
             valid = valid && layout && SUCCEEDED(layout->GetMetrics(&before)) &&
-                !pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(item.source.size())}, item.source, 24, item.display, 20000) &&
+                !luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(item.source.size())}, item.source, 24, item.display, 20000) &&
                 SUCCEEDED(layout->GetInlineObject(0, &object)) && !object && SUCCEEDED(layout->GetMetrics(&after)) &&
                 std::abs(before.width - after.width) < 0.01f && std::abs(before.height - after.height) < 0.01f;
         }
@@ -156,19 +156,19 @@ int TestMathArchitecture(IDWriteFactory2* factory, bool compatibility_only) {
         SUCCEEDED(collection->GetFontFamily(family_index, &family)) &&
         SUCCEEDED(family->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, &font)) &&
         SUCCEEDED(font->CreateFontFace(&face));
-    const auto font_metrics = pulse::ui::math::ReadFontMathMetrics(face.Get());
+    const auto font_metrics = luling::ui::math::ReadFontMathMetrics(face.Get());
     check(font_found && font_metrics.from_font && font_metrics.script_scale > font_metrics.script_script_scale &&
         font_metrics.axis_height > 0 && font_metrics.fraction_rule_thickness > 0,
         "installed Cambria Math MATH constants are actually read rather than fallback defaults");
-    const auto geometry = [factory, &face](std::wstring_view source, const pulse::ui::math::FontMathMetrics& metrics,
-        pulse::ui::math::FormulaLayout& result) {
-        const auto syntax = pulse::ui::ParseMathSyntax(source);
-        return syntax && pulse::ui::math::BuildMathLayout(factory, face.Get(), metrics, syntax.root, 24, false, result);
+    const auto geometry = [factory, &face](std::wstring_view source, const luling::ui::math::FontMathMetrics& metrics,
+        luling::ui::math::FormulaLayout& result) {
+        const auto syntax = luling::ui::ParseMathSyntax(source);
+        return syntax && luling::ui::math::BuildMathLayout(factory, face.Get(), metrics, syntax.root, 24, false, result);
     };
     // Inter-atom advance is a layout property. Inline-object metrics add one
     // outer padding on each side, which must not be counted once per atom.
     const auto width = [&geometry, &font_metrics](std::wstring_view source) {
-        pulse::ui::math::FormulaLayout result;
+        luling::ui::math::FormulaLayout result;
         const bool valid = geometry(source, font_metrics, result);
         return Measurement{valid, result.width, result.ascent + result.descent, result.ascent};
     };
@@ -176,7 +176,7 @@ int TestMathArchitecture(IDWriteFactory2* factory, bool compatibility_only) {
     changed_metrics.axis_height += 0.1f;
     changed_metrics.fraction_rule_thickness += 0.1f;
     changed_metrics.radical_rule_thickness += 0.1f;
-    pulse::ui::math::FormulaLayout fraction_original, fraction_changed, radical_original, radical_changed;
+    luling::ui::math::FormulaLayout fraction_original, fraction_changed, radical_original, radical_changed;
     const bool fraction_geometry = geometry(LR"(\frac{a}{b})", font_metrics, fraction_original) &&
         geometry(LR"(\frac{a}{b})", changed_metrics, fraction_changed);
     check(fraction_geometry && fraction_original.rules.size() == 1 && fraction_changed.rules.size() == 1 &&
@@ -190,7 +190,7 @@ int TestMathArchitecture(IDWriteFactory2* factory, bool compatibility_only) {
         "font radical rule constant actually changes drawn radical strokes");
     changed_metrics = font_metrics;
     changed_metrics.script_scale *= 0.8f;
-    pulse::ui::math::FormulaLayout script_original, script_changed;
+    luling::ui::math::FormulaLayout script_original, script_changed;
     float original_script_size = 0, changed_script_size = 0;
     const bool script_geometry = geometry(L"x_i", font_metrics, script_original) &&
         geometry(L"x_i", changed_metrics, script_changed);
@@ -201,14 +201,14 @@ int TestMathArchitecture(IDWriteFactory2* factory, bool compatibility_only) {
         "font script percentage changes the actual shaped script glyph size");
     changed_metrics = font_metrics;
     changed_metrics.space_after_script += 0.1f;
-    pulse::ui::math::FormulaLayout spacing_original, spacing_changed;
+    luling::ui::math::FormulaLayout spacing_original, spacing_changed;
     const bool script_spacing = geometry(L"x^2", font_metrics, spacing_original) &&
         geometry(L"x^2", changed_metrics, spacing_changed);
     check(script_spacing && spacing_original.glyphs.size() == 2 && spacing_changed.glyphs.size() == 2 &&
         spacing_changed.width > spacing_original.width + 2 &&
         std::abs(spacing_changed.glyphs[1].x - spacing_original.glyphs[1].x) < 0.001f,
         "SpaceAfterScript changes trailing advance without moving the script glyph");
-    pulse::ui::math::FormulaLayout empty_original, empty_changed, unscripted;
+    luling::ui::math::FormulaLayout empty_original, empty_changed, unscripted;
     const bool empty_spacing = geometry(L"x^{}", font_metrics, empty_original) &&
         geometry(L"x^{}", changed_metrics, empty_changed) && geometry(L"x", font_metrics, unscripted);
     check(empty_spacing && empty_original.glyphs.size() == 1 && empty_changed.glyphs.size() == 1 &&
@@ -246,8 +246,8 @@ int TestMathArchitecture(IDWriteFactory2* factory, bool compatibility_only) {
     std::printf("[SPACING] binary %.3f relation %.3f unary-extra %.3f script-extra %.3f DIP\n", binary_glue, relation_glue,
         unary.width - minus.width - a.width, script_binary.width - sa.width - sp.width - sb.width);
     std::wstring payload;
-    pulse::ui::MarkdownView view;
-    check(pulse::preview::MakeMarkdownDocument(MathArchitectureSource(), payload) &&
+    luling::ui::MarkdownView view;
+    check(luling::preview::MakeMarkdownDocument(MathArchitectureSource(), payload) &&
         view.SetPayload(payload, L"bench_data/math_preview.md") && view.Source() == MathArchitectureSource() &&
         view.PlainText().find(LR"(\(a+b=c\))") != std::wstring::npos,
         "complete corpus document preserves source and copy text");

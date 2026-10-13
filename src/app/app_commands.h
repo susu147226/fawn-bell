@@ -3,7 +3,7 @@
 #include "app_runtime.h"
 #include "../ui/quick_preview_command.h"
 
-namespace pulse {
+namespace luling {
 bool EnsureMenu(AppState& s);
 void CopySelectedPath(AppState& s);
 void CreateNewItem(AppState& s, bool folder);
@@ -29,7 +29,7 @@ void TrayStartContentCompare(AppState& s);
 // Opens the stand-alone text compare window for the two staged files.
 void TrayOpenTextDiff(AppState& s);
 void ShowCreateTagPicker(AppState& s, POINT screen_pt);
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 struct CreateTagPickerChoice { int command = 0; std::wstring name; bool committed = false; };
 struct CreateTagPickerTestIo {
     std::function<CreateTagPickerChoice(const std::vector<ui::FluentMenuItem>&,
@@ -105,7 +105,7 @@ void ShowCloudPlaceMenu(AppState& s, const std::wstring& path, POINT screen_pt);
 void ToggleSidebarSection(AppState& s, int group);
 void SetEverySidebarSectionCollapsed(AppState& s, bool collapsed);
 void ApplyAppWindowChrome(AppState& s);
-// Pulse's own pickers (ui/folder_picker_dialog), owned by the main window.
+// Luling's own pickers (ui/folder_picker_dialog), owned by the main window.
 bool PickImageFile(AppState& s, std::wstring& path);
 bool PickFolder(AppState& s, std::wstring& path, const wchar_t* title);
 D2D1_COLOR_F ResolveAccentColor(const app::AppPrefs& prefs, bool dark = false);
@@ -124,4 +124,4 @@ app::SettingsTaskCompletion SettingsCompletion(HWND hwnd);
 void SetThemeMode(AppState& s, int mode);
 bool HandleSettingsControl(AppState& s, const ui::HitTestResult& hit);
 void ToggleTheme(AppState& s);
-} // namespace pulse
+} // namespace luling

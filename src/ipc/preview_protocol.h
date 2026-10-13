@@ -4,7 +4,7 @@
 #include <string>
 #include "../common/preview_integrity.h"
 
-namespace pulse::ipc {
+namespace luling::ipc {
 constexpr uint32_t kPreviewMagic = 0x57565250; // PRVW
 enum class PreviewContentKind : uint32_t {
     None = 0,
@@ -108,7 +108,7 @@ struct PreviewResponse {
     preview::Integrity integrity;
 };
 inline std::wstring PreviewPipeName(DWORD pid) {
-    return L"\\\\.\\pipe\\PulsePreview-" + std::to_wstring(pid);
+    return L"\\\\.\\pipe\\LulingPreview-" + std::to_wstring(pid);
 }
 inline bool ReadAll(HANDLE h, void* data, DWORD bytes) {
     auto* p = static_cast<unsigned char*>(data);
@@ -120,4 +120,4 @@ inline bool WriteAll(HANDLE h, const void* data, DWORD bytes) {
     while (bytes) { DWORD n = 0; if (!WriteFile(h, p, bytes, &n, nullptr) || !n) return false; p += n; bytes -= n; }
     return true;
 }
-} // namespace pulse::ipc
+} // namespace luling::ipc

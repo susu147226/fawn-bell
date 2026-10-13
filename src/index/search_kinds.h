@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 
 enum class SearchKind : uint8_t {
     Any = 0,
@@ -24,4 +24,4 @@ std::wstring KindExtensions(SearchKind kind); // folded, no leading dots, ;-sepa
 bool ExpandKindToken(std::wstring_view raw, std::vector<std::wstring>& exts, bool& folders_only);
 std::wstring TextExtensionQueryToken();
 
-} // namespace pulse::index
+} // namespace luling::index

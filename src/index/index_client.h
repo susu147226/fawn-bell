@@ -1,4 +1,4 @@
-// index_client.h — UI-side connection to Pulse.Index.exe (never blocks the UI
+// index_client.h — UI-side connection to Luling.Index.exe (never blocks the UI
 // thread on a search: SearchAsync + WM callback).
 #pragma once
 #include "index_protocol.h"
@@ -11,7 +11,7 @@
 #include <map>
 #include <windows.h>
 
-namespace pulse::index {
+namespace luling::index {
 
 class IndexClient {
 public:
@@ -111,4 +111,4 @@ private:
     std::condition_variable pending_cv_;
 };
 
-} // namespace pulse::index
+} // namespace luling::index

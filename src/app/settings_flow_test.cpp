@@ -5,9 +5,9 @@
 #include <fstream>
 #include <filesystem>
 
-#ifdef PULSE_WITH_SELFTEST
-namespace pulse { bool TestSettingsFilter(const std::wstring&,l10n::StringId); }
-using namespace pulse;
+#ifdef LULING_WITH_SELFTEST
+namespace luling { bool TestSettingsFilter(const std::wstring&,l10n::StringId); }
+using namespace luling;
 int RunSettingsWidthBorderTest(AppState& s, const wchar_t* output) {
     using H = ui::HitTestResult;
     std::ofstream log{std::filesystem::path(output)};
@@ -84,7 +84,7 @@ int RunSettingsWidthBorderTest(AppState& s, const wchar_t* output) {
     return failures ? 1 : 0;
 }
 
-void Render(pulse::AppState&);
+void Render(luling::AppState&);
 int RunSettingsDropdownTest(AppState& s,const wchar_t* output) {
     using H=ui::HitTestResult;
     std::ofstream log{std::filesystem::path(output)};int failures=0;
@@ -107,19 +107,19 @@ int RunSettingsDropdownTest(AppState& s,const wchar_t* output) {
         static RECT popup{};popup={};
         static int down=0;down=index;
         const auto png=base/(index==0 ? L"effect-menu.png" : L"language-menu.png");
-        SetEnvironmentVariableW(L"PULSE_TEST_DROPDOWN_SHOT",png.c_str());
+        SetEnvironmentVariableW(L"LULING_TEST_DROPDOWN_SHOT",png.c_str());
         SetTimer(s.hwnd,0x5347,350,[](HWND hwnd,UINT,UINT_PTR id,DWORD) {
             KillTimer(hwnd,id);
             EnumThreadWindows(GetCurrentThreadId(),[](HWND window,LPARAM)->BOOL {
                 wchar_t title[64]{};GetWindowTextW(window,title,64);
-                if(IsWindowVisible(window) && wcscmp(title,L"PulseMenu")==0) GetWindowRect(window,&popup);
+                if(IsWindowVisible(window) && wcscmp(title,L"LulingMenu")==0) GetWindowRect(window,&popup);
                 return TRUE;
             },0);
             for(int i=0;i<down;++i) PostThreadMessageW(GetCurrentThreadId(),WM_KEYDOWN,VK_DOWN,0);
             PostThreadMessageW(GetCurrentThreadId(),WM_KEYDOWN,VK_RETURN,0);
         });
         HandleSettingsControl(s,hit);
-        SetEnvironmentVariableW(L"PULSE_TEST_DROPDOWN_SHOT",nullptr);
+        SetEnvironmentVariableW(L"LULING_TEST_DROPDOWN_SHOT",nullptr);
         log<<"control left="<<origin.x<<" bottom="<<origin.y<<" popup="<<popup.left<<","<<popup.top<<","<<popup.right<<","<<popup.bottom<<std::endl;
         check(popup.left+ui::FluentMenu::kShadowMargin==origin.x,"popup left edge aligns with control instead of click position");
         check(popup.top+ui::FluentMenu::kShadowMargin==origin.y+static_cast<int>(std::lround(4*s.scale)),"popup opens below control with a consistent gap");
@@ -179,7 +179,7 @@ int RunSearchColumnsTest(AppState& s,const wchar_t* output) {
     slot.pane.search_column_dividers=saved;
     for(int i=0;i<5;++i) {
         ui::ListEntryView row;row.name=L"setup-diagnostic-025d13-project-report-"+std::to_wstring(i)+L".log";
-        row.path=L"C:\\Program Files\\Pulse\\Diagnostics\\September\\"+row.name;
+        row.path=L"C:\\Program Files\\Luling\\Diagnostics\\September\\"+row.name;
         row.type_text=L"Text document";row.date_text=L"2026-09-11 12:50";row.size_text=L"539 B";
         slot.pane.entries.push_back(std::move(row));
     }
@@ -590,15 +590,15 @@ int RunSettingsIntegrationUiTest(AppState& s, const wchar_t* output) {
 }
 
 int RunSettingsFlowTest(AppState& s,const wchar_t* output) {
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_INTEGRATION", nullptr, 0))
+    if (GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_INTEGRATION", nullptr, 0))
         return RunSettingsIntegrationUiTest(s, output);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_ADAPTIVE_COLUMNS", nullptr, 0))
+    if (GetEnvironmentVariableW(L"LULING_TEST_ADAPTIVE_COLUMNS", nullptr, 0))
         return RunAdaptiveColumnsTest(s, output);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SEARCH_COLUMNS", nullptr, 0))
+    if (GetEnvironmentVariableW(L"LULING_TEST_SEARCH_COLUMNS", nullptr, 0))
         return RunSearchColumnsTest(s, output);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_DROPDOWN", nullptr, 0))
+    if (GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_DROPDOWN", nullptr, 0))
         return RunSettingsDropdownTest(s, output);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_SETTINGS_WIDTH_BORDER", nullptr, 0))
+    if (GetEnvironmentVariableW(L"LULING_TEST_SETTINGS_WIDTH_BORDER", nullptr, 0))
         return RunSettingsWidthBorderTest(s, output);
     using H=ui::HitTestResult;using I=l10n::StringId;
     std::ofstream log{std::filesystem::path(output)};int failures=0;

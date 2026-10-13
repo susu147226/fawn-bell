@@ -1,12 +1,12 @@
-# Pulse
+# Luling
 
 **为 Windows 打造的文件管理器，让浏览、搜索和整理文件更顺手。**
 
 多标签与多窗格、全盘索引与拼音搜索、空格快速预览、暂存盘和可自定义外观，放在同一个工作空间里。
 
-[下载最新版](https://github.com/jimmgreen/pulse/releases/latest) · [查看更新记录](https://github.com/jimmgreen/pulse/releases) · [反馈问题](https://github.com/jimmgreen/pulse/issues) · [English](README.en.md)
+[下载最新版](https://github.com/susu147226/fawn-bell/releases/latest) · [查看更新记录](https://github.com/susu147226/fawn-bell/releases) · [反馈问题](https://github.com/susu147226/fawn-bell/issues) · [English](README.en.md)
 
-![Pulse 深色主题与壁纸背景](docs/images/appearance.png)
+![Luling 深色主题与壁纸背景](docs/images/appearance.png)
 
 ## 下载与安装
 
@@ -14,11 +14,11 @@
 
 | 版本 | 适用系统 | 文件 |
 | --- | --- | --- |
-| Windows 版（64位） | Windows 10 / Windows 11 | `PulseSetup-版本.exe` |
-| Windows 8.1 兼容版（64位） | Windows 8.1 | `PulseSetup-版本-win81.exe` |
-| 免安装版（64位） | Windows 10 / Windows 11 | `Pulse-版本-portable-win-x64.zip` |
+| Windows 版（64位） | Windows 10 / Windows 11 | `LulingSetup-版本.exe` |
+| Windows 8.1 兼容版（64位） | Windows 8.1 | `LulingSetup-版本-win81.exe` |
+| 免安装版（64位） | Windows 10 / Windows 11 | `Luling-版本-portable-win-x64.zip` |
 
-运行安装包，按向导完成安装。安装时可以启用 PulseIndex 服务，用于全盘索引搜索。免安装版解压即可运行，配置仍保存在用户应用数据目录；全盘索引服务需要通过安装版部署。
+运行安装包，按向导完成安装。安装时可以启用 LulingIndex 服务，用于全盘索引搜索。免安装版解压即可运行，配置仍保存在用户应用数据目录；全盘索引服务需要通过安装版部署。
 
 界面提供简体中文、繁體中文和 English，默认跟随 Windows，也可以在「设置 → 显示语言」中切换。
 
@@ -32,13 +32,13 @@
 
 ## 更快找到文件
 
-- 通过 PulseIndex 索引搜索整盘文件名，结果实时更新；可以限定在当前文件夹或指定文件夹中搜索。
+- 通过 LulingIndex 索引搜索整盘文件名，结果实时更新；可以限定在当前文件夹或指定文件夹中搜索。
 - 文件名搜索支持全拼、首字母和多音字，例如输入 `sh` 即可找到「品牌设计」「城市夜景」「山湖晨雾」，命中的文字会高亮。
 - 内容搜索覆盖文本与代码、PDF、Word、Excel、PowerPoint 等格式，结果流式加载，打开所在位置后可后退回到原结果。
 - 高级搜索（Ctrl+Shift+F）按类型、日期、大小等条件筛选；全局快速搜索（Alt+Space）随时呼出，也可以「在主界面搜索」查看全部结果。
 - 地址栏输入 `cmd`、`powershell`、`pwsh` 或 `wt`，直接在当前文件夹打开终端。
 
-![Pulse 拼音搜索](docs/images/search.png)
+![Luling 拼音搜索](docs/images/search.png)
 
 ## 多个目录，一起处理
 
@@ -48,7 +48,7 @@
 - 双栏文件夹对比标出两侧不同、缺失和较新的项目；后台统计文件夹大小。
 - 详情面板显示预览、基本信息和标签；多选后可打开合并属性窗口。
 
-![Pulse 多窗格与分栏浏览](docs/images/panes.png)
+![Luling 多窗格与分栏浏览](docs/images/panes.png)
 
 ## 空格快速预览
 
@@ -61,7 +61,7 @@
 
 「设置 → 快速预览 · 支持的格式」列出全部可预览格式，并检测 HEIF / HEVC / AV1 / WebP 系统扩展是否已安装。
 
-![Pulse 快速预览 Markdown](docs/images/quicklook.png)
+![Luling 快速预览 Markdown](docs/images/quicklook.png)
 
 ## 暂存盘与文本对比
 
@@ -69,20 +69,20 @@
 
 暂存两个文件时可以对照位置、修改时间、大小和内容；文本文件点击「查看差异」打开对比窗口，支持并排 / 统一视图、行内差异高亮、仅看差异、忽略空白和大小写，以及 F7 / Shift+F7 跳转。
 
-![Pulse 暂存盘文本对比](docs/images/diff.png)
+![Luling 暂存盘文本对比](docs/images/diff.png)
 
 ## 融入 Windows
 
-- 可以在设置中把 Pulse 设为默认文件管理器，用于打开文件夹、Win+E 和桌面上的「此电脑」；「打开文件所在位置」会在 Pulse 中选中文件。随时可以关闭，恢复原样。
-- 右键菜单合并资源管理器与 Windows 11 新式菜单项（如 VS Code、Windows Terminal、NanaZip），Pulse 自带项可以隐藏。
+- 可以在设置中把 Luling 设为默认文件管理器，用于打开文件夹、Win+E 和桌面上的「此电脑」；「打开文件所在位置」会在 Luling 中选中文件。随时可以关闭，恢复原样。
+- 右键菜单合并资源管理器与 Windows 11 新式菜单项（如 VS Code、Windows Terminal、NanaZip），Luling 自带项可以隐藏。
 - 支持开机启动到托盘、设置默认位置、启动时恢复上次的标签页。
 - 文件被占用时显示占用进程，可以结束进程后重试；「此电脑」显示磁盘类型和容量条。
 
-![Pulse 设置与系统集成](docs/images/settings.png)
+![Luling 设置与系统集成](docs/images/settings.png)
 
 ## 自动更新
 
-Pulse 会在启动后自动检查新版。有更新时，窗口内会出现提示；点击提示即可下载安装包，校验通过后打开安装向导。也可以在「设置 → 关于与诊断」中手动检查更新；不想收到提醒时，在同一页关闭「自动检查更新」即可。
+Luling 会在启动后自动检查新版。有更新时，窗口内会出现提示；点击提示即可下载安装包，校验通过后打开安装向导。也可以在「设置 → 关于与诊断」中手动检查更新；不想收到提醒时，在同一页关闭「自动检查更新」即可。
 
 下载可以取消，安装时按 Windows 提示确认管理员权限。普通版和 Windows 8.1 兼容版分别获取适用的更新。
 
@@ -98,7 +98,7 @@ Pulse 会在启动后自动检查新版。有更新时，窗口内会出现提�
 
 ```powershell
 .\build_release.bat
-.\build\pulse.exe
+.\build\luling.exe
 ```
 
 生成与正式发布相同的安装包，并运行回归检查：
@@ -116,4 +116,4 @@ pwsh ./scripts/build_release_ci.ps1 -Channel win81 -BuildDir build-ci-win81
 
 ## 许可证
 
-Pulse 源代码以 [Apache License 2.0](LICENSE) 授权。第三方组件（例如 LumaText SDK）遵循各自附带的许可证。
+Luling 源代码以 [Apache License 2.0](LICENSE) 授权。第三方组件（例如 LumaText SDK）遵循各自附带的许可证。

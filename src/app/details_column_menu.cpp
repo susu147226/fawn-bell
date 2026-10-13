@@ -7,7 +7,7 @@
 #include "../ui/details_column_set.h"
 #include "../ui/ui_renderer.h"
 
-namespace pulse {
+namespace luling {
 namespace app {
 namespace {
 
@@ -92,4 +92,4 @@ void ShowDetailsColumnMenu(AppState& s, POINT screen_pt, uint32_t visible, bool 
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-} // namespace pulse
+} // namespace luling

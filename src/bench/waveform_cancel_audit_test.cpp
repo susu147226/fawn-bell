@@ -18,7 +18,7 @@ int wmain(int argc,wchar_t** argv) {
         std::atomic<bool> stop{false}; int published=0;
         std::jthread cancel([&]{std::this_thread::sleep_for(std::chrono::milliseconds(250));stop=true;});
         const auto started=GetTickCount64();
-        pulse::ui::FfmpegWaveform(self,path,stop,[&](const auto&,float){++published;});
+        luling::ui::FfmpegWaveform(self,path,stop,[&](const auto&,float){++published;});
         const auto elapsed=GetTickCount64()-started;
         const bool ok=elapsed<2500 && !published;
         printf("[%s] cancelled %ls returns in %llu ms without publishing\n",ok?"PASS":"FAIL",path,elapsed);failures+=!ok;

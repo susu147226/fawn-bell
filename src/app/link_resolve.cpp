@@ -10,7 +10,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 
 struct ThreadCom {
@@ -140,4 +140,4 @@ void ResolveLinksInPlace(const std::wstring& parent_path,
     }
 }
 
-} // namespace pulse::app
+} // namespace luling::app

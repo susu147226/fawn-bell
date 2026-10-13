@@ -11,10 +11,10 @@
 #include <cmath>
 #include <cwctype>
 
-namespace pulse::ui {
+namespace luling::ui {
 namespace {
 
-using pulse::l10n::StringId;
+using luling::l10n::StringId;
 
 constexpr uint32_t kArchiveAmber = 0xCA8A04;
 constexpr uint32_t kFolderGold = 0xE0A526;
@@ -48,13 +48,13 @@ StringId FamilyLabel(uint32_t family_rgb) {
 
 std::wstring Fmt(StringId id, int a) {
     wchar_t buf[160]{};
-    swprintf_s(buf, pulse::l10n::Get(id).c_str(), a);
+    swprintf_s(buf, luling::l10n::Get(id).c_str(), a);
     return buf;
 }
 
 std::wstring Fmt2(StringId id, int a, int b) {
     wchar_t buf[160]{};
-    swprintf_s(buf, pulse::l10n::Get(id).c_str(), a, b);
+    swprintf_s(buf, luling::l10n::Get(id).c_str(), a, b);
     return buf;
 }
 
@@ -256,18 +256,18 @@ std::wstring ArchivePreview::SelectedPath() const {
 std::wstring ArchivePreview::StateNote() const {
     if (!filter_.empty()) {
         if (format_ == L"ISO/UDF")
-            return pulse::l10n::Pick(L"仅搜索已加载的 ISO 兼容目录；UDF 内容可能缺失", L"Search: loaded ISO entries only; UDF may be missing");
+            return luling::l10n::Pick(L"仅搜索已加载的 ISO 兼容目录；UDF 内容可能缺失", L"Search: loaded ISO entries only; UDF may be missing");
         if (incomplete_ || counting_)
-            return pulse::l10n::Pick(L"列表不完整；仅搜索已加载内容", L"Partial listing; search covers loaded entries only");
-        return pulse::l10n::Pick(L"仅搜索已加载内容", L"Search covers loaded entries only");
+            return luling::l10n::Pick(L"列表不完整；仅搜索已加载内容", L"Partial listing; search covers loaded entries only");
+        return luling::l10n::Pick(L"仅搜索已加载内容", L"Search covers loaded entries only");
     }
     if (format_ == L"ISO/UDF")
-        return pulse::l10n::Pick(L"仅显示 ISO 兼容目录；UDF 内容可能缺失", L"ISO compatibility directory only; UDF may be missing");
-    if (counting_) return pulse::l10n::Pick(L"\x7EDF\x8BA1\x4E2D\x2026", L"Counting\x2026");
+        return luling::l10n::Pick(L"仅显示 ISO 兼容目录；UDF 内容可能缺失", L"ISO compatibility directory only; UDF may be missing");
+    if (counting_) return luling::l10n::Pick(L"\x7EDF\x8BA1\x4E2D\x2026", L"Counting\x2026");
     if (!incomplete_) return {};
     if (folder_)
-        return pulse::l10n::Pick(L"\x5DF2\x8FBE\x7EDF\x8BA1\x4E0A\x9650\xFF0C\x6570\x503C\x4E3A\x4E0B\x9650", L"Scan limit reached; totals are minimums");
-    return pulse::l10n::Get(StringId::ArcIncomplete);
+        return luling::l10n::Pick(L"\x5DF2\x8FBE\x7EDF\x8BA1\x4E0A\x9650\xFF0C\x6570\x503C\x4E3A\x4E0B\x9650", L"Scan limit reached; totals are minimums");
+    return luling::l10n::Get(StringId::ArcIncomplete);
 }
 
 void ArchivePreview::AppendVisible(int index) {
@@ -533,26 +533,26 @@ float ArchivePreview::DrawHeader(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect
         Fill(dc, R(cx - 12.0f * u, cy - 7.0f * u, cx + 12.0f * u, cy + 9.0f * u), 3.0f * u, HexColor(kFolderGold));
         Fill(dc, R(cx - 12.0f * u, cy - 3.5f * u, cx + 12.0f * u, cy + 9.0f * u), 3.0f * u, HexColor(0xF5C542));
         title = file_name_;
-        sub = std::to_wstring(dir_count_) + L" " + pulse::l10n::Get(StringId::ArcFolders) + L" · " +
-              std::to_wstring(file_count_) + L" " + pulse::l10n::Get(StringId::ArcFiles) + L" · " +
-              (incomplete_ || counting_ ? L"\x2265 " : L"") + pulse::format::ByteSize(unpacked_);
-        if (counting_) sub += pulse::l10n::Pick(L" \xFF08\x7EDF\x8BA1\x4E2D\x2026\xFF09", L" (counting\x2026)");
+        sub = std::to_wstring(dir_count_) + L" " + luling::l10n::Get(StringId::ArcFolders) + L" · " +
+              std::to_wstring(file_count_) + L" " + luling::l10n::Get(StringId::ArcFiles) + L" · " +
+              (incomplete_ || counting_ ? L"\x2265 " : L"") + luling::format::ByteSize(unpacked_);
+        if (counting_) sub += luling::l10n::Pick(L" \xFF08\x7EDF\x8BA1\x4E2D\x2026\xFF09", L" (counting\x2026)");
     } else {
     Fill(dc, t, 9.0f * s, HexColor(kArchiveAmber, 0.15f));
     DrawText(dc, chip_.Get(), format_, t, HexColor(kArchiveAmber), DWRITE_TEXT_ALIGNMENT_CENTER);
     const bool image = format_ == L"ISO" || format_ == L"ISO/UDF" || format_ == L"UDF";
-    const std::wstring kind = image ? pulse::l10n::Pick(L"镜像", L"image") : pulse::l10n::Get(StringId::ArcArchive);
+    const std::wstring kind = image ? luling::l10n::Pick(L"镜像", L"image") : luling::l10n::Get(StringId::ArcArchive);
     if (large) {
         title = file_name_;
         sub = format_ + L" " + kind + L" · " +
-              pulse::format::ByteSize(file_size_);
+              luling::format::ByteSize(file_size_);
     } else {
         title = format_ + L" " + kind + L" · " +
-                pulse::format::ByteSize(file_size_);
-        sub = std::to_wstring(file_count_) + L" " + pulse::l10n::Get(StringId::ArcFiles) + L" · " +
-              std::to_wstring(dir_count_) + L" " + pulse::l10n::Get(StringId::ArcFolders) + L" · " +
-              (image ? pulse::l10n::Pick(L"已读内容", L"Loaded content") : pulse::l10n::Get(StringId::ArcUnpacked)) +
-              L" " + pulse::format::ByteSize(unpacked_);
+                luling::format::ByteSize(file_size_);
+        sub = std::to_wstring(file_count_) + L" " + luling::l10n::Get(StringId::ArcFiles) + L" · " +
+              std::to_wstring(dir_count_) + L" " + luling::l10n::Get(StringId::ArcFolders) + L" · " +
+              (image ? luling::l10n::Pick(L"已读内容", L"Loaded content") : luling::l10n::Get(StringId::ArcUnpacked)) +
+              L" " + luling::format::ByteSize(unpacked_);
     }
     }
     DrawText(dc, title_.Get(), title, R(tx, t.top, rect.right, t.top + tile * 0.55f), theme.text);
@@ -560,7 +560,7 @@ float ArchivePreview::DrawHeader(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect
     const D2D1_RECT_F subRect = R(sx, t.top + tile * 0.52f, rect.right, t.bottom);
     if (any_encrypted_) {
         // Lock badge ahead of the subtitle.
-        const std::wstring label = pulse::l10n::Get(StringId::ArcEncrypted);
+        const std::wstring label = luling::l10n::Get(StringId::ArcEncrypted);
         const float w = Measure(small_.Get(), label) + 26.0f * s;
         const float cy = (subRect.top + subRect.bottom) * 0.5f;
         const D2D1_RECT_F badge = R(sx, cy - 9.0f * s, sx + w, cy + 9.0f * s);
@@ -607,7 +607,7 @@ float ArchivePreview::DrawMix(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, c
     int lines = 1;
     for (size_t i = 0; i < mix_.size() && i < legend_items; ++i) {
         const int pct = total ? static_cast<int>(std::lround(100.0 * mix_[i].bytes / total)) : 0;
-        const std::wstring label = std::wstring(pulse::l10n::Get(static_cast<StringId>(mix_[i].label))) +
+        const std::wstring label = std::wstring(luling::l10n::Get(static_cast<StringId>(mix_[i].label))) +
                                    L" " + std::to_wstring((std::max)(pct, pct == 0 && mix_[i].bytes ? 1 : 0)) + L"%";
         const float w = 12.0f * s + Measure(small_.Get(), label) + 12.0f * s;
         if (x + w > rect.right && x > rect.left) {
@@ -626,7 +626,7 @@ float ArchivePreview::DrawMix(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, c
 
 void ArchivePreview::DrawBiggest(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, const Theme& theme) {
     const float s = scale_;
-    DrawText(dc, small_.Get(), pulse::l10n::Get(StringId::ArcBiggest),
+    DrawText(dc, small_.Get(), luling::l10n::Get(StringId::ArcBiggest),
              R(rect.left, rect.top, rect.right, rect.top + 20.0f * s), theme.text_secondary);
     float y = rect.top + 24.0f * s;
     const uint64_t max = biggest_.empty() ? 1 : (std::max<uint64_t>)(1, nodes_[biggest_[0]].size);
@@ -635,7 +635,7 @@ void ArchivePreview::DrawBiggest(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect
         if (y + rowH > rect.bottom) break;
         const Node& n = nodes_[idx];
         DrawChip(dc, n, rect.left, y + 10.0f * s);
-        const std::wstring size = pulse::format::ByteSize(n.size);
+        const std::wstring size = luling::format::ByteSize(n.size);
         const float sw = Measure(small_.Get(), size) + 4.0f * s;
         DrawText(dc, body_.Get(), n.name, R(rect.left + 34.0f * s, y, rect.right - sw - 6.0f * s, y + 20.0f * s), theme.text);
         DrawText(dc, small_.Get(), size, R(rect.right - sw, y, rect.right, y + 20.0f * s), theme.text_secondary,
@@ -666,7 +666,7 @@ void ArchivePreview::DrawTree(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, c
     const float colRight = rect.right - 10.0f * s;
 
     if (visible_.empty()) {
-        const std::wstring msg = pulse::l10n::Get(filter_.empty() ? StringId::ArcEmpty : StringId::ArcNoMatch);
+        const std::wstring msg = luling::l10n::Get(filter_.empty() ? StringId::ArcEmpty : StringId::ArcNoMatch);
         DrawText(dc, body_.Get(), msg, rect, theme.text_disabled, DWRITE_TEXT_ALIGNMENT_CENTER);
         return;
     }
@@ -749,11 +749,11 @@ void ArchivePreview::DrawTree(ID2D1DeviceContext* dc, const D2D1_RECT_F& rect, c
                      DWRITE_TEXT_ALIGNMENT_TRAILING);
             cx -= dateW;
         }
-        DrawText(dc, small_.Get(), pulse::format::ByteSize(n.size), R(cx - sizeW, top, cx, top + rowH),
+        DrawText(dc, small_.Get(), luling::format::ByteSize(n.size), R(cx - sizeW, top, cx, top + rowH),
                  n.dir ? theme.text_disabled : theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
         cx -= sizeW;
         if (showPacked)
-            DrawText(dc, small_.Get(), pulse::format::ByteSize(n.packed), R(cx - packedW, top, cx, top + rowH),
+            DrawText(dc, small_.Get(), luling::format::ByteSize(n.packed), R(cx - packedW, top, cx, top + rowH),
                      theme.text_disabled, DWRITE_TEXT_ALIGNMENT_TRAILING);
     }
     dc->PopAxisAlignedClip();
@@ -834,11 +834,11 @@ void ArchivePreview::Draw(ID2D1DeviceContext* dc, Compositor* compositor, const 
     const float cardH = 62.0f * s;
     struct Card { std::wstring value, label; bool ratio; };
     const Card cards[3] = {
-        {std::to_wstring(file_count_), pulse::l10n::Get(StringId::ArcFiles), false},
-        {std::to_wstring(dir_count_), pulse::l10n::Get(StringId::ArcFolders), false},
-        {(folder_ && (incomplete_ || counting_) ? L"\x2265" : L"") + pulse::format::ByteSize(unpacked_),
-         folder_ ? std::wstring(pulse::l10n::Pick(L"\x603B\x5927\x5C0F", L"Total size"))
-                 : std::wstring(pulse::l10n::Get(StringId::ArcUnpacked)),
+        {std::to_wstring(file_count_), luling::l10n::Get(StringId::ArcFiles), false},
+        {std::to_wstring(dir_count_), luling::l10n::Get(StringId::ArcFolders), false},
+        {(folder_ && (incomplete_ || counting_) ? L"\x2265" : L"") + luling::format::ByteSize(unpacked_),
+         folder_ ? std::wstring(luling::l10n::Pick(L"\x603B\x5927\x5C0F", L"Total size"))
+                 : std::wstring(luling::l10n::Get(StringId::ArcUnpacked)),
          !folder_ && format_ != L"ISO" && format_ != L"ISO/UDF" && format_ != L"UDF"},
     };
     for (int i = 0; i < 3; ++i) {
@@ -882,15 +882,15 @@ void ArchivePreview::Draw(ID2D1DeviceContext* dc, Compositor* compositor, const 
         const bool showDate = w > 420.0f * s;
         float cx = right.right - 10.0f * s;
         const D2D1_RECT_F head = R(right.left, right.top, right.right, right.top + headH);
-        DrawText(dc, small_.Get(), pulse::l10n::Get(StringId::ArcColName), R(head.left + 12.0f * s, head.top, head.right, head.bottom), theme.text_secondary);
+        DrawText(dc, small_.Get(), luling::l10n::Get(StringId::ArcColName), R(head.left + 12.0f * s, head.top, head.right, head.bottom), theme.text_secondary);
         if (showDate) {
-            DrawText(dc, small_.Get(), pulse::l10n::Get(StringId::ArcColModified), R(cx - 118.0f * s, head.top, cx, head.bottom), theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
+            DrawText(dc, small_.Get(), luling::l10n::Get(StringId::ArcColModified), R(cx - 118.0f * s, head.top, cx, head.bottom), theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
             cx -= 118.0f * s;
         }
-        DrawText(dc, small_.Get(), pulse::l10n::Get(StringId::ArcColSize), R(cx - 70.0f * s, head.top, cx, head.bottom), theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
+        DrawText(dc, small_.Get(), luling::l10n::Get(StringId::ArcColSize), R(cx - 70.0f * s, head.top, cx, head.bottom), theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
         cx -= 70.0f * s;
         if (showPacked)
-            DrawText(dc, small_.Get(), pulse::l10n::Get(StringId::ArcColPacked), R(cx - 70.0f * s, head.top, cx, head.bottom), theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
+            DrawText(dc, small_.Get(), luling::l10n::Get(StringId::ArcColPacked), R(cx - 70.0f * s, head.top, cx, head.bottom), theme.text_secondary, DWRITE_TEXT_ALIGNMENT_TRAILING);
         Fill(dc, R(head.left, head.bottom - 1.0f, head.right, head.bottom), 0.0f, theme.stroke_divider);
     }
     DrawTree(dc, R(right.left, right.top + headH + 2.0f * s, right.right, right.bottom - footH), theme, true);
@@ -902,13 +902,13 @@ void ArchivePreview::Draw(ID2D1DeviceContext* dc, Compositor* compositor, const 
     if (!filter_.empty())
         left_note = Fmt2(StringId::ArcMatches, static_cast<int>(filter_hits_), static_cast<int>(file_count_));
     else
-        left_note = std::to_wstring(file_count_) + L" " + pulse::l10n::Get(StringId::ArcFiles) + L" · " +
-                    std::to_wstring(dir_count_) + L" " + pulse::l10n::Get(StringId::ArcFolders);
-    const std::wstring hint = pulse::l10n::Get(StringId::ArcSearchHint);
+        left_note = std::to_wstring(file_count_) + L" " + luling::l10n::Get(StringId::ArcFiles) + L" · " +
+                    std::to_wstring(dir_count_) + L" " + luling::l10n::Get(StringId::ArcFolders);
+    const std::wstring hint = luling::l10n::Get(StringId::ArcSearchHint);
     const float hintW = Measure(small_.Get(), hint) + 4.0f * s;
     DrawText(dc, small_.Get(), left_note, R(foot.left, foot.top, foot.right - hintW - 12.0f * s, foot.bottom), theme.text_disabled);
     DrawText(dc, small_.Get(), hint, R(foot.right - hintW, foot.top, foot.right, foot.bottom), theme.text_disabled,
              DWRITE_TEXT_ALIGNMENT_TRAILING);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::index {
+namespace luling::index {
 enum class IndexMemoryPoint : size_t {
     ChangeFlushBefore, ChangeFlushSnapshot, ChangeFlushAfter, MergeBefore, MergeFlattened, TimingFlush, Count
 };

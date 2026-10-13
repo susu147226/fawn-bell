@@ -7,7 +7,7 @@
 #include <initializer_list>
 #include <string_view>
 
-namespace pulse::ui::command_icons {
+namespace luling::ui::command_icons {
 
 // One optical grid for application commands. Shell file icons and artwork keep
 // their own rendering paths. Geometry also works without the D2D SVG interface.
@@ -398,4 +398,4 @@ inline bool Draw(ID2D1RenderTarget* target, ID2D1Brush* brush,
     return true;
 }
 
-} // namespace pulse::ui::command_icons
+} // namespace luling::ui::command_icons

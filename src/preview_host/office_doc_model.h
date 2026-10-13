@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <string>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 enum class WordFileFormat { Unknown, OpenXml, Binary, Rtf };
 
@@ -37,4 +37,4 @@ bool ReadFilterTextModel(const std::wstring& path, DocModel& model, std::wstring
 // text when the structured reader fails.
 bool ReadWordModel(const std::wstring& path, DocModel& model, std::wstring* error);
 
-} // namespace pulse::preview
+} // namespace luling::preview

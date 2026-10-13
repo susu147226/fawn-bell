@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace {
-using namespace pulse::ui;
+using namespace luling::ui;
 int failures = 0;
 void Check(bool valid, const char* name) {
     std::printf("[%s] syntax %s\n", valid ? "PASS" : "FAIL", name);
@@ -34,7 +34,7 @@ void ExpectError(std::wstring_view source, MathParseErrorCode code, const char* 
         static_cast<int>(result.error.code), static_cast<int>(code), result.error.offset, source.size());
 }
 void TestFontConstants() {
-    using namespace pulse::ui::math;
+    using namespace luling::ui::math;
     std::vector<uint8_t> table(224, 0);
     const auto put = [](std::vector<uint8_t>& bytes, size_t at, uint16_t value) {
         bytes[at] = static_cast<uint8_t>(value >> 8);
@@ -211,7 +211,7 @@ void TestMacroSyntax() {
     }
 }
 void TestAlphabetMapping() {
-    using namespace pulse::ui::math;
+    using namespace luling::ui::math;
     struct Case { const wchar_t* input; MathAlphabet family; const wchar_t* expected; bool bold = false; };
     const Case cases[] = {{L"AB", MathAlphabet::Script, L"𝒜ℬ"}, {L"AC", MathAlphabet::Fraktur, L"𝔄ℭ"},
         {L"A0", MathAlphabet::SansSerif, L"𝖠𝟢"}, {L"A0", MathAlphabet::Monospace, L"𝙰𝟶"},

@@ -15,14 +15,14 @@
 #include <cstdio>
 #include <string>
 
-namespace pulse::ui {
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+namespace luling::ui {
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
 void BatchRenameShownForTest(HWND hwnd);
 float BatchRenameScaleForTest();
 #endif
 namespace {
 
-constexpr wchar_t kClass[] = L"PulseBatchRenameWindow";
+constexpr wchar_t kClass[] = L"LulingBatchRenameWindow";
 constexpr float kDlgW = 620.0f;
 constexpr float kDlgH = 588.0f;
 constexpr wchar_t kChipNumbered[] = L"{name} ({n}){ext}";
@@ -30,7 +30,7 @@ constexpr wchar_t kChipPadded[] = L"{name}_{n:3}{ext}";
 constexpr wchar_t kChipExt[] = L"{name}.jpg";
 
 D2D1_RECT_F Rect(float scale, float x, float y, float width, float height) {
-    return pulse::ui::DipRect(scale, x, y, width, height);
+    return luling::ui::DipRect(scale, x, y, width, height);
 }
 
 std::wstring StatusLabel(app::BatchRenameStatus status) {
@@ -52,8 +52,8 @@ public:
         paths_ = paths;
         dark_ = dark;
         accent_ = accent;
-        scale_ = static_cast<float>(pulse::compat::WindowDpi(owner ? owner : GetDesktopWindow())) / 96.0f;
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+        scale_ = static_cast<float>(luling::compat::WindowDpi(owner ? owner : GetDesktopWindow())) / 96.0f;
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
         scale_ = BatchRenameScaleForTest();
 #endif
         result_ = {};
@@ -74,11 +74,11 @@ public:
             CW_USEDEFAULT, CW_USEDEFAULT, width, height, owner, nullptr,
             wc.hInstance, this);
         if (!hwnd_) return result_;
-        pulse::ui::CenterOwnedWindow(hwnd_, owner_, width, height);
+        luling::ui::CenterOwnedWindow(hwnd_, owner_, width, height);
         if (owner_) EnableWindow(owner_, FALSE);
         ShowWindow(hwnd_, SW_SHOW);
         LayoutEdits();
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
         BatchRenameShownForTest(hwnd_);
 #endif
         SetForegroundWindow(hwnd_);
@@ -318,17 +318,17 @@ private:
     }
 
     int Hit(float x, float y) const {
-        if (pulse::ui::ContainsRect(CloseRect(), x, y)) return 3;
-        if (pulse::ui::ContainsRect(ApplyRect(), x, y)) return 1;
-        if (pulse::ui::ContainsRect(CancelRect(), x, y)) return 2;
-        if (pulse::ui::ContainsRect(IncludeExtRect(), x, y)) return 4;
-        if (pulse::ui::ContainsRect(ChipRect(0), x, y)) return 5;
-        if (pulse::ui::ContainsRect(ChipRect(1), x, y)) return 6;
-        if (pulse::ui::ContainsRect(ChipRect(2), x, y)) return 7;
-        if (pulse::ui::ContainsRect(FindField(), x, y)) return 10;
-        if (pulse::ui::ContainsRect(ReplaceField(), x, y)) return 11;
-        if (pulse::ui::ContainsRect(PatternField(), x, y)) return 12;
-        if (UsesIndex() && pulse::ui::ContainsRect(StartField(), x, y)) return 13;
+        if (luling::ui::ContainsRect(CloseRect(), x, y)) return 3;
+        if (luling::ui::ContainsRect(ApplyRect(), x, y)) return 1;
+        if (luling::ui::ContainsRect(CancelRect(), x, y)) return 2;
+        if (luling::ui::ContainsRect(IncludeExtRect(), x, y)) return 4;
+        if (luling::ui::ContainsRect(ChipRect(0), x, y)) return 5;
+        if (luling::ui::ContainsRect(ChipRect(1), x, y)) return 6;
+        if (luling::ui::ContainsRect(ChipRect(2), x, y)) return 7;
+        if (luling::ui::ContainsRect(FindField(), x, y)) return 10;
+        if (luling::ui::ContainsRect(ReplaceField(), x, y)) return 11;
+        if (luling::ui::ContainsRect(PatternField(), x, y)) return 12;
+        if (UsesIndex() && luling::ui::ContainsRect(StartField(), x, y)) return 13;
         return 0;
     }
 
@@ -350,7 +350,7 @@ private:
         if (!compositor_.Dc()) return;
         const bool high_contrast = IsHighContrast();
         const Theme theme = high_contrast ? MakeHighContrastTheme() : MakeTheme(dark_, accent_);
-        pulse::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
+        luling::ui::BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_,
                      scale_);
 
         painter_.DrawText(l10n::Get(l10n::StringId::BatchRename),
@@ -472,17 +472,17 @@ private:
                           can_apply_ ? theme.accent_text : theme.text_secondary,
                           fluent::HorizontalAlignment::Center);
 
-        pulse::ui::EndSurface(compositor_);
+        luling::ui::EndSurface(compositor_);
     }
 
     LRESULT Handle(UINT message, WPARAM wparam, LPARAM lparam) {
         switch (message) {
         case WM_CREATE: {
-            scale_ = static_cast<float>(pulse::compat::WindowDpi(hwnd_)) / 96.0f;
-#if defined(PULSE_TEST_BATCH_RENAME_PRESENT)
+            scale_ = static_cast<float>(luling::compat::WindowDpi(hwnd_)) / 96.0f;
+#if defined(LULING_TEST_BATCH_RENAME_PRESENT)
             scale_ = BatchRenameScaleForTest();
 #endif
-            backdrop_enabled_ = pulse::ui::ApplyBackdrop(hwnd_, dark_);
+            backdrop_enabled_ = luling::ui::ApplyBackdrop(hwnd_, dark_);
             if (!compositor_.Init(hwnd_)) return -1;
             compositor_.RecreateTextFormats(scale_);
             painter_.SetCompositor(&compositor_);
@@ -500,7 +500,7 @@ private:
         case WM_NCCALCSIZE:
             return 0;
         case WM_NCHITTEST:
-            return pulse::ui::BorderlessHitTest(hwnd_, lparam, 36 * scale_, CloseRect());
+            return luling::ui::BorderlessHitTest(hwnd_, lparam, 36 * scale_, CloseRect());
         case WM_SIZE:
             if (compositor_.Dc()) compositor_.Resize(LOWORD(lparam), HIWORD(lparam));
             LayoutEdits();
@@ -653,4 +653,4 @@ BatchRenameDialogResult ShowBatchRenameDialog(HWND owner,
     return window.Show(owner, paths, dark, accent);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

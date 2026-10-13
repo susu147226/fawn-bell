@@ -1,4 +1,4 @@
-// Rules of Pulse's own dialogs: confirm spec handling, the folder picker model
+// Rules of Luling's own dialogs: confirm spec handling, the folder picker model
 // and the off-thread folder reader (on a private temp fixture).
 
 #include "../common/windows_compat.h"
@@ -17,7 +17,7 @@
 
 namespace {
 
-using namespace pulse::ui;
+using namespace luling::ui;
 
 int g_failures = 0;
 
@@ -142,11 +142,11 @@ void TestPickerModel() {
               PickerParent(L"\\\\srv\\share").empty() && PickerParent(L"\\\\srv\\share\\").empty(),
           "a share root's parent is This PC");
 
-    SetEnvironmentVariableW(L"PULSE_PICKER_TEST", L"D:\\data");
+    SetEnvironmentVariableW(L"LULING_PICKER_TEST", L"D:\\data");
     Check(NormalizePickerInput(L"  \"c:/Users/x/\"  ") == L"C:\\Users\\x" &&
               NormalizePickerInput(L"d:") == L"D:\\" &&
               NormalizePickerInput(L"C:\\") == L"C:\\" &&
-              NormalizePickerInput(L"%PULSE_PICKER_TEST%\\sub") == L"D:\\data\\sub" &&
+              NormalizePickerInput(L"%LULING_PICKER_TEST%\\sub") == L"D:\\data\\sub" &&
               NormalizePickerInput(L"\\\\?\\C:\\long") == L"C:\\long" &&
               NormalizePickerInput(L"\\\\?\\UNC\\srv\\s\\") == L"\\\\srv\\s" &&
               NormalizePickerInput(L"   ").empty(),
@@ -192,7 +192,7 @@ void TestPickerModel() {
 std::wstring MakeFixture() {
     wchar_t temp[MAX_PATH]{};
     GetTempPathW(MAX_PATH, temp);
-    const std::wstring root = std::wstring(temp) + L"pulse_dialogs_test_" +
+    const std::wstring root = std::wstring(temp) + L"luling_dialogs_test_" +
                               std::to_wstring(GetCurrentProcessId());
     CreateDirectoryW(root.c_str(), nullptr);
     for (const wchar_t* dir : {L"b", L"a10", L"a2", L"hidden", L"empty"})
@@ -287,7 +287,7 @@ void TestReader() {
 } // namespace
 
 int main(int argc, char** argv) {
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     if (!(argc == 2 && std::string(argv[1]) == "--picker")) TestConfirm();
     TestPickerModel();
     TestReader();

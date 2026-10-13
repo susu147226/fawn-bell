@@ -1,8 +1,8 @@
 // The open dialog's own chrome: the title strip and the footer. The address
 // row, sidebar and list are the main window's renderer and are tested there;
-// the live window runs with pulse.exe --picker-live file|folder|image.
+// the live window runs with luling.exe --picker-live file|folder|image.
 //
-//   pulse_file_picker_view_test.exe [out_dir]
+//   luling_file_picker_view_test.exe [out_dir]
 //       Checks layout and hit tests at 100%, 150% and 200% for every mode and
 //       writes footer PNGs in light, dark and high contrast to out_dir
 //       (default build\file-picker-visual).
@@ -15,7 +15,7 @@
 #include <cstdio>
 #include <string>
 
-using namespace pulse::ui;
+using namespace luling::ui;
 
 namespace {
 
@@ -147,14 +147,14 @@ bool RenderFooter(Compositor& compositor, fluent::Painter& painter, float scale,
 
 int wmain(int argc, wchar_t** argv) {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    pulse::compat::EnableDpiAwareness();
-    pulse::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    luling::compat::EnableDpiAwareness();
+    luling::l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     const std::wstring output = argc > 1 ? argv[1] : L"build\\file-picker-visual";
     CreateDirectoryW(output.c_str(), nullptr);
     WNDCLASSW wc{};
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpfnWndProc = DefWindowProcW;
-    wc.lpszClassName = L"PulsePickerChromeTest";
+    wc.lpszClassName = L"LulingPickerChromeTest";
     RegisterClassW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"", WS_OVERLAPPEDWINDOW, 0, 0, 900, 600,
                                 nullptr, nullptr, wc.hInstance, nullptr);

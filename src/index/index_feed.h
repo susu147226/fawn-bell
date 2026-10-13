@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 inline constexpr uint32_t kFeedRequest = 7, kFeedResponse = 107, kFeedMagic = 0x58444950;
 struct FileFeedPage {
     uint64_t epoch = 0, sequence = 0, next = 0;
@@ -33,8 +33,8 @@ public:
         if (paths.empty() || paths.size() > kFolderSizeBatch) return false;
         if (pipe_ == INVALID_HANDLE_VALUE) {
             wchar_t override_name[256]{};
-            const auto n = GetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE", override_name, 256);
-            const std::wstring name = n && n < 256 ? override_name : L"\\\\.\\pipe\\PulseIndex";
+            const auto n = GetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE", override_name, 256);
+            const std::wstring name = n && n < 256 ? override_name : L"\\\\.\\pipe\\LulingIndex";
             pipe_ = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
             if (pipe_ == INVALID_HANDLE_VALUE) return false;
         }
@@ -62,8 +62,8 @@ public:
     bool Request(bool changes, const std::wstring& root, uint64_t epoch, uint64_t cursor, FileFeedPage& page) {
         if (pipe_ == INVALID_HANDLE_VALUE) {
             wchar_t override_name[256]{};
-            const auto n = GetEnvironmentVariableW(L"PULSE_INDEX_FEED_PIPE",override_name,256);
-            const std::wstring name = n && n < 256 ? override_name : L"\\\\.\\pipe\\PulseIndex";
+            const auto n = GetEnvironmentVariableW(L"LULING_INDEX_FEED_PIPE",override_name,256);
+            const std::wstring name = n && n < 256 ? override_name : L"\\\\.\\pipe\\LulingIndex";
             pipe_ = CreateFileW(name.c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,nullptr);
             if (pipe_ == INVALID_HANDLE_VALUE) return false;
         }

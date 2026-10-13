@@ -1,7 +1,7 @@
-// Pulse setup bootstrapper: wizard (setup_ui) or silent install engine.
+// Luling setup bootstrapper: wizard (setup_ui) or silent install engine.
 //
 // The process starts unelevated (asInvoker). A machine install relaunches
-// itself elevated and waits, so Pulse can afterwards be restarted with the
+// itself elevated and waits, so Luling can afterwards be restarted with the
 // original user's token (--restore-update-session after /PULSEUPDATE=1),
 // which is what Inno's ExecAsOriginalUser provided.
 
@@ -20,7 +20,7 @@
 #include "setup_ui.h"
 #include "setup_uninstall.h"
 
-using namespace pulse::setup;
+using namespace luling::setup;
 
 namespace {
 
@@ -46,18 +46,18 @@ std::wstring DefaultLogPath() {
     SYSTEMTIME t;
     GetLocalTime(&t);
     wchar_t name[64];
-    swprintf_s(name, L"\\Pulse-Setup-%04u%02u%02u-%02u%02u%02u.log", t.wYear, t.wMonth, t.wDay, t.wHour,
+    swprintf_s(name, L"\\Luling-Setup-%04u%02u%02u-%02u%02u%02u.log", t.wYear, t.wMonth, t.wDay, t.wHour,
                t.wMinute, t.wSecond);
     return TempPath() + name;
 }
 
 void ShowError(const Options& o, const std::wstring& text) {
     if (o.very_silent || o.suppress_msgboxes) return;
-    MessageBoxW(nullptr, text.c_str(), L"Pulse Setup", MB_OK | MB_ICONERROR);
+    MessageBoxW(nullptr, text.c_str(), L"Luling Setup", MB_OK | MB_ICONERROR);
 }
 
-void LaunchPulse(const std::wstring& app, const wchar_t* args) {
-    const std::wstring exe = app + L"\\pulse.exe";
+void LaunchLuling(const std::wstring& app, const wchar_t* args) {
+    const std::wstring exe = app + L"\\luling.exe";
     std::wstring command = Quote(exe) + L" " + args;
     STARTUPINFOW si{sizeof(si)};
     PROCESS_INFORMATION pi{};
@@ -66,15 +66,15 @@ void LaunchPulse(const std::wstring& app, const wchar_t* args) {
         CloseHandle(pi.hProcess);
         Log(L"Started " + command);
     } else {
-        Log(L"Could not restart Pulse as the original user: " + Win32Error(GetLastError()));
+        Log(L"Could not restart Luling as the original user: " + Win32Error(GetLastError()));
     }
 }
 
 // Runs this setup elevated with the same arguments and returns its exit code.
 int RunElevated(const Options& o, const std::wstring& self, std::wstring& app_dir, bool& launch) {
-    const std::wstring result_file = TempPath() + L"\\Pulse-Setup-" + std::to_wstring(GetCurrentProcessId()) + L".result";
+    const std::wstring result_file = TempPath() + L"\\Luling-Setup-" + std::to_wstring(GetCurrentProcessId()) + L".result";
     DeleteFileW(result_file.c_str());
-    std::wstring args = o.raw + L" /PULSE-ELEVATED /LOG=" + Quote(LogPath()) + L" /RESULTFILE=" + Quote(result_file);
+    std::wstring args = o.raw + L" /LULING-ELEVATED /LOG=" + Quote(LogPath()) + L" /RESULTFILE=" + Quote(result_file);
     SHELLEXECUTEINFOW sei{sizeof(sei)};
     sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
     sei.lpVerb = L"runas";
@@ -108,9 +108,9 @@ int RunUninstaller(const Options& o, const std::wstring& self) {
     request.app_dir = ParentDir(self);
     // InitializeUninstall: silent removal (the upgrade path) keeps user data.
     request.cleanup_data = !o.silent;
-    if (!IsPulseInstallDir(request.app_dir)) {
-        Log(L"Not a Pulse installation: " + request.app_dir);
-        ShowError(o, L"Pulse was not found in " + request.app_dir + L".");
+    if (!IsLulingInstallDir(request.app_dir)) {
+        Log(L"Not a Luling installation: " + request.app_dir);
+        ShowError(o, L"Luling was not found in " + request.app_dir + L".");
         return kExitPrepareFailed;
     }
     if (!o.test && !IsProcessElevated() && !o.elevated_child) {
@@ -136,7 +136,7 @@ int RunUninstaller(const Options& o, const std::wstring& self) {
         if (code != kExitOk) ShowError(o, r.error);
         else if (r.restore_result > 0 && !o.suppress_msgboxes && !o.very_silent)
             MessageBoxW(nullptr, Text(lang, r.restore_result == 1 ? Str::IntegrationIncomplete : Str::IntegrationFailed),
-                        L"Pulse", MB_OK | MB_ICONWARNING);
+                        L"Luling", MB_OK | MB_ICONWARNING);
     }
     CoUninitialize();
     if (self_delete) ScheduleSelfDelete(self, request.app_dir);
@@ -157,7 +157,7 @@ DWORD WindowsBuild() {
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     const Options o = ParseOptions(GetCommandLineW());
     LogOpen(o.log.empty() ? DefaultLogPath() : o.log);
-    Log(L"Pulse setup: " + o.raw);
+    Log(L"Luling setup: " + o.raw);
     const std::wstring self = SelfPath();
 
     // {app}\uninstall.exe is this bootstrapper without a payload.
@@ -172,13 +172,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         ShowError(o, L"The setup file is damaged or incomplete. Please download it again.\n\n" + error);
         return kExitPrepareFailed;
     }
-    // Same gate as [Setup] MinVersion in PulseSetup.iss (10.0 / 6.3).
+    // Same gate as [Setup] MinVersion in LulingSetup.iss (10.0 / 6.3).
     const DWORD build = WindowsBuild();
     if (payload.Info().min_windows_build && build < payload.Info().min_windows_build) {
         Log(L"Windows build " + std::to_wstring(build) + L" < required " + std::to_wstring(payload.Info().min_windows_build));
         ShowError(o, payload.Info().min_windows_build >= 10240
-                         ? L"This version of Pulse requires Windows 10 or later.\n\nOn Windows 8.1, please download the Windows 8.1 x64 edition."
-                         : L"This version of Pulse requires Windows 8.1 x64 or later.");
+                         ? L"This version of Luling requires Windows 10 or later.\n\nOn Windows 8.1, please download the Windows 8.1 x64 edition."
+                         : L"This version of Luling requires Windows 8.1 x64 or later.");
         return kExitPrepareFailed;
     }
 
@@ -189,8 +189,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         const int code = RunElevated(o, self, app_dir, launch);
         Log(L"Elevated setup exited with " + std::to_wstring(code));
         if (code == kExitOk && !app_dir.empty()) {
-            if (o.pulse_update) LaunchPulse(app_dir, L"--restore-update-session");
-            else if (launch) LaunchPulse(app_dir, L"");
+            if (o.luling_update) LaunchLuling(app_dir, L"--restore-update-session");
+            else if (launch) LaunchLuling(app_dir, L"");
         }
         return code;
     }
@@ -205,7 +205,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         result.exit_code = w.exit_code;
         result.app_dir = w.app_dir;
         launch = w.launch;
-        if (launch && o.test) { Log(L"Test install: not starting Pulse"); launch = false; }
+        if (launch && o.test) { Log(L"Test install: not starting Luling"); launch = false; }
     } else {
         result = RunInstall(payload, self, request, {});
         if (result.exit_code != kExitOk && result.exit_code != kExitCancelledBefore) ShowError(o, result.error);
@@ -214,11 +214,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         const std::string data = WideToUtf8(result.app_dir) + (launch ? "\nlaunch" : "\n");
         WriteWholeFile(o.result_file, data.data(), data.size());
     }
-    // Already elevated (no unelevated parent): restart Pulse ourselves. Test
-    // installs never start Pulse, which would share the user's real profile.
+    // Already elevated (no unelevated parent): restart Luling ourselves. Test
+    // installs never start Luling, which would share the user's real profile.
     if (!o.elevated_child && !o.test && result.exit_code == kExitOk) {
-        if (o.pulse_update) LaunchPulse(result.app_dir, L"--restore-update-session");
-        else if (launch) LaunchPulse(result.app_dir, L"");
+        if (o.luling_update) LaunchLuling(result.app_dir, L"--restore-update-session");
+        else if (launch) LaunchLuling(result.app_dir, L"");
     }
     CoUninitialize();
     Log(L"Exit code " + std::to_wstring(result.exit_code));

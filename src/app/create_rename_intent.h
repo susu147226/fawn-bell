@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 struct CreateRenameIntent {
     uint64_t task_id = 0;
     std::wstring parent;
@@ -36,4 +36,4 @@ std::optional<CreateRenameSelection> SelectCreateRenameIntent(std::vector<Create
     std::wstring_view current_parent, uint64_t view_generation, std::span<const CreateRenameEntry> entries,
     bool focused, bool editor_active);
 void ConsumeCreateRenameIntent(std::vector<CreateRenameIntent>& intents, uint64_t task_id);
-} // namespace pulse::app
+} // namespace luling::app

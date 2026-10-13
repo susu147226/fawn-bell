@@ -12,7 +12,7 @@ import verify_win81 as verify
 
 class CurrentBuildTests(unittest.TestCase):
     def setUp(self):
-        self.temp = TemporaryDirectory(prefix='pulse-verify-')
+        self.temp = TemporaryDirectory(prefix='luling-verify-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / 'build-win81').mkdir()
@@ -31,7 +31,7 @@ class CurrentBuildTests(unittest.TestCase):
         calls = []
         def runner(args, **kwargs):
             calls.append(args)
-            self.assertTrue(Path(kwargs['env']['PULSE_TEST_DATA_DIR']).is_relative_to(self.out))
+            self.assertTrue(Path(kwargs['env']['LULING_TEST_DATA_DIR']).is_relative_to(self.out))
             return SimpleNamespace(returncode=0)
         code, rows = self.run_fixture(runner)
         self.assertEqual((code, len(calls), len(rows)), (0, 2, 2))

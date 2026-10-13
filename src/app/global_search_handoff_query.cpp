@@ -2,7 +2,7 @@
 #include "search_query.h"
 #include "places.h"
 
-namespace pulse {
+namespace luling {
 std::wstring GlobalSearchHandoffPath(const GlobalSearchHandoff& request) {
     if (request.query.empty()) return {};
     if (!request.content)
@@ -14,4 +14,4 @@ std::wstring GlobalSearchHandoffPath(const GlobalSearchHandoff& request) {
     return app::MakeSearchPath(app::CompileSearchQuery(spec));
 }
 
-} // namespace pulse
+} // namespace luling

@@ -13,12 +13,12 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::ui { struct MediaPackOffer; }
-namespace pulse::packs { enum class PackId : uint32_t; }
+namespace luling::ui { struct MediaPackOffer; }
+namespace luling::packs { enum class PackId : uint32_t; }
 
-namespace pulse::index { class IndexClient; class NetworkAgentClient; }
+namespace luling::index { class IndexClient; class NetworkAgentClient; }
 
-namespace pulse::app {
+namespace luling::app {
 
 enum class SettingsEffect : uint32_t {
     None = 0,
@@ -220,9 +220,9 @@ public:
     void Language(std::wstring_view language_id);
     void Wallpaper(int action);
     void ToggleUi(int index);
-    // 本地右键菜单 › Pulse 菜单 tab: 0 on a file, 1 blank area, 2 row buttons.
+    // 本地右键菜单 › Luling 菜单 tab: 0 on a file, 1 blank area, 2 row buttons.
     int ContextTab() const { return context_tab_; }
-    // Pulse menu preview: a row pressed for dragging (BuiltinMenuItem), live
+    // Luling menu preview: a row pressed for dragging (BuiltinMenuItem), live
     // once the pointer moved 3 px along the tab's axis. EndMenuDrag drops
     // the drag; SetMenuOrder saves the order for the current tab.
     void BeginMenuDrag(int item, float pos, float grab) noexcept;
@@ -316,4 +316,4 @@ private:
     void SaveAndApply(SettingsEffect effect) const;
 };
 
-} // namespace pulse::app
+} // namespace luling::app

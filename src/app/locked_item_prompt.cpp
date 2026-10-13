@@ -4,7 +4,7 @@
 #include "../common/localization.h"
 #include <algorithm>
 
-namespace pulse {
+namespace luling {
 
 bool LockedItemOwnersClosable(const ops::OpStatus& status) {
     return !status.lock_owners.empty() &&
@@ -43,4 +43,4 @@ void PromptLockedItem(AppState& s, const ops::OpStatus& status) {
     s.ops.RetryLockedOperation(status.task_id, can_end);
 }
 
-} // namespace pulse
+} // namespace luling

@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::app::folder_size {
+namespace luling::app::folder_size {
 inline constexpr size_t kCacheLimit = 4096;
 std::wstring Key(std::wstring path);
 bool Within(const std::wstring& path, const std::wstring& parent);
@@ -45,4 +45,4 @@ private:
     std::list<std::wstring> lru_;
     uint64_t next_revision_ = 0;
 };
-} // namespace pulse::app::folder_size
+} // namespace luling::app::folder_size

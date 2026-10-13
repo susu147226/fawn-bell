@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-namespace pulse {
+namespace luling {
 struct AppState;
 namespace ui { struct WindowViewModel; }
 void FillFolderSizes(AppState& state, ui::WindowViewModel& vm);

@@ -11,14 +11,14 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 
 struct LockOwner {
     DWORD pid = 0;
     FILETIME start_time{};      // with pid: identifies the process instance
     std::wstring app_name;      // Restart Manager display name
     std::wstring image_name;    // "WINWORD.EXE"; empty when the process is not queryable
-    bool closable = true;       // false: Pulse itself / its hosts, services, critical, Explorer
+    bool closable = true;       // false: Luling itself / its hosts, services, critical, Explorer
 };
 
 struct LockReport {
@@ -41,12 +41,12 @@ std::wstring FailedPathFromError(const std::wstring& error);
 std::vector<std::wstring> LockProbeFiles(const std::wstring& path, size_t limit = 256);
 
 // Restart Manager query. Processes whose image lives in `protected_dir`
-// (Pulse's own install folder) and this process are reported but not closable.
+// (Luling's own install folder) and this process are reported but not closable.
 std::vector<LockOwner> FindLockOwners(const std::vector<std::wstring>& files,
                                       const std::wstring& protected_dir);
 
 // Full probe used by the ops worker: classify `hr`, then find the failed item.
-// The error may carry a full path, only a display name (pulse_shell reports
+// The error may carry a full path, only a display name (luling_shell reports
 // IFileOperation item names) or nothing; a name is matched against `sources`,
 // otherwise every source (folders expanded, `limit` files in total) is probed
 // and the item is the probed file with that name, else the first source.
@@ -68,4 +68,4 @@ std::wstring FormatLockOwnerLines(const std::vector<LockOwner>& owners, size_t m
 // Directory of the running executable, without trailing separator.
 std::wstring CurrentModuleDirectory();
 
-} // namespace pulse::ops
+} // namespace luling::ops

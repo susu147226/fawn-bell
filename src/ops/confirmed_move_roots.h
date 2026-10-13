@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 // Elevated results may contain only descendants of a merged directory. Absence
 // alone is not a completion: require an explicit root mapping and its target.
 inline std::vector<std::wstring> ConfirmReportedMoveRoots(
@@ -24,4 +24,4 @@ inline std::vector<std::wstring> ConfirmReportedMoveRoots(
     }
     return confirmed;
 }
-} // namespace pulse::ops
+} // namespace luling::ops

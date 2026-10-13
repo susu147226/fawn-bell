@@ -46,11 +46,11 @@ std::string Zip(const std::vector<std::string>& names) {
 
 int wmain(int argc, wchar_t** argv) {
     namespace fs = std::filesystem;
-    namespace ipc = pulse::ipc;
+    namespace ipc = luling::ipc;
     const fs::path dir = fs::current_path() / L"bench_data" /
         (L"preview-regression-" + std::to_wstring(GetCurrentProcessId()));
     fs::create_directories(dir);
-    pulse_test::Host host;
+    luling_test::Host host;
     if (!host.Start()) { Check(false, "start preview host"); return 1; }
     const std::string title = "# \xE4\xB8\xAD\xE6\x96\x87\n";
     for (const bool bom : {false, true}) {
@@ -60,7 +60,7 @@ int wmain(int argc, wchar_t** argv) {
             bytes += "\xF0\x9F\x98\x80\nend";
             const fs::path path = dir / (std::to_wstring(cut) + (bom ? L"-bom.md" : L".md"));
             Write(path, bytes);
-            pulse_test::Result r;
+            luling_test::Result r;
             const bool got = host.Request(path.wstring(), r, MAXDWORD, 1024,
                 ipc::PreviewRequestKind::Content, ipc::kPreviewRequestFlagRichText);
             Check(got && r.response.kind == ipc::PreviewContentKind::Markdown &&
@@ -71,7 +71,7 @@ int wmain(int argc, wchar_t** argv) {
         }
     }
     if (argc >= 2) {
-        pulse_test::Result r;
+        luling_test::Result r;
         Check(host.Request(argv[1], r, MAXDWORD, 1024, ipc::PreviewRequestKind::Content,
                 ipc::kPreviewRequestFlagRichText) && r.response.kind == ipc::PreviewContentKind::Markdown &&
             r.text.find(L"源码审查与修复任务清单") != std::wstring::npos &&
@@ -86,16 +86,16 @@ int wmain(int argc, wchar_t** argv) {
         Write(path, Zip({name, "normal.txt"}));
         std::wstring payload, error;
         uint32_t read = 0;
-        Check(pulse::preview::MakeArchiveListing(path.wstring(), payload, read, &error) &&
+        Check(luling::preview::MakeArchiveListing(path.wstring(), payload, read, &error) &&
             payload.find(L"normal.txt") != std::wstring::npos &&
             (payload.find(L"leaf.txt") != std::wstring::npos) == (depth <= 64) &&
             payload.substr(0, payload.find(L'\n')).ends_with(depth > 64 ? L"\t1" : L"\t0"),
             "archive depth budget preserves normal entries and reports omission");
     }
     for (size_t size : {size_t{199999}, size_t{200000}, size_t{200001}}) {
-        pulse::preview::DocPayload payload(600000);
+        luling::preview::DocPayload payload(600000);
         payload.Begin(L'p');
-        payload.Text(std::wstring(size, L'中'), pulse::preview::kDocBold);
+        payload.Text(std::wstring(size, L'中'), luling::preview::kDocBold);
         Check(payload.text().size() <= 200000, "single run respects block limit");
         payload.End();
         Check(payload.full() == (size > 200000), "block limit reports truncation exactly");
@@ -103,17 +103,17 @@ int wmain(int argc, wchar_t** argv) {
               "truncated block retains readable prefix");
     }
     {
-        pulse::preview::DocPayload payload(600000);
+        luling::preview::DocPayload payload(600000);
         payload.Begin(L'p');
         payload.Text(std::wstring(199999, L'a'));
-        payload.Text(L"\xD83D\xDE00tail", pulse::preview::kDocBold);
+        payload.Text(L"\xD83D\xDE00tail", luling::preview::kDocBold);
         Check(payload.text().size() == 199999, "block truncation never splits surrogate pair");
         payload.End();
         Check(payload.full(), "multiple runs report truncation");
     }
     host.Stop();
     {
-        pulse::preview::DocPayload payload(600000);
+        luling::preview::DocPayload payload(600000);
         payload.Begin(L'p');
         payload.Text(std::wstring(199999, L'a') + L'\xD83D');
         payload.Text(L"\xDE00");

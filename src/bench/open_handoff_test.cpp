@@ -12,7 +12,7 @@ void Check(bool condition, const char* name) {
 }
 
 int main() {
-    using namespace pulse::app;
+    using namespace luling::app;
     using S = HandoffState;
     using C = SingleInstanceCoordinator;
     C coordinator;

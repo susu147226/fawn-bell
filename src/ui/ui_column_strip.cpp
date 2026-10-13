@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 namespace {
 
@@ -313,4 +313,4 @@ bool MainRenderer::HitTestColumnStrip(const PaneViewModel& vm, const D2D1_RECT_F
     return false;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

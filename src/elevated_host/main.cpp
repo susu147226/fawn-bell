@@ -9,8 +9,8 @@
 #include <thread>
 
 namespace {
-using namespace pulse;
-using namespace pulse::elevated;
+using namespace luling;
+using namespace luling::elevated;
 int Run(DWORD parent_id, const Nonce& nonce) {
     Handle parent(OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, parent_id));
     if (!parent || UserSid(parent.Get()).empty() || WaitForSingleObject(parent.Get(), 0) != WAIT_TIMEOUT) return 3;
@@ -19,15 +19,15 @@ int Run(DWORD parent_id, const Nonce& nonce) {
         parent_session != own_session) return 3;
     const auto own_image = ProcessImage(GetCurrentProcess());
     const auto parent_image = ProcessImage(parent.Get());
-#ifdef PULSE_ELEVATED_TEST_HOST
-    const auto expected = std::filesystem::path(own_image).parent_path() / L"pulse_elevated_session_test.exe";
-    const auto audit_expected = std::filesystem::path(own_image).parent_path() / L"pulse_transfer_audit_test.exe";
+#ifdef LULING_ELEVATED_TEST_HOST
+    const auto expected = std::filesystem::path(own_image).parent_path() / L"luling_elevated_session_test.exe";
+    const auto audit_expected = std::filesystem::path(own_image).parent_path() / L"luling_transfer_audit_test.exe";
 #else
     if (!IsElevated(GetCurrentProcess())) return 3;
-    const auto expected = std::filesystem::path(own_image).parent_path() / L"pulse.exe";
+    const auto expected = std::filesystem::path(own_image).parent_path() / L"luling.exe";
 #endif
     if (!path::EqualInsensitive(parent_image, expected.wstring())
-#ifdef PULSE_ELEVATED_TEST_HOST
+#ifdef LULING_ELEVATED_TEST_HOST
         && !path::EqualInsensitive(parent_image, audit_expected.wstring())
 #endif
         ) return 3;
@@ -276,12 +276,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     int count = 0;
     LPWSTR* args = CommandLineToArgvW(GetCommandLineW(), &count);
     if (!args) return 2;
-    DWORD parent = 0; pulse::elevated::Nonce nonce{}; bool valid = false;
+    DWORD parent = 0; luling::elevated::Nonce nonce{}; bool valid = false;
     if (count == 5 && std::wstring(args[1]) == L"--parent" && std::wstring(args[3]) == L"--nonce") {
         wchar_t* end = nullptr;
         const unsigned long parsed = wcstoul(args[2], &end, 10);
         parent = static_cast<DWORD>(parsed);
-        valid = parent != 0 && end && *end == L'\0' && pulse::elevated::ParseNonce(args[4], nonce);
+        valid = parent != 0 && end && *end == L'\0' && luling::elevated::ParseNonce(args[4], nonce);
     }
     LocalFree(args);
     if (!valid) return 2;

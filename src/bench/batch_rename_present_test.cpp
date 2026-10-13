@@ -33,7 +33,7 @@ BOOL CALLBACK Collect(HWND hwnd, LPARAM param) {
     return TRUE;
 }
 }
-namespace pulse::ui {
+namespace luling::ui {
 float BatchRenameScaleForTest() { return test_scale; }
 void ObserveEditUploadForTest(HWND hwnd, const void* bits, int width, int height) {
     auto& upload = uploads[hwnd];
@@ -130,7 +130,7 @@ void BatchRenameShownForTest(HWND dialog) {
 int wmain() {
     // Never switch the interactive desktop or write fixture/user files.
     HDESK original = GetThreadDesktop(GetCurrentThreadId());
-    const std::wstring name = L"PulseBatchPresent_" + std::to_wstring(GetCurrentProcessId());
+    const std::wstring name = L"LulingBatchPresent_" + std::to_wstring(GetCurrentProcessId());
     HDESK isolated = CreateDesktopW(name.c_str(), nullptr, nullptr, 0, GENERIC_ALL, nullptr);
     if (!isolated || !SetThreadDesktop(isolated)) {
         std::printf("[FAIL] isolated desktop unavailable: %lu\n", GetLastError());
@@ -140,14 +140,14 @@ int wmain() {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&controls);
-    for (const auto mode : {pulse::ui::typography::TextRenderMode::Auto,
-            pulse::ui::typography::TextRenderMode::Sharp, pulse::ui::typography::TextRenderMode::Smooth}) {
-        pulse::ui::typography::SetTextRenderMode(mode);
+    for (const auto mode : {luling::ui::typography::TextRenderMode::Auto,
+            luling::ui::typography::TextRenderMode::Sharp, luling::ui::typography::TextRenderMode::Smooth}) {
+        luling::ui::typography::SetTextRenderMode(mode);
         for (const bool dark : {false, true}) {
             std::printf("[CASE] simulated_scale=1.75 dark=%d mode=%d; Windows DPI is unchanged\n",
                 dark ? 1 : 0, static_cast<int>(mode));
             uploads.clear();
-            const auto result = pulse::ui::ShowBatchRenameDialog(nullptr, {}, dark, D2D1::ColorF(0, 0.5f, 1));
+            const auto result = luling::ui::ShowBatchRenameDialog(nullptr, {}, dark, D2D1::ColorF(0, 0.5f, 1));
             Check(!result.accepted, "test closes real dialog without applying rename");
         }
     }

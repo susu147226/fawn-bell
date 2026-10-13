@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <mutex>
 
-namespace pulse::ops {
+namespace luling::ops {
 namespace {
 using namespace elevated;
 struct Session {
@@ -27,11 +27,11 @@ HRESULT StartSession(Session& session, HWND owner, const std::function<void(bool
     const DWORD parent = GetCurrentProcessId();
     const auto parent_image = ProcessImage(GetCurrentProcess());
     if (parent_image.empty()) return E_FAIL;
-#ifdef PULSE_ELEVATED_TEST_CLIENT
-    const auto helper = std::filesystem::path(parent_image).parent_path() / L"pulse_elevated_test_host.exe";
+#ifdef LULING_ELEVATED_TEST_CLIENT
+    const auto helper = std::filesystem::path(parent_image).parent_path() / L"luling_elevated_test_host.exe";
 #else
-    if (!path::EqualInsensitive(std::filesystem::path(parent_image).filename().wstring(), L"pulse.exe")) return E_ACCESSDENIED;
-    const auto helper = std::filesystem::path(parent_image).parent_path() / L"pulse_elevated.exe";
+    if (!path::EqualInsensitive(std::filesystem::path(parent_image).filename().wstring(), L"luling.exe")) return E_ACCESSDENIED;
+    const auto helper = std::filesystem::path(parent_image).parent_path() / L"luling_elevated.exe";
 #endif
     session.pipe = CreateSessionPipe(PipeName(parent, session.nonce));
     if (!session.pipe) return LastFailure();
@@ -42,7 +42,7 @@ HRESULT StartSession(Session& session, HWND owner, const std::function<void(bool
     try { if (authorization) authorization(true); }
     catch (...) { session.Reset(); return E_FAIL; }
     const std::wstring arguments = L"--parent " + std::to_wstring(parent) + L" --nonce " + NonceText(session.nonce);
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     std::wstring command = L"\"" + helper.wstring() + L"\" " + arguments;
     STARTUPINFOW startup{sizeof(startup)}; startup.dwFlags = STARTF_USESHOWWINDOW; startup.wShowWindow = SW_HIDE;
     PROCESS_INFORMATION information{};
@@ -65,7 +65,7 @@ HRESULT StartSession(Session& session, HWND owner, const std::function<void(bool
     const auto actual_image = ProcessImage(session.process.Get());
     if (!GetNamedPipeClientProcessId(session.pipe.Get(), &peer) || peer != GetProcessId(session.process.Get()) ||
         !path::EqualInsensitive(actual_image, helper.wstring()) || UserSid(session.process.Get()).empty()
-#ifndef PULSE_ELEVATED_TEST_CLIENT
+#ifndef LULING_ELEVATED_TEST_CLIENT
         || !IsElevated(session.process.Get())
 #endif
         ) { session.Reset(); return E_ACCESSDENIED; }
@@ -203,7 +203,7 @@ void ShutdownElevatedTransferHelper() {
     if (session.process) WaitForSingleObject(session.process.Get(), 5000);
     session.Reset();
 }
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
 DWORD ElevatedHelperProcessIdForTesting() {
     auto& session = Shared(); std::lock_guard lock(session.mutex); return GetProcessId(session.process.Get());
 }

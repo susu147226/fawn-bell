@@ -14,7 +14,7 @@ bool Report(const char* name, bool passed) {
 }
 
 bool CheckSystemLanguage() {
-    using namespace pulse::l10n;
+    using namespace luling::l10n;
     struct Case { LANGID id; Language expected; const char* name; };
     const Case cases[] = {
         {0x0404, Language::ZhTW, "Taiwan maps to Traditional Chinese"},
@@ -40,7 +40,7 @@ bool CheckSystemLanguage() {
 } // namespace
 
 int main(int argc, char** argv) {
-    using namespace pulse::l10n;
+    using namespace luling::l10n;
     bool passed = true;
     Initialize(GetModuleHandleW(nullptr), L"zh-CN");
     if (argc > 1) {
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
                      IsLanguageId(L"system") && IsLanguageId(L"zh-CN") &&
                      IsLanguageId(L"en-US") && !IsLanguageId(L"english") &&
                      std::wstring(LanguageId(Language::EnUS)) == L"en-US");
-    // Text reported by helper processes (index service, pulse_shell) in Simplified.
+    // Text reported by helper processes (index service, luling_shell) in Simplified.
     SetLanguage(L"en-US");
     passed &= Report("en-US service status with count and segment",
         ServiceText(L"已索引 1,234 项 · 实时更新") == L"1,234 items indexed · Live updates");
@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
     passed &= Report("en-US network state segments",
         ServiceText(L"离线 · 仍可搜索") == L"Offline · Still searchable");
     passed &= Report("en-US shell start failure",
-        ServiceText(L"无法启动 pulse_shell.exe（错误 2）") == L"Could not start pulse_shell.exe (error 2)");
+        ServiceText(L"无法启动 luling_shell.exe（错误 2）") == L"Could not start luling_shell.exe (error 2)");
     passed &= Report("en-US unknown service text passes through",
         ServiceText(L"某个未知的状态") == L"某个未知的状态" && !IsKnownServiceText(L"某个未知的状态") &&
         IsKnownServiceText(L"已同步 · 128,420 项") && ServiceText(L"Ready") == L"Ready");

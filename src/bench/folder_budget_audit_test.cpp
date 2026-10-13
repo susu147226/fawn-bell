@@ -25,12 +25,12 @@ static BOOL WINAPI TestClose(HANDLE){return TRUE;}
 #include "../preview_host/preview_integrity.h"
 int wmain(){
     int failures=0;std::wstring payload;
-    bool ok=pulse::preview::MakeFolderListing(L"C:\\isolated",5,false,payload)&&enumerated<20&&payload.starts_with(L"PULSEARC\t1\tDIR\t-\t2\tscan-limit");
+    bool ok=luling::preview::MakeFolderListing(L"C:\\isolated",5,false,payload)&&enumerated<20&&payload.starts_with(L"PULSEARC\t1\tDIR\t-\t2\tscan-limit");
     printf("[%s] flat directory checks deadline within enumeration, before all 1000 entries\n",ok?"PASS":"FAIL");failures+=!ok;
     ticks=0;fail_scan=true;
-    ok=pulse::preview::MakeFolderListing(L"C:\\isolated",3000,true,payload);
-    pulse::preview::DecodeResult result;result.kind=pulse::ipc::PreviewContentKind::Archive;result.text=payload;
-    const auto integrity=pulse::preview::DescribeIntegrity(result,true);
-    ok=ok&&integrity.state==pulse::preview::IntegrityState::Partial&&integrity.reason==pulse::preview::IntegrityReason::ReadFailure;
+    ok=luling::preview::MakeFolderListing(L"C:\\isolated",3000,true,payload);
+    luling::preview::DecodeResult result;result.kind=luling::ipc::PreviewContentKind::Archive;result.text=payload;
+    const auto integrity=luling::preview::DescribeIntegrity(result,true);
+    ok=ok&&integrity.state==luling::preview::IntegrityState::Partial&&integrity.reason==luling::preview::IntegrityReason::ReadFailure;
     printf("[%s] mid-enumeration access failure reports partial read failure rather than complete folder\n",ok?"PASS":"FAIL");failures+=!ok;return failures?1:0;
 }

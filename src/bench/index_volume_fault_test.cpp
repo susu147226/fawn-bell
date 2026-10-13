@@ -7,7 +7,7 @@
 #include <cstring>
 #include <cstdio>
 
-namespace pulse::index::volume_fault_test {
+namespace luling::index::volume_fault_test {
 enum class Mode { Fallback, Stopped, Cancelled, UsnFailure, BadPage, CancelUsn, Complete, SecondVolumeFails };
 Mode mode = Mode::Fallback;
 unsigned opens = 0, closes = 0, mft_calls = 0, usn_calls = 0;
@@ -74,7 +74,7 @@ BOOL DeviceIoControl(HANDLE, DWORD code, LPVOID input, DWORD, LPVOID output, DWO
 }
 }
 
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static bool Volume(Engine& engine) {
         engine.running_ = true;
@@ -106,7 +106,7 @@ struct EngineTestAccess {
 }
 
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     namespace vf = volume_fault_test;
     namespace fs = std::filesystem;
     int failures = 0;

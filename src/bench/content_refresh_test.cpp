@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace pulse::index {
+namespace luling::index {
 struct ContentRefreshTestPeer {
     static void Generation(ContentSearchClient& client, uint64_t generation) { client.generation_ = generation; }
     static void Status(ContentSearchClient& client, uint64_t revision) {
@@ -20,7 +20,7 @@ struct ContentRefreshTestPeer {
 }
 
 int LiveLatency(const wchar_t* document) {
-    using namespace pulse;
+    using namespace luling;
     const auto base = std::filesystem::absolute(std::filesystem::path(L"../bench_data") /
         (L"live-latency-" + std::to_wstring(GetCurrentProcessId())));
     const auto root = base / L"files"; const auto profile = base / L"profile";
@@ -73,8 +73,8 @@ int LiveLatency(const wchar_t* document) {
     return failures ? 1 : 0;
 }
 
-int StableRefresh(pulse::AppState& s) {
-    using namespace pulse;
+int StableRefresh(luling::AppState& s) {
+    using namespace luling;
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -150,8 +150,8 @@ int StableRefresh(pulse::AppState& s) {
     return failures;
 }
 
-int SessionTransitions(pulse::AppState& s) {
-    using namespace pulse;
+int SessionTransitions(luling::AppState& s) {
+    using namespace luling;
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -214,8 +214,8 @@ int SessionTransitions(pulse::AppState& s) {
     return failures;
 }
 
-int AutomaticRefresh(pulse::AppState& s) {
-    using namespace pulse;
+int AutomaticRefresh(luling::AppState& s) {
+    using namespace luling;
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -223,7 +223,7 @@ int AutomaticRefresh(pulse::AppState& s) {
     };
     const auto logs = std::filesystem::absolute(std::filesystem::path(L"../bench_data") /
         (L"automatic-refresh-" + std::to_wstring(GetCurrentProcessId())));
-    SetEnvironmentVariableW(L"PULSE_CONTENT_TIMING_DIR", logs.c_str());
+    SetEnvironmentVariableW(L"LULING_CONTENT_TIMING_DIR", logs.c_str());
     auto& tab = *ActiveTab(s);
     tab = app::Tab{};
     tab.current_path = app::MakeSearchPath(L"content:refresh-private-query");
@@ -320,8 +320,8 @@ int AutomaticRefresh(pulse::AppState& s) {
     return failures;
 }
 
-int RestoreContentSearch(pulse::AppState& s) {
-    using namespace pulse;
+int RestoreContentSearch(luling::AppState& s) {
+    using namespace luling;
     int failures = 0;
     auto check = [&](bool ok, const char* label) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
@@ -414,7 +414,7 @@ int RestoreContentSearch(pulse::AppState& s) {
     s.addressHistoryDue = 0;
 
     s.savedSearches.Add({L"restored content", app::SavedSearchMode::Content, L"C:\\fixture", L"3d3s"});
-    const auto saved_path = L"pulse:saved-search:" + std::to_wstring(s.savedSearches.items().size() - 1);
+    const auto saved_path = L"luling:saved-search:" + std::to_wstring(s.savedSearches.items().size() - 1);
     const auto before_saved = s.nextIndexReq;
     StartLoadingPath(s, tab, saved_path, PathLoadReason::RestoreSession);
     RefreshActiveTab(s, RefreshReason::FileChange);
@@ -434,7 +434,7 @@ int wmain(int argc, wchar_t** argv) {
     const bool automatic_only = argc == 2 && std::wstring_view(argv[1]) == L"--automatic-refresh";
     const bool restore_only = argc == 2 && std::wstring_view(argv[1]) == L"--restore-content";
     if (argc == 2 && !automatic_only && !restore_only) return LiveLatency(argv[1]);
-    using namespace pulse;
+    using namespace luling;
     int failures = 0;
     auto check = [&](bool ok, const char* name) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << std::endl;

@@ -1,9 +1,9 @@
 #pragma once
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include <windows.h>
 #include <functional>
 #include <string>
-namespace pulse::ui {
+namespace luling::ui {
 using DialogRecoveryCheck = std::function<void(bool, const char*)>;
 void TestAdvancedSearchRecovery(HWND owner, float scale, bool dark, const std::wstring& png,
     const DialogRecoveryCheck& check);

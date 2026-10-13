@@ -1,7 +1,7 @@
 // ops_manager.h — Operation queue, progress status, undo stack (UI-process side).
 //
 // All file operations are serialized on one worker thread and executed through
-// pulse_shell.exe (ShellClient). The UI thread never touches COM/shell:
+// luling_shell.exe (ShellClient). The UI thread never touches COM/shell:
 // it calls Submit/Cancel/Undo/Status and gets repaints via the notify callback.
 //
 // Undo model (stage 1B-1):
@@ -29,7 +29,7 @@
 #include <thread>
 #include <vector>
 
-namespace pulse::ops {
+namespace luling::ops {
 
 enum class OpType { Copy, Move, RecycleDelete, RealDelete, Rename, CreateFolder, CreateTextFile, RestoreRecycle, EmptyRecycle, BatchRename };
 enum class CollisionPolicy { System, Replace, KeepBoth };
@@ -160,7 +160,7 @@ struct RecoverySnapshot {
     bool has_uncertain_destructive = false;
 };
 
-// One Explorer verb coming back from a pulse_shell context-menu session.
+// One Explorer verb coming back from a luling_shell context-menu session.
 // Software submenus keep one level: header row (has_children) + child rows.
 struct ShellMenuItem {
     uint32_t id = 0;             // host menu id; pass to InvokeShellMenu
@@ -175,7 +175,7 @@ struct ShellMenuItem {
 };
 
 class OpsManager {
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
     friend struct OpsManagerReviewTestAccess;
 #endif
 public:
@@ -196,7 +196,7 @@ public:
     bool VerifyCopies() const noexcept { return verify_copies_.load(); }
     // Owner window for the shell dialogs the open thread raises (打开方式…,
     // 属性). Explorer parents those to the folder window; passing our own HWND
-    // keeps them tied to Pulse instead of whatever happens to be foreground
+    // keeps them tied to Luling instead of whatever happens to be foreground
     // when the ops thread gets to the request.
     void SetUiWindow(HWND hwnd) noexcept { ui_hwnd_.store(hwnd); }
     HWND UiWindow() const noexcept { return ui_hwnd_.load(); }
@@ -244,7 +244,7 @@ public:
     void OpenProgramIn(const std::wstring& exe, const std::wstring& dir,
                        const std::wstring& args);
 
-    // --- Explorer context-menu sessions (pulse_shell IContextMenu) ---------
+    // --- Explorer context-menu sessions (luling_shell IContextMenu) ---------
     // Runs on a dedicated forwarding thread so a slow pipe reconnect or an
     // in-flight transfer never delays a right-click. The callback fires on the
     // shell client's reader thread; PostMessage from it, do not paint.
@@ -429,4 +429,4 @@ private:
 // compile-verified only in 1B-2).
 std::wstring TerminalCommandLine(const std::wstring& dir);
 
-} // namespace pulse::ops
+} // namespace luling::ops

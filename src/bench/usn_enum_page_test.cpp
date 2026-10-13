@@ -3,7 +3,7 @@
 #include <cstdio>
 
 int main() {
-    using pulse::index::ReadUsnEnumerationPage;
+    using luling::index::ReadUsnEnumerationPage;
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); if (!ok) ++failures; };
     auto page = [](uint64_t cursor, uint64_t file) {

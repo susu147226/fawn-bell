@@ -1,14 +1,14 @@
 // sidebar_sections.cpp — Section menu for the empty part of the sidebar.
 //
 // File Explorer puts a context menu on the navigation-pane background that decides
-// which sections the pane shows. Pulse keeps its sections in a fixed order, so the
+// which sections the pane shows. Luling keeps its sections in a fixed order, so the
 // same idea becomes one checked entry per section plus a bulk expand/collapse pair.
 #include "app_internal.h"
 #include "app_commands.h"
 #include "../common/localization.h"
 #include "../ui/fluent_menu.h"
 
-namespace pulse {
+namespace luling {
 namespace {
 
 using I = l10n::StringId;
@@ -178,4 +178,4 @@ void ShowSidebarSectionMenu(AppState& s, int section, POINT screen_pt) {
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-} // namespace pulse
+} // namespace luling

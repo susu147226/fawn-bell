@@ -99,7 +99,7 @@ bool Svg(const std::filesystem::path& directory, std::string_view source, SvgIma
     const auto path = directory / "case.svg";
     if (!Write(path, Bytes(source.begin(), source.end()))) return false;
     image = {};
-    return pulse::preview::RasterizeSvgFile(path.wstring(), 512, image.pixels, image.width, image.height,
+    return luling::preview::RasterizeSvgFile(path.wstring(), 512, image.pixels, image.width, image.height,
         image.stride, image.source_width, image.source_height, &image.error);
 }
 void SvgCases(const std::filesystem::path& directory) {
@@ -121,7 +121,7 @@ void SvgCases(const std::filesystem::path& directory) {
     Bytes utf16_bytes{0xff, 0xfe};
     for (wchar_t value : utf16) { utf16_bytes.push_back(static_cast<unsigned char>(value)); utf16_bytes.push_back(static_cast<unsigned char>(value >> 8)); }
     const auto utf16_path = directory / "utf16.svg";
-    Check(Write(utf16_path, utf16_bytes) && !pulse::preview::RasterizeSvgFile(utf16_path.wstring(), 512,
+    Check(Write(utf16_path, utf16_bytes) && !luling::preview::RasterizeSvgFile(utf16_path.wstring(), 512,
         image.pixels, image.width, image.height, image.stride, image.source_width, image.source_height, &image.error) &&
         image.error == L"svg-unsupported:element:text" && image.pixels.empty(), "UTF-16 SVG cannot bypass unsupported-text detection");
     for (const auto& item : std::vector<std::pair<std::string, std::wstring>>{
@@ -145,16 +145,16 @@ void SvgCases(const std::filesystem::path& directory) {
     Check(!Svg(directory, std::string(8u * 1024 * 1024 + 1, ' '), image) && image.error == L"svg-budget-exceeded",
         "SVG source byte budget rejects before renderer allocation");
 }
-void SvgIpcCases(pulse_test::Host& host, const std::filesystem::path& directory) {
-    pulse_test::Result result;
+void SvgIpcCases(luling_test::Host& host, const std::filesystem::path& directory) {
+    luling_test::Result result;
     Check(host.Request((directory / "simple.svg").wstring(), result) &&
-        result.response.kind == pulse::ipc::PreviewContentKind::Bitmap && !result.pixels.empty() && result.error.empty(),
+        result.response.kind == luling::ipc::PreviewContentKind::Bitmap && !result.pixels.empty() && result.error.empty(),
         "system SVG shapes render through host IPC");
     Check(host.Request((directory / "text.svg").wstring(), result) &&
-        result.response.kind == pulse::ipc::PreviewContentKind::Text && result.text.find(L"中文预览 VISIBLE_LABEL") != std::wstring::npos &&
+        result.response.kind == luling::ipc::PreviewContentKind::Text && result.text.find(L"中文预览 VISIBLE_LABEL") != std::wstring::npos &&
         result.error == L"svg-unsupported:element:text", "SVG source fallback preserves text and warning through IPC");
     Check(host.Request((directory / "utf16.svg").wstring(), result) &&
-        result.response.kind == pulse::ipc::PreviewContentKind::Text && result.text.find(L"中文预览") != std::wstring::npos &&
+        result.response.kind == luling::ipc::PreviewContentKind::Text && result.text.find(L"中文预览") != std::wstring::npos &&
         result.error == L"svg-unsupported:element:text", "UTF-16 SVG source and warning survive host IPC");
 }
 }
@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories(directory);
     SvgCases(directory);
     if (argc > 1 && std::string_view(argv[1]) == "--svg-only") {
-        pulse_test::Host svg_host;
+        luling_test::Host svg_host;
         const bool svg_started = svg_host.Start();
         Check(svg_started, "start SVG preview host");
         if (svg_started) SvgIpcCases(svg_host, directory);
@@ -180,30 +180,30 @@ int main(int argc, char** argv) {
     }
     Check(Tiff(directory / "pages.tiff"), "encode two distinct TIFF pages");
     const auto capped = Animation(4097, 4097);
-    pulse::preview::ApngInfo info;
-    Check(pulse::preview::ParseApng(capped, info) && info.declared_frames == 4097 && info.observed_frames == 4097 &&
+    luling::preview::ApngInfo info;
+    Check(luling::preview::ParseApng(capped, info) && info.declared_frames == 4097 && info.observed_frames == 4097 &&
         info.frames.size() == 4096 && info.incomplete_reason == L"frame-limit", "APNG retains declared and bounded playable frame counts");
     Check(Write(directory / "capped.png", capped), "write bounded APNG fixture");
     auto truncated = Animation(2, 3);
-    Check(pulse::preview::ParseApng(truncated, info) && info.frames.size() == 2 &&
+    Check(luling::preview::ParseApng(truncated, info) && info.frames.size() == 2 &&
         info.incomplete_reason == L"frame-count-mismatch", "APNG declared count mismatch is explicit");
     Check(Write(directory / "mismatch.png", truncated), "write mismatched APNG fixture");
     truncated.resize(truncated.size() - 12);
-    Check(pulse::preview::ParseApng(truncated, info) && info.incomplete_reason == L"truncated-data", "APNG missing IEND reports truncation");
+    Check(luling::preview::ParseApng(truncated, info) && info.incomplete_reason == L"truncated-data", "APNG missing IEND reports truncation");
     Check(Write(directory / "limited.png", Animation(2, 2)), "write APNG limit fallback fixture");
     std::filesystem::resize_file(directory / "limited.png", 97ull * 1024 * 1024);
-    pulse_test::Host host;
+    luling_test::Host host;
     const bool started = host.Start();
     Check(started, "start isolated preview host");
     if (started) {
-        pulse_test::Result result;
+        luling_test::Result result;
         SvgIpcCases(host, directory);
         for (uint32_t page : {0u, 1u, 99u}) {
             result = {};
             const bool received = host.Request((directory / "pages.tiff").wstring(), result, MAXDWORD, 128,
-                pulse::ipc::PreviewRequestKind::Content, 0, page);
+                luling::ipc::PreviewRequestKind::Content, 0, page);
             const bool blue = page != 0;
-            Check(received && result.response.kind == pulse::ipc::PreviewContentKind::Bitmap &&
+            Check(received && result.response.kind == luling::ipc::PreviewContentKind::Bitmap &&
                 result.response.frame_count == 2 && result.response.frame_delay_ms == 0 && result.pixels.size() >= 4 &&
                 result.pixels[blue ? 0 : 2] > 240 && result.pixels[blue ? 2 : 0] < 10 &&
                 result.text.find(blue ? L"F\t2\t2\t1" : L"F\t2\t2\t0") != std::wstring::npos,
@@ -214,8 +214,8 @@ int main(int argc, char** argv) {
             result = {};
             const bool received = host.Request((directory / item.first).wstring(), result);
             const uint32_t count = item.first == L"capped.png" ? 4096u : item.first == L"limited.png" ? 1u : 2u;
-            Check(received && result.response.kind == pulse::ipc::PreviewContentKind::Bitmap &&
-                result.response.frame_count == count && (result.response.flags & pulse::ipc::kPreviewFlagTruncated) &&
+            Check(received && result.response.kind == luling::ipc::PreviewContentKind::Bitmap &&
+                result.response.frame_count == count && (result.response.flags & luling::ipc::kPreviewFlagTruncated) &&
                 result.error == L"image-preview-incomplete:" + item.second &&
                 result.text.find(L"W\t" + item.second) != std::wstring::npos,
                 "APNG IPC preserves warning and honest playable count");

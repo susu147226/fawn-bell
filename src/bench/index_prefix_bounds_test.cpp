@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace pulse::index {
+namespace luling::index {
 struct EngineTestAccess {
     static bool Write(Engine& e, const std::wstring& path) {
         Engine::Store s;
@@ -24,7 +24,7 @@ struct EngineTestAccess {
 };
 }
 int main() {
-    using namespace pulse::index;
+    using namespace luling::index;
     namespace fs = std::filesystem;
     int failures = 0;
     auto check = [&](bool ok, const char* name) {

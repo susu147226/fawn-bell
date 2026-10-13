@@ -2,7 +2,7 @@
 #include "frame_pump.h"
 #include <dwmapi.h>
 
-namespace pulse::app {
+namespace luling::app {
 
 namespace {
 // Never faster than this, whatever the clock claims (a clock that returns at
@@ -77,7 +77,7 @@ void FramePump::Run() {
         using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
         auto set_description = reinterpret_cast<SetThreadDescriptionFn>(
             reinterpret_cast<void*>(GetProcAddress(kernel, "SetThreadDescription")));
-        if (set_description) set_description(GetCurrentThread(), L"Pulse frame pump");
+        if (set_description) set_description(GetCurrentThread(), L"Luling frame pump");
     }
     // Frame timing matters more than throughput here; the work per wake-up
     // is one PostMessage.
@@ -132,4 +132,4 @@ void FramePump::SleepMs(double ms) {
     Sleep(static_cast<DWORD>(ms + 0.5));
 }
 
-} // namespace pulse::app
+} // namespace luling::app

@@ -5,7 +5,7 @@
 #include <string_view>
 #include "document_metrics.h"
 
-namespace pulse::index {
+namespace luling::index {
 
 // Caller initializes COM. Failure always clears output; no package data is written to disk.
 HRESULT ExtractOfficeOpenXml(const std::wstring& path, std::wstring& output,

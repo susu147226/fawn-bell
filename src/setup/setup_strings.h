@@ -1,7 +1,7 @@
 #pragma once
 // Generated table of setup UI strings (简体 / 繁體 / English).
 
-namespace pulse::setup {
+namespace luling::setup {
 
 enum class Lang { ZhHans = 0, ZhHant = 1, En = 2 };
 
@@ -92,4 +92,4 @@ enum class Str {
 Lang DetectLanguage(const wchar_t* inno_lang);  // /LANG=chinesesimp|chinesetrad|english or system UI language
 const wchar_t* Text(Lang lang, Str id);
 
-}  // namespace pulse::setup
+}  // namespace luling::setup

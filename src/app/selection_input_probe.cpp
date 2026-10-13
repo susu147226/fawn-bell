@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <cstdio>
 
-using namespace pulse;
+using namespace luling;
 namespace {
 int CheckDeleteSelection(AppState& s, FILE* log) {
     wchar_t data[32768]{};
-    if (!s.isolatedTest || !GetEnvironmentVariableW(L"PULSE_TEST_DATA_DIR", data, ARRAYSIZE(data))) return 2;
+    if (!s.isolatedTest || !GetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", data, ARRAYSIZE(data))) return 2;
     auto* tab = ActiveTab(s);
     const std::wstring fixture = fs::NormalizePath(std::wstring(data) + L"\\files");
     if (!tab || fs::NormalizePath(tab->current_path) != fs::NormalizePath(fixture) || tab->EntryCount() != 5) {
@@ -96,7 +96,7 @@ void CheckFilteredRanges(Check check) {
         for (int mode = 0; mode < 5; ++mode) {
             app::Pane pane;
             auto& tab = pane.view;
-            tab.current_path = L"C:\\pulse-selection-fixture";
+            tab.current_path = L"C:\\luling-selection-fixture";
             auto entries = std::make_shared<std::vector<fs::DirEntry>>(3);
             const wchar_t* names[] = {L"a.keep", L"b.secret", L"c.keep"};
             for (int i = 0; i < 3; ++i) {
@@ -176,7 +176,7 @@ void CheckFilteredRanges(Check check) {
 int RunSelectionInputProbe(AppState& s, const wchar_t* output) {
     FILE* log = nullptr;
     if (_wfopen_s(&log, output, L"w") || !log) return 2;
-    if (GetEnvironmentVariableW(L"PULSE_TEST_DELETE_SELECTION_ONLY", nullptr, 0)) {
+    if (GetEnvironmentVariableW(L"LULING_TEST_DELETE_SELECTION_ONLY", nullptr, 0)) {
         const int result = CheckDeleteSelection(s, log);
         std::fclose(log);
         return result;
@@ -188,7 +188,7 @@ int RunSelectionInputProbe(AppState& s, const wchar_t* output) {
         failures += !ok;
     };
     CheckFilteredRanges(check);
-    if (GetEnvironmentVariableW(L"PULSE_TEST_FILTERED_SELECTION_ONLY", nullptr, 0)) {
+    if (GetEnvironmentVariableW(L"LULING_TEST_FILTERED_SELECTION_ONLY", nullptr, 0)) {
         extern int RunNavigationAuditProbe(AppState&, FILE*);
         failures += RunNavigationAuditProbe(s, log);
         std::fclose(log);

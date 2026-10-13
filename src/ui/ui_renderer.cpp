@@ -21,7 +21,7 @@
 #include <cwctype>
 #include <string_view>
 
-namespace pulse::ui {
+namespace luling::ui {
 MainRenderer::MainRenderer() = default;
 
 void MainRenderer::SetCompositor(Compositor* comp) {
@@ -276,7 +276,7 @@ D2D1_RECT_F MainRenderer::SplitCommandRect(float w) const {
 float MainRenderer::NewButtonWidthPx(bool compact) const {
     if (compact) return kCommandIconButtonDip * scale_;
     return painter_.MeasureButtonWidth(
-        pulse::l10n::Get(pulse::l10n::StringId::New), kIconAdd, true);
+        luling::l10n::Get(luling::l10n::StringId::New), kIconAdd, true);
 }
 
 std::vector<BreadcrumbSegment> SplitBreadcrumb(const std::wstring& path) {
@@ -288,39 +288,39 @@ std::vector<BreadcrumbSegment> SplitBreadcrumb(const std::wstring& path) {
     if (p.empty()) {
         // Empty path = This PC: a single segment that navigates to "".
         BreadcrumbSegment seg;
-        seg.text = pulse::l10n::Get(pulse::l10n::StringId::ThisPc);
+        seg.text = luling::l10n::Get(luling::l10n::StringId::ThisPc);
         seg.path = L"";
         out.push_back(seg);
         return out;
     }
-    std::wstring pulse_kind, pulse_rest;
-    if (app::ParsePulsePath(p, &pulse_kind, &pulse_rest)) {
-        if (pulse_kind == L"recycle") {
+    std::wstring luling_kind, luling_rest;
+    if (app::ParseLulingPath(p, &luling_kind, &luling_rest)) {
+        if (luling_kind == L"recycle") {
             BreadcrumbSegment pc;
-            pc.text = pulse::l10n::Get(pulse::l10n::StringId::ThisPc);
+            pc.text = luling::l10n::Get(luling::l10n::StringId::ThisPc);
             pc.path = L"";
             out.push_back(pc);
             BreadcrumbSegment bin;
-            bin.text = pulse::l10n::Get(pulse::l10n::StringId::RecycleBin);
-            bin.path = L"pulse:recycle";
+            bin.text = luling::l10n::Get(luling::l10n::StringId::RecycleBin);
+            bin.path = L"luling:recycle";
             out.push_back(bin);
             return out;
         }
         BreadcrumbSegment seg;
         seg.path = path;
-        if (pulse_kind == L"search" || pulse_kind == L"saved-search")
-            seg.text = pulse::l10n::Get(pulse::l10n::StringId::Search);
-        else if (pulse_kind == L"starred")
-            seg.text = pulse::l10n::Get(pulse::l10n::StringId::StarredItems);
-        else if (pulse_kind == L"recent")
-            seg.text = pulse::l10n::Get(pulse::l10n::StringId::Recent);
-        else if (pulse_kind == L"settings")
-            seg.text = pulse::l10n::Get(pulse::l10n::StringId::Settings);
-        else if (pulse_kind == L"tag")
-            seg.text = pulse_rest.empty()
-                ? pulse::l10n::Get(pulse::l10n::StringId::Tag) : pulse_rest;
+        if (luling_kind == L"search" || luling_kind == L"saved-search")
+            seg.text = luling::l10n::Get(luling::l10n::StringId::Search);
+        else if (luling_kind == L"starred")
+            seg.text = luling::l10n::Get(luling::l10n::StringId::StarredItems);
+        else if (luling_kind == L"recent")
+            seg.text = luling::l10n::Get(luling::l10n::StringId::Recent);
+        else if (luling_kind == L"settings")
+            seg.text = luling::l10n::Get(luling::l10n::StringId::Settings);
+        else if (luling_kind == L"tag")
+            seg.text = luling_rest.empty()
+                ? luling::l10n::Get(luling::l10n::StringId::Tag) : luling_rest;
         else
-            seg.text = pulse_kind;
+            seg.text = luling_kind;
         out.push_back(seg);
         return out;
     }
@@ -330,7 +330,7 @@ std::vector<BreadcrumbSegment> SplitBreadcrumb(const std::wstring& path) {
     if (p.size() >= 2 && p[1] == L':') {
         // Explorer-style: drives live under This PC.
         BreadcrumbSegment pc;
-        pc.text = pulse::l10n::Get(pulse::l10n::StringId::ThisPc);
+        pc.text = luling::l10n::Get(luling::l10n::StringId::ThisPc);
         pc.path = L"";
         out.push_back(pc);
         // Drive root, e.g. "C:\": single segment with the drive icon text.
@@ -392,7 +392,7 @@ void MainRenderer::BreadcrumbLayout(const PaneViewModel& vm, float w,
     auto segments = SplitBreadcrumb(vm.is_query_search && vm.has_search_origin ? vm.search_origin : vm.path);
     if (vm.is_query_search && vm.has_search_origin) {
         BreadcrumbSegment search;
-        search.text = vm.search_crumb.empty() ? pulse::l10n::Get(pulse::l10n::StringId::Search) : vm.search_crumb;
+        search.text = vm.search_crumb.empty() ? luling::l10n::Get(luling::l10n::StringId::Search) : vm.search_crumb;
         search.path = vm.path;
         segments.push_back(std::move(search));
     }
@@ -655,7 +655,7 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
             begin = end + 1;
         }
         content.top = rc.bottom - 38 * scale_; content.bottom = rc.bottom - 8 * scale_;
-        painter_.DrawText(pulse::l10n::Get(pulse::l10n::StringId::ChangeView), content, compositor_->TextFormat(), theme.accent);
+        painter_.DrawText(luling::l10n::Get(luling::l10n::StringId::ChangeView), content, compositor_->TextFormat(), theme.accent);
     }
     if (vm.teach.visible && vm.drag_badge.empty()) DrawTeachBubble(vm, rect, theme);
     if (!vm.change_popover.visible && vm.drag_badge.empty() && !vm.tooltip_text.empty() &&
@@ -720,7 +720,7 @@ ID2D1Bitmap* MainRenderer::LogoBitmap() {
     // Decode well above the on-screen size so the mark stays crisp at high DPI.
     const int px = std::max(32, static_cast<int>(48.0f * scale_ + 0.5f));
     HICON icon = static_cast<HICON>(LoadImageW(GetModuleHandleW(nullptr),
-        MAKEINTRESOURCEW(IDI_PULSE), IMAGE_ICON, px, px, LR_DEFAULTCOLOR));
+        MAKEINTRESOURCEW(IDI_LULING), IMAGE_ICON, px, px, LR_DEFAULTCOLOR));
     if (!icon) return nullptr;
     ComPtr<IWICImagingFactory> wic;
     ComPtr<IWICBitmap> wicBitmap;
@@ -800,10 +800,10 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
     x += mark + 8.0f * scale_;
     const float brandRight = EffectiveSidebarWidth(right) - 12.0f * scale_;
     const float nameWidth = MeasureLayoutText(compositor_, compositor_->DwriteFactory(),
-        compositor_->HeaderFormat(), L"Pulse");
+        compositor_->HeaderFormat(), L"Luling");
     if (x + nameWidth <= brandRight) {
         MakeBrush(dc, theme.text, brText_);
-        DrawTextRect(dc, compositor_->HeaderFormat(), brText_.get(), L"Pulse",
+        DrawTextRect(dc, compositor_->HeaderFormat(), brText_.get(), L"Luling",
             x, 0.0f, nameWidth + 1.0f * scale_, h);
         x += nameWidth + 12.0f * scale_;
         const auto description = l10n::Get(l10n::StringId::AppDescription);
@@ -889,7 +889,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             // title, no close button (the tooltip names it).
             DrawIconText(left, tabY, tabW, tabH,
                 vm.tabs[i].title.empty() ? kIconFolder
-                    : vm.tabs[i].title == pulse::l10n::Get(pulse::l10n::StringId::Settings)
+                    : vm.tabs[i].title == luling::l10n::Get(luling::l10n::StringId::Settings)
                         ? kIconSettings : kIconFolder, L"[]",
                 active ? theme.icon_folder : theme.text_secondary, 0.85f);
             return;
@@ -901,7 +901,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
                 tabY + tabH * 0.5f), 3.0f * scale_, 3.0f * scale_), brAccent_.get());
         }
         DrawIconText(left + 6.0f * scale_ + markerReserve, tabY, 16.0f * scale_, tabH,
-            vm.tabs[i].title == pulse::l10n::Get(pulse::l10n::StringId::Settings)
+            vm.tabs[i].title == luling::l10n::Get(luling::l10n::StringId::Settings)
                 ? kIconSettings : kIconFolder, L"[]",
             active ? theme.icon_folder : theme.text_secondary, 0.85f);
         MakeBrush(dc, theme.text, brText_);
@@ -1555,4 +1555,4 @@ bool MainRenderer::ReleaseTabWidths() {
     return true;
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

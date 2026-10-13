@@ -1,7 +1,7 @@
 #include "../ipc/elevated_transfer_protocol.h"
 #include <iostream>
 int main() {
-    using namespace pulse::elevated;
+    using namespace luling::elevated;
     int failed = 0;
     auto check = [&](bool ok, const char* name) { std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << '\n'; if (!ok) ++failed; };
     Nonce nonce{}; nonce[3] = 42;

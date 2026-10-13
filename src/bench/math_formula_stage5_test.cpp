@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <string_view>
 
-namespace pulse_test {
+namespace luling_test {
 using Microsoft::WRL::ComPtr;
 const std::vector<std::wstring>& MathStage5Formulas() {
     static const std::vector<std::wstring> formulas = {
@@ -83,7 +83,7 @@ int TestMathStage5(IDWriteFactory2* factory) {
         auto layout = Layout(factory, source);
         ComPtr<IDWriteInlineObject> object;
         DWRITE_INLINE_OBJECT_METRICS metrics{};
-        const bool valid = layout && pulse::ui::ApplyMathInline(factory, layout.Get(),
+        const bool valid = layout && luling::ui::ApplyMathInline(factory, layout.Get(),
             {0, static_cast<UINT32>(source.size())}, source, 24, display, 10000) &&
             SUCCEEDED(layout->GetInlineObject(0, &object)) && object && SUCCEEDED(object->GetMetrics(&metrics));
         return Measurement{valid, metrics.width, metrics.height, metrics.baseline};
@@ -149,12 +149,12 @@ int TestMathStage5(IDWriteFactory2* factory) {
     for (const auto& source : invalid) {
         auto layout = Layout(factory, source);
         ComPtr<IDWriteInlineObject> object;
-        check(layout && !pulse::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())}, source, 24, false, 600) &&
+        check(layout && !luling::ui::ApplyMathInline(factory, layout.Get(), {0, static_cast<UINT32>(source.size())}, source, 24, false, 600) &&
             SUCCEEDED(layout->GetInlineObject(0, &object)) && !object, "malformed unsupported and over-budget source remains untouched");
     }
     std::wstring payload;
-    pulse::ui::MarkdownView view;
-    check(pulse::preview::MakeMarkdownDocument(MathStage5Source(), payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
+    luling::ui::MarkdownView view;
+    check(luling::preview::MakeMarkdownDocument(MathStage5Source(), payload) && view.SetPayload(payload, L"bench_data/math_preview.md") &&
         view.Source() == MathStage5Source() && view.PlainText().find(LR"(\(\boxed{x}\))") != std::wstring::npos &&
         view.PlainText().find(LR"(\xrightarrow[below]{longlabel})") != std::wstring::npos,
         "source and copied text retain decoration and arrow label syntax");

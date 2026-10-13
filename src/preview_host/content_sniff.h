@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <string>
 
-namespace pulse::preview {
+namespace luling::preview {
 
 enum class SniffedFormat { None, Dwg, Font, Rtf, Pdf, Image, Archive };
 
@@ -19,4 +19,4 @@ SniffedFormat SniffContentBytes(const uint8_t* data, size_t size);
 // Reads the first bytes of `path`; None when it cannot be read.
 SniffedFormat SniffContent(const std::wstring& path);
 
-} // namespace pulse::preview
+} // namespace luling::preview

@@ -2,7 +2,7 @@
 #include "toolbar_layout.h"
 #include "pane_header_icons.h"
 
-namespace pulse::ui {
+namespace luling::ui {
 void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     auto* dc = compositor_->Dc();
     const float left = EffectiveSidebarWidth(rect.right);

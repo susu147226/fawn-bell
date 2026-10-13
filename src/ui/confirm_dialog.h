@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 // The icon tile and its colour. Auto picks Danger for `danger` specs and
 // Question otherwise.
@@ -41,4 +41,4 @@ ConfirmChoice ShowConfirmDialogEx(HWND owner, const ConfirmDialogSpec& spec, boo
 bool ShowConfirmDialog(HWND owner, const ConfirmDialogSpec& spec, bool dark,
                        D2D1_COLOR_F accent);
 
-} // namespace pulse::ui
+} // namespace luling::ui

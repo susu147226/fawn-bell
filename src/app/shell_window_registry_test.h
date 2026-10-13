@@ -1,9 +1,9 @@
 #pragma once
-#ifdef PULSE_SHELL_WINDOW_REGISTRY_TEST
+#ifdef LULING_SHELL_WINDOW_REGISTRY_TEST
 #include "shell_window_plan.h"
 #include <shlobj.h>
 #include <exdisp.h>
-namespace pulse::app {
+namespace luling::app {
 HRESULT ShellRegistryTestCreate(IShellWindows** out);
 HRESULT ShellRegistryTestInitialize();
 HANDLE ShellRegistryTestStart(LPTHREAD_START_ROUTINE start, void* param, DWORD* thread_id);

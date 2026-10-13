@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-namespace pulse::ui {
+namespace luling::ui {
 void MainRenderer::DrawSettingsContext(const WindowViewModel& vm,const D2D1_RECT_F& rect,const Theme& theme) {
     using I=l10n::StringId;
     auto* dc=compositor_->Dc();
@@ -13,7 +13,7 @@ void MainRenderer::DrawSettingsContext(const WindowViewModel& vm,const D2D1_RECT
     const I descriptions[]={I::ContextSoftwareDesc,I::ContextOpenWithDesc,I::ContextShareDesc,I::ContextSystemDesc,I::ContextPrintDesc,I::ContextBuiltinDesc};
     const wchar_t* icons[]={L"\xE74C",L"\xE8A7",L"\xE72D",L"\xE713",L"\xE749",L"\xE8FD"};
     static_assert(sizeof(titles)/sizeof(titles[0])==SettingsLayout::kContextCards);
-    DrawSettingsPulseMenu(vm,rect,theme);
+    DrawSettingsLulingMenu(vm,rect,theme);
     painter_.DrawText(l10n::Get(I::ContextOtherSoftware),l.context_other,compositor_->SmallFormat(),theme.text_secondary);
     for(int g=0;g<5;++g) {
         const bool has_switch=true;
@@ -40,7 +40,7 @@ void MainRenderer::DrawSettingsContext(const WindowViewModel& vm,const D2D1_RECT
     for(size_t i=0;i<l.context_rows.size();++i) {
         const auto r=l.context_rows[i];if(r.bottom<=r.top) continue;
         const auto& row=vm.settings_items[i];
-        if(row.group==5) continue; // drawn by DrawSettingsPulseMenu
+        if(row.group==5) continue; // drawn by DrawSettingsLulingMenu
         if(IsHovered(vm,HitTestResult::SettingsToggle,100+static_cast<int>(i))) {
             MakeBrush(dc,theme.fill_hover,brFillHover_);
             dc->FillRoundedRectangle(D2D1::RoundedRect(r,4*scale_,4*scale_),brFillHover_.get());
@@ -58,10 +58,10 @@ void MainRenderer::DrawSettingsContext(const WindowViewModel& vm,const D2D1_RECT
     painter_.DrawButton({l.context_restore,l10n::Get(I::RestoreDefaults),L"",fluent::ButtonKind::Standard,restore});
 }
 
-void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RECT_F& rect,const Theme& theme) {
+void MainRenderer::DrawSettingsLulingMenu(const WindowViewModel& vm,const D2D1_RECT_F& rect,const Theme& theme) {
     using I=l10n::StringId;
     const auto l=MakeSettingsLayout(vm,rect,scale_,title_bar_height_,status_height_,&painter_);
-    if(l.pulse_card.bottom<=l.pulse_card.top) return;
+    if(l.luling_card.bottom<=l.luling_card.top) return;
     auto* dc=compositor_->Dc();
     auto fill=[&](const D2D1_RECT_F& r,float radius,const D2D1_COLOR_F& c) {
         Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> b;dc->CreateSolidColorBrush(c,&b);
@@ -76,19 +76,19 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
         if(b) dc->DrawLine(D2D1::Point2F(x0,y),D2D1::Point2F(x1,y),b.Get(),1);
     };
     const float s=scale_;
-    const auto card=l.pulse_card;
+    const auto card=l.luling_card;
     fill(card,8*s,theme.fill_input);
     stroke(card,8*s,theme.stroke_card,1);
     DrawIconText(card.left+16*s,card.top+20*s,24*s,24*s,L"\xE8FD",L"",theme.text_secondary,0.85f);
-    painter_.DrawText(l10n::Get(I::ContextPulseMenu),D2D1::RectF(card.left+54*s,card.top+12*s,l.pulse_restore.left-12*s,card.top+36*s),compositor_->TextFormat(),theme.text);
-    painter_.DrawText(l10n::Get(I::ContextPulseMenuDesc),D2D1::RectF(card.left+54*s,card.top+39*s,l.pulse_restore.left-12*s,card.top+65*s),compositor_->SmallFormat(),theme.text_secondary);
+    painter_.DrawText(l10n::Get(I::ContextLulingMenu),D2D1::RectF(card.left+54*s,card.top+12*s,l.luling_restore.left-12*s,card.top+36*s),compositor_->TextFormat(),theme.text);
+    painter_.DrawText(l10n::Get(I::ContextLulingMenuDesc),D2D1::RectF(card.left+54*s,card.top+39*s,l.luling_restore.left-12*s,card.top+65*s),compositor_->SmallFormat(),theme.text_secondary);
     // 恢复默认: an accent link, only live when something is hidden.
     {
         bool any=vm.settings_builtin_hidden!=0;
-        for(int i=0;i<static_cast<int>(app::BuiltinMenuSurface::Count);++i) any|=PulseMenuOrderCustom(vm,static_cast<app::BuiltinMenuSurface>(i));
+        for(int i=0;i<static_cast<int>(app::BuiltinMenuSurface::Count);++i) any|=LulingMenuOrderCustom(vm,static_cast<app::BuiltinMenuSurface>(i));
         const bool hot=any && IsHovered(vm,HitTestResult::SettingsToggle,67);
-        if(hot) fill(l.pulse_restore,4*s,theme.fill_hover);
-        painter_.DrawText(l10n::Get(I::RestoreDefaults),D2D1::RectF(l.pulse_restore.left+4*s,l.pulse_restore.top,l.pulse_restore.right,l.pulse_restore.bottom),
+        if(hot) fill(l.luling_restore,4*s,theme.fill_hover);
+        painter_.DrawText(l10n::Get(I::RestoreDefaults),D2D1::RectF(l.luling_restore.left+4*s,l.luling_restore.top,l.luling_restore.right,l.luling_restore.bottom),
                           compositor_->SmallFormat(),any ? theme.accent : theme.text_disabled);
     }
     // Presets.
@@ -96,7 +96,7 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
     static constexpr I kPresetName[]={I::ContextPresetSlim,I::ContextPresetStandard,I::ContextPresetFull,I::ContextPresetCustom};
     static constexpr I kPresetDesc[]={I::ContextPresetSlimDesc,I::ContextPresetStandardDesc,I::ContextPresetFullDesc,I::ContextPresetCustomDesc};
     for(int i=0;i<4;++i) {
-        const auto r=l.pulse_preset[i];
+        const auto r=l.luling_preset[i];
         const bool on=static_cast<int>(active)==i;
         const bool dim=i==3 && !on;
         if(i<3 && IsHovered(vm,HitTestResult::SettingsToggle,60+i) && !on) fill(r,6*s,theme.fill_hover);
@@ -106,10 +106,10 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
         painter_.DrawText(l10n::Get(kPresetDesc[i]),D2D1::RectF(r.left+10*s,r.top+24*s,r.right-4*s,r.bottom-4*s),compositor_->SmallFormat(),dim ? theme.text_disabled : theme.text_secondary);
     }
     // Surface tabs.
-    fill(l.pulse_tabs,7*s,theme.fill_hover);
+    fill(l.luling_tabs,7*s,theme.fill_hover);
     static constexpr I kTabs[]={I::ContextTabItem,I::ContextTabBackground,I::ContextTabRow};
     for(int i=0;i<3;++i) {
-        const auto r=l.pulse_tab[i];
+        const auto r=l.luling_tab[i];
         const bool on=vm.settings_context_tab==i;
         if(on) {fill(r,5*s,theme.fill_input);stroke(r,5*s,theme.stroke_card,1);}
         else if(IsHovered(vm,HitTestResult::SettingsToggle,64+i)) fill(r,5*s,theme.fill_pressed);
@@ -119,13 +119,13 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
         painter_.DrawText(label,D2D1::RectF(x,r.top,r.right,r.bottom),compositor_->TextFormat(),on ? theme.accent : theme.text);
     }
     // Rows (list order = menu order of the selected surface).
-    const auto rows=app::BuiltinMenuOrderedRows(PulseMenuSurface(vm),PulseMenuOrder(vm));
+    const auto rows=app::BuiltinMenuOrderedRows(LulingMenuSurface(vm),LulingMenuOrder(vm));
     for(size_t k=0;k<rows.size();++k) {
         const auto& row=rows[k];
         D2D1_RECT_F r{};
         bool on=true,hot=false;int hit=-1;
         if(row.fixed!=app::BuiltinFixedRow::None) {
-            r=l.pulse_fixed[row.fixed==app::BuiltinFixedRow::Open ? 0 : 1];
+            r=l.luling_fixed[row.fixed==app::BuiltinFixedRow::Open ? 0 : 1];
         } else {
             const size_t i=vm.settings_builtin_first+static_cast<size_t>(row.item);
             if(i>=l.context_rows.size()||i>=vm.settings_items.size()) continue;
@@ -153,28 +153,28 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
     }
     // Live preview built from the same rows the real menu keeps. Movable
     // rows show a grip on hover and can be dragged to a new place.
-    const auto pv=l.pulse_preview;
+    const auto pv=l.luling_preview;
     if(pv.bottom<=pv.top) return;
     if(vm.settings_context_tab!=2)
         painter_.DrawText(l10n::Get(vm.settings_context_tab==1 ? I::ContextPreviewBackground : I::ContextPreviewItem),
                           D2D1::RectF(pv.left,pv.top,pv.right,pv.top+18*s),compositor_->SmallFormat(),theme.text_secondary);
-    if(l.pulse_order_reset.right>l.pulse_order_reset.left) {
+    if(l.luling_order_reset.right>l.luling_order_reset.left) {
         const auto label=l10n::Get(I::ContextOrderReset);
         const float w=CellTextWidth(label,true);
         if(IsHovered(vm,HitTestResult::SettingsToggle,kSettingsMenuOrderReset))
-            fill(D2D1::RectF(l.pulse_order_reset.right-w-8*s,l.pulse_order_reset.top,l.pulse_order_reset.right+4*s,l.pulse_order_reset.bottom),4*s,theme.fill_hover);
-        painter_.DrawText(label,D2D1::RectF(l.pulse_order_reset.right-w-2*s,l.pulse_order_reset.top,l.pulse_order_reset.right+2*s,l.pulse_order_reset.bottom),
+            fill(D2D1::RectF(l.luling_order_reset.right-w-8*s,l.luling_order_reset.top,l.luling_order_reset.right+4*s,l.luling_order_reset.bottom),4*s,theme.fill_hover);
+        painter_.DrawText(label,D2D1::RectF(l.luling_order_reset.right-w-2*s,l.luling_order_reset.top,l.luling_order_reset.right+2*s,l.luling_order_reset.bottom),
                           compositor_->SmallFormat(),theme.accent);
     }
-    const auto box=PulsePreviewBox(pv,s);
+    const auto box=LulingPreviewBox(pv,s);
     fill(D2D1::RectF(box.left+1*s,box.top+2*s,box.right+1*s,box.bottom+3*s),8*s,D2D1::ColorF(0,0,0,0.06f));
     fill(box,8*s,theme.surface_flyout);
     stroke(box,8*s,theme.stroke_card,1);
     painter_.DrawText(l10n::Get(vm.settings_context_tab==2 ? I::ContextOrderHintRow : I::ContextOrderHint),
                       D2D1::RectF(box.left+2*s,box.bottom+6*s,box.right,pv.bottom),compositor_->SmallFormat(),theme.text_secondary);
-    const auto pl=LayoutPulsePreview(vm,box,s);
+    const auto pl=LayoutLulingPreview(vm,box,s);
     auto hovered=[&](const app::BuiltinMenuRow& row) {
-        return !pl.dragging && IsHovered(vm,HitTestResult::SettingsToggle,PulseMenuRowHit(row));
+        return !pl.dragging && IsHovered(vm,HitTestResult::SettingsToggle,LulingMenuRowHit(row));
     };
     auto grip=[&](float x,float cy,const D2D1_COLOR_F& color) {
         Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> b;dc->CreateSolidColorBrush(color,&b);
@@ -221,12 +221,12 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
             float sx=rect.left+16*s;
             for(const auto& c:kSwatch) {
                 Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> b;dc->CreateSolidColorBrush(c,&b);
-                if(b) dc->FillEllipse(D2D1::Ellipse(D2D1::Point2F(sx+5*s,y+kPulsePreviewSwatches*s*0.5f),5*s,5*s),b.Get());
+                if(b) dc->FillEllipse(D2D1::Ellipse(D2D1::Point2F(sx+5*s,y+kLulingPreviewSwatches*s*0.5f),5*s,5*s),b.Get());
                 sx+=28*s;
             }
-            y+=kPulsePreviewSwatches*s;
+            y+=kLulingPreviewSwatches*s;
         }
-        const auto r=D2D1::RectF(rect.left,y,rect.right,y+kPulsePreviewRow*s);
+        const auto r=D2D1::RectF(rect.left,y,rect.right,y+kLulingPreviewRow*s);
         if(row.fixed==app::BuiltinFixedRow::Strip) {
             static constexpr const wchar_t* kStrip[]={L"\xE8C6",L"\xE8C8",L"\xE74D",L"\xE8AC"};
             float sx=r.left+28*s;
@@ -257,7 +257,7 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
         }
         draw_row(v.row,v.rect);
         if(v.separator_after)
-            hline(x0+4*s,x1-4*s,v.rect.bottom+kPulsePreviewSeparator*s*0.5f,theme.stroke_divider);
+            hline(x0+4*s,x1-4*s,v.rect.bottom+kLulingPreviewSeparator*s*0.5f,theme.stroke_divider);
     }
     if(pl.dragging) {
         const float y=(pl.gap.top+pl.gap.bottom)*0.5f;
@@ -270,9 +270,9 @@ void MainRenderer::DrawSettingsPulseMenu(const WindowViewModel& vm,const D2D1_RE
 
 float MainRenderer::SettingsMenuRowStart(const WindowViewModel& vm,const D2D1_RECT_F& rect,int item) {
     const auto l=MakeSettingsLayout(vm,rect,scale_,title_bar_height_,status_height_,&painter_);
-    if(l.pulse_preview.bottom<=l.pulse_preview.top) return NAN;
+    if(l.luling_preview.bottom<=l.luling_preview.top) return NAN;
     WindowViewModel still=vm;still.settings_menu_drag=-1;
-    for(const auto& r:LayoutPulsePreview(still,PulsePreviewBox(l.pulse_preview,scale_),scale_).rows)
+    for(const auto& r:LayoutLulingPreview(still,LulingPreviewBox(l.luling_preview,scale_),scale_).rows)
         if(r.row.fixed==app::BuiltinFixedRow::None && static_cast<int>(r.row.item)==item)
             return vm.settings_context_tab==2 ? r.rect.left : r.rect.top;
     return NAN;
@@ -280,10 +280,10 @@ float MainRenderer::SettingsMenuRowStart(const WindowViewModel& vm,const D2D1_RE
 
 app::BuiltinMenuOrder MainRenderer::SettingsMenuDropOrder(const WindowViewModel& vm,const D2D1_RECT_F& rect,float x,float y) {
     const auto l=MakeSettingsLayout(vm,rect,scale_,title_bar_height_,status_height_,&painter_);
-    const auto pv=l.pulse_preview;
+    const auto pv=l.luling_preview;
     const float slack=40*scale_;
     if(pv.bottom<=pv.top || x<pv.left-slack || x>pv.right+slack || y<pv.top-slack || y>pv.bottom+slack) return {};
-    const auto pl=LayoutPulsePreview(vm,PulsePreviewBox(pv,scale_),scale_);
+    const auto pl=LayoutLulingPreview(vm,LulingPreviewBox(pv,scale_),scale_);
     return pl.dragging ? pl.order : app::BuiltinMenuOrder{};
 }
 }

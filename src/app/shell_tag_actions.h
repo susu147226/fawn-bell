@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::app {
+namespace luling::app {
 struct ShellTagBatch {
     std::wstring tag_id;
     ShellTagAction action = ShellTagAction::Add;
@@ -53,4 +53,4 @@ private:
     std::deque<std::wstring> accepted_;
     std::set<std::wstring> seen_;
 };
-} // namespace pulse::app
+} // namespace luling::app

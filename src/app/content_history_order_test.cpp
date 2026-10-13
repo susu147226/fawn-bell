@@ -1,4 +1,4 @@
-#ifdef PULSE_WITH_SELFTEST
+#ifdef LULING_WITH_SELFTEST
 #include "app_internal.h"
 #include "content_navigation.h"
 #include <cstdio>
@@ -6,7 +6,7 @@
 #include <future>
 
 bool RunContentHistoryOrderTest() {
-    using namespace pulse;
+    using namespace luling;
     using Store = index::ContentResultStore;
     int failures = 0;
     std::filesystem::create_directories(L"bench_data");

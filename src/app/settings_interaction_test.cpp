@@ -3,9 +3,9 @@
 #include <filesystem>
 #include <fstream>
 
-#ifdef PULSE_WITH_SELFTEST
-using namespace pulse;
-void Render(pulse::AppState&);
+#ifdef LULING_WITH_SELFTEST
+using namespace luling;
+void Render(luling::AppState&);
 int RunSettingsInteractionTest(AppState& s,const wchar_t* output) {
     using H=ui::HitTestResult;using I=l10n::StringId;
     std::ofstream log{std::filesystem::path(output)};int failures=0;
@@ -23,7 +23,7 @@ int RunSettingsInteractionTest(AppState& s,const wchar_t* output) {
     const auto base=std::filesystem::path(output).parent_path();
     const auto docs=base/L"Content fixture with a longer folder name";
     std::filesystem::create_directories(docs);
-    std::ofstream(docs/L"notes.txt")<<"Pulse settings interaction fixture.";
+    std::ofstream(docs/L"notes.txt")<<"Luling settings interaction fixture.";
     index::ContentIndexConfig config;
     config.roots={{docs.wstring(),text::Encoding::Auto},{(base/L"missing-folder").wstring(),text::Encoding::Auto}};
     s.contentSearch.Configure(config);

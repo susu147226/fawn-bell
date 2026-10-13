@@ -4,7 +4,7 @@
 #include <cmath>
 
 int main() {
-    using namespace pulse;
+    using namespace luling;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     int failures = 0;
     auto check = [&](bool ok, const char* name) {
@@ -14,8 +14,8 @@ int main() {
     auto owned = std::make_unique<AppState>(); auto& s = *owned;
     s.appPrefs.persist = false;
     WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr); wc.lpfnWndProc = DefWindowProcW;
-    wc.lpszClassName = L"PulseRenameFixture"; RegisterClassW(&wc);
-    s.hwnd = CreateWindowExW(0, wc.lpszClassName, L"Pulse rename verification", WS_OVERLAPPEDWINDOW,
+    wc.lpszClassName = L"LulingRenameFixture"; RegisterClassW(&wc);
+    s.hwnd = CreateWindowExW(0, wc.lpszClassName, L"Luling rename verification", WS_OVERLAPPEDWINDOW,
         100, 100, 1200, 760, nullptr, nullptr, wc.hInstance, nullptr);
     if (!s.hwnd || !s.compositor.Init(s.hwnd)) return 2;
     s.compositor.Resize(1180, 720); s.renderer.SetCompositor(&s.compositor);
@@ -57,7 +57,7 @@ int main() {
         s.compositor.Dc()->BeginDraw(); s.renderer.Render(vm, D2D1::RectF(0, 0, 1180, 720), theme);
         s.compositor.Dc()->EndDraw(); s.compositor.Present();
         InvalidateRect(s.hwndRenameEdit, nullptr, TRUE); UpdateWindow(s.hwndRenameEdit); pump();
-        if (scale == 1.5f && search && GetEnvironmentVariableW(L"PULSE_RENAME_SHOW", nullptr, 0)) {
+        if (scale == 1.5f && search && GetEnvironmentVariableW(L"LULING_RENAME_SHOW", nullptr, 0)) {
             const auto until = GetTickCount64() + 120000;
             while (GetTickCount64() < until) { pump(); Sleep(20); }
         }

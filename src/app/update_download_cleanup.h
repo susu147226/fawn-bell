@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace pulse::app {
+namespace luling::app {
 // Only directories created with a valid, identity-bound receipt are collectible.
 struct UpdateDownloadPackage {
     std::wstring root, directory, file;

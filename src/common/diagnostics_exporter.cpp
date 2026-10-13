@@ -1,6 +1,6 @@
 #include "diagnostics_exporter.h"
 #include "diagnostics_cleanup_io.h"
-#include "pulse_version.h"
+#include "luling_version.h"
 #include "localization.h"
 
 #include <windows.h>
@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace pulse::diagnostics {
+namespace luling::diagnostics {
 namespace {
 
 std::wstring JoinPath(std::wstring_view left, std::wstring_view right) {
@@ -263,8 +263,8 @@ bool WriteManifest(const ExportOptions& options, const ExportState& state) {
     char timestamp[32]{};
     snprintf(timestamp, sizeof(timestamp), "%04u-%02u-%02uT%02u:%02u:%02uZ",
         now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
-    std::string text = "{\n  \"schema\":2,\n  \"version\":" + JsonString(PULSE_VERSION_STRING) +
-        ",\n  \"build_id\":" + JsonString(PULSE_BUILD_ID) + ",\n  \"utc\":\"" + timestamp +
+    std::string text = "{\n  \"schema\":2,\n  \"version\":" + JsonString(LULING_VERSION_STRING) +
+        ",\n  \"build_id\":" + JsonString(LULING_BUILD_ID) + ",\n  \"utc\":\"" + timestamp +
         "\",\n  \"includes_dumps\":" + (options.include_dumps ? "true" : "false") +
         ",\n  \"complete\":" + (state.ok ? "true" : "false") +
         ",\n  \"copied_files\":" + std::to_string(state.copied) +
@@ -304,7 +304,7 @@ bool Export(const ExportOptions& options, std::wstring* error) {
     }
     ExportState state;
     static constexpr std::array<std::wstring_view, 5> logs = {
-        L"pulse_crash.log", L"pulse_shell_host.log", L"material.log", L"index-service.log", L"pulse_graphics.log"
+        L"luling_crash.log", L"luling_shell_host.log", L"material.log", L"index-service.log", L"luling_graphics.log"
     };
     for (const auto name : logs) {
         CopyArtifact(JoinPath(options.source_root, name), JoinPath(options.destination, name),
@@ -365,4 +365,4 @@ bool ClearCrashReportsWithIo(const std::wstring& source_root, std::wstring* erro
     return failure == ERROR_SUCCESS ? true : fail(failure);
 }
 
-} // namespace pulse::diagnostics
+} // namespace luling::diagnostics

@@ -66,11 +66,11 @@ void Psd() {
         for(int x=0;x<32;++x) b.push_back(static_cast<unsigned char>(x%2?blue:red));
         const auto path=Write(permutation?L"palette-swapped.psd":L"palette.psd",b);
         UINT w=0,h=0,stride=0,sw=0,sh=0; Bytes pixels; std::wstring error;
-        Check(pulse::preview::RasterizePsdFile(path,16,false,pixels,w,h,stride,sw,sh,&error) &&
+        Check(luling::preview::RasterizePsdFile(path,16,false,pixels,w,h,stride,sw,sh,&error) &&
             w==16 && h==1 && pixels[0]==128 && pixels[1]==0 && pixels[2]==128,
             "indexed PSD averages colors rather than palette indexes");
         decoded.push_back(pixels);
-        Check(pulse::preview::RasterizePsdFile(path,32,false,pixels,w,h,stride,sw,sh,&error) &&
+        Check(luling::preview::RasterizePsdFile(path,32,false,pixels,w,h,stride,sw,sh,&error) &&
             w==32 && pixels[2]==255 && pixels[4]==255,"indexed PSD preserves native-size colors");
     }
     Check(decoded[0]==decoded[1],"equivalent palette permutations produce identical downscales");
@@ -78,7 +78,7 @@ void Psd() {
         auto b=header(true,false); Put(b,0,4,true); Put(b,0,8,true); Put(b,1,2,true);
         if(scenario!=0) Put(b,scenario==1?0xffffffffu:33u,4,true);
         const auto path=Write(L"invalid-rle.psb",b); Bytes pixels; UINT w=0,h=0,stride=0,sw=0,sh=0; std::wstring error;
-        Check(!pulse::preview::RasterizePsdFile(path,16,false,pixels,w,h,stride,sw,sh,&error) && !error.empty(),
+        Check(!luling::preview::RasterizePsdFile(path,16,false,pixels,w,h,stride,sw,sh,&error) && !error.empty(),
             "PSB rejects missing RLE table, oversized row and truncated row before allocation");
     }
 }
@@ -87,16 +87,16 @@ void Rtf() {
         std::string("first{\\*\\unknown \\page ignored}second")}) {
         const auto path=Write(L"pages.rtf","{\\rtf1\\ansi "+body+"}");
         std::wstring text,error; bool cut=false;
-        Check(pulse::preview::ReadRtfText(path,text,&cut,&error) && !cut && text.find(L"second")!=std::wstring::npos,
+        Check(luling::preview::ReadRtfText(path,text,&cut,&error) && !cut && text.find(L"second")!=std::wstring::npos,
             "RTF body continues across pages/sections and skips hidden destinations");
     }
     const auto path=Write(L"long.rtf","{\\rtf1 "+std::string(13000,'x')+"}");
     std::wstring text,error; bool cut=false;
-    Check(pulse::preview::ReadRtfText(path,text,&cut,&error) && cut && text.size()==12000,
+    Check(luling::preview::ReadRtfText(path,text,&cut,&error) && cut && text.size()==12000,
         "RTF body reports text cap");
 }
 void Tables() {
-    using namespace pulse::preview;
+    using namespace luling::preview;
     for(const std::string epoch:{"0","1","true"}) {
         const std::string workbook="<workbook><workbookPr date1904=\""+epoch+"\"/><sheets><sheet name=\"Dates\" r:id=\"r1\"/></sheets></workbook>";
         const std::string sheet="<worksheet><sheetData><row><c s=\"0\"><v>45000.5</v></c><c s=\"0\"><v>60</v></c><c s=\"0\"><v>1</v></c><c s=\"0\"><v>59</v></c><c s=\"0\"><v>61</v></c></row></sheetData></worksheet>";
@@ -111,7 +111,7 @@ void Tables() {
             payload.find(L"1900-01-01")!=std::wstring::npos && payload.find(L"1900-02-28")!=std::wstring::npos &&
             payload.find(L"1900-03-01")!=std::wstring::npos,"Excel early date and fictional leap-day boundaries");
     }
-    std::wstring payload; uint32_t bytes=0; bool cut=false; pulse::ipc::PreviewTextEncoding encoding{};
+    std::wstring payload; uint32_t bytes=0; bool cut=false; luling::ipc::PreviewTextEncoding encoding{};
     const auto csv=Write(L"clipped.csv",std::string(2001,'a')+",tail\n");
     Check(MakeCsvTable(csv,L".csv",payload,bytes,cut,encoding) && cut,"CSV field cap marks incomplete content");
     const auto path=Write(L"clipped.xlsx",Zip({{"xl/workbook.xml","<workbook><sheets><sheet name=\"S\" r:id=\"r1\"/></sheets></workbook>"},
@@ -125,8 +125,8 @@ void Notebook() {
         std::string output=scenario==0?"short":std::string(6001,'x');
         if(scenario==2) { output.clear(); for(int i=0;i<122;++i) output+="line\\n"; }
         const auto path=Write(L"output.ipynb","{\"cells\":[{\"cell_type\":\"code\",\"source\":[\"print(1)\"],\"outputs\":[{\"output_type\":\"stream\",\"text\":[\""+output+"\"]}]}],\"nbformat\":4}");
-        std::wstring payload; uint32_t bytes=0; bool cut=false; pulse::ipc::PreviewTextEncoding encoding{};
-        Check(pulse::preview::MakeNotebookDocument(path,payload,bytes,cut,encoding) && cut==(scenario!=0),
+        std::wstring payload; uint32_t bytes=0; bool cut=false; luling::ipc::PreviewTextEncoding encoding{};
+        Check(luling::preview::MakeNotebookDocument(path,payload,bytes,cut,encoding) && cut==(scenario!=0),
             "notebook marks character/line clipping incomplete while short output stays complete");
     }
 }
@@ -137,7 +137,7 @@ void Archives() {
             std::vector<std::pair<std::string,std::string>>{{"real.txt","content"}},scenario==2?fake:Bytes{'o','k'});
         if(scenario==3) b.insert(b.begin(),{'M','Z',0,0,0,0});
         const auto path=Write(L"comment.zip",b); std::wstring listing,error; uint32_t bytes=0;
-        Check(pulse::preview::MakeArchiveListing(path,listing,bytes,&error) &&
+        Check(luling::preview::MakeArchiveListing(path,listing,bytes,&error) &&
             (scenario==0 || listing.find(L"real.txt")!=std::wstring::npos),
             "ZIP empty/comment/fake EOCD/SFX candidates preserve real directory");
     }
@@ -152,7 +152,7 @@ void Archives() {
     Put(b,0x06054b50,4); Put(b,0,2); Put(b,0,2); Put(b,0xffff,2); Put(b,0xffff,2);
     Put(b,0xffffffff,4); Put(b,0xffffffff,4); Put(b,0,2);
     std::wstring listing,error; uint32_t bytes=0;
-    Check(pulse::preview::MakeArchiveListing(Write(L"zip64.zip",b),listing,bytes,&error) &&
+    Check(luling::preview::MakeArchiveListing(Write(L"zip64.zip",b),listing,bytes,&error) &&
         listing.find(L"zip64.txt")!=std::wstring::npos,"ZIP64 locator and full record boundaries remain supported");
 }
 }

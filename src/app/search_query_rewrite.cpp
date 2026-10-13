@@ -4,7 +4,7 @@
 #include <tuple>
 #include <initializer_list>
 
-namespace pulse::app {
+namespace luling::app {
 struct AdvancedSearchOrigin { std::wstring raw; AdvancedSearchSpec fields; };
 namespace {
 enum Field : unsigned { Name = 1, Exclude = 2, Kind = 4, Scope = 8, Date = 16, Size = 32,
@@ -206,4 +206,4 @@ std::wstring CompileNameQueryInput(std::wstring_view raw, std::wstring_view fold
     spec.custom_folder = folder;
     return CompileSearchQuery(spec);
 }
-} // namespace pulse::app
+} // namespace luling::app

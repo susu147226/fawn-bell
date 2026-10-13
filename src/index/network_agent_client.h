@@ -11,9 +11,9 @@
 #include <vector>
 #include <map>
 
-namespace pulse::index {
+namespace luling::index {
 
-// UI-side client for Pulse.Index.exe --network-agent. It deliberately keeps
+// UI-side client for Luling.Index.exe --network-agent. It deliberately keeps
 // the same surface as NetworkIndex so navigation/search code does not know
 // whether the network index is in-process or hosted in the user agent.
 class NetworkAgentClient {
@@ -74,4 +74,4 @@ private:
     // Must match the mutex created by RunAgent() in network_agent_main.cpp.
 };
 
-} // namespace pulse::index
+} // namespace luling::index

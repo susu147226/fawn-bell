@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 
-namespace pulse {
+namespace luling {
 class GlobalSearchHotkey {
 public:
     static constexpr int kId = 0x5053;

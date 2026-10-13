@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstdint>
 
-namespace pulse::ui {
+namespace luling::ui {
 
 struct CoverPalette {
     bool valid = false;        // false for grey / black-and-white / empty covers
@@ -161,4 +161,4 @@ inline uint32_t CoverPaletteThemed(uint32_t rgb, bool dark) {
     return FromHsl(c);
 }
 
-} // namespace pulse::ui
+} // namespace luling::ui

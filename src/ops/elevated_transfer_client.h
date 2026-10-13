@@ -2,7 +2,7 @@
 #include "ops_manager.h"
 #include "elevated_transfer.h"
 
-namespace pulse::ops {
+namespace luling::ops {
 struct ElevatedConflictAnswer {
     ConflictChoice choice = ConflictChoice::Cancel;
     bool apply_to_all = false;
@@ -24,7 +24,7 @@ ShellTransferResult DeleteWithElevatedHelper(const std::vector<std::wstring>& so
     bool permanent, HWND owner, std::atomic<bool>& cancel,
     ElevatedTransferCallbacks callbacks = {});
 void ShutdownElevatedTransferHelper();
-#ifdef PULSE_ELEVATED_TEST_CLIENT
+#ifdef LULING_ELEVATED_TEST_CLIENT
 DWORD ElevatedHelperProcessIdForTesting();
 #endif
 }

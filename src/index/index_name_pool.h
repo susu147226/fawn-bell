@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace pulse::index {
+namespace luling::index {
 // Caller holds the Engine's exclusive lock. Retain every raw heap reference,
 // including tombstones and nodes shadowed by replay patches: IDs can be reused.
 // No mapped base names are visited. Validation/allocation precede any mutation.

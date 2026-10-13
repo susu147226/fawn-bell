@@ -1,4 +1,4 @@
-// app_internal.h — Aggregate declarations for Pulse window TUs.
+// app_internal.h — Aggregate declarations for Luling window TUs.
 #pragma once
 #include "app_state.h"
 #include "app_runtime.h"
@@ -8,4 +8,4 @@
 #include "app_hosted_edit.h"
 #include "app_input.h"
 #include "app_change_tracking.h"
-namespace pulse { void SuspendContentSearches(AppState& s); }
+namespace luling { void SuspendContentSearches(AppState& s); }

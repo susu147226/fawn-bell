@@ -5,11 +5,11 @@
 #include <cmath>
 #include <cstdint>
 
-namespace pulse::app {
+namespace luling::app {
 namespace {
 constexpr const wchar_t* parents[] = {
-    L"Software\\Classes\\*\\shell\\PulseTags",
-    L"Software\\Classes\\Directory\\shell\\PulseTags",
+    L"Software\\Classes\\*\\shell\\LulingTags",
+    L"Software\\Classes\\Directory\\shell\\LulingTags",
 };
 bool SetString(HKEY key, const wchar_t* name, const std::wstring& value, const TagMenuRegistryApi& api) {
     return api.set_value(key, name, 0, REG_SZ, reinterpret_cast<const BYTE*>(value.c_str()),
