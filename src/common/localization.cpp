@@ -10,7 +10,8 @@ namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
 // Must stay on the highest allocated string id, otherwise Get() returns empty.
-constexpr UINT kLastString = IDS_CONTEXT_ORDER_HINT_ROW;
+constexpr UINT kLastString = IDS_APP_NAME;
+static_assert(static_cast<UINT>(StringId::AppName) <= kLastString);
 static_assert(static_cast<UINT>(StringId::UiFontLarger) <= kLastString);
 static_assert(static_cast<UINT>(StringId::OpAuthorizationNotGranted) <= kLastString);
 static_assert(static_cast<UINT>(StringId::ListThumbnailBadgesDesc) <= kLastString);
