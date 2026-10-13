@@ -799,11 +799,12 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
     }
     x += mark + 8.0f * scale_;
     const float brandRight = EffectiveSidebarWidth(right) - 12.0f * scale_;
+    const std::wstring appName = l10n::Get(l10n::StringId::AppName);
     const float nameWidth = MeasureLayoutText(compositor_, compositor_->DwriteFactory(),
-        compositor_->HeaderFormat(), L"Luling");
+        compositor_->HeaderFormat(), appName);
     if (x + nameWidth <= brandRight) {
         MakeBrush(dc, theme.text, brText_);
-        DrawTextRect(dc, compositor_->HeaderFormat(), brText_.get(), L"Luling",
+        DrawTextRect(dc, compositor_->HeaderFormat(), brText_.get(), appName,
             x, 0.0f, nameWidth + 1.0f * scale_, h);
         x += nameWidth + 12.0f * scale_;
         const auto description = l10n::Get(l10n::StringId::AppDescription);

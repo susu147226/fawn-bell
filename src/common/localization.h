@@ -17,6 +17,7 @@ enum class Language {
 
 enum class StringId : UINT {
     AppDescription = IDS_APP_DESCRIPTION,
+    AppName = IDS_APP_NAME,
     ToolbarSort = IDS_TOOLBAR_SORT,
     ToolbarFilter = IDS_TOOLBAR_FILTER,
     ShortcutHints = IDS_SHORTCUT_HINTS,
