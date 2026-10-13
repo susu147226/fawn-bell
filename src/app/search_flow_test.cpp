@@ -768,6 +768,16 @@ int RunSearchFlowTest(AppState& s, const wchar_t* output) {
     stale.hits.push_back({L"C:\\fixture\\stale.txt", L"stale.txt", L"old"});
     ApplyContentSearchUpdate(s, std::move(stale));
     check(tab->snapshot->size() == 2, "stale generation ignored");
+    // Issue #147: the list holds the hits themselves — a search really filters —
+    // and a result row can still be opened in Quick Look with Space.
+    check(tab->snapshot->size() == 2 && (*tab->snapshot)[0].name == L"a.txt" &&
+          (*tab->snapshot)[1].name == L"b.txt",
+          "the result list contains the hits and nothing else");
+    tab->SelectOnly(1);
+    ui::QuickPreviewItem preview;
+    check(SelectedQuickPreviewItem(s, preview) && preview.name == L"b.txt",
+          "a search result row can be opened in Quick Preview");
+    tab->SelectOnly(0);
     ShowAddressSearch(s);
     s.addressSearchContent = true;
     SetWindowTextW(s.hwndAddressEdit, L"");
