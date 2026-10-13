@@ -15,7 +15,6 @@ Pick the package for your system on the releases page:
 | Edition | System | File |
 | --- | --- | --- |
 | Windows (64-bit) | Windows 10 / Windows 11 | `LulingSetup-<version>.exe` |
-| Windows 8.1 compatible (64-bit) | Windows 8.1 | `LulingSetup-<version>-win81.exe` |
 | Portable (64-bit) | Windows 10 / Windows 11 | `Luling-<version>-portable-win-x64.zip` |
 
 Run the installer and follow the wizard. You can enable the LulingIndex service during setup for whole-disk indexed search. The portable edition runs straight from the unpacked folder and still keeps its settings in your user app-data folder; the index service is only deployed by the installer.
@@ -84,11 +83,9 @@ With two files staged you can compare location, modified time, size and content.
 
 Luling checks for a new version after it starts. When an update is available, a prompt appears in the window; click it to download the installer, which opens the setup wizard after it passes verification. You can also check manually in Settings → About & diagnostics, and turn off "Check for updates automatically" on the same page if you don't want reminders.
 
-Downloads can be cancelled; confirm the administrator prompt from Windows during installation. The standard and Windows 8.1 editions each receive their own updates.
+Downloads can be cancelled; confirm the administrator prompt from Windows during installation.
 
 The update manifest and installer are fetched through the ghproxy.net and gh-proxy.com mirrors first, switching automatically on connection failure and falling back to GitHub — no setup needed. Every source must pass signature and installer verification.
-
-**Version 1.0.2 and earlier must first install 1.0.3 or later manually; after that, automatic update prompts work.**
 
 ## Build from source
 
