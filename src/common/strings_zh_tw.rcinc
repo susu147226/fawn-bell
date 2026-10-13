@@ -6,6 +6,8 @@ STRINGTABLE
 BEGIN
     IDS_APP_DESCRIPTION "檔案管理器"
     IDS_APP_NAME "鹿鈴"
+    IDS_SETTINGS_STAGING_TRAY "啟用暫存托盤"
+    IDS_SETTINGS_STAGING_TRAY_DESC "關閉時側欄不顯示暫存托盤；複製與剪下永遠只作用於系統剪貼簿"
     IDS_TOOLBAR_SORT "排序"
     IDS_TOOLBAR_FILTER "篩選"
     IDS_SHORTCUT_HINTS "檔案清單快速鍵"

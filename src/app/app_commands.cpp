@@ -835,8 +835,8 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         }
         break;
     }
-    case app::CmdCut: CollectToTray(s, true); break;
-    case app::CmdCopy: CollectToTray(s, false); break;
+    case app::CmdCut: MirrorSelectionToClipboard(s, true); break;
+    case app::CmdCopy: MirrorSelectionToClipboard(s, false); break;
     case app::CmdPaste: PasteIntoCurrent(s); break;
     case app::CmdDelete: DeleteSelected(s, (GetKeyState(VK_SHIFT) & 0x8000) != 0); break;
     case app::CmdRename: ShowRenameOverlay(s); break;

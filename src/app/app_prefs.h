@@ -91,6 +91,9 @@ struct AppPrefs {
     bool address_search_current = false;
     bool address_search_content = false;
     int tray_icon_size = 48; // staging-tray deck icon edge in DIPs (32..64)
+    // Staging tray (spec A1, issue #126): off by default, and adding to it is
+    // always an explicit action — copy/cut only touch the clipboard.
+    bool staging_tray = false;
     // Interaction hints: status-bar context hints + one-time teaching tips.
     bool show_hints = true;
     // Background update checks and their "update available" toasts (Settings > About).

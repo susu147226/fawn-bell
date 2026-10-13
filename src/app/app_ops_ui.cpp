@@ -82,9 +82,9 @@ static void TrackCutClipboard(AppState& s, const ops::ClipboardData& cut) {
     s.completedCutClipboardPaths.clear();
 }
 
-// Ctrl+X mirrors a tray move batch onto the system clipboard (CollectToTray).
-// When the tray releases those items instead, the mirrored cut is finished as
-// well, as long as every clipboard path is among the items being moved.
+// A tray batch taken as a move mirrors onto the system clipboard; when the tray
+// releases those items instead, the mirrored cut is finished as well, as long as
+// every clipboard path is among the items being moved.
 static void TrackTrayCutClipboard(AppState& s, const std::vector<std::wstring>& moved) {
     ops::ClipboardData cut;
     if (moved.empty() || !ops::ReadClipboard(cut) || !cut.cut) return;
@@ -347,18 +347,31 @@ void CollectToTray(AppState& s, bool move_intent) {
     CollectPathsToTray(s, paths, move_intent);
 }
 
+// Filling the tray is an explicit action only: the status-bar hint, or dropping
+// onto the tray. Copy / cut go through MirrorSelectionToClipboard instead, so
+// collecting here must never touch the clipboard (issue #126).
 void CollectPathsToTray(AppState& s, const std::vector<std::wstring>& paths, bool move_intent) {
-    if (!paths.empty()) {
-        s.tray.Collect(paths, move_intent);
-        // Mirror the cut state onto the list rows (ui.md §5.2 rule 6).
-        s.cutPaths = move_intent ? paths : std::vector<std::wstring>{};
-        // Interop with Explorer: mirror the collection onto the system clipboard.
-        std::vector<std::wstring> cbPaths;
-        cbPaths.reserve(paths.size());
-        for (const auto& p : paths) cbPaths.push_back(ClipboardPath(p));
-        ops::WriteClipboard(cbPaths, move_intent);
-        InvalidateRect(s.hwnd, nullptr, FALSE);
-    }
+    if (paths.empty()) return;
+    s.tray.Collect(paths, move_intent);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
+void MirrorSelectionToClipboard(AppState& s, bool move_intent) {
+    if(DeferContentSelection(s,[=](AppState& v){MirrorSelectionToClipboard(v,move_intent);})) return;
+    app::Tab* tab = ActiveTab(s);
+    if (!tab || !tab->snapshot || IsRecycleTab(tab)) return;
+    MirrorPathsToClipboard(s, SelectedFullPaths(*tab), move_intent);
+}
+
+void MirrorPathsToClipboard(AppState& s, const std::vector<std::wstring>& paths, bool move_intent) {
+    if (paths.empty()) return;
+    // The cut state still shows on the list rows; only the clipboard is written.
+    s.cutPaths = move_intent ? paths : std::vector<std::wstring>{};
+    std::vector<std::wstring> cbPaths;
+    cbPaths.reserve(paths.size());
+    for (const auto& p : paths) cbPaths.push_back(ClipboardPath(p));
+    ops::WriteClipboard(cbPaths, move_intent);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 void PinAndShowOperationWindow(AppState& s) {
     if (!s.operationWindow) return;

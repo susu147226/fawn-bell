@@ -17,6 +17,11 @@ void RestoreAllRecycle(AppState& s);
 void EmptyRecycleBin(AppState& s);
 void CollectToTray(AppState& s, bool move_intent);
 void CollectPathsToTray(AppState& s, const std::vector<std::wstring>& paths, bool move_intent);
+// Copy / cut fill the system clipboard only. Filling the staging tray is an
+// explicit action (issue #126), so Ctrl+C / Ctrl+X and the toolbar buttons must
+// not go through CollectToTray.
+void MirrorSelectionToClipboard(AppState& s, bool move_intent);
+void MirrorPathsToClipboard(AppState& s, const std::vector<std::wstring>& paths, bool move_intent);
 void ShowBatchRename(AppState& s);
 // Staging tray recent drop destinations (appPrefs.tray_dests, newest first, max 3).
 std::vector<std::wstring> TrayDestList(const AppState& s);

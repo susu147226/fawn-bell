@@ -27,7 +27,7 @@ void HandleQuickPreviewCommand(AppState& s, const ui::QuickPreviewCommand& comma
         case ui::QuickPreviewAction::Open: OpenPath(s, target.path); break;
         case ui::QuickPreviewAction::Copy:
         case ui::QuickPreviewAction::Cut:
-            CollectPathsToTray(s, {target.path}, action == ui::QuickPreviewAction::Cut);
+            MirrorPathsToClipboard(s, {target.path}, action == ui::QuickPreviewAction::Cut);
             break;
         case ui::QuickPreviewAction::CopyPath:
             ops::WriteClipboardText(ClipboardPath(target.path));
@@ -79,8 +79,8 @@ void HandleQuickPreviewCommand(AppState& s, const ui::QuickPreviewCommand& comma
     EnsureRowVisible(s, *tab, index);
     switch (action) {
     case ui::QuickPreviewAction::Open: OpenSelected(s); break;
-    case ui::QuickPreviewAction::Cut: CollectToTray(s, true); break;
-    case ui::QuickPreviewAction::Copy: CollectToTray(s, false); break;
+    case ui::QuickPreviewAction::Cut: MirrorSelectionToClipboard(s, true); break;
+    case ui::QuickPreviewAction::Copy: MirrorSelectionToClipboard(s, false); break;
     case ui::QuickPreviewAction::CopyPath: CopySelectedPath(s); break;
     case ui::QuickPreviewAction::ToggleStar:
         ToggleStarred(s, target.path, target.attrs & FILE_ATTRIBUTE_DIRECTORY

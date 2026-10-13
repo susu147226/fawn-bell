@@ -333,6 +333,11 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         return r;
                     }
                 }
+                if (ContainsPt(lay.staging_tray_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle;
+                    r.index = 35;
+                    return r;
+                }
                 for (int i = 0; i < 3; ++i) {
                     if (ContainsPt(lay.language_segment[i], x, y)) {
                         r.region = HitTestResult::SettingsLanguage;

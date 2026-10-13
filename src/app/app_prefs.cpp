@@ -102,6 +102,7 @@ void AppPrefs::ResetToDefaults() {
     address_search_current = false;
     address_search_content = false;
     tray_icon_size = 48;
+    staging_tray = false;
     show_hints = true;
     auto_check_updates = true;
     tips_seen = 0;
@@ -220,6 +221,8 @@ std::wstring AppPrefs::ToJson() const {
     out += L",\n  \"address_search_content\":" + std::to_wstring(address_search_content);
     out += L",\n  \"tray_icon_size\":";
     out += std::to_wstring(tray_icon_size);
+    out += L",\n  \"staging_tray\":";
+    out += staging_tray ? L"true" : L"false";
     out += L",\n  \"show_hints\":";
     out += show_hints ? L"true" : L"false";
     out += L",\n  \"auto_check_updates\":";
@@ -357,6 +360,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     address_search_content = luling::json::ExtractInt(json, L"address_search_content", 0) != 0;
     if (row_height < 24 || row_height > 48) row_height = 34;
     tray_icon_size = luling::json::ExtractInt(json, L"tray_icon_size", 48);
+    staging_tray = luling::json::ExtractBool(json, L"staging_tray", false);
     show_hints = luling::json::ExtractBool(json, L"show_hints", true);
     auto_check_updates = luling::json::ExtractBool(json, L"auto_check_updates", true);
     const int seen = luling::json::ExtractInt(json, L"tips_seen", 0);

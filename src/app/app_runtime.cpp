@@ -512,6 +512,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             vm.settings_change_days = s.appPrefs.change_tracking_days;
             vm.settings_row_height = s.appPrefs.row_height;
             vm.settings_tray_icon = s.appPrefs.tray_icon_size;
+            vm.settings_staging_tray = s.appPrefs.staging_tray;
             vm.settings_language = s.appPrefs.language == L"zh-CN" ? 1
                 : s.appPrefs.language == L"zh-TW" ? 2
                 : s.appPrefs.language == L"en-US" ? 3 : 0;
@@ -1625,8 +1626,12 @@ static std::wstring ContextStatusHint(AppState& s, StatusHintAction& action) {
         return l10n::Get(I::HintFiltering);
     }
     if (selected >= 2) {
-        action = StatusHintAction::Tray;
-        return l10n::Get(I::HintMultiSel);
+        // The tray hint would offer to stage into a tray that is switched off.
+        if (s.appPrefs.staging_tray) {
+            action = StatusHintAction::Tray;
+            return l10n::Get(I::HintMultiSel);
+        }
+        return l10n::Get(I::StatusHintSelected);
     }
     if (tab->net_readonly) return l10n::Get(I::HintReadonly2);
     if (selected == 1) {
@@ -2133,6 +2138,9 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         const auto entries = TrayDeckEntries(s.tray, static_cast<size_t>(TrayStackTop(s)),
                                              static_cast<size_t>(TrayDeckCap(s)));
         ui::TrayDeckView& deck = vm.tray_deck;
+        // Off by default (issue #126): with the tray off the panel and its
+        // sidebar slot disappear, and copy/cut never fill it.
+        deck.hidden = !s.appPrefs.staging_tray;
         deck.open = s.trayOpen;
         deck.spread = s.traySpread;
         deck.thumb_dip = static_cast<float>(s.appPrefs.tray_icon_size);

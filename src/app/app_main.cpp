@@ -2927,6 +2927,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         OleUninitialize();
         return result;
     }
+    wchar_t staging_tray_probe[32768]{};
+    if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_STAGING_TRAY", staging_tray_probe, ARRAYSIZE(staging_tray_probe))) {
+        extern int RunStagingTrayProbe(AppState&, const wchar_t*);
+        const int result = WaitForShotReady(state) ? RunStagingTrayProbe(state, staging_tray_probe) : 4;
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return result;
+    }
 #endif
     if (state.shot.active) {
         wchar_t experience_probe[32768]{};

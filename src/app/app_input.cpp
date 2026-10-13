@@ -2449,9 +2449,9 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             // Empty path is the This PC segment; NavigateTo handles it.
             else NavigateTo(*s, hit.path);
         } else if (hit.region == ui::HitTestResult::Copy) {
-            CollectToTray(*s, false);
+            MirrorSelectionToClipboard(*s, false);
         } else if (hit.region == ui::HitTestResult::Cut) {
-            CollectToTray(*s, true);
+            MirrorSelectionToClipboard(*s, true);
         } else if (hit.region == ui::HitTestResult::Paste) {
             PasteIntoCurrent(*s);
         } else if (hit.region == ui::HitTestResult::Rename) {
@@ -3824,9 +3824,9 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         } else if (ctrl && shift && wParam == L'C') {
             CopySelectedPath(*s);
         } else if (ctrl && wParam == L'C') {
-            CollectToTray(*s, false);
+            MirrorSelectionToClipboard(*s, false);
         } else if (ctrl && wParam == L'X') {
-            CollectToTray(*s, true);
+            MirrorSelectionToClipboard(*s, true);
         } else if (ctrl && wParam == L'V') {
             PasteIntoCurrent(*s);
         } else if (ctrl && wParam == L'Z') {

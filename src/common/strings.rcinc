@@ -5,6 +5,8 @@ STRINGTABLE
 BEGIN
     IDS_APP_DESCRIPTION "文件管理器"
     IDS_APP_NAME "鹿铃"
+    IDS_SETTINGS_STAGING_TRAY "启用暂存盘"
+    IDS_SETTINGS_STAGING_TRAY_DESC "关闭时侧栏不显示暂存盘；复制和剪切始终只作用于系统剪贴板"
     IDS_TOOLBAR_SORT "排序"
     IDS_TOOLBAR_FILTER "筛选"
     IDS_SHORTCUT_HINTS "文件列表快捷键"
@@ -143,6 +145,8 @@ STRINGTABLE
 BEGIN
     IDS_APP_DESCRIPTION "File Manager"
     IDS_APP_NAME "Luling"
+    IDS_SETTINGS_STAGING_TRAY "Enable the staging tray"
+    IDS_SETTINGS_STAGING_TRAY_DESC "Off hides the tray in the sidebar; copy and cut always use the system clipboard only"
     IDS_TOOLBAR_SORT "Sort"
     IDS_TOOLBAR_FILTER "Filter"
     IDS_SHORTCUT_HINTS "File list shortcuts"
