@@ -1,115 +1,113 @@
-# Luling
+# Luling (鹿铃)
 
-**A file manager for Windows that makes browsing, searching and organizing files feel effortless.**
+**A file manager for Windows: browse, search and organize, all in one workspace.**
 
-Tabs and multi-pane layouts, whole-disk indexed search with pinyin matching, Space-bar Quick Look, a staging tray and a customizable look — all in one workspace.
+Tabs and multi-pane layouts, whole-disk indexed search with pinyin matching, Space-bar Quick Look, a staging tray with text diff, plus a customizable look and close Windows integration.
 
 [Download the latest release](https://github.com/susu147226/fawn-bell/releases/latest) · [Release notes](https://github.com/susu147226/fawn-bell/releases) · [Report an issue](https://github.com/susu147226/fawn-bell/issues) · [简体中文](README.md)
 
-![Luling in dark theme with a wallpaper background](docs/images/appearance.png)
+![The Luling main window](docs/images/appearance.png)
 
 ## Download and install
 
-Pick the package for your system on the releases page:
-
 | Edition | System | File |
 | --- | --- | --- |
-| Windows (64-bit) | Windows 10 / Windows 11 | `LulingSetup-<version>.exe` |
+| Installer (64-bit) | Windows 10 / Windows 11 | `LulingSetup-<version>.exe` |
 | Portable (64-bit) | Windows 10 / Windows 11 | `Luling-<version>-portable-win-x64.zip` |
 
-Run the installer and follow the wizard. You can enable the LulingIndex service during setup for whole-disk indexed search. The portable edition runs straight from the unpacked folder and still keeps its settings in your user app-data folder; the index service is only deployed by the installer.
+The installer can register the **LulingIndex** service for instant whole-disk search. The portable build runs straight from its folder; its settings and caches stay in your user data directory, and the index service needs the installer.
 
-The interface is available in Simplified Chinese, Traditional Chinese and English. It follows Windows by default and can be changed in Settings → Display language.
+The UI ships in Simplified Chinese, Traditional Chinese and English; it follows Windows by default and can be changed in Settings → Display language.
 
-## Make the workspace yours
+## Browsing and views
 
-- Light, dark or system theme, switchable from the title bar; pick an accent color, a window effect (Acrylic, Mica), a wallpaper background, panel transparency and background blur.
-- Text rendering offers Auto / Sharp / Smooth modes, and list rows come in compact, standard and roomy heights.
-- Details view supports smart dates ("Today 14:32", "Yesterday 09:10"), zebra rows, colored extension badges, size bars and content-fitted column widths; right-click a column header to choose which columns to show.
-- Seven colored tags mark files and folders and are summarized in the sidebar; you can also tag items straight from the Explorer context menu.
-- Sidebar sections can be reordered and collapsed, and tabs can move into the sidebar as a vertical list (Ctrl+B to collapse / expand).
+- Five layouts — single, split left/right, split top/bottom, three panes and quad (Ctrl+1/2/3/4) — each tab remembering its own layout and location.
+- Eight views: icons (four sizes), list, details, tiles, content, columns and folder view; the columns view expands subdirectories level by level.
+- Seven sort keys, ascending or descending, with three folder-first modes; group by name, date, type or size with sticky headers; view, sort and grouping are remembered per folder and can be applied to all folders at once.
+- The details view offers smart dates ("Today 14:32"), zebra rows, colour-coded extension chips, size-ratio bars, content-fitted column widths, and a column picker on the header.
+- Compare two folders side by side to see what differs, what is missing and what is newer; folder sizes are computed in the background.
 
-## Find files faster
+![Grouped view](docs/images/group.png)
 
-- LulingIndex searches file names across whole drives with live-updating results; you can also limit a search to the current folder or a chosen folder.
-- File-name search understands full pinyin, initials and polyphonic characters — typing `sh` finds 品牌设计, 城市夜景 and 山湖晨雾 — and highlights the matched characters.
-- Content search covers text and code, PDF, Word, Excel, PowerPoint and more. Results stream in, and after opening a file's location you can go back to the same results.
-- Advanced search (Ctrl+Shift+F) filters by type, date, size and more. Global quick search (Alt+Space) is available anywhere, and "Search in Luling" opens the full result list in the main window.
+## Tabs and windows
+
+- Tabs can be grouped, torn out into new windows, pinned and colour-marked; a cap on open tabs is configurable.
+- The tab strip can live vertically in the sidebar (Ctrl+B to collapse or expand).
+- Tabs, layout and location are restored on restart.
+
+![Tabs and colour marks](docs/images/tabs.png)
+
+## Search
+
+- **File-name search** runs on LulingIndex and updates as you type; scope it to the current folder or any folder you pick.
+- Full pinyin, initials and polyphonic characters all match, so `sh` finds 品牌设计, 城市夜景 and 山湖晨雾, with the matched text highlighted.
+- **Content search** covers text and code, PDF, Word, Excel, PowerPoint and more, streaming results as they arrive; opening a location keeps a way back to the results.
+- Advanced search (Ctrl+Shift+F) filters by type, date and size; the global quick search (Alt+Space) is always one keystroke away and can hand results to the main window.
 - Type `cmd`, `powershell`, `pwsh` or `wt` in the address bar to open a terminal in the current folder.
 
-![Pinyin search in Luling](docs/images/search.png)
+## Quick Look
 
-## Work with several folders at once
+Select a file and press Space — no need to open the app that owns it:
 
-- Single, side-by-side, stacked, three-pane and four-pane layouts (Ctrl+1/2/3/4); every tab keeps its own layout and locations.
-- Column view shows the parent, current and selected folders together; switch freely between tiles, icons, list, details and content views.
-- Group lists by name, date, type or size; each folder remembers its own view, sort and grouping.
-- Two-pane folder compare highlights items that differ, are missing or are newer on either side. Folder sizes are calculated in the background.
-- The details panel shows a preview, basic info and tags; multi-selection opens a combined Properties window.
+- Markdown rendered as laid out, code with syntax highlighting, PDFs page by page, folders as a contents list.
+- CSV / TSV / XLSX as tables; JSON / XML as collapsible trees; Jupyter notebooks cell by cell.
+- DOCX, EPUB and Office documents readable without the matching software installed; archives as a directory tree with in-archive search.
+- Video playback with scrubbing and frame stepping, animated WebP / APNG playback, plus SVG, PSD, AI, DWG thumbnails and fonts.
 
-![Multi-pane layout and column view in Luling](docs/images/panes.png)
+Settings → Quick Look → Supported formats lists every previewable format and checks whether the HEIF / HEVC / AV1 / WebP system extensions are installed.
 
-## Quick Look with the Space bar
+## Staging tray and text diff
 
-Select a file and press Space to preview it without opening another app:
+Files you copy or cut (Ctrl+C / Ctrl+X) collect in the staging tray at the bottom left, so you can gather them across folders and tabs and drop them all at the destination at once. Drops copy by default; hold Shift to move.
 
-- Markdown is rendered, code is syntax-highlighted, PDFs page through and folders list their contents.
-- CSV / TSV / XLSX open as tables; JSON / XML as collapsible trees; Jupyter notebooks cell by cell.
-- DOCX, EPUB and Office documents can be read without the original software; archives show a browsable, searchable tree.
-- Videos play with seeking and frame stepping, animated WebP / APNG play back, and SVG, PSD, AI, DWG thumbnails, fonts and more are supported.
+With two files staged you can compare location, modified time, size and content; for text files "View differences" opens a diff window with side-by-side or unified views, intra-line highlighting, changes-only mode, whitespace and case options, and F7 / Shift+F7 navigation.
 
-Settings → Supported formats lists every previewable format and checks whether the HEIF / HEVC / AV1 / WebP system extensions are installed.
+![Staging tray](docs/images/tray.png)
 
-![Markdown Quick Look in Luling](docs/images/quicklook.png)
+## Details panel
 
-## Staging tray and text compare
+Selecting a file shows a preview, its basic properties and its tags in the details panel on the right. With several selected you can open a combined properties window, or tag and rename them together.
 
-Files you copy or cut (Ctrl+C / Ctrl+X) are collected in the staging tray at the bottom left. Gather them across folders and tabs, then drag them to the destination in one go — dropping copies by default, hold Shift to move.
+![Details panel](docs/images/details.png)
 
-With two files staged you can compare location, modified time, size and content. For text files, "View diff" opens a compare window with side-by-side / unified views, inline change highlighting, differences-only mode, ignore whitespace and case, and F7 / Shift+F7 navigation.
+## Appearance
 
-![Text compare from the Luling staging tray](docs/images/diff.png)
+- Light, dark or follow-system, switchable from the title bar; accent colour, window effects (Mica, acrylic), wallpaper background, UI opacity and background blur.
+- Three text-rendering modes (automatic, sharp, smooth) and three row heights (compact, standard, relaxed).
+- Seven colour labels for files and folders, summarized in the sidebar and available from the Explorer context menu too.
+- Sidebar sections can be reordered, collapsed and hidden.
 
-## Fits into Windows
+## Windows integration
 
-- Make Luling the default file manager for opening folders, Win+E and the desktop This PC icon; "Open file location" selects the file in Luling. Turn it off at any time to restore the original behavior.
-- The context menu merges Explorer and Windows 11 modern menu items (such as VS Code, Windows Terminal and NanaZip), and Luling's own entries can be hidden.
-- Start with Windows into the tray, set a default location, or restore your last tabs on launch.
-- When a file is in use, Luling shows the locking process and can end it and retry; This PC shows drive types and usage bars.
-
-![Luling settings and Windows integration](docs/images/settings.png)
+- Set Luling as the default file manager so folders, `Win+E` and "This PC" on the desktop open it; "Open file location" then selects the file in Luling. It can be turned off again, restoring the original setup.
+- The context menu merges Explorer's and Windows 11's modern entries (VS Code, Windows Terminal, NanaZip and others); Luling's own entries can be hidden.
+- Start minimized to the tray, choose a default location, and list the processes holding a file that cannot be deleted, with an option to end them and retry.
+- "This PC" shows drive types and capacity bars.
 
 ## Automatic updates
 
-Luling checks for a new version after it starts. When an update is available, a prompt appears in the window; click it to download the installer, which opens the setup wizard after it passes verification. You can also check manually in Settings → About & diagnostics, and turn off "Check for updates automatically" on the same page if you don't want reminders.
+Luling checks for a new version after it starts and shows a prompt in the window; clicking it downloads the installer and opens the setup wizard once verification passes. Settings → About & diagnostics can check manually or turn the check off. Downloads can be cancelled, and installation asks for the usual Windows administrator confirmation.
 
-Downloads can be cancelled; confirm the administrator prompt from Windows during installation.
-
-The update manifest and installer are fetched through the ghproxy.net and gh-proxy.com mirrors first, switching automatically on connection failure and falling back to GitHub — no setup needed. Every source must pass signature and installer verification.
+The update manifest and installer try the ghproxy.net and gh-proxy.com mirrors first, switch automatically on failure and fall back to GitHub — no configuration needed. Every source must pass signature and installer verification.
 
 ## Build from source
 
-Requires Windows x64, the Visual Studio C++ tools, CMake 3.25+ and Ninja. Release builds also need PowerShell 7.2+ and Python 3 (to pack the installer).
-
-Development build:
+Windows x64, the Visual Studio 2022 C++ tools (v143), CMake 3.25+ and Ninja. Release builds additionally need PowerShell 7.2+ and Python 3 (to pack the installer and sign the update manifest).
 
 ```powershell
+# Configure and build (CMakePresets.json also offers x64-debug / x64-release)
 .\build_release.bat
+
+# Run what you built
 .\build\luling.exe
+
+# Regression tests (registered by cmake/tests.cmake; scripts/build_release_ci.ps1 is the equivalent release gate)
+pwsh ./scripts/run_tests.ps1
 ```
 
-Build the same installers as an official release and run the regression checks:
+The stack is C++20, Win32, Direct2D and DirectComposition; filesystem, index, preview and Shell work live in their own modules so nothing blocks the UI. Release scripts verify the pinned LumaText SDK (`cmake/lumatext-sdk.json` pins the manifest SHA-256) and fall back to DirectWrite when it is missing.
 
-```powershell
-pwsh ./scripts/build_release_ci.ps1 -Channel windows
-pwsh ./scripts/build_release_ci.ps1 -Channel win81 -BuildDir build-ci-win81
-```
-
-The release scripts use Visual Studio 2022 v143 and verify the pinned LumaText static-runtime SDK in the repository. `cmake/lumatext-sdk.json` pins the SHA-256 of the SDK manifest, which covers the DLL, import library, headers, CMake exports and license. Development builds can point `LUMATEXT_SOURCE_DIR` at the source; without LumaText, DirectWrite is used.
-
-The stack is C++20, Win32, Direct2D and DirectComposition. File system, indexing, preview and Shell work live in their own modules so they never block the UI.
-
-More: [Automatic updates and releases](docs/automatic-updates.md) · [Windows compatibility](docs/windows-compatibility.md) · [Index storage and migration](docs/index-migration.md)
+More: [Updates and releases](docs/automatic-updates.md) · [Windows compatibility](docs/windows-compatibility.md) · [Index storage and migration](docs/index-migration.md)
 
 ## License and credits
 
