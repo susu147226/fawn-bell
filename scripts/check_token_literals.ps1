@@ -46,16 +46,13 @@ $sourceRoot = (Resolve-Path -LiteralPath $Root).Path
 # Where literals are supposed to live: the token table. Everything else must
 # take its values from there.
 $tokenAllowList = @(
-    'src\ui\theme\tokens.h',
-    'src\ui\theme\tokens.cpp'
+    'src\ui\FluentTokens.h'
 )
 
-# Exempted per file, not per value: this one declares Windows reparse tag
-# constants, which are not palette colours and have to be written out (some
-# tags are absent from the user-mode headers). Exempting by file keeps the same
-# hex digits in any other file from slipping through.
+# Exempted per file, not per value: reparse tags come from the Windows headers
+# (IO_REPARSE_TAG_*), so no source has to spell them out today. Kept for a file
+# that ever has to declare such constants by hand.
 $systemConstantAllowList = @(
-    'src\infra\fs\reparse_point.cpp'
 )
 
 # Structural constants that are not palette colours: zero alpha, full opacity
