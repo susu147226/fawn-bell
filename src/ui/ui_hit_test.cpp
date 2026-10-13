@@ -677,7 +677,12 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             HitTestResult::NavUp, HitTestResult::NavRefresh};
         const bool searchOverlay=vm.address_searching && rect.right-EffectiveSidebarWidth(rect.right)<480*scale_;
         if (!searchOverlay)
-            for (int i=0; i<4; ++i) if (ContainsPt(toolbar.navigation[i],x,y)) {r.region=nav[i]; return r;}
+            for (int i=0; i<4; ++i) {
+                // Nothing above This PC: the button is greyed, so it must not be
+                // hit either (18.2 B0 requires a disabled control to miss).
+                if (i==2 && !vm.pane.can_go_up) continue;
+                if (ContainsPt(toolbar.navigation[i],x,y)) {r.region=nav[i]; return r;}
+            }
         // Hit-test the same rect the chrome is drawn in; toolbar.search can be wider,
         // which shifted every chip target (e.g. the options icon toggled the mode).
         const auto searchBounds=searchOverlay || vm.address_searching ? SearchBarRect(rect.right) : toolbar.search;

@@ -2117,9 +2117,21 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+// A C++ exception must not take the window down: it is contained here and the
+// message is dropped (acceptance 20). Real SEH faults still reach the reporter
+// in WndProc, because catch(...) under /EHsc does not catch them.
+LRESULT WndProcImplGuarded(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    try {
+        return WndProcImpl(hwnd, msg, wParam, lParam);
+    } catch (...) {
+        luling::crash::AddBreadcrumb(2, msg, 0);
+        return 0;
+    }
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     __try {
-        return WndProcImpl(hwnd, msg, wParam, lParam);
+        return WndProcImplGuarded(hwnd, msg, wParam, lParam);
     } __except (luling::crash::AddBreadcrumb(1, msg, static_cast<int32_t>(GetExceptionCode())),
                 luling::crash::ReportFatal(GetExceptionInformation(), "wndproc")) {
         TerminateProcess(GetCurrentProcess(), GetExceptionCode());
@@ -2903,6 +2915,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         GetEnvironmentVariableW(L"LULING_TEST_P1_FLOW", p1_probe, ARRAYSIZE(p1_probe))) {
         extern int RunP1RegressionProbe(AppState&, const wchar_t*);
         const int result = WaitForShotReady(state) ? RunP1RegressionProbe(state, p1_probe) : 4;
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return result;
+    }
+    wchar_t nav_up_probe[32768]{};
+    if (state.isolatedTest && GetEnvironmentVariableW(L"LULING_TEST_NAV_UP", nav_up_probe, ARRAYSIZE(nav_up_probe))) {
+        extern int RunNavUpProbe(AppState&, const wchar_t*);
+        const int result = WaitForShotReady(state) ? RunNavUpProbe(state, nav_up_probe) : 4;
         DestroyWindow(hwnd);
         OleUninitialize();
         return result;

@@ -2175,6 +2175,9 @@ void GoUp(AppState& s) {
     // ParentPath answers in normalized form; compare like with like so an
     // unnormalized C:\ is still seen as a root (#68).
     const std::wstring current = fs::NormalizePath(tab->current_path);
+    // An empty path is This PC; fs::ParentPath throws on it, and there is
+    // nothing above it anyway (#146: the crash came from exactly this call).
+    if (current.empty()) return;
     const std::wstring up = fs::ParentPath(current);
     if (_wcsicmp(up.c_str(), current.c_str()) != 0) NavigateTo(s, up);
     else if (!current.empty()) NavigateTo(s, L""); // drive root -> This PC
