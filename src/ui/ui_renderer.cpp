@@ -794,7 +794,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             markFmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
             markFmt->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
             MakeBrush(dc, theme.accent_text, brAccentText_);
-            DrawTextRect(dc, markFmt.get(), brAccentText_.get(), L"P", x, markY, mark, mark);
+            DrawTextRect(dc, markFmt.get(), brAccentText_.get(), L"L", x, markY, mark, mark);
         }
     }
     x += mark + 8.0f * scale_;
