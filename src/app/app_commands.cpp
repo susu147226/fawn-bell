@@ -10,6 +10,7 @@
 #include "app_internal.h"
 #include "asset_refile.h"
 #include "shell_new.h"
+#include "system_deploy.h"
 #include "app_sidebar_refresh.h"
 #include "tray_reveal.h"
 #include "group_wheel_ui.h"
@@ -990,6 +991,32 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         app::BatchRenameRule rule;
         rule.pattern = L"{name}" + text + L"{ext}";
         ShowBatchRename(s, rule);
+        break;
+    }
+    case app::CmdDeployToSystem: {
+        std::wstring error;
+        if (DeployToSystem(error))
+            MessageBoxW(s.hwnd,
+                        l10n::Pick(L"已安装到系统：桌面与开始菜单快捷方式已创建，"
+                                    L"可在「设置 → 应用」中卸载。",
+                                   L"Installed: desktop and Start-menu shortcuts created; "
+                                   L"uninstall it from Settings > Apps."),
+                        L"Luling", MB_OK | MB_ICONINFORMATION);
+        else
+            MessageBoxW(s.hwnd, error.c_str(), L"Luling", MB_OK | MB_ICONERROR);
+        break;
+    }
+    case app::CmdRemoveFromSystem: {
+        std::wstring error;
+        if (RemoveFromSystem(error))
+            MessageBoxW(s.hwnd,
+                        l10n::Pick(L"已从系统卸载：快捷方式与卸载项已移除，"
+                                    L"程序目录将在退出后删除。",
+                                   L"Uninstalled: shortcuts and the uninstall entry are gone; "
+                                   L"the program folder is removed after exit."),
+                        L"Luling", MB_OK | MB_ICONINFORMATION);
+        else
+            MessageBoxW(s.hwnd, error.c_str(), L"Luling", MB_OK | MB_ICONERROR);
         break;
     }
     case app::CmdToggleCheckboxes:

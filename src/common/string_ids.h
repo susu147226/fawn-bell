@@ -1421,3 +1421,6 @@
 #define IDS_BATCH_RENAME_MORE 2579
 // Background menu: the item-checkbox toggle.
 #define IDS_ITEM_CHECKBOXES 2580
+// Background menu: in-process install / uninstall.
+#define IDS_DEPLOY_TO_SYSTEM 2581
+#define IDS_REMOVE_FROM_SYSTEM 2582

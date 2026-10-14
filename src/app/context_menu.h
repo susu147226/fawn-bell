@@ -133,6 +133,9 @@ enum MenuCmd : int {
     CmdRefileAssets = 100100,
     // 项目复选框 toggle.
     CmdToggleCheckboxes = 100102,
+    // 安装到系统 / 卸载（由程序自身完成，不经过安装器）.
+    CmdDeployToSystem = 100103,
+    CmdRemoveFromSystem = 100104,
 };
 
 // One merged Explorer row (registry static verb or luling_shell COM item),

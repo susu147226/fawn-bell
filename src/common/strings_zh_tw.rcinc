@@ -392,6 +392,8 @@ BEGIN
     IDS_MENU_REFILE_ASSETS "歸檔素材（PNG + XML）"
     IDS_BATCH_RENAME_MORE "更多選項"
     IDS_ITEM_CHECKBOXES "項目核取方塊"
+    IDS_DEPLOY_TO_SYSTEM "安裝到系統…"
+    IDS_REMOVE_FROM_SYSTEM "從系統解除安裝…"
     IDS_RESTORE_DEFAULTS            "恢復預設"
     IDS_TOOLTIP_CLOSE_TAB           "關閉分頁"
     IDS_TOOLTIP_NEW_TAB             "新增分頁"

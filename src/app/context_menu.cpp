@@ -315,6 +315,13 @@ std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_und
         items.push_back(std::move(check));
         items.back().separator_after = true;
     }
+    // In-process deployment: the installer needs elevation, and this lets the
+    // portable build register itself (and undo it) without any installer.
+    items.push_back(Item(CmdDeployToSystem,
+        l10n::Get(l10n::StringId::DeployToSystem).c_str(), L"\xE896"));
+    items.push_back(Item(CmdRemoveFromSystem,
+        l10n::Get(l10n::StringId::RemoveFromSystem).c_str(), L"\xE74D"));
+    items.back().separator_after = true;
     items.push_back(Item(CmdPaste, l10n::Get(l10n::StringId::Paste).c_str(), kGlyphPaste, L"Ctrl+V", can_paste));
     items.push_back(Item(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C"));
     items.back().separator_after = true;

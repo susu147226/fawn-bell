@@ -1,4 +1,5 @@
 #include "../common/windows_compat.h"
+#include "system_deploy.h"
 #include "../ui/FluentTokens.h"
 #include "quick_access.h"
 #include "update_stage.h"
@@ -2521,6 +2522,19 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             const int rc = app::SeedMachineStaticVerbCache() ? 0 : 1;
             OleUninitialize();
             return rc;
+        }
+    }
+
+    // Uninstall entry target ("<exe>" --uninstall): drop shortcuts and the
+    // registry entry, then let the folder delete itself once we exit.
+    for (int i = 1; i < __argc; ++i) {
+        if (wcscmp(__wargv[i], L"--uninstall") == 0) {
+            std::wstring error;
+            const bool ok = RemoveFromSystem(error);
+            if (!ok)
+                MessageBoxW(nullptr, error.c_str(), L"Luling", MB_OK | MB_ICONERROR);
+            OleUninitialize();
+            return ok ? 0 : 1;
         }
     }
 
