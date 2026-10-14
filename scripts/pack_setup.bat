@@ -35,10 +35,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%CD%\scripts\stage_installe
 call "%CD%\scripts\vcvars.bat" >nul || exit /b 1
 chcp 65001 >nul
 set "VSLANG=1033"
-cmake --build "%LULING_BUILD_DIR%" --target luling_setup || exit /b 1
 
-set "LULING_PYTHON=python"
-where python >nul 2>&1 || set "LULING_PYTHON=py -3"
-%LULING_PYTHON% tools\pack_installer\pack_installer.py --root . --build "%LULING_BUILD_DIR%" --stub "%LULING_BUILD_DIR%\luling_setup.exe" --version %LULING_VERSION% --channel %LULING_CHANNEL% --out "dist\LulingSetup-%LULING_VERSION%%LULING_SUFFIX%.exe" || exit /b 1
+rem NSIS rather than the in-tree self-extracting bootstrapper. That one had to
+rem unpack its payload into the destination *before* it could elevate, so the
+rem extraction was refused on any machine whose install tree is
+rem Administrators-only -- and the install never started.
+set "LULING_MAKENSIS=%ProgramFiles(x86)%\NSIS\makensis.exe"
+if not exist "%LULING_MAKENSIS%" set "LULING_MAKENSIS=%ProgramFiles%\NSIS\makensis.exe"
+if not exist "%LULING_MAKENSIS%" (
+    echo NSIS not found: install NSIS or set LULING_MAKENSIS
+    exit /b 1
+)
+"%LULING_MAKENSIS%" /DVERSION=%LULING_VERSION% /DBUILDDIR="%LULING_BUILD_DIR%" /DOUTDIR="%CD%\dist" /DROOT="%CD%" "%CD%\scripts\installer_luling.nsi" || exit /b 1
 echo.
 echo Installer written to dist\LulingSetup-%LULING_VERSION%%LULING_SUFFIX%.exe
