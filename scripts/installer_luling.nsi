@@ -79,10 +79,30 @@ Section "鹿铃" SecMain
 SectionEnd
 
 Section "Uninstall"
+  ; Stop anything still running from this install, then remove the service.
+  ExecWait '"$INSTDIR\Luling.Index.exe" --stop' $0
+  ExecWait 'sc stop LulingIndex' $0
+  ExecWait 'sc delete LulingIndex' $0
+
   Delete "$DESKTOP\鹿铃.lnk"
   Delete "$SMPROGRAMS\鹿铃\鹿铃.lnk"
   RMDir "$SMPROGRAMS\鹿铃"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Luling"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Luling"
   DeleteRegKey HKCU "Software\Luling"
+  DeleteRegKey HKLM "Software\Luling"
+  ; Shell integration entries the app may have written.
+  DeleteRegKey HKCU "Software\Classes\*\shell\Luling"
+  DeleteRegKey HKLM "Software\Classes\*\shell\Luling"
+
+  ; Program files, then everything the app keeps outside them. Leaving these
+  ; behind is what makes an "uninstalled" Luling still show up in searches and
+  ; in %LOCALAPPDATA%.
   RMDir /r "$INSTDIR"
+  RMDir /r "$LOCALAPPDATA\Luling"
+  RMDir /r "$LOCALAPPDATA\鹿铃"
+  RMDir /r "$APPDATA\Luling"
+  RMDir /r "$APPDATA\鹿铃"
+  RMDir /r "$COMMONAPPDATA\Luling"
+  RMDir /r "$COMMONAPPDATA\鹿铃"
 SectionEnd

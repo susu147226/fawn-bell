@@ -33,6 +33,20 @@ std::wstring FolderOf(const std::wstring& path) {
     return slash == std::wstring::npos ? std::wstring{} : path.substr(0, slash);
 }
 
+// Recursive delete through the shell, which handles the nested and read-only
+// cases a hand-rolled walk misses.
+void RemoveTree(const std::wstring& dir) {
+    if (dir.empty() || GetFileAttributesW(dir.c_str()) == INVALID_FILE_ATTRIBUTES) return;
+    std::wstring from = dir;
+    from.push_back(L'\0');  // pFrom is double-terminated
+    from.push_back(L'\0');
+    SHFILEOPSTRUCTW op{};
+    op.wFunc = FO_DELETE;
+    op.pFrom = from.c_str();
+    op.fFlags = FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
+    SHFileOperationW(&op);
+}
+
 std::wstring KnownFolderPath(REFKNOWNFOLDERID id) {
     PWSTR raw = nullptr;
     if (FAILED(SHGetKnownFolderPath(id, 0, nullptr, &raw)) || !raw) return {};
@@ -153,6 +167,30 @@ bool RemoveFromSystem(std::wstring& error) {
         error = L"无法删除卸载信息（错误 " + std::to_wstring(removed) + L"）";
         return false;
     }
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Luling");
+
+    // Everything the app keeps outside the install folder. Leaving these behind
+    // is what made an "uninstalled" Luling still show up in %LOCALAPPDATA%.
+    // The data directory also holds the index service's files, so it may need a
+    // moment after the service stops.
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        for (const auto& id : {FOLDERID_LocalAppData, FOLDERID_RoamingAppData}) {
+            const std::wstring base = KnownFolderPath(id);
+            if (base.empty()) continue;
+            RemoveTree(base + L"\\" + kAppName);
+            RemoveTree(base + L"\\" + kDisplayName);
+        }
+        const std::wstring common = KnownFolderPath(FOLDERID_ProgramData);
+        if (!common.empty()) {
+            RemoveTree(common + L"\\" + kAppName);
+            RemoveTree(common + L"\\" + kDisplayName);
+        }
+        if (GetFileAttributesW((KnownFolderPath(FOLDERID_LocalAppData) + L"\\" + kAppName).c_str()) ==
+            INVALID_FILE_ATTRIBUTES)
+            break;
+        Sleep(300);
+    }
+
     // The running executable cannot delete its own folder: hand that to a
     // detached command that waits for this process to exit.
     if (!dir.empty()) {
