@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cwctype>
+#include <filesystem>
+#include <system_error>
 
 namespace luling::setup {
 
@@ -114,18 +116,16 @@ std::wstring ParentDir(const std::wstring& path) {
 
 bool CreateDirs(const std::wstring& dir) {
     if (dir.empty()) return false;
-    const DWORD a = GetFileAttributesW(dir.c_str());
-    if (a != INVALID_FILE_ATTRIBUTES) return (a & FILE_ATTRIBUTE_DIRECTORY) != 0;
-    // SHCreateDirectoryExW builds the whole chain and reports the real reason,
-    // unlike a hand-rolled walk whose final CreateDirectory answers
-    // ERROR_PATH_NOT_FOUND even when the failure was access denied.
-    const int result = SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-    if (result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS || result == ERROR_FILE_EXISTS)
-        return true;
-    // Publish the real reason: callers report GetLastError(), which would
-    // otherwise be whatever the last unrelated call left behind.
-    SetLastError(static_cast<DWORD>(result));
-    return false;
+    std::error_code ec;
+    if (std::filesystem::is_directory(dir, ec)) return true;
+    std::filesystem::create_directories(dir, ec);
+    if (ec) {
+        // Publish the real reason (access denied, path not found, ...) so the
+        // installer reports what actually happened rather than a stale code.
+        SetLastError(static_cast<DWORD>(ec.value()));
+        return false;
+    }
+    return std::filesystem::is_directory(dir, ec);
 }
 
 bool ReadWholeFile(const std::wstring& path, std::string& data) {
