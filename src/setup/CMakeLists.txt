@@ -49,10 +49,11 @@ target_include_directories(luling_setup PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(luling_setup PRIVATE luling_setup_payload shell32 ole32 uuid advapi32 user32 gdi32 comctl32
     d2d1 dwrite windowscodecs dwmapi)
 target_compile_definitions(luling_setup PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-# The default install is per-user (%LOCALAPPDATA%\Programs), so no elevation is
-# needed and asking for it would prompt for nothing. A user who still picks a
-# machine-wide directory gets the plain access-denied error instead.
-target_link_options(luling_setup PRIVATE /MANIFESTUAC:level='asInvoker')
+# The bootstrapper extracts its payload into the destination before the install
+# engine runs, so it must already hold an elevated token: setup_main.cpp's
+# self-relaunch happens after that write and can no longer save it. Without this
+# the extraction is refused (access denied) and the install never starts.
+target_link_options(luling_setup PRIVATE /MANIFESTUAC:level='requireAdministrator')
 
 foreach(setup_target luling_lzma_dec luling_setup_payload luling_setup_p0 luling_setup)
     target_compile_options(${setup_target} PRIVATE $<$<CONFIG:Release>:/Gy /Gw>)
