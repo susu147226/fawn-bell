@@ -1416,11 +1416,7 @@
 #define IDS_MENU_RENAME_SEQ_ONE 2576
 #define IDS_MENU_APPEND_SUFFIX 2577
 // Context menu: refile.py built in (folder per PNG prefix + rewritten XML).
-#define IDS_MENU_REFILE_ASSETS 2578
-// Batch rename dialog: reveal the advanced fields.
 #define IDS_BATCH_RENAME_MORE 2579
-// Background menu: the item-checkbox toggle.
-#define IDS_ITEM_CHECKBOXES 2580
 // Background menu: in-process install / uninstall.
 #define IDS_DEPLOY_TO_SYSTEM 2581
 #define IDS_REMOVE_FROM_SYSTEM 2582

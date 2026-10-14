@@ -1581,9 +1581,13 @@ int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
         max_visible_rows_ = 0;
         return 0;
     }
+    // filter_min_width_ is the caller's "at least this wide". It used to apply
+    // only when the menu had a filter box, so a list without one (the address
+    // bar's history) silently fell back to content width.
     const float minW = filter_fn_
         ? (filter_min_width_ > 0.0f ? filter_min_width_ : 440.0f) * scale_
-        : dropdown_ ? static_cast<float>(dropdown_rect_.right - dropdown_rect_.left) : 0.0f;
+        : dropdown_ ? static_cast<float>(dropdown_rect_.right - dropdown_rect_.left)
+                    : filter_min_width_ * scale_;
     model_.SetItems(std::move(items));
     model_.Layout(compositor_->DwriteFactory(), scale_, minW);
     hover_row_ = hover_first_on_open_ ? model_.FirstEnabled() : -1;

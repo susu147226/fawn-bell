@@ -237,17 +237,6 @@ D2D1_RECT_F ViewLayout::ItemRect(int index) const noexcept {
     return D2D1_RECT_F{left, top, left + metrics_.cell_width, top + metrics_.cell_height};
 }
 
-float ViewLayout::checkbox_inset_ = 0.0f;
-
-D2D1_RECT_F ViewLayout::CheckboxRect(int index) const noexcept {
-    if (checkbox_inset_ <= 0.0f) return {};
-    const D2D1_RECT_F cell = ItemRect(index);
-    const float box = 16.0f * scale_;
-    const float pad = 8.0f * scale_;
-    const float top = cell.top + (cell.bottom - cell.top - box) * 0.5f;
-    return {cell.left + pad, top, cell.left + pad + box, top + box};
-}
-
 D2D1_RECT_F ViewLayout::IconRect(int index) const noexcept {
     const D2D1_RECT_F cell = ItemRect(index);
     const float icon = metrics_.icon_size;
@@ -260,8 +249,7 @@ D2D1_RECT_F ViewLayout::IconRect(int index) const noexcept {
         return {left, cell.top + pad, left + fittedIcon, cell.top + pad + fittedIcon};
     }
     const float top = cell.top + (cell.bottom - cell.top - icon) * 0.5f;
-    return {cell.left + pad + checkbox_inset_, top,
-            cell.left + pad + checkbox_inset_ + icon, top + icon};
+    return {cell.left + pad, top, cell.left + pad + icon, top + icon};
 }
 
 D2D1_RECT_F ViewLayout::NameRect(int index) const noexcept {
@@ -276,11 +264,11 @@ D2D1_RECT_F ViewLayout::NameRect(int index) const noexcept {
         return {cell.left + pad, top, cell.right - pad, top + 24.0f * scale_};
     }
     if (mode_ == ViewMode::Tiles || mode_ == ViewMode::Content) {
-        const float left = cell.left + pad + checkbox_inset_ + icon + 10.0f * scale_;
+        const float left = cell.left + pad + icon + 10.0f * scale_;
         return {left, cell.top + 7.0f * scale_, cell.right - pad,
                 cell.top + 31.0f * scale_};
     }
-    const float left = cell.left + pad + checkbox_inset_ + icon + 8.0f * scale_;
+    const float left = cell.left + pad + icon + 8.0f * scale_;
     return {left, cell.top + 1.0f * scale_, cell.right - pad,
             cell.bottom - 1.0f * scale_};
 }

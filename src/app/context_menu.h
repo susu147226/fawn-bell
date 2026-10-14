@@ -129,10 +129,6 @@ enum MenuCmd : int {
     // the recent list, 1000-5999 index hits, 6000+ Explorer verbs.
     CmdNewShellBase = 100000,
     kMaxNewShellItems = 64,
-    // 归档素材 (refile.py): kept clear of the ShellNew block above.
-    CmdRefileAssets = 100100,
-    // 项目复选框 toggle.
-    CmdToggleCheckboxes = 100102,
     // 安装到系统 / 卸载（由程序自身完成，不经过安装器）.
     CmdDeployToSystem = 100103,
     CmdRemoveFromSystem = 100104,
@@ -191,8 +187,7 @@ std::vector<ShellMenuEntry> ApplyExplorerPrefs(const ContextMenuPrefs& prefs,
 
 // Context menu for empty list space (creation / paste / terminal / undo).
 std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_undo,
-                                                    const std::wstring& undo_label,
-                                                    bool item_checkboxes = false);
+                                                    const std::wstring& undo_label);
 struct BackgroundViewOptions {
     ui::ViewMode view_mode = ui::ViewMode::Details;
     ui::SortColumn sort_column = ui::SortColumn::Name;

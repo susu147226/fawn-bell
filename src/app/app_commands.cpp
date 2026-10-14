@@ -8,7 +8,6 @@
 #include "app_column_view.h"
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
-#include "asset_refile.h"
 #include "shell_new.h"
 #include "system_deploy.h"
 #include "app_sidebar_refresh.h"
@@ -1019,18 +1018,6 @@ void DispatchMenuCommand(AppState& s, int cmd) {
             MessageBoxW(s.hwnd, error.c_str(), L"Luling", MB_OK | MB_ICONERROR);
         break;
     }
-    case app::CmdToggleCheckboxes:
-        s.appPrefs.item_checkboxes = !s.appPrefs.item_checkboxes;
-        s.appPrefs.Save();
-        InvalidateRect(s.hwnd, nullptr, FALSE);
-        break;
-    case app::CmdRefileAssets: {
-        // refile.py: one folder per PNG prefix, the folder's XML files moved in
-        // and rewritten to the png's size and name.
-        if (const app::Tab* tab = ActiveTab(s))
-            RefileAssets(s, SelectedFullPaths(*tab));
-        break;
-    }
     case app::CmdTags: {
         POINT point{};
         GetCursorPos(&point);
@@ -1531,8 +1518,7 @@ void ShowBackgroundContextMenu(AppState& s, POINT screen_pt) {
     std::wstring undoLabel = s.ops.UndoLabel();
     bool canPaste = !s.tray.batches().empty() || ClipboardHasFiles();
     const auto recent_changes_path = app::RecentChangesMenuPath(*tab, true);
-    auto base_items = app::BuildBackgroundMenu(canPaste, s.ops.CanUndo(), undoLabel,
-                                               s.appPrefs.item_checkboxes);
+    auto base_items = app::BuildBackgroundMenu(canPaste, s.ops.CanUndo(), undoLabel);
     app::AppendRecentChangesCommand(base_items, recent_changes_path);
     app::AppendBackgroundViewCommands(base_items, view_options);
     ApplyWorkspacePinLabel(base_items, s);

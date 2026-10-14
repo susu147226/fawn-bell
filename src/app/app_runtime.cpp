@@ -865,7 +865,6 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             // it instead of rebuilding all snapshot-derived data twice.
             if (slot.focused) slot.pane = vm.pane;
             else app::FillPaneViewModel(slot.pane, *p, &s.places);
-            slot.pane.item_checkboxes = s.appPrefs.item_checkboxes;
             if (app::Tab* tab = p->ActiveTab()) {
                 FillChangePane(s, *tab, slot.pane, slot.rect);
                 for (const auto& cutPath : s.cutPaths) {

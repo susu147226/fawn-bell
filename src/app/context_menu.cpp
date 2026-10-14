@@ -102,8 +102,6 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
         l10n::Get(l10n::StringId::MenuRenameSeqOne).c_str(), kGlyphRename));
     items.push_back(Item(CmdAppendNameSuffix,
         l10n::Get(l10n::StringId::MenuAppendSuffix).c_str(), kGlyphRename));
-    items.push_back(Item(CmdRefileAssets,
-        l10n::Get(l10n::StringId::MenuRefileAssets).c_str(), kGlyphFolder));
     items.back().separator_after = true;
     items.push_back(UndoItem(can_undo, undo_label));
     return items;
@@ -133,8 +131,6 @@ BuiltinMenuItem BuiltinItemForCommand(int command) {
     case CmdRenameSequenceZero: return BuiltinMenuItem::RenameSeqZero;
     case CmdRenameSequenceOne: return BuiltinMenuItem::RenameSeqOne;
     case CmdAppendNameSuffix: return BuiltinMenuItem::AppendSuffix;
-    case CmdRefileAssets: return BuiltinMenuItem::RefileAssets;
-    case CmdToggleCheckboxes: return BuiltinMenuItem::ToggleCheckboxes;
     default: return BuiltinMenuItem::Count;
     }
 }
@@ -294,8 +290,7 @@ std::vector<ui::FluentMenuItem> BuildRecyclePlaceMenu(bool can_empty) {
 
 
 std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_undo,
-                                                    const std::wstring& undo_label,
-                                                    bool item_checkboxes) {
+                                                    const std::wstring& undo_label) {
     std::vector<ui::FluentMenuItem> items;
     items.push_back(Item(CmdNewFolder, l10n::Get(l10n::StringId::NewFolder).c_str(), kGlyphNewFolder, L"F7"));
     items.push_back(Item(CmdNewTextFile, l10n::Get(l10n::StringId::NewTextDocument).c_str(), kGlyphNewFile));
@@ -307,14 +302,6 @@ std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_und
                                  shell_new[i].display.c_str(), kGlyphNewFile));
     }
     items.back().separator_after = true;
-    {
-        // 项目复选框: checkbox column on the left of every list row.
-        auto check = Item(CmdToggleCheckboxes,
-            l10n::Get(l10n::StringId::ItemCheckboxes).c_str(), L"\xE73A");
-        check.checked = item_checkboxes;
-        items.push_back(std::move(check));
-        items.back().separator_after = true;
-    }
     // In-process deployment: the installer needs elevation, and this lets the
     // portable build register itself (and undo it) without any installer.
     items.push_back(Item(CmdDeployToSystem,
