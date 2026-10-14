@@ -111,6 +111,8 @@ void ShowLocationHistory(AppState& s) {
     GetWindowRect(s.hwndAddressEdit, &anchor);
     s.menu->SetAnchorRect(anchor);
     s.menu->SetMaxVisibleRows(10);
+    // The list is as wide as the address bar it drops from.
+    s.menu->SetFilterMinWidth(static_cast<float>(anchor.right - anchor.left) / s.scale);
     s.menu->SetTheme(s.darkMode, s.accentColor);
     const int command = s.menu->TrackPopup({anchor.left, anchor.bottom}, items, {});
     if (command >= 300 && command < 300 + static_cast<int>(entries.size())) {

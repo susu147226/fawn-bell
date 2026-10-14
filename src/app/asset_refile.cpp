@@ -99,7 +99,12 @@ int RefileAssets(AppState& s, const std::vector<std::wstring>& paths) {
     std::vector<std::wstring> pngs;
     for (const auto& path : paths)
         if (ExtensionOf(FileNameOf(path)) == L".png") pngs.push_back(path);
-    if (pngs.empty()) return 0;
+    if (pngs.empty()) {
+        MessageBoxW(s.hwnd, l10n::Pick(L"没有选中可归档的 PNG 文件。",
+                                       L"No PNG files are selected to file."),
+                    L"Luling", MB_OK | MB_ICONINFORMATION);
+        return 0;
+    }
     int filed = 0;
     for (const auto& png : pngs) {
         const std::wstring dir = ParentOf(png);

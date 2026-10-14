@@ -298,12 +298,21 @@ std::vector<StaticVerb> EnumerateStaticVerbs(const std::wstring& ext) {
             CollectVerbsFrom(HKEY_CLASSES_ROOT, L"Directory\\Background\\shell", out, true,
                              true, &seen);
         } else {
+            // *\shell applies to every object, folders included: this is where
+            // VS Code and friends register, and Explorer shows them on folders.
+            CollectVerbsFrom(HKEY_CLASSES_ROOT, L"*\\shell", out, true, false, &seen);
             CollectVerbsFrom(HKEY_CLASSES_ROOT, L"Directory\\shell", out, true, false, &seen);
             CollectVerbsFrom(HKEY_CLASSES_ROOT, L"Folder\\shell", out, true, false, &seen);
             CollectVerbsFrom(HKEY_CLASSES_ROOT, L"AllFilesystemObjects\\shell", out, true,
                              false, &seen);
             if (ext == ipc::kDriveVerbKey)
                 CollectVerbsFrom(HKEY_CLASSES_ROOT, L"Drive\\shell", out, true, false, &seen);
+            // 打开方式… is a verb of the default menu, not the folder-type ones.
+            StaticVerb open_as;
+            open_as.verb = L"openas";
+            open_as.display = luling::l10n::Get(luling::l10n::StringId::ShellOpenWith);
+            if (open_as.display.empty()) open_as.display = L"Open with...";
+            out.push_back(std::move(open_as));
         }
         return DedupeStaticVerbs(std::move(out), {}, 48);
     }

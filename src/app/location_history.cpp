@@ -8,7 +8,7 @@
 
 namespace luling::app {
 namespace {
-constexpr size_t kCapacity = 50;
+constexpr size_t kCapacity = 10;
 constexpr size_t kMaxPath = 32768;
 constexpr size_t kMaxFileBytes = 8 * 1024 * 1024;
 
