@@ -79,8 +79,11 @@ Section "鹿铃" SecMain
 SectionEnd
 
 Section "Uninstall"
-  ; Stop anything still running from this install, then remove the service.
-  ExecWait '"$INSTDIR\Luling.Index.exe" --stop' $0
+  ; Never ExecWait the application's own exe here: without a matching argument it
+  ; starts the full UI and the uninstaller blocks on it forever. Kill leftovers
+  ; and stop the service instead -- both return immediately.
+  ExecWait 'taskkill /f /im luling.exe' $0
+  ExecWait 'taskkill /f /im "Luling.Index.exe"' $0
   ExecWait 'sc stop LulingIndex' $0
   ExecWait 'sc delete LulingIndex' $0
 
