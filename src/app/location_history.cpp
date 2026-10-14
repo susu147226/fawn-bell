@@ -1,6 +1,7 @@
 #include "location_history.h"
 #include "session.h"
 #include "../common/json_utils.h"
+#include "../common/path_utils.h"
 #include "../common/utf8_file.h"
 #include <algorithm>
 #include <cwctype>
@@ -32,6 +33,8 @@ std::wstring LocationHistory::ToJson() const {
 
 bool LocationHistory::FromJson(const std::wstring& json) {
     entries = luling::json::ExtractStringArray(json, L"paths");
+    // Older builds stored the internal \\?\ form; keep the list clean.
+    for (auto& path : entries) path = luling::path::StripExtendedPathPrefix(path);
     entries.erase(std::remove_if(entries.begin(), entries.end(),
                                  [](const std::wstring& path) {
                                      return path.empty() || path.size() > kMaxPath;

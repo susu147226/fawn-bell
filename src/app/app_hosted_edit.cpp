@@ -182,6 +182,9 @@ void ShowAddressEditor(AppState& s) {
     SendMessageW(s.hwndAddressEdit, EM_SETSEL, 0, -1);
     s.addressIgnoreKillFocus = false;
     InvalidateRect(s.hwnd, nullptr, FALSE);
+    // Clicking into the address field lists where the user has been, the way a
+    // browser shows recents on focus (posted, so this stays non-blocking).
+    PostMessageW(s.hwnd, WM_SEARCH_HISTORY, 0, 0);
 }
 
 // Explorer starts the program in the folder being shown. Virtual places (This

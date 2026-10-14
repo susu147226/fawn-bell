@@ -1892,8 +1892,12 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (s) CompleteUpdateDownload(*s);
         return 0;
     case WM_SEARCH_HISTORY:
-        if (s && s->addressSearching && GetFocus() == s->hwndAddressEdit)
-            ShowAddressSearchHistory(*s);
+        if (s && GetFocus() == s->hwndAddressEdit) {
+            // Searching lists past queries; plain address editing lists the
+            // folders the user has visited.
+            if (s->addressSearching) ShowAddressSearchHistory(*s);
+            else ShowLocationHistory(*s);
+        }
         return 0;
     case WM_UPDATE_INSTALL:
         if (s) InstallUpdate(*s);

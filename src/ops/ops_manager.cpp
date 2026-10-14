@@ -1467,7 +1467,20 @@ void OpsManager::OpenThread() {
                                                   : item_dir.c_str();
         sei.nShow = SW_SHOWNORMAL;
         sei.fMask = SEE_MASK_FLAG_NO_UI;
-        ShellExecuteExW(&sei); // best effort; errors surface via the OS association UI
+        // Best effort in general, but a silent no-op is indistinguishable from
+        // a missed click, so report what the shell refused.
+        if (!ShellExecuteExW(&sei)) {
+            const DWORD error = GetLastError();
+            if (error != ERROR_CANCELLED) {
+                wchar_t detail[512]{};
+                FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr,
+                    error, 0, detail, ARRAYSIZE(detail), nullptr);
+                const auto message = std::wstring(l10n::Pick(L"无法打开此项目。",
+                                                            L"Could not open this item.")) +
+                    L"\n" + detail + L" (" + std::to_wstring(error) + L")";
+                MessageBoxW(dialog_owner, message.c_str(), L"Luling", MB_OK | MB_ICONERROR);
+            }
+        }
     }
     CoUninitialize();
 }
