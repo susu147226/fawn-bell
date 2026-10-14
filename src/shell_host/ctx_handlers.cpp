@@ -415,6 +415,8 @@ HRESULT QueryOneHandler(const CtxHandlerDesc& handler, const CtxBind& bind,
         slot.menu = nullptr;
         return E_OUTOFMEMORY;
     }
+    // QueryContextMenu takes no owner window; the owner only matters when the
+    // verb is invoked, which CtxInvoke does with our own message window.
     (void)owner;
     hr = SafeQueryContextMenu(slot.menu, slot.hmenu, 0, id_first, id_last, qcm_flags);
     if (FAILED(hr)) {

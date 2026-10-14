@@ -923,8 +923,12 @@ void CtxInvoke(const CtxSessionData& d, IContextMenu* menu, UINT id_first,
     }
     CMINVOKECOMMANDINFOEX info{};
     info.cbSize = sizeof(info);
-    info.fMask = CMIC_MASK_UNICODE;
-    info.hwnd = d.owner;
+    // Handlers run in this process, so the owner window has to belong to it.
+    // Passing the UI process window made Office/WPS style handlers do nothing at
+    // all; our own message window is in-process even though it lives on the
+    // main thread.
+    info.fMask = CMIC_MASK_UNICODE | CMIC_MASK_ASYNCOK;
+    info.hwnd = g.hwnd_msg ? g.hwnd_msg : d.owner;
     info.lpVerb = MAKEINTRESOURCEA(item_id - id_first);
     info.lpVerbW = MAKEINTRESOURCEW(item_id - id_first);
     info.lpDirectoryW = dir.c_str();
