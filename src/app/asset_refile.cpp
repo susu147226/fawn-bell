@@ -111,9 +111,16 @@ int RefileAssets(AppState& s, const std::vector<std::wstring>& paths) {
         const std::wstring dir = ParentOf(png);
         const std::wstring name = FileNameOf(png);
         const size_t underscore = name.find(L'_');
-        const std::wstring prefix = name.substr(0, underscore == std::wstring::npos
-                                                       ? name.size()
-                                                       : underscore);
+        // refile.py: everything before the first "_"; with no underscore the
+        // stem without its extension (a whole "6.7.png" would collide with the
+        // file itself and the folder could never be created).
+        std::wstring prefix;
+        if (underscore != std::wstring::npos) {
+            prefix = name.substr(0, underscore);
+        } else {
+            const size_t dot = name.find_last_of(L'.');
+            prefix = dot == std::wstring::npos || dot == 0 ? name : name.substr(0, dot);
+        }
         if (dir.empty() || prefix.empty()) continue;
         const std::wstring target_dir = Join(dir, prefix);
         CreateDirectoryW(target_dir.c_str(), nullptr);
@@ -147,8 +154,14 @@ int RefileAssets(AppState& s, const std::vector<std::wstring>& paths) {
             s.store.MarkDirty(tab->current_path);
             RefreshActiveTab(s);
         }
+        return filed;
     }
-    return filed;
+    MessageBoxW(s.hwnd,
+                l10n::Pick(L"没有文件被归档：目标文件夹可能已存在，或当前文件夹不可写。",
+                           L"Nothing was filed: the target folder may already exist, "
+                           L"or this folder is not writable."),
+                L"Luling", MB_OK | MB_ICONINFORMATION);
+    return 0;
 }
 
 } // namespace luling
