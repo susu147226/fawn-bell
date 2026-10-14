@@ -1416,6 +1416,10 @@ public:
     bool ReleaseTabWidths();
     float SettingsMaxScroll(const WindowViewModel& vm, float window_w, float window_h) const;
     D2D1_RECT_F SettingsDropdownBounds(const WindowViewModel& vm, int index, float window_w, float window_h) const;
+    // Settings scrollbar track and thumb. The same maths drives drawing, hit
+    // testing and the drag, so they cannot drift apart (issues #166/#196).
+    bool SettingsScrollbarGeometry(const WindowViewModel& vm, float window_w, float window_h,
+                                   D2D1_RECT_F& track, D2D1_RECT_F& thumb, float& max_scroll) const;
     float SettingsDestinationOffset(const WindowViewModel& vm, int setting_id, float window_w, float window_h) const;
     float SidebarMaxScroll(const WindowViewModel& vm, float window_w, float window_h) const;
     bool SidebarScrollbarGeometry(const WindowViewModel& vm, float window_w, float window_h,

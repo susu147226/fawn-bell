@@ -979,13 +979,14 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     dc->PopAxisAlignedClip();
 
     const float view = lay.content.bottom - lay.content.top;
-    if (lay.content_h > view + 1.0f) {
+    D2D1_RECT_F track{}, thumb{};
+    float max_scroll = 0.0f;
+    if (SettingsScrollbarGeometry(vm, rect.right, rect.bottom, track, thumb, max_scroll)) {
         fluent::ScrollbarSpec bar;
-        bar.viewport = D2D1::RectF(lay.content.right - 10.0f * scale_, lay.content.top,
-                                   lay.content.right - 2.0f * scale_, lay.content.bottom);
+        bar.viewport = track;
         bar.offset = vm.settings_scroll;
         bar.viewport_extent = view;
-        bar.content_extent = lay.content_h;
+        bar.content_extent = view + max_scroll;
         bar.expand_progress = 1.0f;
         painter_.DrawScrollbar(bar);
     }
@@ -994,6 +995,23 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
 D2D1_RECT_F MainRenderer::SettingsDropdownBounds(const WindowViewModel& vm, int index, float window_w, float window_h) const {
     const auto l=MakeSettingsLayout(vm,D2D1::RectF(0,0,window_w,window_h),scale_,title_bar_height_,status_height_,&painter_);
     return index==0 ? l.effect_choice : l.language_choice;
+}
+
+bool MainRenderer::SettingsScrollbarGeometry(const WindowViewModel& vm, float window_w, float window_h,
+                                             D2D1_RECT_F& track, D2D1_RECT_F& thumb, float& max_scroll) const {
+    const auto l = MakeSettingsLayout(vm, D2D1::RectF(0, 0, window_w, window_h), scale_,
+                                      title_bar_height_, status_height_, &painter_);
+    const float view = l.content.bottom - l.content.top;
+    if (l.content_h <= view + 1.0f) return false;
+    track = D2D1::RectF(l.content.right - 10.0f * scale_, l.content.top,
+                        l.content.right - 2.0f * scale_, l.content.bottom);
+    max_scroll = l.content_h - view;
+    const float thumb_height = (std::max)(24.0f * scale_, view * view / l.content_h);
+    const float travel = (track.bottom - track.top) - thumb_height;
+    const float offset = max_scroll > 0.0f
+        ? std::clamp(vm.settings_scroll / max_scroll, 0.0f, 1.0f) * travel : 0.0f;
+    thumb = D2D1::RectF(track.left, track.top + offset, track.right, track.top + offset + thumb_height);
+    return true;
 }
 
 float MainRenderer::SettingsDestinationOffset(const WindowViewModel& vm, int setting_id, float window_w, float window_h) const {

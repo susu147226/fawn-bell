@@ -217,6 +217,17 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
     if (vm.settings_open) {
         const SettingsLayout lay = MakeSettingsLayout(vm, rect, scale_, title_bar_height_,
                                                       status_height_, &painter_);
+        // Left-draggable scrollbar (issues #166/#196): take the edge strip before
+        // the rows so a press there always starts a scroll rather than a click.
+        D2D1_RECT_F settings_track{}, settings_thumb{};
+        float settings_max_scroll = 0.0f;
+        if (SettingsScrollbarGeometry(vm, rect.right, rect.bottom, settings_track, settings_thumb,
+                                      settings_max_scroll) &&
+            ContainsPt(settings_track, x, y)) {
+            r.region = HitTestResult::Scrollbar;
+            r.sub_index = 3;  // settings page
+            return r;
+        }
         if (y >= rect.bottom - status_height_) {
             r.region = StatusBarHitRegion(vm, rect, x, y, scale_, status_height_,
                                           compositor_);

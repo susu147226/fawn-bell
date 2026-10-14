@@ -337,6 +337,7 @@ struct AppState {
     bool scrollbarDragging = false;
     bool scrollbarHorizontal = false;
     bool scrollbarSidebar = false;
+    bool scrollbarSettings = false;  // settings page scrollbar drag (#166/#196)
     int scrollbarDragStartX = 0;
     int scrollbarDragStartY = 0;
     float scrollbarGrabOffset = 0.0f;

@@ -769,6 +769,28 @@ int RunSettingsFlowTest(AppState& s,const wchar_t* output) {
     vm=BuildVm(s,false);const auto expanded_max=s.renderer.SettingsMaxScroll(vm,window.right,window.bottom);
     check((s.settingsExpanded&1u) && expanded_max>collapsed_max,"expanding advanced settings updates scroll range");
     {
+        // Issues #166/#196: the settings scrollbar answers the left button. A
+        // press on the track outside the thumb jumps the page at once, which is
+        // what makes it draggable at all.
+        const float width = static_cast<float>(s.compositor.Width());
+        const float height = static_cast<float>(s.compositor.Height());
+        s.settings.SetScroll(0.0f, s.renderer.SettingsMaxScroll(BuildVm(s, false), width, height));
+        D2D1_RECT_F track{}, thumb{};
+        float maximum = 0.0f;
+        const bool geometry = s.renderer.SettingsScrollbarGeometry(
+            BuildVm(s, false), width, height, track, thumb, maximum);
+        check(geometry && maximum > 1.0f, "the settings page exposes a scrollbar with room to scroll");
+        if (geometry && maximum > 1.0f) {
+            const float before = s.settings.scroll();
+            const int x = static_cast<int>((track.left + track.right) * 0.5f);
+            const int y = static_cast<int>(track.bottom - 2.0f * s.scale);
+            HandleLButtonDown(&s, s.hwnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y));
+            HandleLButtonDown(&s, s.hwnd, WM_LBUTTONUP, 0, MAKELPARAM(x, y));
+            check(s.settings.scroll() > before + 1.0f,
+                  "pressing the settings scrollbar track scrolls the page");
+        }
+    }
+    {
         // The advanced group owns both the hidden-files switch and the protected
         // operating system files switch; both need a reachable row and fitting text.
         auto advanced=BuildVm(s,false);advanced.settings_expanded|=1u;advanced.settings_scroll=0;
