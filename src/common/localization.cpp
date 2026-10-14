@@ -14,6 +14,7 @@ constexpr UINT kLastString = IDS_REMOVE_FROM_SYSTEM;
 static_assert(static_cast<UINT>(StringId::SettingsStagingTrayDesc) <= kLastString);
 static_assert(static_cast<UINT>(StringId::MenuAppendSuffix) <= kLastString);
 static_assert(static_cast<UINT>(StringId::BatchRenameMore) <= kLastString);
+static_assert(static_cast<UINT>(StringId::BatchRenameFewer) <= kLastString);
 static_assert(static_cast<UINT>(StringId::RemoveFromSystem) <= kLastString);
 static_assert(static_cast<UINT>(StringId::AppName) <= kLastString);
 static_assert(static_cast<UINT>(StringId::UiFontLarger) <= kLastString);

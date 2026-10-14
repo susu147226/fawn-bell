@@ -344,7 +344,7 @@ private:
         if (luling::ui::ContainsRect(CloseRect(), x, y)) return 3;
         if (luling::ui::ContainsRect(ApplyRect(), x, y)) return 1;
         if (luling::ui::ContainsRect(CancelRect(), x, y)) return 2;
-        if (!advanced_ && luling::ui::ContainsRect(MoreRect(), x, y)) return 15;
+        if (luling::ui::ContainsRect(MoreRect(), x, y)) return 15;
         if (advanced_ && luling::ui::ContainsRect(IncludeExtRect(), x, y)) return 4;
         if (advanced_ && luling::ui::ContainsRect(ChipRect(0), x, y)) return 5;
         if (advanced_ && luling::ui::ContainsRect(ChipRect(1), x, y)) return 6;
@@ -386,12 +386,16 @@ private:
                                     {}, close_state);
         painter_.FillRoundedRect(Rect(scale_, 0, 36, kDlgW, 1), 0, theme.stroke_divider);
 
-        painter_.DrawText(l10n::Get(l10n::StringId::Find),
-                          Rect(scale_, 20, 48, 280, 20), compositor_.SmallFormat(),
-                          theme.text_secondary);
-        painter_.DrawText(l10n::Get(l10n::StringId::Replace),
-                          Rect(scale_, 320, 48, 100, 20), compositor_.SmallFormat(),
-                          theme.text_secondary);
+        // The 查找 / 替换 labels belong to the advanced fields: drawing them in
+        // simple mode put them straight on top of 新名字.
+        if (advanced_) {
+            painter_.DrawText(l10n::Get(l10n::StringId::Find),
+                              Rect(scale_, 20, 48, 280, 20), compositor_.SmallFormat(),
+                              theme.text_secondary);
+            painter_.DrawText(l10n::Get(l10n::StringId::Replace),
+                              Rect(scale_, 320, 48, 100, 20), compositor_.SmallFormat(),
+                              theme.text_secondary);
+        }
         fluent::ControlState include_state{};
         include_state.hovered = hover_ == 4;
         include_state.pressed = pressed_ == 4;
@@ -402,12 +406,15 @@ private:
                                   include_state);
             DrawFieldFrame(FindField(), edit_find_, 10, true);
             DrawFieldFrame(ReplaceField(), edit_replace_, 11, true);
-        } else {
+        }
+        {
+            // Always shown: it is the way back out of the advanced fields too.
             fluent::ControlState more_state{};
             more_state.hovered = hover_ == 15;
             more_state.pressed = pressed_ == 15;
             painter_.DrawButton({ MoreRect(),
-                                  l10n::Get(l10n::StringId::BatchRenameMore), {},
+                                  l10n::Get(advanced_ ? l10n::StringId::BatchRenameFewer
+                                                      : l10n::StringId::BatchRenameMore), {},
                                   fluent::ButtonKind::Standard, more_state });
         }
         painter_.DrawText(l10n::Get(l10n::StringId::BatchRenamePattern),

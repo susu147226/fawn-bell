@@ -390,6 +390,7 @@ BEGIN
     IDS_MENU_RENAME_SEQ_ONE "按序號重新命名（從 1 開始）"
     IDS_MENU_APPEND_SUFFIX "附加檔案名稱後綴"
     IDS_BATCH_RENAME_MORE "更多選項"
+    IDS_BATCH_RENAME_FEWER "收合選項"
     IDS_DEPLOY_TO_SYSTEM "安裝到系統…"
     IDS_REMOVE_FROM_SYSTEM "從系統解除安裝…"
     IDS_RESTORE_DEFAULTS            "恢復預設"
