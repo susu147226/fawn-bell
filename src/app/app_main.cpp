@@ -527,6 +527,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         }
         s->searchHistory.persist = !s->shot.active && !s->menushot && !s->isolatedTest;
         if (s->searchHistory.persist) s->searchHistory.Load();
+        s->locationHistory.persist = s->searchHistory.persist;
+        if (s->locationHistory.persist) s->locationHistory.Load();
         s->showFps = s->forceStatusPerformance || s->appPrefs.show_status_performance;
         s->duplicateScan.scope = static_cast<app::DuplicateScanScope>(
             std::clamp(s->appPrefs.duplicate_scan_scope, 0, 2));

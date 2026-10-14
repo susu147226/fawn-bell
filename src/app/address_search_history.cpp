@@ -84,6 +84,44 @@ void RecordSearchHistory(AppState& s, const std::wstring& path) {
     if (s.searchHistory.Record(query, path)) SaveHistory(s);
 }
 
+// Address-bar history: the folders the user visited, newest first. Down opens
+// it while the address editor has focus.
+void ShowLocationHistory(AppState& s) {
+    if (!s.hwndAddressEdit || !EnsureMenu(s)) return;
+    if (s.menu->IsOpen()) return;
+    const auto entries = s.locationHistory.entries;
+    if (entries.empty()) return;
+    std::vector<ui::FluentMenuItem> items;
+    items.reserve(entries.size() + 1);
+    for (size_t i = 0; i < entries.size(); ++i) {
+        ui::FluentMenuItem item;
+        item.command = 300 + static_cast<int>(i);
+        item.text = entries[i];
+        item.glyph = L"\xE8B7";
+        items.push_back(std::move(item));
+    }
+    ui::FluentMenuItem clear;
+    clear.command = 2;
+    clear.secondary = true;
+    clear.text = l10n::Get(l10n::StringId::SearchHistoryClear);
+    clear.glyph = L"\xE74D";
+    items.push_back(std::move(clear));
+
+    RECT anchor{};
+    GetWindowRect(s.hwndAddressEdit, &anchor);
+    s.menu->SetAnchorRect(anchor);
+    s.menu->SetMaxVisibleRows(10);
+    s.menu->SetTheme(s.darkMode, s.accentColor);
+    const int command = s.menu->TrackPopup({anchor.left, anchor.bottom}, items, {});
+    if (command >= 300 && command < 300 + static_cast<int>(entries.size())) {
+        const std::wstring path = entries[static_cast<size_t>(command - 300)];
+        HideAddressEditor(s, false);
+        NavigateTo(s, path);
+    } else if (command == 2) {
+        s.locationHistory.Clear();
+    }
+}
+
 void ShowAddressSearchHistory(AppState& s) {
     if (!s.addressSearching || s.searchHistoryOpen || !s.hwndAddressEdit || !EnsureMenu(s)) return;
     if (s.menu->IsOpen()) return;

@@ -1736,6 +1736,8 @@ void NavigateTo(AppState& s, const std::wstring& path) {
     if (!tab) return;
     std::wstring normalized;
     if (!NormalizeNavigationTarget(s, *tab, path, normalized)) return;
+    // Address-bar history: real folders only, newest first.
+    if (!fs::IsVirtualPath(normalized)) s.locationHistory.Record(normalized);
     if (normalized != tab->current_path && !fs::IsVirtualPath(normalized) && tab->content_results) {
         s.addressLiveDue = s.addressHistoryDue = 0;
         if (s.addressSearching) HideAddressEditor(s, false);

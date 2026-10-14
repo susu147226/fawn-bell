@@ -581,6 +581,56 @@ static LRESULT DefPresentedHostedEditProc(AppState* s, HWND hwnd, UINT msg, WPAR
     return ui::DefPresentedChildEditProc(s->compositor, HostedEditFormat(*s, hwnd),
         HostedEditForeground(*s), HostedEditBackground(*s), hwnd, msg, wParam, lParam);
 }
+namespace {
+std::wstring ReadClipboardText() {
+    std::wstring text;
+    if (!OpenClipboard(nullptr)) return text;
+    if (HANDLE data = GetClipboardData(CF_UNICODETEXT)) {
+        if (const auto* locked = static_cast<const wchar_t*>(GlobalLock(data))) {
+            text = locked;
+            GlobalUnlock(data);
+        }
+    }
+    CloseClipboard();
+    return text;
+}
+
+// One path per line: Explorer writes a multi-selection's addresses that way.
+// Blank lines and the quotes Explorer adds around paths with spaces drop out.
+std::vector<std::wstring> SplitPastedPaths(const std::wstring& text) {
+    std::vector<std::wstring> out;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find_first_of(L"\r\n", pos);
+        if (end == std::wstring::npos) end = text.size();
+        const size_t first = text.find_first_not_of(L" \t\"", pos);
+        if (first != std::wstring::npos && first < end) {
+            size_t last = end;
+            while (last > first &&
+                   (text[last - 1] == L' ' || text[last - 1] == L'\t' || text[last - 1] == L'"'))
+                --last;
+            if (last > first) out.push_back(text.substr(first, last - first));
+        }
+        pos = end + 1;
+    }
+    return out;
+}
+
+// Pasting several addresses at once (an Explorer multi-selection writes one
+// path per line) opens a tab per line with the first line staying on this page.
+// A single address is left to the control's own paste so the caret and the
+// selection behave normally.
+bool HandleMultiPathPaste(AppState& s) {
+    if (s.addressSearching) return false;
+    const auto paths = SplitPastedPaths(ReadClipboardText());
+    if (paths.size() <= 1) return false;
+    HideAddressEditor(s, false);
+    NavigateTo(s, paths.front());
+    for (size_t i = 1; i < paths.size(); ++i) OpenTabAt(s, paths[i]);
+    return true;
+}
+} // namespace
+
 LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
                                         UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData) {
     AppState* s = reinterpret_cast<AppState*>(dwRefData);
@@ -604,6 +654,11 @@ LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             else ShowAddressSearchHistory(*s);
             return 0;
         }
+        if (!s->addressSearching && wParam == VK_DOWN) {
+            // Plain address editing: Down lists the folders visited so far.
+            ShowLocationHistory(*s);
+            return 0;
+        }
         if ((GetKeyState(VK_CONTROL) & 0x8000) &&
             (wParam == L'K' || wParam == L'L')) {
             if (wParam == L'K' && !(GetKeyState(VK_SHIFT) & 0x8000)) {
@@ -614,6 +669,10 @@ LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             ShowOmnibar(*s, wParam == L'K' ? OmnibarMode::Mixed : OmnibarMode::Path);
             return 0;
         }
+        // Ctrl+V does not reach us as WM_PASTE: the control consumes it itself.
+        if ((GetKeyState(VK_CONTROL) & 0x8000) && wParam == L'V' &&
+            HandleMultiPathPaste(*s))
+            return 0;
         if (s->addressSearching && wParam == VK_TAB) {
             ShowAddressSearchScope(*s);
             return 0;
@@ -654,6 +713,9 @@ LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     case WM_KILLFOCUS:
         if (s->addressSearching && reinterpret_cast<HWND>(wParam) == s->hwnd) break;
         if (!s->addressIgnoreKillFocus) HideAddressEditor(*s, false);
+        break;
+    case WM_PASTE:
+        if (s && HandleMultiPathPaste(*s)) return 0;
         break;
     case WM_ERASEBKGND: {
         return EraseHostedEditBackground(hwnd, wParam, s) ? 1 : 0;

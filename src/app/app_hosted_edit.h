@@ -32,6 +32,8 @@ void SwitchAddressSearchMode(AppState& s, bool content);
 void StartIndexedContentSearch(AppState& s, app::Tab& tab, const std::wstring& rest, bool scan = false);
 std::wstring ContentIndexStatusText(AppState& s);
 void ShowAddressSearchHistory(AppState& s);
+// Visited folders, newest first (the address editor's Down key).
+void ShowLocationHistory(AppState& s);
 void RecordSearchHistory(AppState& s, const std::wstring& path);
 void SubmitAddressSearch(AppState& s, bool live = false);
 void QueueAddressSearch(AppState& s);

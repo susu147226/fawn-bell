@@ -40,6 +40,7 @@
 #include "shell_window_registry.h"
 #include "saved_search.h"
 #include "search_history.h"
+#include "location_history.h"
 #include "settings_controller.h"
 #include "sidebar_scrollbar_fade.h"
 #include "single_instance_coordinator.h"
@@ -232,6 +233,8 @@ struct AppState {
     app::AppPrefs appPrefs;
     app::SearchHistory searchHistory;
     app::SearchHistoryWriter searchHistoryWriter;
+    // Folders the user visited: the address bar's history dropdown.
+    app::LocationHistory locationHistory;
     app::SettingsController settings;
     app::UpdateChecker update_checker;
     app::UpdateResult update_result;
