@@ -85,6 +85,13 @@ public:
     float MaxScrollX() const noexcept;
     float MaxScrollY() const noexcept;
     D2D1_RECT_F ItemRect(int view_index) const noexcept;
+    // Room reserved on the left for the selection checkbox (0 = off). Static
+    // because it is one process-wide preference and a layout object is rebuilt
+    // per frame; the list paint sets it once.
+    static void SetCheckboxInset(float inset) noexcept { checkbox_inset_ = inset; }
+    static float CheckboxInset() noexcept { return checkbox_inset_; }
+    // The row's checkbox; empty when the inset is 0.
+    D2D1_RECT_F CheckboxRect(int view_index) const noexcept;
     D2D1_RECT_F IconRect(int view_index) const noexcept;
     D2D1_RECT_F NameRect(int view_index) const noexcept;
     D2D1_RECT_F FolderSizeRect(int view_index) const noexcept;
@@ -109,6 +116,7 @@ private:
     int GroupAtY(float local_y) const noexcept;
     int VisibleOrdinal(int index) const noexcept;
     int IndexFromOrdinal(int ordinal) const noexcept;
+    static float checkbox_inset_;
     ViewMode mode_ = ViewMode::Details;
     D2D1_RECT_F viewport_{};
     size_t count_ = 0;

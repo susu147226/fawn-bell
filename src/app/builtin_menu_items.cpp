@@ -43,6 +43,7 @@ constexpr BuiltinMenuInfo kItems[] = {
     { BuiltinMenuItem::RenameSeqOne,   L"rename_seq_one",  l10n::StringId::MenuRenameSeqOne },
     { BuiltinMenuItem::AppendSuffix,   L"append_suffix",   l10n::StringId::MenuAppendSuffix },
     { BuiltinMenuItem::RefileAssets,   L"refile_assets",   l10n::StringId::MenuRefileAssets },
+    { BuiltinMenuItem::ToggleCheckboxes, L"item_checkboxes", l10n::StringId::ItemCheckboxes },
 };
 static_assert(sizeof(kItems) / sizeof(kItems[0]) == kBuiltinMenuItemCount,
               "every built-in item needs a key and a label");

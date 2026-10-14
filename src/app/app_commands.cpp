@@ -980,6 +980,11 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         ShowBatchRename(s, rule);
         break;
     }
+    case app::CmdToggleCheckboxes:
+        s.appPrefs.item_checkboxes = !s.appPrefs.item_checkboxes;
+        s.appPrefs.Save();
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        break;
     case app::CmdRefileAssets: {
         // refile.py: one folder per PNG prefix, the folder's XML files moved in
         // and rewritten to the png's size and name.
@@ -1487,7 +1492,8 @@ void ShowBackgroundContextMenu(AppState& s, POINT screen_pt) {
     std::wstring undoLabel = s.ops.UndoLabel();
     bool canPaste = !s.tray.batches().empty() || ClipboardHasFiles();
     const auto recent_changes_path = app::RecentChangesMenuPath(*tab, true);
-    auto base_items = app::BuildBackgroundMenu(canPaste, s.ops.CanUndo(), undoLabel);
+    auto base_items = app::BuildBackgroundMenu(canPaste, s.ops.CanUndo(), undoLabel,
+                                               s.appPrefs.item_checkboxes);
     app::AppendRecentChangesCommand(base_items, recent_changes_path);
     app::AppendBackgroundViewCommands(base_items, view_options);
     ApplyWorkspacePinLabel(base_items, s);

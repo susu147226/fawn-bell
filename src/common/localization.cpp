@@ -10,11 +10,12 @@ namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
 // Must stay on the highest allocated string id, otherwise Get() returns empty.
-constexpr UINT kLastString = IDS_BATCH_RENAME_MORE;
+constexpr UINT kLastString = IDS_ITEM_CHECKBOXES;
 static_assert(static_cast<UINT>(StringId::SettingsStagingTrayDesc) <= kLastString);
 static_assert(static_cast<UINT>(StringId::MenuAppendSuffix) <= kLastString);
 static_assert(static_cast<UINT>(StringId::MenuRefileAssets) <= kLastString);
 static_assert(static_cast<UINT>(StringId::BatchRenameMore) <= kLastString);
+static_assert(static_cast<UINT>(StringId::ItemCheckboxes) <= kLastString);
 static_assert(static_cast<UINT>(StringId::AppName) <= kLastString);
 static_assert(static_cast<UINT>(StringId::UiFontLarger) <= kLastString);
 static_assert(static_cast<UINT>(StringId::OpAuthorizationNotGranted) <= kLastString);

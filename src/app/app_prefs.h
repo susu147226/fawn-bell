@@ -70,6 +70,8 @@ struct AppPrefs {
     uint32_t global_search_modifiers = 1; // MOD_ALT
     uint32_t global_search_key = 32; // VK_SPACE
     bool show_hidden_files = false;
+    // 项目复选框: a checkbox on the left of every list row, like Explorer.
+    bool item_checkboxes = false;
     // Hidden + system attributes; File Explorer keeps these behind a separate option.
     bool show_protected_os_files = false;
     // Double click on empty list space: 0 nothing, 1 back, 2 up (blank_pane_click.h).

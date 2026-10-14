@@ -87,6 +87,7 @@ void AppPrefs::ResetToDefaults() {
     global_search_modifiers = 1;
     global_search_key = 32;
     show_hidden_files = false;
+    item_checkboxes = false;
     show_protected_os_files = false;
     blank_click_action = kBlankClickOff;
     change_tracking_enabled = false;
@@ -188,6 +189,8 @@ std::wstring AppPrefs::ToJson() const {
     out += std::to_wstring(NormalizeUiFontScale(ui_font_scale));
     out += L",\n  \"show_hidden_files\":";
     out += show_hidden_files ? L"true" : L"false";
+    out += L",\n  \"item_checkboxes\":";
+    out += item_checkboxes ? L"true" : L"false";
     out += L",\n  \"show_protected_os_files\":";
     out += show_protected_os_files ? L"true" : L"false";
     out += L",\n  \"search_pinyin\":";
@@ -333,6 +336,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     global_search_modifiers = modifiers > 0 && modifiers <= 15 ? static_cast<uint32_t>(modifiers) : 1;
     global_search_key = key > 0 && key <= 254 ? static_cast<uint32_t>(key) : 32;
     show_hidden_files = luling::json::ExtractBool(json, L"show_hidden_files", false);
+    item_checkboxes = luling::json::ExtractBool(json, L"item_checkboxes", false);
     show_protected_os_files = luling::json::ExtractBool(json, L"show_protected_os_files", false);
     // Files from before blank_click_action carry only the on/off flag (= back).
     blank_click_action = NormalizeBlankClickAction(luling::json::ExtractInt(json, L"blank_click_action",

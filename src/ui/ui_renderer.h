@@ -173,6 +173,8 @@ struct PaneViewModel {
     using FilterMap = std::vector<int>;
     using TagDots = std::unordered_map<int, std::vector<D2D1_COLOR_F>>;
 
+    // 项目复选框: checkbox column on the left of every row.
+    bool item_checkboxes = false;
     std::wstring path;
     std::wstring header_text;
     std::unordered_map<int, ChangeBadge> change_badges;
@@ -737,6 +739,8 @@ struct WindowViewModel {
     bool settings_start_in_tray = false;
     bool settings_keep_running = false;
     bool settings_show_hidden_files = false;
+    // 项目复选框: checkbox column on the left of every list row.
+    bool item_checkboxes = false;
     bool settings_show_protected_os_files = false;
     bool show_pinned_tab_names = true;
     bool settings_list_smart_date = true;

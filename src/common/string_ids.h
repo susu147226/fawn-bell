@@ -1419,3 +1419,5 @@
 #define IDS_MENU_REFILE_ASSETS 2578
 // Batch rename dialog: reveal the advanced fields.
 #define IDS_BATCH_RENAME_MORE 2579
+// Background menu: the item-checkbox toggle.
+#define IDS_ITEM_CHECKBOXES 2580

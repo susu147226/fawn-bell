@@ -2129,6 +2129,12 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
     const size_t entryCount = vm.EntryCount();
     if (entryCount == 0) return;
     const D2D1_RECT_F viewport = D2D1::RectF(x, y, x + w, y + h);
+    // 项目复选框: reserve a column on the left; icon-grid views skip it.
+    const bool icon_grid_view = vm.view_mode == ViewMode::ExtraLargeIcons ||
+                                vm.view_mode == ViewMode::LargeIcons ||
+                                vm.view_mode == ViewMode::MediumIcons;
+    ViewLayout::SetCheckboxInset(vm.item_checkboxes && !icon_grid_view
+                                     ? 24.0f * scale_ : 0.0f);
     ViewLayout layout(vm.view_mode, viewport, entryCount, vm.scroll_x, vm.scroll_y, scale_, ListRowHeightDip(vm, viewport), vm.Groups());
     const auto [startIdx, endIdx] = layout.VisibleRange();
     const DetailsColumnLayout detailsColumns = DetailsColumns(viewport, vm);
@@ -2299,6 +2305,14 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     (bg.top + bg.bottom - bar_h) * 0.5f, 2.5f * scale_, bar_h, 1.25f * scale_);
             }
             if (draw_shapes && selected) selection_painter.Selected(bg);
+            if (draw_shapes && !iconGrid && vm.item_checkboxes) {
+                const D2D1_RECT_F box = layout.CheckboxRect(i);
+                if (box.right > box.left) {
+                    fluent::ControlState check_state{};
+                    check_state.checked = selected;
+                    painter_.DrawCheckBox(box, {}, check_state);
+                }
+            }
             if (draw_shapes && row_flash > 0.0f && !IsHighContrast()) {
                 // Newly appeared (pasted / created / extracted) row: fading accent wash.
                 MakeBrush(dc, WithAlpha(theme.accent, 0.20f * row_flash), brFillInput_);

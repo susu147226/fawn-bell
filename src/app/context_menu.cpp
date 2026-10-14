@@ -134,6 +134,7 @@ BuiltinMenuItem BuiltinItemForCommand(int command) {
     case CmdRenameSequenceOne: return BuiltinMenuItem::RenameSeqOne;
     case CmdAppendNameSuffix: return BuiltinMenuItem::AppendSuffix;
     case CmdRefileAssets: return BuiltinMenuItem::RefileAssets;
+    case CmdToggleCheckboxes: return BuiltinMenuItem::ToggleCheckboxes;
     default: return BuiltinMenuItem::Count;
     }
 }
@@ -293,7 +294,8 @@ std::vector<ui::FluentMenuItem> BuildRecyclePlaceMenu(bool can_empty) {
 
 
 std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_undo,
-                                                    const std::wstring& undo_label) {
+                                                    const std::wstring& undo_label,
+                                                    bool item_checkboxes) {
     std::vector<ui::FluentMenuItem> items;
     items.push_back(Item(CmdNewFolder, l10n::Get(l10n::StringId::NewFolder).c_str(), kGlyphNewFolder, L"F7"));
     items.push_back(Item(CmdNewTextFile, l10n::Get(l10n::StringId::NewTextDocument).c_str(), kGlyphNewFile));
@@ -305,6 +307,14 @@ std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_und
                                  shell_new[i].display.c_str(), kGlyphNewFile));
     }
     items.back().separator_after = true;
+    {
+        // 项目复选框: checkbox column on the left of every list row.
+        auto check = Item(CmdToggleCheckboxes,
+            l10n::Get(l10n::StringId::ItemCheckboxes).c_str(), L"\xE73A");
+        check.checked = item_checkboxes;
+        items.push_back(std::move(check));
+        items.back().separator_after = true;
+    }
     items.push_back(Item(CmdPaste, l10n::Get(l10n::StringId::Paste).c_str(), kGlyphPaste, L"Ctrl+V", can_paste));
     items.push_back(Item(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C"));
     items.back().separator_after = true;
