@@ -119,10 +119,11 @@ private:
     }
 
     D2D1_RECT_F CloseRect() const { return Rect(scale_, kDlgW - 46, 0, 46, 36); }
-    // Simple mode shows only the rule and the start number. 查找 / 替换 /
-    // 补零 / 只改扩展 live behind 更多选项, which is what made the dialog feel
-    // heavy for a plain "number these files" job.
-    D2D1_RECT_F MoreRect() const { return Rect(scale_, 20, 34, 150, 24); }
+    // Simple mode shows only the rule and the start number. 更多选项 sits next to
+    // 取消 at the bottom and reveals 查找 / 替换 / 补零 / 只改扩展.
+    D2D1_RECT_F MoreRect() const {
+        return Rect(scale_, kDlgW - 196 - 8 - 150, kDlgH - 48, 150, 32);
+    }
     D2D1_RECT_F FindField() const { return Rect(scale_, 20, 68, 280, 32); }
     D2D1_RECT_F ReplaceField() const { return Rect(scale_, 320, 68, 280, 32); }
     D2D1_RECT_F IncludeExtRect() const { return Rect(scale_, 430, 40, 170, 24); }

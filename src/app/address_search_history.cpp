@@ -109,10 +109,9 @@ void ShowLocationHistory(AppState& s) {
 
     RECT anchor{};
     GetWindowRect(s.hwndAddressEdit, &anchor);
-    // Only the drop point is given: SetAnchorRect would size the popup to that
-    // rect and override the width below.
+    // Match the address bar exactly: anything wider looks detached from it.
     const float field_w = static_cast<float>(anchor.right - anchor.left) / s.scale;
-    s.menu->SetFilterMinWidth((std::max)(field_w * 1.8f, 560.0f));
+    s.menu->SetFilterMinWidth(field_w);
     s.menu->SetTheme(s.darkMode, s.accentColor);
     const int command = s.menu->TrackPopup(
         {anchor.left, anchor.bottom + static_cast<LONG>(6 * s.scale)}, items, {});
