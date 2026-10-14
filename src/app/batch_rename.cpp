@@ -1,6 +1,8 @@
 #include "batch_rename.h"
 #include "../fs/fs_enum.h"
 #include "../common/rename_filename.h"
+#include <windows.h>
+#include <shlwapi.h>
 #include <algorithm>
 #include <cwctype>
 #include <cstdint>
@@ -180,11 +182,43 @@ std::vector<BatchRenameItem> PreviewBatchRename(const std::vector<std::wstring>&
     std::vector<BatchRenameItem> items;
     items.reserve(paths.size());
     std::unordered_map<std::wstring, int> new_counts;
+    // Grouped mode (the 按序号 menu commands) numbers every extension group
+    // from rule.start in natural order, so a.jpg b.jpg c.png becomes
+    // a_0.jpg b_1.jpg c_0.png.
+    std::vector<size_t> index_of(paths.size());
+    for (size_t i = 0; i < index_of.size(); ++i) index_of[i] = i;
+    if (rule.group_by_extension && paths.size() > 1) {
+        auto group_ext = [&](size_t i) {
+            std::wstring stem, ext;
+            SplitFileName(FileNameOf(paths[i]), stem, ext);
+            for (auto& c : ext) c = Fold(c);
+            return ext;
+        };
+        std::vector<size_t> order(paths.size());
+        for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+        std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            const std::wstring ea = group_ext(a);
+            const std::wstring eb = group_ext(b);
+            if (ea != eb) return ea < eb;
+            return StrCmpLogicalW(FileNameOf(paths[a]).c_str(),
+                                  FileNameOf(paths[b]).c_str()) < 0;
+        });
+        std::wstring current;
+        size_t counter = 0;
+        for (const size_t i : order) {
+            const std::wstring ext = group_ext(i);
+            if (ext != current) {
+                current = ext;
+                counter = 0;
+            }
+            index_of[i] = counter++;
+        }
+    }
     for (size_t i = 0; i < paths.size(); ++i) {
         BatchRenameItem item;
         item.source_path = paths[i];
         item.original_name = FileNameOf(paths[i]);
-        item.new_name = ApplyBatchRenameRule(item.original_name, i, rule);
+        item.new_name = ApplyBatchRenameRule(item.original_name, index_of[i], rule);
         if (item.new_name.empty()) item.status = BatchRenameStatus::Empty;
         else if (!IsValidFileName(item.new_name)) item.status = BatchRenameStatus::Invalid;
         else if (item.new_name == item.original_name)

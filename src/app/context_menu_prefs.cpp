@@ -217,7 +217,11 @@ std::wstring ContextMenuPrefs::ToJson() const {
     out += std::to_wstring(explorer_cap);
     out += L",\n  \"open_with_mru\":";
     out += std::to_wstring(open_with_mru);
-    out += L",\n  \"categories\":{\n";
+    out += L",\n  \"append_suffix\":\"";
+    std::wstring suffix_escaped;
+    luling::json::Escape(append_suffix, suffix_escaped);
+    out += suffix_escaped;
+    out += L"\",\n  \"categories\":{\n";
     auto cat = [&](const wchar_t* name, bool v, bool last) {
         out += L"    \"";
         out += name;
@@ -325,6 +329,7 @@ bool ContextMenuPrefs::FromJson(const std::wstring& json) {
     explorer_cap = ClampCap(luling::json::ExtractInt(json, L"explorer_cap", ipc::kDefaultExplorerCap),
                             1, 48, ipc::kDefaultExplorerCap);
     open_with_mru = ClampCap(luling::json::ExtractInt(json, L"open_with_mru", 2), 0, 8, 2);
+    append_suffix = luling::json::ExtractString(json, L"append_suffix", L"_1×2");
 
     const std::wstring cats = ExtractObject(json, L"categories");
     const std::wstring& src = cats.empty() ? json : cats;

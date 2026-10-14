@@ -16,6 +16,9 @@ struct BatchRenameRule {
     bool replace_in_extension = false;
     int start = 1;
     int digits = 0; // 0 = unpadded (legacy insert_number only)
+    // Sequence commands (rename.py style): number each extension group
+    // separately, in natural order, instead of one run over the selection.
+    bool group_by_extension = false;
 };
 
 enum class BatchRenameStatus {

@@ -1,6 +1,7 @@
 // app_ops_ui.h — Delete/tray/paste/conflict/recycle operations UI.
 #pragma once
 #include "app_runtime.h"
+#include "batch_rename.h"
 #include "../ui/confirm_dialog.h"
 
 namespace luling {
@@ -23,6 +24,9 @@ void CollectPathsToTray(AppState& s, const std::vector<std::wstring>& paths, boo
 void MirrorSelectionToClipboard(AppState& s, bool move_intent);
 void MirrorPathsToClipboard(AppState& s, const std::vector<std::wstring>& paths, bool move_intent);
 void ShowBatchRename(AppState& s);
+// The same dialog opened with a preset rule: the 按序号重命名 rows (grouped
+// sequence, start 0/1) and 追加文件名后缀 use this.
+void ShowBatchRename(AppState& s, const app::BatchRenameRule& initial);
 // Staging tray recent drop destinations (appPrefs.tray_dests, newest first, max 3).
 std::vector<std::wstring> TrayDestList(const AppState& s);
 void RememberTrayDest(AppState& s, const std::wstring& dir);

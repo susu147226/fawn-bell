@@ -2279,8 +2279,8 @@ void TestMenuModel() {
           curated[1].children.end(), [](const auto& item) { return item.enabled || item.radio; }),
           L"menu: curated views disable sorting and do not claim a selected sort");
     auto nw = BuildNewMenu();
-    Check(nw.size() == 2 && nw[0].command == CmdNewFolder && nw[1].command == CmdNewTextFile,
-          L"menu: 新建▾ dropdown has 文件夹/文本文档");
+    Check(nw.size() >= 2 && nw[0].command == CmdNewFolder && nw[1].command == CmdNewTextFile,
+          L"menu: 新建▾ dropdown starts with 文件夹/文本文档");
 }
 
 // Explorer merge rules (优化.md §7): built-in verbs filtered, duplicate texts

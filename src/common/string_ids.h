@@ -1411,3 +1411,7 @@
 #define IDS_CONTEXT_ORDER_RESET 2569
 #define IDS_CONTEXT_ORDER_HINT 2570
 #define IDS_CONTEXT_ORDER_HINT_ROW 2571
+// Context menu: sequence rename (rename.py) and the 追加后缀 helper (readd.py).
+#define IDS_MENU_RENAME_SEQ_ZERO 2575
+#define IDS_MENU_RENAME_SEQ_ONE 2576
+#define IDS_MENU_APPEND_SUFFIX 2577

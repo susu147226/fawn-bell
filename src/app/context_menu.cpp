@@ -1,6 +1,7 @@
 // context_menu.cpp — See context_menu.h.
 #include "context_menu.h"
 #include "app_model.h"
+#include "shell_new.h"
 #include "../common/localization.h"
 #include "../common/path_utils.h"
 #include "../common/display_path.h"
@@ -95,6 +96,13 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
     items.back().separator_after = true;
     items.push_back(Item(CmdTags, l10n::Get(l10n::StringId::TagsEllipsis).c_str(), kGlyphTag));
     items.back().separator_after = true;
+    items.push_back(Item(CmdRenameSequenceZero,
+        l10n::Get(l10n::StringId::MenuRenameSeqZero).c_str(), kGlyphRename));
+    items.push_back(Item(CmdRenameSequenceOne,
+        l10n::Get(l10n::StringId::MenuRenameSeqOne).c_str(), kGlyphRename));
+    items.push_back(Item(CmdAppendNameSuffix,
+        l10n::Get(l10n::StringId::MenuAppendSuffix).c_str(), kGlyphRename));
+    items.back().separator_after = true;
     items.push_back(UndoItem(can_undo, undo_label));
     return items;
 }
@@ -120,6 +128,9 @@ BuiltinMenuItem BuiltinItemForCommand(int command) {
     case CmdPaste: return BuiltinMenuItem::Paste;
     case CmdProperties: return BuiltinMenuItem::Properties;
     case CmdFolderProperties: return BuiltinMenuItem::FolderProperties;
+    case CmdRenameSequenceZero: return BuiltinMenuItem::RenameSeqZero;
+    case CmdRenameSequenceOne: return BuiltinMenuItem::RenameSeqOne;
+    case CmdAppendNameSuffix: return BuiltinMenuItem::AppendSuffix;
     default: return BuiltinMenuItem::Count;
     }
 }
@@ -283,6 +294,13 @@ std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_und
     std::vector<ui::FluentMenuItem> items;
     items.push_back(Item(CmdNewFolder, l10n::Get(l10n::StringId::NewFolder).c_str(), kGlyphNewFolder, L"F7"));
     items.push_back(Item(CmdNewTextFile, l10n::Get(l10n::StringId::NewTextDocument).c_str(), kGlyphNewFile));
+    {
+        const auto& shell_new = ShellNewItems();
+        const size_t limit = (std::min)(shell_new.size(), static_cast<size_t>(kMaxNewShellItems));
+        for (size_t i = 0; i < limit; ++i)
+            items.push_back(Item(CmdNewShellBase + static_cast<int>(i),
+                                 shell_new[i].display.c_str(), kGlyphNewFile));
+    }
     items.back().separator_after = true;
     items.push_back(Item(CmdPaste, l10n::Get(l10n::StringId::Paste).c_str(), kGlyphPaste, L"Ctrl+V", can_paste));
     items.push_back(Item(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C"));
@@ -427,6 +445,12 @@ std::vector<ui::FluentMenuItem> BuildNewMenu() {
     std::vector<ui::FluentMenuItem> items;
     items.push_back(Item(CmdNewFolder, l10n::Get(l10n::StringId::Folder).c_str(), kGlyphNewFolder, L"F7"));
     items.push_back(Item(CmdNewTextFile, l10n::Get(l10n::StringId::TextDocument).c_str(), kGlyphNewFile));
+    // Everything else Explorer offers comes from HKCR\<ext>\ShellNew.
+    const auto& shell_new = ShellNewItems();
+    const size_t limit = (std::min)(shell_new.size(), static_cast<size_t>(kMaxNewShellItems));
+    for (size_t i = 0; i < limit; ++i)
+        items.push_back(Item(CmdNewShellBase + static_cast<int>(i),
+                             shell_new[i].display.c_str(), kGlyphNewFile));
     return items;
 }
 

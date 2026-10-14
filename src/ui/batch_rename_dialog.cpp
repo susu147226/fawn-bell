@@ -47,11 +47,14 @@ std::wstring StatusLabel(app::BatchRenameStatus status) {
 class BatchRenameWindow {
 public:
     BatchRenameDialogResult Show(HWND owner, const std::vector<std::wstring>& paths,
-                                 bool dark, D2D1_COLOR_F accent) {
+                                 bool dark, D2D1_COLOR_F accent,
+                                 const app::BatchRenameRule* initial) {
         owner_ = owner;
         paths_ = paths;
         dark_ = dark;
         accent_ = accent;
+        has_initial_ = initial != nullptr;
+        if (initial) initial_rule_ = *initial;
         scale_ = static_cast<float>(luling::compat::WindowDpi(owner ? owner : GetDesktopWindow())) / 96.0f;
 #if defined(LULING_TEST_BATCH_RENAME_PRESENT)
         scale_ = BatchRenameScaleForTest();
@@ -492,9 +495,16 @@ private:
             edit_brush_ = CreateSolidBrush(dark_ ? RGB(30, 30, 30) : RGB(255, 255, 255));
             edit_find_ = CreateField(1, {});
             edit_replace_ = CreateField(2, {});
-            edit_pattern_ = CreateField(3, {});
-            edit_number_ = CreateField(4, L"1", true);
+            edit_pattern_ = CreateField(3, has_initial_ ? initial_rule_.pattern.c_str() : L"");
+            edit_number_ = CreateField(4, has_initial_
+                ? std::to_wstring(initial_rule_.start).c_str() : L"1", true);
             SyncRuleFromEdits();
+            if (has_initial_) {
+                // SyncRuleFromEdits rebuilds the rule from the fields; grouping
+                // is not a field, so carry it over and refresh the preview.
+                rule_.group_by_extension = initial_rule_.group_by_extension;
+                items_ = app::PreviewBatchRename(paths_, rule_);
+            }
             return 0;
         }
         case WM_NCCALCSIZE:
@@ -627,6 +637,10 @@ private:
     fluent::Painter painter_;
     std::vector<std::wstring> paths_;
     app::BatchRenameRule rule_;
+    // Preset from the 按序号 / 追加后缀 menu commands; the plain 批量重命名 entry
+    // passes nullptr and keeps the dialog's own defaults.
+    app::BatchRenameRule initial_rule_;
+    bool has_initial_ = false;
     std::vector<app::BatchRenameItem> items_;
     BatchRenameDialogResult result_;
     bool dark_ = false;
@@ -648,9 +662,10 @@ private:
 BatchRenameDialogResult ShowBatchRenameDialog(HWND owner,
                                               const std::vector<std::wstring>& paths,
                                               bool dark,
-                                              D2D1_COLOR_F accent) {
+                                              D2D1_COLOR_F accent,
+                                              const app::BatchRenameRule* initial) {
     BatchRenameWindow window;
-    return window.Show(owner, paths, dark, accent);
+    return window.Show(owner, paths, dark, accent, initial);
 }
 
 } // namespace luling::ui

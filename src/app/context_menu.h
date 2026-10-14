@@ -112,6 +112,11 @@ enum MenuCmd : int {
     CmdApplyViewToAllFolders = 194, // view menu: this view + sort become every folder's default
     CmdApplyGroupToAllFolders = 195, // group menu: this grouping becomes every folder's default (#75)
     CmdExitLuling = 196,         // palette: quit even when closing keeps Luling running (#57)
+    // Rows that the 右键菜单 settings page can hide/reorder (197-199 are the only
+    // free ids below CmdRecentBase).
+    CmdRenameSequenceZero = 197,
+    CmdRenameSequenceOne = 198,
+    CmdAppendNameSuffix = 199,
     CmdRecentBase = 200,
     CmdIndexBase = 1000,
     // Explorer integration (优化.md §7): registry static verbs bound to the
@@ -119,6 +124,11 @@ enum MenuCmd : int {
     // IContextMenu session items (+host menu id, up to 0x7FFF).
     CmdShellStaticBase = 6000,
     CmdShellComBase = 8000,
+    // 新建 submenu rows backed by HKCR\<ext>\ShellNew (+ index into
+    // app::ShellNewItems()). Deliberately outside every other range: 200-999 is
+    // the recent list, 1000-5999 index hits, 6000+ Explorer verbs.
+    CmdNewShellBase = 100000,
+    kMaxNewShellItems = 64,
 };
 
 // One merged Explorer row (registry static verb or luling_shell COM item),

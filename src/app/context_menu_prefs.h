@@ -49,6 +49,9 @@ struct ContextMenuPrefs {
 
     int explorer_cap = ipc::kDefaultExplorerCap;
     int open_with_mru = 2;
+    // 追加文件名后缀 row: the text inserted before the extension (readd.py's
+    // _1×2 by default), editable from the 右键菜单 settings page.
+    std::wstring append_suffix = L"_1×2";
 
     std::unordered_map<std::wstring, bool> item_enabled;
     std::vector<SeenMenuItem> seen;

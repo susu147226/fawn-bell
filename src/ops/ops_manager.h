@@ -31,7 +31,10 @@
 
 namespace luling::ops {
 
-enum class OpType { Copy, Move, RecycleDelete, RealDelete, Rename, CreateFolder, CreateTextFile, RestoreRecycle, EmptyRecycle, BatchRename };
+enum class OpType { Copy, Move, RecycleDelete, RealDelete, Rename, CreateFolder, CreateTextFile, RestoreRecycle, EmptyRecycle, BatchRename,
+                    // Appended, never inserted: the recovery journal stores these
+                    // as numbers. Template-backed 新建 runs in-process like Rename.
+                    CreateFromTemplate };
 enum class CollisionPolicy { System, Replace, KeepBoth };
 enum class OpPhase { Queued, Scanning, WaitingForConflict, Running, Paused,
                      Verifying, Cancelling, Completed, Failed };
@@ -85,6 +88,11 @@ struct OpRequest {
     bool lock_retry = false;
     bool duplicate_cleanup = false;
     std::vector<DuplicateCleanupGroup> duplicate_groups;
+    // CreateFromTemplate: sources[0] is the full target path. The payload is
+    // either a template file to copy or raw bytes to write, matching the
+    // HKCR ShellNew FileName / Data shapes.
+    std::wstring template_path;
+    std::vector<uint8_t> template_data;
 };
 
 struct UndoEntry {

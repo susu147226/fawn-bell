@@ -17,6 +17,7 @@ struct BatchRenameDialogResult {
 BatchRenameDialogResult ShowBatchRenameDialog(HWND owner,
                                               const std::vector<std::wstring>& paths,
                                               bool dark,
-                                              D2D1_COLOR_F accent);
+                                              D2D1_COLOR_F accent,
+                                              const app::BatchRenameRule* initial = nullptr);
 
 } // namespace luling::ui

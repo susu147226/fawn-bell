@@ -36,6 +36,9 @@ enum class BuiltinMenuItem : uint8_t {
     Paste,
     Properties,
     FolderProperties,
+    RenameSeqZero,
+    RenameSeqOne,
+    AppendSuffix,
     Count
 };
 

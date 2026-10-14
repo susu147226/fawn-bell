@@ -7,6 +7,7 @@
 #include "app_column_view.h"
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
+#include "shell_new.h"
 #include "app_sidebar_refresh.h"
 #include "tray_reveal.h"
 #include "group_wheel_ui.h"
@@ -118,6 +119,39 @@ void CreateNewItem(AppState& s, bool folder) {
     full += name;
     ops::OpRequest req;
     req.type = folder ? ops::OpType::CreateFolder : ops::OpType::CreateTextFile;
+    req.sources.push_back(full);
+    const auto task_id = s.ops.Submit(std::move(req));
+    app::QueueCreateRenameIntent(tab->create_rename_intents, task_id,
+        tab->current_path, tab->view_generation);
+}
+
+// 新建 rows backed by HKCR\<ext>\ShellNew: the name mirrors Explorer — the
+// type's display name, then the registered extension.
+void CreateShellNewItem(AppState& s, const app::ShellNewItem& spec) {
+    app::Tab* tab = ActiveTab(s);
+    if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) ||
+        tab->net_readonly || spec.extension.empty()) return;
+    std::wstring stem = spec.display;
+    if (stem.size() > spec.extension.size() &&
+        _wcsicmp(stem.c_str() + stem.size() - spec.extension.size(),
+                 spec.extension.c_str()) == 0)
+        stem.resize(stem.size() - spec.extension.size());
+    for (wchar_t& c : stem)
+        if (c == L'\\' || c == L'/' || c == L':' || c == L'*' || c == L'?' ||
+            c == L'"' || c == L'<' || c == L'>' || c == L'|') c = L' ';
+    if (stem.empty()) stem = spec.extension.substr(1);
+    const std::wstring name = app::UniqueChildName(tab->current_path, stem, spec.extension);
+    std::wstring full = tab->current_path;
+    if (!full.ends_with(L"\\")) full += L"\\";
+    full += name;
+    ops::OpRequest req;
+    if (!spec.template_path.empty() || !spec.data.empty()) {
+        req.type = ops::OpType::CreateFromTemplate;
+        req.template_path = spec.template_path;
+        req.template_data = spec.data;
+    } else {
+        req.type = ops::OpType::CreateTextFile; // NullFile shape: an empty file
+    }
     req.sources.push_back(full);
     const auto task_id = s.ops.Submit(std::move(req));
     app::QueueCreateRenameIntent(tab->create_rename_intents, task_id,
@@ -719,6 +753,12 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
 
 void DispatchMenuCommand(AppState& s, int cmd) {
     const bool needs_files=cmd==app::CmdProperties || cmd==app::CmdOpenPath || cmd==app::CmdOpenInNewTab || cmd==app::CmdRename;
+    if (cmd >= app::CmdNewShellBase && cmd < app::CmdNewShellBase + app::kMaxNewShellItems) {
+        const auto& shell_new = app::ShellNewItems();
+        const size_t index = static_cast<size_t>(cmd - app::CmdNewShellBase);
+        if (index < shell_new.size()) CreateShellNewItem(s, shell_new[index]);
+        return;
+    }
     if(needs_files && DeferContentSelection(s,[cmd](AppState& v){DispatchMenuCommand(v,cmd);})) return;
     if (cmd >= app::CmdViewBase && cmd < app::CmdViewBase + 8) {
         SetViewMode(s, ui::ViewModeFromIndex(cmd - app::CmdViewBase));
@@ -910,6 +950,29 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         break;
     case app::CmdNewFolder: CreateNewItem(s, true); break;
     case app::CmdNewTextFile: CreateNewItem(s, false); break;
+    case app::CmdRenameSequenceZero:
+    case app::CmdRenameSequenceOne: {
+        // rename.py's rule: group by extension, number each group from the
+        // chosen start, prefix typed straight into the pattern field.
+        app::BatchRenameRule rule;
+        rule.pattern = L"{n}{ext}";
+        rule.start = cmd == app::CmdRenameSequenceZero ? 0 : 1;
+        rule.group_by_extension = true;
+        ShowBatchRename(s, rule);
+        break;
+    }
+    case app::CmdAppendNameSuffix: {
+        // readd.py's rule: the configured text inserted between the stem and
+        // the extension. Expressed as a pattern because the dialog rebuilds the
+        // rule from its fields, and the pattern field is the one users can see
+        // and adjust before applying.
+        const std::wstring& text = s.ctxMenuPrefs.append_suffix;
+        if (text.empty() || text.find_first_of(L"{}") != std::wstring::npos) break;
+        app::BatchRenameRule rule;
+        rule.pattern = L"{name}" + text + L"{ext}";
+        ShowBatchRename(s, rule);
+        break;
+    }
     case app::CmdTags: {
         POINT point{};
         GetCursorPos(&point);

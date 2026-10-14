@@ -180,6 +180,7 @@ const wchar_t* OpVerb(OpType t) {
     case OpType::RestoreRecycle: return l10n::Pick(L"还原", L"Restore");
     case OpType::EmptyRecycle: return l10n::Pick(L"清空回收站", L"Empty Recycle Bin");
     case OpType::BatchRename: return l10n::Pick(L"批量重命名", L"Batch rename");
+    case OpType::CreateFromTemplate: return l10n::Pick(L"新建文件", L"New file");
     }
     return l10n::Pick(L"操作", L"Operation");
 }
@@ -197,6 +198,7 @@ const wchar_t* OpGerund(OpType t) {
     case OpType::RestoreRecycle: return L"Restoring";
     case OpType::EmptyRecycle: return L"Emptying Recycle Bin";
     case OpType::BatchRename: return L"Batch renaming";
+    case OpType::CreateFromTemplate: return L"Creating file";
     }
     return L"Working";
 }
@@ -1159,7 +1161,8 @@ void OpsManager::PushUndo(const OpRequest& req, uint64_t task_id,
     completed.task_id = task_id;
     completed.type = req.type;
     completed.sources = req.sources;
-    if (req.type == OpType::CreateFolder || req.type == OpType::CreateTextFile)
+    if (req.type == OpType::CreateFolder || req.type == OpType::CreateTextFile ||
+        req.type == OpType::CreateFromTemplate)
         completed.destinations = req.sources;
     if (actual_destinations) {
         completed.destinations = *actual_destinations;
@@ -1272,7 +1275,8 @@ void OpsManager::Undo() {
         break;
     }
     case OpType::CreateFolder:
-    case OpType::CreateTextFile: {
+    case OpType::CreateTextFile:
+    case OpType::CreateFromTemplate: {
         // Undo create = recycle-delete the created item.
         OpRequest inv;
         inv.type = OpType::RecycleDelete;
@@ -2873,6 +2877,44 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
         }
     }
 
+    // Template-backed 新建 (HKCR ShellNew FileName / Data) runs here like Rename:
+    // the payload is already in hand, so there is no Shell host round trip.
+    if (req.type == OpType::CreateFromTemplate) {
+        std::vector<std::wstring> created;
+        std::wstring last_error;
+        const std::wstring target = req.sources.empty() ? std::wstring{} : req.sources.front();
+        if (!target.empty() && !stopping_.load()) {
+            bool ok = false;
+            if (!req.template_path.empty()) {
+                ok = CopyFileW(req.template_path.c_str(), target.c_str(), TRUE) != 0;
+            } else if (!req.template_data.empty()) {
+                HANDLE file = CreateFileW(target.c_str(), GENERIC_WRITE, 0, nullptr,
+                                          CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+                if (file != INVALID_HANDLE_VALUE) {
+                    DWORD written = 0;
+                    ok = WriteFile(file, req.template_data.data(),
+                                   static_cast<DWORD>(req.template_data.size()), &written,
+                                   nullptr) != 0 && written == req.template_data.size();
+                    CloseHandle(file);
+                    if (!ok) DeleteFileW(target.c_str());
+                }
+            }
+            if (ok) created.push_back(target);
+            else last_error = l10n::Pick(L"新建失败", L"Could not create the file");
+        }
+        if (!created.empty()) PushUndo(req, task_id, &created);
+        SetStatus([&](OpStatus& st) {
+            st.active = false;
+            st.percent = -1.0f;
+            st.completed_ops++;
+            st.completed_items = created.size();
+            st.phase = created.empty() ? OpPhase::Failed : OpPhase::Completed;
+            if (created.empty()) st.last_error = last_error;
+            else st.summary = Describe(req) + l10n::Pick(L" 完成", L" completed");
+        });
+        return;
+    }
+
     const auto accepted = [this](uint32_t request) { RegisterShellRequest(request); };
     uint32_t id = 0;
     switch (req.type) {
@@ -2880,6 +2922,7 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
     case OpType::Move:
     case OpType::EmptyRecycle:
     case OpType::BatchRename:
+    case OpType::CreateFromTemplate: // Handled above; never sent to the host.
         break;
     case OpType::RecycleDelete: id = client.DeleteRecycle(req.sources, accepted); break;
     case OpType::RealDelete: id = client.RealDelete(req.sources, accepted); break;

@@ -39,6 +39,9 @@ constexpr BuiltinMenuInfo kItems[] = {
     { BuiltinMenuItem::Paste,          L"paste",          l10n::StringId::Paste },
     { BuiltinMenuItem::Properties,     L"properties",     l10n::StringId::Properties },
     { BuiltinMenuItem::FolderProperties, L"folder_properties", l10n::StringId::ContextFolderProperties },
+    { BuiltinMenuItem::RenameSeqZero,  L"rename_seq_zero", l10n::StringId::MenuRenameSeqZero },
+    { BuiltinMenuItem::RenameSeqOne,   L"rename_seq_one",  l10n::StringId::MenuRenameSeqOne },
+    { BuiltinMenuItem::AppendSuffix,   L"append_suffix",   l10n::StringId::MenuAppendSuffix },
 };
 static_assert(sizeof(kItems) / sizeof(kItems[0]) == kBuiltinMenuItemCount,
               "every built-in item needs a key and a label");
@@ -69,6 +72,9 @@ constexpr BuiltinMenuRow kItemRows[] = {
     { B::PinNetwork, F::None, L"\xE71B", nullptr, true, false },
     { B::Tags, F::None, L"\xE8EC", nullptr, true, false },
     { B::Undo, F::None, L"\xE7A7", L"Ctrl+Z", false, false },
+    { B::RenameSeqZero, F::None, L"\xE8AC", nullptr, false, false },
+    { B::RenameSeqOne, F::None, L"\xE8AC", nullptr, false, false },
+    { B::AppendSuffix, F::None, L"\xE8AC", nullptr, false, false },
 };
 constexpr BuiltinMenuRow kBackgroundRows[] = {
     { B::View, F::None, L"\xE8A9", nullptr, false, true },

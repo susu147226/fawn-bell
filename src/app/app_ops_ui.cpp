@@ -388,9 +388,10 @@ void PinAndShowOperationWindow(AppState& s) {
 // Nothing else changes up front: places and the tray follow the renames that
 // actually succeeded once the operation completes (app_main's completion
 // handler), so a failed or cancelled item never leaves a stale new name behind.
-static void SubmitBatchRename(AppState& s, const std::vector<std::wstring>& paths, app::Tab* select_in) {
+static void SubmitBatchRename(AppState& s, const std::vector<std::wstring>& paths, app::Tab* select_in,
+                              const app::BatchRenameRule* initial = nullptr) {
     if (paths.size() < 2) return;
-    const auto result = ui::ShowBatchRenameDialog(s.hwnd, paths, s.darkMode, s.accentColor);
+    const auto result = ui::ShowBatchRenameDialog(s.hwnd, paths, s.darkMode, s.accentColor, initial);
     if (!result.accepted) return;
     ops::OpRequest req;
     req.type = ops::OpType::BatchRename;
@@ -413,6 +414,12 @@ void ShowBatchRename(AppState& s) {
     app::Tab* tab = ActiveTab(s);
     if (!tab || IsRecycleTab(tab) || tab->net_readonly) return;
     SubmitBatchRename(s, SelectedFullPaths(*tab), tab);
+}
+void ShowBatchRename(AppState& s, const app::BatchRenameRule& initial) {
+    if (DeferContentSelection(s, [=](AppState& v) { ShowBatchRename(v, initial); })) return;
+    app::Tab* tab = ActiveTab(s);
+    if (!tab || IsRecycleTab(tab) || tab->net_readonly) return;
+    SubmitBatchRename(s, SelectedFullPaths(*tab), tab, &initial);
 }
 void ShowBatchRenamePaths(AppState& s, const std::vector<std::wstring>& paths) {
     SubmitBatchRename(s, paths, nullptr);
