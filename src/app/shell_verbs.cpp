@@ -318,6 +318,11 @@ std::vector<StaticVerb> EnumerateStaticVerbs(const std::wstring& ext) {
     if (progid.empty())
         progid = RegReadString(HKEY_CLASSES_ROOT, ext_lower, nullptr);
 
+    // Verbs registered for every file type; Explorer merges this key before the
+    // per-type ones. Bandizip and VS Code register here, so skipping it hid
+    // their entries from the menu entirely.
+    CollectVerbsFrom(HKEY_CLASSES_ROOT, L"*\\shell", out, true, false, nullptr);
+
     std::wstring default_exe_lower;
     if (!progid.empty()) {
         default_exe_lower = ToLower(CommandExePath(RegReadString(

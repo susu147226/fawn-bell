@@ -486,7 +486,6 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
     if (!slot.menu || !slot.hmenu) return;
     if (!slot.send_to_title.empty()) InitMenuPopup(slot.menu2, slot.menu3, slot.hmenu, 0);
     const int count = GetMenuItemCount(slot.hmenu);
-    const ULONGLONG deadline = GetTickCount64() + kNestedFlyoutBudgetMs;
     bool pending_separator = false;
     auto push = [&](CtxItemOut item) {
         if (item.text.empty()) return;
@@ -520,16 +519,16 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
                 IsDroppedContextSubmenu(parent_verb)) continue;
             const std::wstring& parent_text = title;
             if (parent_text.empty()) continue;
-            // Send to fills itself on WM_INITMENUPOPUP and sits near the end of
-            // the default menu, so slower flyouts above it could use up the
-            // shared budget and leave it empty (#77). It gets its own.
             const bool send_to = !slot.send_to_title.empty() ||
                                  luling::ipc::ToLowerVerb(parent_verb) == L"sendto";
             std::vector<CtxItemOut> kids;
+            // Each flyout gets its own budget. A shared one let a slow cascade
+            // above exhaust it, so flyouts that fill themselves on
+            // WM_INITMENUPOPUP (Send to, Bandizip's 压缩为…) came back empty and
+            // were dropped whole (#77).
             CollectSubmenuLeaves(slot.menu, slot.menu2, slot.menu3, mii.hSubMenu,
                                  static_cast<UINT>(i), background, slot.id_first, enabled, 0,
-                                 send_to ? GetTickCount64() + kNestedFlyoutBudgetMs : deadline,
-                                 kids);
+                                 GetTickCount64() + kNestedFlyoutBudgetMs, kids);
             if (kids.empty()) {
                 if (!KeepFlyoutParentWithoutLeaves(mii.wID, slot.id_first, slot.id_last))
                     continue;
