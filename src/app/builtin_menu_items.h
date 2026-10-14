@@ -39,6 +39,7 @@ enum class BuiltinMenuItem : uint8_t {
     RenameSeqZero,
     RenameSeqOne,
     AppendSuffix,
+    RefileAssets,
     Count
 };
 

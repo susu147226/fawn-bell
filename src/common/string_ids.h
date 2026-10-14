@@ -1415,3 +1415,5 @@
 #define IDS_MENU_RENAME_SEQ_ZERO 2575
 #define IDS_MENU_RENAME_SEQ_ONE 2576
 #define IDS_MENU_APPEND_SUFFIX 2577
+// Context menu: refile.py built in (folder per PNG prefix + rewritten XML).
+#define IDS_MENU_REFILE_ASSETS 2578

@@ -129,6 +129,8 @@ enum MenuCmd : int {
     // the recent list, 1000-5999 index hits, 6000+ Explorer verbs.
     CmdNewShellBase = 100000,
     kMaxNewShellItems = 64,
+    // 归档素材 (refile.py): kept clear of the ShellNew block above.
+    CmdRefileAssets = 100100,
 };
 
 // One merged Explorer row (registry static verb or luling_shell COM item),

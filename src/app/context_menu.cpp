@@ -102,6 +102,8 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
         l10n::Get(l10n::StringId::MenuRenameSeqOne).c_str(), kGlyphRename));
     items.push_back(Item(CmdAppendNameSuffix,
         l10n::Get(l10n::StringId::MenuAppendSuffix).c_str(), kGlyphRename));
+    items.push_back(Item(CmdRefileAssets,
+        l10n::Get(l10n::StringId::MenuRefileAssets).c_str(), kGlyphFolder));
     items.back().separator_after = true;
     items.push_back(UndoItem(can_undo, undo_label));
     return items;
@@ -131,6 +133,7 @@ BuiltinMenuItem BuiltinItemForCommand(int command) {
     case CmdRenameSequenceZero: return BuiltinMenuItem::RenameSeqZero;
     case CmdRenameSequenceOne: return BuiltinMenuItem::RenameSeqOne;
     case CmdAppendNameSuffix: return BuiltinMenuItem::AppendSuffix;
+    case CmdRefileAssets: return BuiltinMenuItem::RefileAssets;
     default: return BuiltinMenuItem::Count;
     }
 }

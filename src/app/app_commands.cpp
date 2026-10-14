@@ -7,6 +7,7 @@
 #include "app_column_view.h"
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
+#include "asset_refile.h"
 #include "shell_new.h"
 #include "app_sidebar_refresh.h"
 #include "tray_reveal.h"
@@ -971,6 +972,13 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         app::BatchRenameRule rule;
         rule.pattern = L"{name}" + text + L"{ext}";
         ShowBatchRename(s, rule);
+        break;
+    }
+    case app::CmdRefileAssets: {
+        // refile.py: one folder per PNG prefix, the folder's XML files moved in
+        // and rewritten to the png's size and name.
+        if (const app::Tab* tab = ActiveTab(s))
+            RefileAssets(s, SelectedFullPaths(*tab));
         break;
     }
     case app::CmdTags: {
