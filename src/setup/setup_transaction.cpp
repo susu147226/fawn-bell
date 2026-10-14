@@ -41,7 +41,10 @@ void UndoStep(const std::wstring& app, const std::wstring& backup, bool had_old,
 FileTransaction::FileTransaction(std::wstring app_dir)
     : app_(NormalizeDir(std::move(app_dir))),
       work_(app_ + L"\\.luling-setup"),
-      staging_(work_ + L"\\staging"),
+      // Install straight into {app}. A separate staging directory is one more
+      // thing that policy or security software can refuse (and it was: access
+      // denied on a per-user path), taking the whole install down with it.
+      staging_(app_),
       backup_(work_ + L"\\backup"),
       journal_(work_ + L"\\journal.txt") {}
 
@@ -90,6 +93,11 @@ bool FileTransaction::Commit(const std::vector<std::wstring>& files, std::wstrin
     bool ok = true;
     for (const auto& rel : files) {
         const std::wstring src = staging_ + L"\\" + rel, dst = app_ + L"\\" + rel, old = backup_ + L"\\" + rel;
+        // Files already land in {app}: nothing to move into place.
+        if (_wcsicmp(src.c_str(), dst.c_str()) == 0) {
+            steps_.push_back({rel, false});
+            continue;
+        }
         const bool had_old = Exists(dst);
         if (!AppendJournal(journal, had_old, rel)) {
             error = L"Cannot write update journal: " + Win32Error(GetLastError());

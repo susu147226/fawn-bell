@@ -1,6 +1,7 @@
 #include "tag_color_commands.h"
 #include "tag_ads_sync.h"
 #include <atomic>
+#include <cstdio>
 #include "../ui/shortcut_help.h"
 // app_commands.cpp — extracted from app_main.cpp.
 #include "quick_access.h"
@@ -759,6 +760,17 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
 }
 
 void DispatchMenuCommand(AppState& s, int cmd) {
+    // TEMP tracing: log every menu command so a click that never arrives here is
+    // distinguishable from one that arrives and does nothing.
+    {
+        FILE* trace = nullptr;
+        const std::wstring dir = app::GetLulingDataDir();
+        if (!dir.empty() &&
+            _wfopen_s(&trace, (dir + L"\\dispatch.log").c_str(), L"a") == 0 && trace) {
+            std::fprintf(trace, "cmd=%d\n", cmd);
+            std::fclose(trace);
+        }
+    }
     const bool needs_files=cmd==app::CmdProperties || cmd==app::CmdOpenPath || cmd==app::CmdOpenInNewTab || cmd==app::CmdRename;
     if (cmd >= app::CmdNewShellBase && cmd < app::CmdNewShellBase + app::kMaxNewShellItems) {
         const auto& shell_new = app::ShellNewItems();
