@@ -49,10 +49,10 @@ target_include_directories(luling_setup PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(luling_setup PRIVATE luling_setup_payload shell32 ole32 uuid advapi32 user32 gdi32 comctl32
     d2d1 dwrite windowscodecs dwmapi)
 target_compile_definitions(luling_setup PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-# Machine installs write under {ProgramFiles}; elevate up front the way every
-# installer does. asInvoker left a window where the staging directory was built
-# before setup_main.cpp got around to relaunching itself elevated.
-target_link_options(luling_setup PRIVATE /MANIFESTUAC:level='requireAdministrator')
+# The default install is per-user (%LOCALAPPDATA%\Programs), so no elevation is
+# needed and asking for it would prompt for nothing. A user who still picks a
+# machine-wide directory gets the plain access-denied error instead.
+target_link_options(luling_setup PRIVATE /MANIFESTUAC:level='asInvoker')
 
 foreach(setup_target luling_lzma_dec luling_setup_payload luling_setup_p0 luling_setup)
     target_compile_options(${setup_target} PRIVATE $<$<CONFIG:Release>:/Gy /Gw>)

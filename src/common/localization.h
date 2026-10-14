@@ -955,6 +955,7 @@ enum class StringId : UINT {
     MenuRenameSeqOne = IDS_MENU_RENAME_SEQ_ONE,
     MenuAppendSuffix = IDS_MENU_APPEND_SUFFIX,
     MenuRefileAssets = IDS_MENU_REFILE_ASSETS,
+    BatchRenameMore = IDS_BATCH_RENAME_MORE,
     SettingsRemoveServerError = IDS_SETTINGS_REMOVE_SERVER_ERROR,
     SettingsAddServerError = IDS_SETTINGS_ADD_SERVER_ERROR,
     SettingsOperationError = IDS_SETTINGS_OPERATION_ERROR,

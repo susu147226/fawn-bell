@@ -119,15 +119,22 @@ private:
     }
 
     D2D1_RECT_F CloseRect() const { return Rect(scale_, kDlgW - 46, 0, 46, 36); }
+    // Simple mode shows only the rule and the start number. 查找 / 替换 /
+    // 补零 / 只改扩展 live behind 更多选项, which is what made the dialog feel
+    // heavy for a plain "number these files" job.
+    D2D1_RECT_F MoreRect() const { return Rect(scale_, 20, 40, 150, 24); }
     D2D1_RECT_F FindField() const { return Rect(scale_, 20, 68, 280, 32); }
     D2D1_RECT_F ReplaceField() const { return Rect(scale_, 320, 68, 280, 32); }
     D2D1_RECT_F IncludeExtRect() const { return Rect(scale_, 430, 40, 170, 24); }
     bool UsesIndex() const { return app::BatchRenamePatternUsesIndex(rule_.pattern); }
     D2D1_RECT_F PatternField() const {
-        return UsesIndex() ? Rect(scale_, 20, 128, 424, 32)
-                           : Rect(scale_, 20, 128, 580, 32);
+        const float y = advanced_ ? 128.0f : 68.0f;
+        return UsesIndex() ? Rect(scale_, 20, y, 424, 32)
+                           : Rect(scale_, 20, y, 580, 32);
     }
-    D2D1_RECT_F StartField() const { return Rect(scale_, 456, 128, 144, 32); }
+    D2D1_RECT_F StartField() const {
+        return Rect(scale_, 456, advanced_ ? 128.0f : 68.0f, 144, 32);
+    }
     D2D1_RECT_F ChipRect(int index) const {
         constexpr float widths[] = {92.0f, 100.0f, 100.0f};
         float x = 20.0f;
@@ -137,7 +144,8 @@ private:
     D2D1_RECT_F CancelRect() const { return Rect(scale_, kDlgW - 196, kDlgH - 48, 80, 32); }
     D2D1_RECT_F ApplyRect() const { return Rect(scale_, kDlgW - 108, kDlgH - 48, 88, 32); }
     D2D1_RECT_F PreviewBounds() const {
-        return Rect(scale_, 20, 260, kDlgW - 40, kDlgH - 260 - 56);
+        const float y = advanced_ ? 260.0f : 112.0f;
+        return Rect(scale_, 20, y, kDlgW - 40, kDlgH - y - 56);
     }
     D2D1_RECT_F SummaryRect() const {
         return Rect(scale_, 20, kDlgH - 48, kDlgW - 228, 32);
@@ -206,10 +214,10 @@ private:
 
     void LayoutEdits() {
         if (done_) return;
-        PlaceEdit(edit_find_, FindField(), true);
-        PlaceEdit(edit_replace_, ReplaceField(), true);
+        PlaceEdit(edit_find_, FindField(), advanced_);
+        PlaceEdit(edit_replace_, ReplaceField(), advanced_);
         PlaceEdit(edit_pattern_, PatternField(), true);
-        PlaceEdit(edit_number_, StartField(), UsesIndex());
+        PlaceEdit(edit_number_, StartField(), true);
     }
 
     static LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam,
@@ -324,12 +332,13 @@ private:
         if (luling::ui::ContainsRect(CloseRect(), x, y)) return 3;
         if (luling::ui::ContainsRect(ApplyRect(), x, y)) return 1;
         if (luling::ui::ContainsRect(CancelRect(), x, y)) return 2;
-        if (luling::ui::ContainsRect(IncludeExtRect(), x, y)) return 4;
-        if (luling::ui::ContainsRect(ChipRect(0), x, y)) return 5;
-        if (luling::ui::ContainsRect(ChipRect(1), x, y)) return 6;
-        if (luling::ui::ContainsRect(ChipRect(2), x, y)) return 7;
-        if (luling::ui::ContainsRect(FindField(), x, y)) return 10;
-        if (luling::ui::ContainsRect(ReplaceField(), x, y)) return 11;
+        if (!advanced_ && luling::ui::ContainsRect(MoreRect(), x, y)) return 15;
+        if (advanced_ && luling::ui::ContainsRect(IncludeExtRect(), x, y)) return 4;
+        if (advanced_ && luling::ui::ContainsRect(ChipRect(0), x, y)) return 5;
+        if (advanced_ && luling::ui::ContainsRect(ChipRect(1), x, y)) return 6;
+        if (advanced_ && luling::ui::ContainsRect(ChipRect(2), x, y)) return 7;
+        if (advanced_ && luling::ui::ContainsRect(FindField(), x, y)) return 10;
+        if (advanced_ && luling::ui::ContainsRect(ReplaceField(), x, y)) return 11;
         if (luling::ui::ContainsRect(PatternField(), x, y)) return 12;
         if (UsesIndex() && luling::ui::ContainsRect(StartField(), x, y)) return 13;
         return 0;
@@ -374,43 +383,51 @@ private:
         fluent::ControlState include_state{};
         include_state.hovered = hover_ == 4;
         include_state.pressed = pressed_ == 4;
-        include_state.checked = rule_.replace_in_extension;
-        painter_.DrawCheckBox(IncludeExtRect(),
-                              l10n::Get(l10n::StringId::BatchRenameIncludeExt),
-                              include_state);
-        DrawFieldFrame(FindField(), edit_find_, 10, true);
-        DrawFieldFrame(ReplaceField(), edit_replace_, 11, true);
-
-        painter_.DrawText(l10n::Get(l10n::StringId::BatchRenamePattern),
-                          Rect(scale_, 20, 108, 280, 20), compositor_.SmallFormat(),
-                          theme.text_secondary);
-        if (UsesIndex()) {
-            painter_.DrawText(l10n::Get(l10n::StringId::BatchRenameStartFrom),
-                              Rect(scale_, 456, 108, 144, 20), compositor_.SmallFormat(),
-                              theme.text_secondary);
+        if (advanced_) {
+            include_state.checked = rule_.replace_in_extension;
+            painter_.DrawCheckBox(IncludeExtRect(),
+                                  l10n::Get(l10n::StringId::BatchRenameIncludeExt),
+                                  include_state);
+            DrawFieldFrame(FindField(), edit_find_, 10, true);
+            DrawFieldFrame(ReplaceField(), edit_replace_, 11, true);
+        } else {
+            fluent::ControlState more_state{};
+            more_state.hovered = hover_ == 15;
+            more_state.pressed = pressed_ == 15;
+            painter_.DrawButton({ MoreRect(),
+                                  l10n::Get(l10n::StringId::BatchRenameMore), {},
+                                  fluent::ButtonKind::Standard, more_state });
         }
+        painter_.DrawText(l10n::Get(l10n::StringId::BatchRenamePattern),
+                          Rect(scale_, 20, PatternField().top - 20, 280, 20),
+                          compositor_.SmallFormat(), theme.text_secondary);
+        painter_.DrawText(l10n::Get(l10n::StringId::BatchRenameStartFrom),
+                          Rect(scale_, 456, StartField().top - 20, 144, 20),
+                          compositor_.SmallFormat(), theme.text_secondary);
         DrawFieldFrame(PatternField(), edit_pattern_, 12, true);
-        if (UsesIndex()) DrawFieldFrame(StartField(), edit_number_, 13, true);
+        DrawFieldFrame(StartField(), edit_number_, 13, true);
 
-        const wchar_t* chip_patterns[] = { kChipNumbered, kChipPadded, kChipExt };
-        const l10n::StringId chip_labels[] = {
-            l10n::StringId::BatchRenameChipNumber,
-            l10n::StringId::BatchRenameChipPadded,
-            l10n::StringId::BatchRenameChipExt,
-        };
-        for (int i = 0; i < 3; ++i) {
-            fluent::ControlState chip_state{};
-            chip_state.hovered = hover_ == 5 + i;
-            chip_state.pressed = pressed_ == 5 + i;
-            chip_state.checked = rule_.pattern == chip_patterns[i];
-            painter_.DrawButton({ ChipRect(i), l10n::Get(chip_labels[i]), {},
-                                  chip_state.checked ? fluent::ButtonKind::Primary
-                                                     : fluent::ButtonKind::Standard,
-                                  chip_state });
+        if (advanced_) {
+            const wchar_t* chip_patterns[] = { kChipNumbered, kChipPadded, kChipExt };
+            const l10n::StringId chip_labels[] = {
+                l10n::StringId::BatchRenameChipNumber,
+                l10n::StringId::BatchRenameChipPadded,
+                l10n::StringId::BatchRenameChipExt,
+            };
+            for (int i = 0; i < 3; ++i) {
+                fluent::ControlState chip_state{};
+                chip_state.hovered = hover_ == 5 + i;
+                chip_state.pressed = pressed_ == 5 + i;
+                chip_state.checked = rule_.pattern == chip_patterns[i];
+                painter_.DrawButton({ ChipRect(i), l10n::Get(chip_labels[i]), {},
+                                      chip_state.checked ? fluent::ButtonKind::Primary
+                                                         : fluent::ButtonKind::Standard,
+                                      chip_state });
+            }
         }
         painter_.DrawText(l10n::Get(l10n::StringId::BatchRenamePatternHint),
-                          Rect(scale_, 20, 204, kDlgW - 40, 48), compositor_.SmallFormat(),
-                          theme.text_secondary);
+                          Rect(scale_, 20, advanced_ ? 204.0f : 112.0f, kDlgW - 40, 48),
+                          compositor_.SmallFormat(), theme.text_secondary);
 
         const auto preview = PreviewBounds();
         painter_.FillRoundedRect(preview, 8.0f * scale_, theme.fill_input);
@@ -582,6 +599,10 @@ private:
                 } else if (hit == 5) ApplyChip(kChipNumbered);
                 else if (hit == 6) ApplyChip(kChipPadded);
                 else if (hit == 7) ApplyChip(kChipExt);
+                else if (hit == 15) {
+                    advanced_ = !advanced_;
+                    LayoutEdits();
+                }
             }
             InvalidateRect(hwnd_, nullptr, FALSE);
             return 0;
@@ -641,6 +662,8 @@ private:
     // passes nullptr and keeps the dialog's own defaults.
     app::BatchRenameRule initial_rule_;
     bool has_initial_ = false;
+    // 更多选项: 查找 / 替换 / 补零 / 只改扩展 / 含扩展名.
+    bool advanced_ = false;
     std::vector<app::BatchRenameItem> items_;
     BatchRenameDialogResult result_;
     bool dark_ = false;

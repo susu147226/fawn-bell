@@ -182,18 +182,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         return kExitPrepareFailed;
     }
 
-    const bool needs_elevation = !o.test && !IsProcessElevated();
-    if (needs_elevation && !o.elevated_child) {
-        std::wstring app_dir;
-        bool launch = false;
-        const int code = RunElevated(o, self, app_dir, launch);
-        Log(L"Elevated setup exited with " + std::to_wstring(code));
-        if (code == kExitOk && !app_dir.empty()) {
-            if (o.luling_update) LaunchLuling(app_dir, L"--restore-update-session");
-            else if (launch) LaunchLuling(app_dir, L"");
-        }
-        return code;
-    }
+    // No automatic elevation. The default install is per-user under
+    // %LOCALAPPDATA%\Programs, which needs no administrator token; a machine-
+    // wide directory the user picks by hand reports the access denial instead
+    // of triggering a prompt that would not change the outcome.
 
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     const InstallRequest request = ResolveDefaults(o);

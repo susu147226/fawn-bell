@@ -249,7 +249,12 @@ InstallRequest ResolveDefaults(const Options& options) {
         r.app_dir = previous->dir;
         Log(L"Reusing registered Luling directory: " + r.app_dir);
     } else {
-        r.app_dir = KnownFolder(FOLDERID_ProgramFiles) + (options.test ? L"\\Luling Test" : L"\\Luling");
+        // Per-user by default: %LOCALAPPDATA%\Programs needs no elevation, so
+        // the install cannot be blocked the way a machine-wide one can when
+        // Program Files or HKLM writes are refused by policy or by security
+        // software. The wizard still accepts any other directory.
+        r.app_dir = KnownFolder(FOLDERID_LocalAppData) + L"\\Programs" +
+            (options.test ? L"\\Luling Test" : L"\\Luling");
     }
     if (previous && FileExists(previous->dir + L"\\luling.exe")) {
         r.upgrade = true;
@@ -395,12 +400,20 @@ InstallResult RunInstall(Payload& payload, const std::wstring& self_path, const 
     if (o.test) entry.uninstall_args = L" /PULSETEST";  // the test uninstaller must stay on the test key
     entry.tasks = FormatTaskList(req.tasks);
     entry.estimated_kb = total_bytes / 1024;
-    const RegLocation where = real ? RegLocation{HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY}
-                                   : RegLocation{HKEY_CURRENT_USER, KEY_WOW64_64KEY};
+    // A per-user install (the default) must not touch HKLM: its uninstall entry
+    // belongs to the current user. That is also what lets the whole install run
+    // without elevation.
+    const std::wstring local_appdata = KnownFolder(FOLDERID_LocalAppData);
+    const bool per_user = app.size() >= local_appdata.size() &&
+        _wcsnicmp(app.c_str(), local_appdata.c_str(), local_appdata.size()) == 0;
+    const RegLocation where = (real && !per_user)
+        ? RegLocation{HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY}
+        : RegLocation{HKEY_CURRENT_USER, KEY_WOW64_64KEY};
     if (!WriteUninstallEntry(where, UninstallKey(o), entry, error)) return Fail(kExitFatalInstall, error);
     if (previous && previous->inno && in_place) RemoveInnoUninstaller(app);
 
-    const std::wstring group = KnownFolder(real ? FOLDERID_CommonPrograms : FOLDERID_Programs) +
+    const bool machine_wide = real && !per_user;
+    const std::wstring group = KnownFolder(machine_wide ? FOLDERID_CommonPrograms : FOLDERID_Programs) +
                                (real ? L"\\Luling" : L"\\Luling Test");
     const bool chinese = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE;
     if (!EnsureShortcut(group + L"\\Luling.lnk", app + L"\\luling.exe", L"", app, L"Luling", error))

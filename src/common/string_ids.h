@@ -1417,3 +1417,5 @@
 #define IDS_MENU_APPEND_SUFFIX 2577
 // Context menu: refile.py built in (folder per PNG prefix + rewritten XML).
 #define IDS_MENU_REFILE_ASSETS 2578
+// Batch rename dialog: reveal the advanced fields.
+#define IDS_BATCH_RENAME_MORE 2579

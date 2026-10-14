@@ -390,6 +390,7 @@ BEGIN
     IDS_MENU_RENAME_SEQ_ONE "按序號重新命名（從 1 開始）"
     IDS_MENU_APPEND_SUFFIX "附加檔案名稱後綴"
     IDS_MENU_REFILE_ASSETS "歸檔素材（PNG + XML）"
+    IDS_BATCH_RENAME_MORE "更多選項"
     IDS_RESTORE_DEFAULTS            "恢復預設"
     IDS_TOOLTIP_CLOSE_TAB           "關閉分頁"
     IDS_TOOLTIP_NEW_TAB             "新增分頁"
