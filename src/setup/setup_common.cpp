@@ -116,9 +116,12 @@ bool CreateDirs(const std::wstring& dir) {
     if (dir.empty()) return false;
     const DWORD a = GetFileAttributesW(dir.c_str());
     if (a != INVALID_FILE_ATTRIBUTES) return (a & FILE_ATTRIBUTE_DIRECTORY) != 0;
-    const auto parent = ParentDir(dir);
-    if (!parent.empty() && parent.size() < dir.size() && parent.back() != L':') CreateDirs(parent);
-    return CreateDirectoryW(dir.c_str(), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS;
+    // SHCreateDirectoryExW builds the whole chain and reports the real reason,
+    // unlike a hand-rolled walk whose final CreateDirectory answers
+    // ERROR_PATH_NOT_FOUND even when the failure was access denied.
+    const int result = SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
+    return result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS ||
+           result == ERROR_FILE_EXISTS;
 }
 
 bool ReadWholeFile(const std::wstring& path, std::string& data) {

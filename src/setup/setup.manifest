@@ -20,4 +20,6 @@
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
     </application>
   </compatibility>
+  <!-- requestedExecutionLevel lives in CMakeLists (/MANIFESTUAC): declaring it
+       here as well makes mt.exe reject the merge. -->
 </assembly>
