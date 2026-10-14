@@ -294,7 +294,9 @@ private:
         rule_.replace = EditText(edit_replace_);
         const std::wstring typed = EditText(edit_pattern_);
         // Simple mode asks for a prefix only; the index and the extension are
-        // appended here, so typing "date" gives date_0.png. A trailing
+        // appended here, so typing "date" gives date_0.png. Grouping matches
+        // rename.py: each extension is numbered from 0 on its own, so different
+        // types can share one name (date_0.png / date_0.jpg). A trailing
         // separator in the prefix is not doubled up.
         std::wstring prefix = typed;
         if (!advanced_ && !prefix.empty() && prefix.back() != L'_' && prefix.back() != L'-' &&
@@ -303,6 +305,7 @@ private:
         rule_.pattern = advanced_
             ? typed
             : (prefix.empty() ? std::wstring(L"{n}{ext}") : prefix + L"{n}{ext}");
+        if (!advanced_) rule_.group_by_extension = true;
         rule_.prefix.clear();
         rule_.suffix.clear();
         rule_.insert_number = false;
