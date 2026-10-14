@@ -1,4 +1,4 @@
-; Luling installer, built with NSIS (makensis).
+﻿; Luling installer, built with NSIS (makensis).
 ;
 ; Replaces the in-tree self-extracting bootstrapper: that one had to unpack its
 ; payload into the destination *before* it could elevate, so the extraction was
