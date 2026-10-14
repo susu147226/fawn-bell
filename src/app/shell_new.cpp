@@ -120,19 +120,22 @@ void CollectFrom(HKEY root, const wchar_t* classes_key, std::vector<ShellNewItem
         if (seen.count(lower)) continue;
         const std::wstring shell_new = ext + L"\\ShellNew";
         if (!KeyExists(classes, shell_new)) continue;
-        // Command entries run a registered program; they are never listed here.
-        if (ValueExists(classes, shell_new, L"Command")) {
-            seen.insert(lower);
-            continue;
-        }
         ShellNewItem item;
         item.extension = ext;
+        // The four shapes Explorer knows. Command entries (WPS registers its
+        // new-file types this way) run their own program instead of creating a
+        // file here, so the command line travels with the item.
         if (ValueExists(classes, shell_new, L"FileName")) {
             item.template_path = Expand(ReadString(classes, shell_new, L"FileName"));
             if (item.template_path.empty()) continue;
         } else if (ValueExists(classes, shell_new, L"Data")) {
             if (!ReadBinary(classes, shell_new, item.data)) continue;
-        } else if (!ValueExists(classes, shell_new, L"NullFile")) {
+        } else if (ValueExists(classes, shell_new, L"NullFile")) {
+            // An empty file: nothing else to carry.
+        } else if (ValueExists(classes, shell_new, L"Command")) {
+            item.command = ReadString(classes, shell_new, L"Command");
+            if (item.command.empty()) continue;
+        } else {
             continue; // a ShellNew key with none of the shapes creates nothing
         }
         item.display = DisplayName(classes, ext);

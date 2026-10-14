@@ -16,6 +16,9 @@ struct ShellNewItem {
     std::wstring extension;      // ".docx"
     std::wstring template_path;  // FileName shape, environment expanded
     std::vector<uint8_t> data;   // Data shape
+    // Command shape (WPS registers its new-file entries this way): the entry
+    // runs this command line instead of creating a file here.
+    std::wstring command;
 };
 
 // Every usable ShellNew entry, display-name sorted. Enumerated once per

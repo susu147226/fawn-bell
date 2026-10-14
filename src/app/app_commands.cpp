@@ -132,6 +132,12 @@ void CreateShellNewItem(AppState& s, const app::ShellNewItem& spec) {
     app::Tab* tab = ActiveTab(s);
     if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) ||
         tab->net_readonly || spec.extension.empty()) return;
+    // Command shape: the type's own program opens its new-file UI (WPS PDF 文档
+    // and the like). Nothing is created here.
+    if (!spec.command.empty()) {
+        s.ops.ExecuteCommand(spec.command, ClipboardPath(tab->current_path));
+        return;
+    }
     std::wstring stem = spec.display;
     if (stem.size() > spec.extension.size() &&
         _wcsicmp(stem.c_str() + stem.size() - spec.extension.size(),

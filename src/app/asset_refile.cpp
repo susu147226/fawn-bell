@@ -1,5 +1,6 @@
 #include "asset_refile.h"
 #include "app_internal.h"
+#include "../common/localization.h"
 #include "../common/path_utils.h"
 #include "../common/utf8_file.h"
 #include <windows.h>

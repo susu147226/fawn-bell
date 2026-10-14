@@ -111,10 +111,13 @@ void ShowLocationHistory(AppState& s) {
     GetWindowRect(s.hwndAddressEdit, &anchor);
     s.menu->SetAnchorRect(anchor);
     s.menu->SetMaxVisibleRows(10);
-    // The list is as wide as the address bar it drops from.
-    s.menu->SetFilterMinWidth(static_cast<float>(anchor.right - anchor.left) / s.scale);
+    // Wide enough to tell paths apart, and dropped just below the field so it
+    // never covers the address being edited.
+    const float field_w = static_cast<float>(anchor.right - anchor.left) / s.scale;
+    s.menu->SetFilterMinWidth((std::max)(field_w * 1.8f, 560.0f));
     s.menu->SetTheme(s.darkMode, s.accentColor);
-    const int command = s.menu->TrackPopup({anchor.left, anchor.bottom}, items, {});
+    const int command = s.menu->TrackPopup(
+        {anchor.left, anchor.bottom + static_cast<LONG>(6 * s.scale)}, items, {});
     if (command >= 300 && command < 300 + static_cast<int>(entries.size())) {
         const std::wstring path = entries[static_cast<size_t>(command - 300)];
         HideAddressEditor(s, false);

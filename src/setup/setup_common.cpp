@@ -120,8 +120,12 @@ bool CreateDirs(const std::wstring& dir) {
     // unlike a hand-rolled walk whose final CreateDirectory answers
     // ERROR_PATH_NOT_FOUND even when the failure was access denied.
     const int result = SHCreateDirectoryExW(nullptr, dir.c_str(), nullptr);
-    return result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS ||
-           result == ERROR_FILE_EXISTS;
+    if (result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS || result == ERROR_FILE_EXISTS)
+        return true;
+    // Publish the real reason: callers report GetLastError(), which would
+    // otherwise be whatever the last unrelated call left behind.
+    SetLastError(static_cast<DWORD>(result));
+    return false;
 }
 
 bool ReadWholeFile(const std::wstring& path, std::string& data) {
