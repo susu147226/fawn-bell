@@ -122,18 +122,18 @@ private:
     // Simple mode shows only the rule and the start number. 查找 / 替换 /
     // 补零 / 只改扩展 live behind 更多选项, which is what made the dialog feel
     // heavy for a plain "number these files" job.
-    D2D1_RECT_F MoreRect() const { return Rect(scale_, 20, 40, 150, 24); }
+    D2D1_RECT_F MoreRect() const { return Rect(scale_, 20, 34, 150, 24); }
     D2D1_RECT_F FindField() const { return Rect(scale_, 20, 68, 280, 32); }
     D2D1_RECT_F ReplaceField() const { return Rect(scale_, 320, 68, 280, 32); }
     D2D1_RECT_F IncludeExtRect() const { return Rect(scale_, 430, 40, 170, 24); }
     bool UsesIndex() const { return app::BatchRenamePatternUsesIndex(rule_.pattern); }
     D2D1_RECT_F PatternField() const {
-        const float y = advanced_ ? 128.0f : 68.0f;
+        const float y = advanced_ ? 128.0f : 72.0f;
         return UsesIndex() ? Rect(scale_, 20, y, 424, 32)
                            : Rect(scale_, 20, y, 580, 32);
     }
     D2D1_RECT_F StartField() const {
-        return Rect(scale_, 456, advanced_ ? 128.0f : 68.0f, 144, 32);
+        return Rect(scale_, 456, advanced_ ? 128.0f : 72.0f, 144, 32);
     }
     D2D1_RECT_F ChipRect(int index) const {
         constexpr float widths[] = {92.0f, 100.0f, 100.0f};
@@ -293,10 +293,15 @@ private:
         rule_.replace = EditText(edit_replace_);
         const std::wstring typed = EditText(edit_pattern_);
         // Simple mode asks for a prefix only; the index and the extension are
-        // appended here, so typing "time" gives time_0.png rather than "time".
+        // appended here, so typing "date" gives date_0.png. A trailing
+        // separator in the prefix is not doubled up.
+        std::wstring prefix = typed;
+        if (!advanced_ && !prefix.empty() && prefix.back() != L'_' && prefix.back() != L'-' &&
+            prefix.back() != L' ')
+            prefix += L'_';
         rule_.pattern = advanced_
             ? typed
-            : (typed.empty() ? std::wstring(L"{n}{ext}") : typed + L"{n}{ext}");
+            : (prefix.empty() ? std::wstring(L"{n}{ext}") : prefix + L"{n}{ext}");
         rule_.prefix.clear();
         rule_.suffix.clear();
         rule_.insert_number = false;
@@ -520,9 +525,9 @@ private:
             edit_replace_ = CreateField(2, {});
             std::wstring initial_pattern = has_initial_ ? initial_rule_.pattern : L"{n}{ext}";
             // Simple mode shows only the prefix; the index and extension are
-            // added back when the rule is rebuilt.
+            // added back when the rule is rebuilt. "{n}{ext}" is eight chars.
             if (!advanced_ && initial_pattern.ends_with(L"{n}{ext}"))
-                initial_pattern.resize(initial_pattern.size() - 7);
+                initial_pattern.resize(initial_pattern.size() - 8);
             edit_pattern_ = CreateField(3, initial_pattern.c_str());
             edit_number_ = CreateField(4, has_initial_
                 ? std::to_wstring(initial_rule_.start).c_str() : L"1", true);
@@ -617,7 +622,7 @@ private:
                     // advanced mode; carry the text across so nothing is lost.
                     if (!advanced_ && typed.ends_with(L"{n}{ext}"))
                         SetWindowTextW(edit_pattern_,
-                                       typed.substr(0, typed.size() - 7).c_str());
+                                       typed.substr(0, typed.size() - 8).c_str());
                     else if (advanced_ && !typed.empty())
                         SetWindowTextW(edit_pattern_, (typed + L"{n}{ext}").c_str());
                     LayoutEdits();
