@@ -1,10 +1,12 @@
 #include "asset_refile.h"
 #include "app_internal.h"
+#include "session.h"
 #include "../common/localization.h"
 #include "../common/path_utils.h"
 #include "../common/utf8_file.h"
 #include <windows.h>
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <cwctype>
 
@@ -97,6 +99,18 @@ std::vector<std::wstring> XmlFilesIn(const std::wstring& dir) {
 } // namespace
 
 int RefileAssets(AppState& s, const std::vector<std::wstring>& paths) {
+    // One-line trace: whether the command was dispatched at all, and with what.
+    // Written under the app data directory so it can be read afterwards.
+    {
+        FILE* trace = nullptr;
+        const std::wstring dir = app::GetLulingDataDir();
+        if (!dir.empty() &&
+            _wfopen_s(&trace, (dir + L"\\refile.log").c_str(), L"a") == 0 && trace) {
+            std::fprintf(trace, "enter paths=%zu\n", paths.size());
+            for (const auto& p : paths) std::fprintf(trace, "  %ls\n", p.c_str());
+            std::fclose(trace);
+        }
+    }
     std::vector<std::wstring> pngs;
     for (const auto& path : paths)
         if (ExtensionOf(FileNameOf(path)) == L".png") pngs.push_back(path);

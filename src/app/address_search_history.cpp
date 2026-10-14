@@ -109,10 +109,8 @@ void ShowLocationHistory(AppState& s) {
 
     RECT anchor{};
     GetWindowRect(s.hwndAddressEdit, &anchor);
-    s.menu->SetAnchorRect(anchor);
-    s.menu->SetMaxVisibleRows(10);
-    // Wide enough to tell paths apart, and dropped just below the field so it
-    // never covers the address being edited.
+    // Only the drop point is given: SetAnchorRect would size the popup to that
+    // rect and override the width below.
     const float field_w = static_cast<float>(anchor.right - anchor.left) / s.scale;
     s.menu->SetFilterMinWidth((std::max)(field_w * 1.8f, 560.0f));
     s.menu->SetTheme(s.darkMode, s.accentColor);

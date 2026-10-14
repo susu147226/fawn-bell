@@ -144,7 +144,8 @@ private:
     D2D1_RECT_F CancelRect() const { return Rect(scale_, kDlgW - 196, kDlgH - 48, 80, 32); }
     D2D1_RECT_F ApplyRect() const { return Rect(scale_, kDlgW - 108, kDlgH - 48, 88, 32); }
     D2D1_RECT_F PreviewBounds() const {
-        const float y = advanced_ ? 260.0f : 112.0f;
+        // Below the hint text, which in turn sits under the rule field.
+        const float y = advanced_ ? 272.0f : 168.0f;
         return Rect(scale_, 20, y, kDlgW - 40, kDlgH - y - 56);
     }
     D2D1_RECT_F SummaryRect() const {
@@ -290,7 +291,12 @@ private:
     void SyncRuleFromEdits() {
         rule_.find = EditText(edit_find_);
         rule_.replace = EditText(edit_replace_);
-        rule_.pattern = EditText(edit_pattern_);
+        const std::wstring typed = EditText(edit_pattern_);
+        // Simple mode asks for a prefix only; the index and the extension are
+        // appended here, so typing "time" gives time_0.png rather than "time".
+        rule_.pattern = advanced_
+            ? typed
+            : (typed.empty() ? std::wstring(L"{n}{ext}") : typed + L"{n}{ext}");
         rule_.prefix.clear();
         rule_.suffix.clear();
         rule_.insert_number = false;
@@ -512,7 +518,12 @@ private:
             edit_brush_ = CreateSolidBrush(dark_ ? RGB(30, 30, 30) : RGB(255, 255, 255));
             edit_find_ = CreateField(1, {});
             edit_replace_ = CreateField(2, {});
-            edit_pattern_ = CreateField(3, has_initial_ ? initial_rule_.pattern.c_str() : L"");
+            std::wstring initial_pattern = has_initial_ ? initial_rule_.pattern : L"{n}{ext}";
+            // Simple mode shows only the prefix; the index and extension are
+            // added back when the rule is rebuilt.
+            if (!advanced_ && initial_pattern.ends_with(L"{n}{ext}"))
+                initial_pattern.resize(initial_pattern.size() - 7);
+            edit_pattern_ = CreateField(3, initial_pattern.c_str());
             edit_number_ = CreateField(4, has_initial_
                 ? std::to_wstring(initial_rule_.start).c_str() : L"1", true);
             SyncRuleFromEdits();
@@ -600,8 +611,17 @@ private:
                 else if (hit == 6) ApplyChip(kChipPadded);
                 else if (hit == 7) ApplyChip(kChipExt);
                 else if (hit == 15) {
+                    const std::wstring typed = EditText(edit_pattern_);
                     advanced_ = !advanced_;
+                    // The field means "prefix" in simple mode and "full rule" in
+                    // advanced mode; carry the text across so nothing is lost.
+                    if (!advanced_ && typed.ends_with(L"{n}{ext}"))
+                        SetWindowTextW(edit_pattern_,
+                                       typed.substr(0, typed.size() - 7).c_str());
+                    else if (advanced_ && !typed.empty())
+                        SetWindowTextW(edit_pattern_, (typed + L"{n}{ext}").c_str());
                     LayoutEdits();
+                    SyncRuleFromEdits();
                 }
             }
             InvalidateRect(hwnd_, nullptr, FALSE);
