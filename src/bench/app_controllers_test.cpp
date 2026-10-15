@@ -1104,8 +1104,8 @@ int wmain(int argc, wchar_t** argv) {
             passed &= Report("handler item switches survive reload",
                 off != reloaded.item_enabled.end() && !off->second);
             const auto slow = reloaded.slow_ext.find(L"{11111111-2222-3333-4444-555555555555}");
-            passed &= Report("slow extension state keyed by CLSID survives reload",
-                slow != reloaded.slow_ext.end() && slow->second.deferred);
+            passed &= Report("slow extension state stays session-only across reload (§8.14)",
+                slow == reloaded.slow_ext.end());
         }
         return passed ? 0 : 1;
     }

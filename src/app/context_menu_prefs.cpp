@@ -171,9 +171,8 @@ bool ContextMenuPrefs::RecordSeen(const std::wstring& key, const std::wstring& t
 }
 
 bool ContextMenuPrefs::RecordComTiming(const std::wstring& key, uint32_t elapsed_ms) {
-    // SendTo never feeds the slow-extension auto-disable (#77): it serializes
-    // the whole default menu, so it is structurally the last worker home and
-    // would be permanently killed after three slow right-clicks.
+    // SendTo never feeds the slow-extension stats (#77): it serializes the whole
+    // default menu, so it is structurally the last worker home.
     if (key.empty() || key == ipc::SendToHandlerCatalogKey()) return false;
     SlowComExt& st = slow_ext[key];
     st.last_ms = elapsed_ms;
@@ -181,14 +180,18 @@ bool ContextMenuPrefs::RecordComTiming(const std::wstring& key, uint32_t elapsed
     if (elapsed_ms >= 1000) {
         ++st.timeout_hits;
         changed = true;
-        if (st.timeout_hits >= 3 && !st.disabled) {
-            st.disabled = true;
-            st.deferred = true;
-        }
     } else if (elapsed_ms >= 500) {
         ++st.slow_hits;
         changed = true;
-        if (st.slow_hits >= 3 && !st.deferred) st.deferred = true;
+    }
+    // A consistently slow handler is queried asynchronously from then on, never
+    // skipped: §8.14 and acceptance 22 let a slow extension be missing for one
+    // menu at most. Skipping it — for the rest of the session, or worse in the
+    // config file — is the Pulse defect this replaces, and it used to swallow
+    // whole third-party submenus (Bandizip's extract rows among them).
+    if (!st.deferred && (st.slow_hits >= 3 || st.timeout_hits >= 3)) {
+        st.deferred = true;
+        changed = true;
     }
     return changed;
 }
@@ -299,28 +302,7 @@ std::wstring ContextMenuPrefs::ToJson() const {
         out += L"\"}";
         out += (i + 1 == seen.size()) ? L"\n" : L",\n";
     }
-    out += L"  ],\n  \"slow_ext\":{\n";
-    size_t se = 0;
-    for (const auto& kv : slow_ext) {
-        std::wstring key;
-        luling::json::Escape(kv.first, key);
-        out += L"    \"";
-        out += key;
-        out += L"\":{\"ms\":";
-        out += std::to_wstring(kv.second.last_ms);
-        out += L",\"slow\":";
-        out += std::to_wstring(kv.second.slow_hits);
-        out += L",\"timeout\":";
-        out += std::to_wstring(kv.second.timeout_hits);
-        out += L",\"deferred\":";
-        out += kv.second.deferred ? L"true" : L"false";
-        out += L",\"disabled\":";
-        out += kv.second.disabled ? L"true" : L"false";
-        out += L"}";
-        ++se;
-        out += (se == slow_ext.size()) ? L"\n" : L",\n";
-    }
-    out += L"  }\n}\n";
+    out += L"  ]\n}\n";
     return out;
 }
 
@@ -389,24 +371,12 @@ bool ContextMenuPrefs::FromJson(const std::wstring& json) {
     MigrateSeenKeys();
     CoalesceCompressCatalog();
 
+    // The slow-extension stats are session state, never configuration (§8.14,
+    // §19-22): a handler disabled by three 1s+ timeouts must be back after a
+    // restart, not stay out of the menu while the settings row still reads on
+    // (#175). Older builds persisted them, so this drops what those files
+    // carried instead of reloading it.
     slow_ext.clear();
-    luling::json::ForEachMember(ExtractObject(json, L"slow_ext"),
-        [&](const std::wstring& key, const std::wstring& block) {
-            if (key.empty() || block.empty() || block.front() != L'{') return;
-            SlowComExt st;
-            st.last_ms = static_cast<uint32_t>(
-                std::max(0, luling::json::ExtractInt(block, L"ms", 0)));
-            st.slow_hits = static_cast<uint32_t>(
-                std::max(0, luling::json::ExtractInt(block, L"slow", 0)));
-            st.timeout_hits = static_cast<uint32_t>(
-                std::max(0, luling::json::ExtractInt(block, L"timeout", 0)));
-            st.deferred = luling::json::ExtractBool(block, L"deferred", false);
-            st.disabled = luling::json::ExtractBool(block, L"disabled", false);
-            slow_ext[key] = st;
-        });
-    // Purge disable state older builds persisted for SendTo (#77): the
-    // exemption above keeps it clear, so this migration is idempotent.
-    slow_ext.erase(ipc::SendToHandlerCatalogKey());
     return true;
 }
 

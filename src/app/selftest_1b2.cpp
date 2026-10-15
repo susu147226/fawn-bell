@@ -26,6 +26,7 @@
 #include "../common/localization.h"
 #include "app_model.h"
 #include "app_commands.h"
+#include "window_placement.h"
 #include "app_worker.h"
 #include "entry_sort.h"
 #include "snapshot_patch.h"
@@ -2217,7 +2218,10 @@ void TestMenuModel() {
 
     // Background menu + new dropdown (toolbar reuses the same component).
     auto bg = BuildBackgroundMenu(true, true, L"撤销移动 a.txt");
-    Check(!bg.empty() && bg[0].command == CmdNewFolder, L"menu: background menu starts with 新建文件夹");
+    Check(!bg.empty() && bg[0].command == CmdNone && bg[0].children.size() >= 2 &&
+          bg[0].children[0].command == CmdNewFolder &&
+          bg[0].children[1].command == CmdNewTextFile,
+          L"menu: background opens with a 新建 submenu matching the toolbar dropdown");
     bool has_invert = false, has_wildcard = false, has_select_all = false;
     for (const auto& it : bg) {
         if (it.command == CmdInvertSelection) has_invert = true;
@@ -2559,18 +2563,21 @@ void TestContextMenuPrefs() {
     const std::wstring slow_key = ipc::HandlerCatalogKey(adobe_clsid);
     slow_handler.RecordComTiming(slow_key, 1000);
     slow_handler.RecordComTiming(slow_key, 1000);
-    Check(!slow_handler.ComDisabled(slow_key), L"prefs: two handler timeouts do not disable");
+    Check(!slow_handler.ComDeferred(slow_key), L"prefs: two handler timeouts do not defer");
     slow_handler.RecordComTiming(slow_key, 1000);
-    Check(slow_handler.ComDisabled(slow_key) && !slow_handler.HandlerEnabled(adobe_clsid),
-          L"prefs: three handler timeouts disable the CLSID");
-    auto disabled_clsids = slow_handler.DisabledHandlerClsids();
-    bool listed = false;
-    for (const auto& c : disabled_clsids)
-        if (ipc::ToLowerVerb(c) == ipc::ToLowerVerb(adobe_clsid)) listed = true;
-    Check(listed, L"prefs: disabled handler CLSIDs are sent to the host");
-    slow_handler.SetItemEnabled(slow_key, true);
-    Check(slow_handler.HandlerEnabled(adobe_clsid),
-          L"prefs: re-enabling a handler clears the timeout skip");
+    // §8.14 and acceptance 22: a slow handler is queried asynchronously from then
+    // on, never skipped. Skipping it is what hid whole third-party submenus.
+    Check(slow_handler.ComDeferred(slow_key) && !slow_handler.ComDisabled(slow_key) &&
+              slow_handler.HandlerEnabled(adobe_clsid),
+          L"prefs: three handler timeouts defer the CLSID without disabling it");
+    bool disabled_listed = false;
+    for (const auto& c : slow_handler.DisabledHandlerClsids())
+        if (ipc::ToLowerVerb(c) == ipc::ToLowerVerb(adobe_clsid)) disabled_listed = true;
+    Check(!disabled_listed, L"prefs: a merely-deferred handler is not sent to the host as disabled");
+    bool explicit_listed = false;
+    for (const auto& c : handler_prefs.DisabledHandlerClsids())
+        if (ipc::ToLowerVerb(c) == ipc::ToLowerVerb(adobe_clsid)) explicit_listed = true;
+    Check(explicit_listed, L"prefs: an explicitly disabled handler CLSID is sent to the host");
     Check(ipc::IsHandlerCatalogKey(slow_key) &&
           ipc::HandlerClsidFromKey(slow_key) == ipc::ToLowerVerb(adobe_clsid),
           L"prefs: handler catalog key round-trips the CLSID");
@@ -2594,7 +2601,7 @@ void TestContextMenuPrefs() {
     Check(sendto_loaded.FromJson(sendto_prefs.ToJson()) &&
               sendto_loaded.slow_ext.find(sendto_key) == sendto_loaded.slow_ext.end() &&
               sendto_loaded.HandlerEnabled(ipc::kSendToHandlerClsid),
-          L"prefs: loading purges the persisted SendTo disable state (#77)");
+          L"prefs: no slow-extension state crosses the JSON boundary (#77, §8.14)");
     // The settings page must not show a slow-disabled handler as on (#77).
     ContextMenuPrefs row_prefs;
     row_prefs.persist = false;
@@ -2640,13 +2647,15 @@ void TestContextMenuPrefs() {
     prefs.RecordComTiming(L".cad", 1200);
     prefs.RecordComTiming(L".cad", 1200);
     prefs.RecordComTiming(L".cad", 1200);
-    Check(prefs.ComDisabled(L".cad"), L"prefs: three 1000ms+ COM hits disable the extension");
+    Check(prefs.ComDeferred(L".cad") && !prefs.ComDisabled(L".cad"),
+          L"prefs: three 1000ms+ COM hits defer the extension without disabling it");
     const std::wstring json_slow = prefs.ToJson();
     ContextMenuPrefs slow_loaded;
     slow_loaded.persist = false;
-    Check(slow_loaded.FromJson(json_slow) && slow_loaded.ComDeferred(L".dwg") &&
-              slow_loaded.ComDisabled(L".cad"),
-          L"prefs: slow COM stats round-trip");
+    Check(slow_loaded.FromJson(json_slow) && !slow_loaded.ComDeferred(L".dwg") &&
+              !slow_loaded.ComDisabled(L".cad") &&
+              json_slow.find(L"slow_ext") == std::wstring::npos,
+          L"prefs: slow COM stats stay in the session and never reach the file (§8.14)");
 
     loaded.ResetToDefaults();
     Check(loaded.seen.empty() && loaded.item_enabled.empty() && !loaded.share,
@@ -7269,6 +7278,43 @@ void TestDetailsPreviewInteraction() {
     SetEnvironmentVariableW(L"LULING_TEST_DATA_DIR", previous[0] ? previous : nullptr);
 }
 
+namespace {
+struct VisibleProbe {
+    RECT rect{};
+    LONG reachable = 0;
+};
+BOOL CALLBACK MeasureReach(HMONITOR monitor, HDC, LPRECT, LPARAM data) {
+    auto* probe = reinterpret_cast<VisibleProbe*>(data);
+    MONITORINFO info{sizeof(info)};
+    if (!GetMonitorInfoW(monitor, &info)) return TRUE;
+    RECT overlap{};
+    if (!IntersectRect(&overlap, &probe->rect, &info.rcWork)) return TRUE;
+    probe->reachable = (std::max)(probe->reachable, overlap.right - overlap.left);
+    return TRUE;
+}
+LONG ReachableWidthOnAnyMonitor(const RECT& rect) {
+    VisibleProbe probe;
+    probe.rect = rect;
+    EnumDisplayMonitors(nullptr, nullptr, MeasureReach, reinterpret_cast<LPARAM>(&probe));
+    return probe.reachable;
+}
+} // namespace
+
+// B26: a session rect saved on a monitor that is gone must come back into a
+// live work area, or the window opens where nobody can reach it.
+void TestWindowPlacement() {
+    RECT offscreen{ -20000, -20000, -18000, -19000 };
+    Check(ClampWindowRectToVisibleWorkArea(offscreen) && ReachableWidthOnAnyMonitor(offscreen) >= 64,
+          L"placement: a rect from a removed monitor comes back into a work area");
+
+    RECT visible{ 60, 60, 860, 660 };
+    const RECT before = visible;
+    if (ReachableWidthOnAnyMonitor(visible) >= 64) {
+        Check(!ClampWindowRectToVisibleWorkArea(visible) && EqualRect(&visible, &before),
+              L"placement: a reachable rect is left where the user put it");
+    }
+}
+
 int RunSelfTest1B2() {
     // These model assertions use the Chinese resource strings explicitly.
     l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
@@ -7525,6 +7571,12 @@ int RunSelfTest1B2() {
         if (g_log) { fclose(g_log); g_log = nullptr; }
         return g_fail ? 1 : 0;
     }
+    if (GetEnvironmentVariableW(L"LULING_SELFTEST_CASE", test_case, ARRAYSIZE(test_case)) &&
+        wcscmp(test_case, L"window-placement") == 0) {
+        TestWindowPlacement();
+        if (g_log) { fclose(g_log); g_log = nullptr; }
+        return g_fail ? 1 : 0;
+    }
 
     TestDetailsPreviewInteraction();
     TestBreadcrumb();
@@ -7533,6 +7585,7 @@ int RunSelfTest1B2() {
     TestNavigationReturnSelection();
     TestMouseHistoryNavigation();
     TestBlankPaneClickNavigation();
+    TestWindowPlacement();
     TestNotificationToast();
     TestMenuModel();
     TestShellMenuMerge();

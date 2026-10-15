@@ -1135,9 +1135,14 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
 
     constexpr UINT kIdsPerHandler = 256;
     constexpr DWORD kFastBudgetMs = 80;
-    // Handlers still busy by then are not responding: the menu settles
-    // without them and they are reported as timed out (#65).
-    constexpr DWORD kHandlerStuckMs = 5000;
+    // Handlers still busy by then are not responding: the menu settles without
+    // them and they are reported as slow (#65). This is also how long the app
+    // waits for the finished snapshot and how long an early pick sits before
+    // the host runs it, so it has to stay short — measured working extensions
+    // answer inside a second, while a hung one (SendTo, some packaged handlers)
+    // never returns and used to burn the whole previous 5s budget on every
+    // right-click. §8.14's timeout is meant to cost one menu, not five seconds.
+    constexpr DWORD kHandlerStuckMs = 1500;
     const ULONGLONG started = GetTickCount64();
     UINT qcm_flags = QueryContextMenuFlags(*data);
 

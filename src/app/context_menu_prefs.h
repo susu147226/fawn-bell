@@ -21,6 +21,9 @@ struct SeenMenuItem {
     ipc::CtxMenuCategory category = ipc::CtxMenuCategory::Software;
 };
 
+// Timing observed this session, never written to disk: §8.14 and acceptance
+// 22 require a slow handler to be missing for the current menu only, so a
+// restart brings it back with the settings row and the menu agreeing.
 struct SlowComExt {
     uint32_t last_ms = 0;
     uint32_t slow_hits = 0;   // times >= 500ms
@@ -55,6 +58,7 @@ struct ContextMenuPrefs {
 
     std::unordered_map<std::wstring, bool> item_enabled;
     std::vector<SeenMenuItem> seen;
+    // Session-only, deliberately not serialized (see SlowComExt).
     std::unordered_map<std::wstring, SlowComExt> slow_ext;
     // Luling's own menu rows / row buttons the user turned off (BuiltinMenuBit).
     uint32_t builtin_hidden = 0;
