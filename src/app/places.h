@@ -116,6 +116,9 @@ public:
 
     int FindNetwork(const std::wstring& unc) const;
     int PinNetwork(const std::wstring& unc, const std::wstring& name);
+    // Renames a pinned network location's display name. False when the share is
+    // not pinned or the name is empty.
+    bool RenameNetwork(const std::wstring& unc, const std::wstring& name);
     void SetNetworkStatus(const std::wstring& unc, fs::NetStatus status, DWORD rtt_ms);
 
     void RecordVisit(const std::wstring& path);

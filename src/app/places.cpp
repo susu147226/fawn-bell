@@ -873,6 +873,17 @@ int PlacesCatalog::PinNetwork(const std::wstring& unc, const std::wstring& name)
     return static_cast<int>(networks.size()) - 1;
 }
 
+bool PlacesCatalog::RenameNetwork(const std::wstring& unc, const std::wstring& name) {
+    if (name.empty()) return false;
+    const int index = FindNetwork(unc);
+    if (index < 0) return false;
+    NetworkPlace& place = networks[static_cast<size_t>(index)];
+    if (place.name == name) return true;
+    place.name = name;
+    Save();
+    return true;
+}
+
 void PlacesCatalog::SetNetworkStatus(const std::wstring& unc, fs::NetStatus status, DWORD rtt_ms) {
     const std::wstring n = Norm(unc);
     for (auto& net : networks) {

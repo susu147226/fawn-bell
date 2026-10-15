@@ -1,6 +1,7 @@
 #include "../ui/edit_host.h"
 #include "../ui/FluentTokens.h"
 // app_hosted_edit.cpp — extracted from app_main.cpp.
+#include "app_network_locations.h"
 #include "app_internal.h"
 #include "address_bar_command.h"
 #include "tab_shortcuts.h"
@@ -447,17 +448,28 @@ void HideRenameOverlay(AppState& s, bool commit) {
         if (tab && buf[0] && index < (int)(tab->snapshot ? tab->EntryCount() : 0)) {
             std::wstring full = EntryFullPath(*tab, index);
             if (!full.empty() && buf != tab->EntryAt(index).name) {
-                ops::OpRequest req;
-                req.type = ops::OpType::Rename;
-                req.sources.push_back(full);
-                req.new_name = buf;
-                tab->pending_selected_name = buf;
-                tab->pending_selected_names = { buf };
-                tab->pending_selection_revision = tab->selection_revision;
-                // The renamed row keeps its place even if the refresh beats
-                // the watcher event (#13).
-                tab->held_renames.push_back({tab->EntryAt(index).name, buf});
-                s.ops.Submit(std::move(req));
+                if (tab->current_path == kNetworkLocationsPath) {
+                    // A network row is a label, not a file: the name lives in
+                    // places.json. An entry imported from the system's own shortcut
+                    // is adopted as a pin first, which is what makes the new name
+                    // win over the imported one (B30).
+                    if (s.places.PinNetwork(full, buf) >= 0 && s.places.RenameNetwork(full, buf))
+                        RefreshActiveTab(s, RefreshReason::OperationCompleted);
+                    else
+                        MessageBeep(MB_ICONWARNING);
+                } else {
+                    ops::OpRequest req;
+                    req.type = ops::OpType::Rename;
+                    req.sources.push_back(full);
+                    req.new_name = buf;
+                    tab->pending_selected_name = buf;
+                    tab->pending_selected_names = { buf };
+                    tab->pending_selection_revision = tab->selection_revision;
+                    // The renamed row keeps its place even if the refresh beats
+                    // the watcher event (#13).
+                    tab->held_renames.push_back({tab->EntryAt(index).name, buf});
+                    s.ops.Submit(std::move(req));
+                }
             }
         }
     }
