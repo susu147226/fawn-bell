@@ -1,4 +1,6 @@
 #include "system_deploy.h"
+#include "shell_integration_registry.h"
+#include "shell_tag_registry.h"
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -153,6 +155,18 @@ bool DeployToSystem(std::wstring& error) {
 bool RemoveFromSystem(std::wstring& error) {
     const std::wstring exe = ModulePath();
     const std::wstring dir = FolderOf(exe);
+    // Hand the file manager back first. The takeover keys point at this exe and
+    // the snapshot that makes the step reversible is dropped a few lines below,
+    // so an uninstall that skips this leaves Explorer unable to open a folder
+    // at all (#228, #230).
+    for (const auto kind : {app::ShellIntegrationKind::Folders, app::ShellIntegrationKind::WinE,
+                            app::ShellIntegrationKind::ThisPc}) {
+        app::ApplyShellIntegration(kind, exe, false);
+    }
+    // The tag submenu lives in the registry and points at icons kept inside the
+    // data directory this function is about to erase.
+    if (const std::wstring local = KnownFolderPath(FOLDERID_LocalAppData); !local.empty())
+        app::RemoveTagMenu(local + L"\\" + kAppName + L"\\tagicons");
     const std::wstring desktop = KnownFolderPath(FOLDERID_Desktop);
     if (!desktop.empty()) DeleteFileW((desktop + L"\\" + kAppName + L".lnk").c_str());
     const std::wstring programs = KnownFolderPath(FOLDERID_Programs);
