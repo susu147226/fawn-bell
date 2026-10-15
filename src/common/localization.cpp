@@ -10,7 +10,16 @@ namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
 // Must stay on the highest allocated string id, otherwise Get() returns empty.
-constexpr UINT kLastString = IDS_REMOVE_FROM_SYSTEM;
+constexpr UINT kLastString = IDS_PACK_INSTALL_ALL_DESC;
+// Adding a string means moving kLastString with it: Get() returns an empty
+// string for anything above the bound, so a forgotten bump shows up as blank
+// labels rather than as a compile error.
+static_assert(static_cast<UINT>(StringId::ShareCredentialFailed) <= kLastString);
+static_assert(static_cast<UINT>(StringId::PackInstallAll) >= kFirstString &&
+              static_cast<UINT>(StringId::PackInstallAllDesc) <= kLastString);
+static_assert(static_cast<UINT>(StringId::UpdateFailedInsecure) <= kLastString);
+static_assert(static_cast<UINT>(StringId::ResetWindowPosition) <= kLastString &&
+              static_cast<UINT>(StringId::ThumbnailCacheRefreshed) <= kLastString);
 static_assert(static_cast<UINT>(StringId::SettingsStagingTrayDesc) <= kLastString);
 static_assert(static_cast<UINT>(StringId::MenuAppendSuffix) <= kLastString);
 static_assert(static_cast<UINT>(StringId::BatchRenameMore) <= kLastString);
