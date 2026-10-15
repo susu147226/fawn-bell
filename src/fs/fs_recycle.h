@@ -31,6 +31,12 @@ std::wstring RecycleIndexPath(const std::wstring& content_path);
 bool EnumerateRecycleBinAtRoot(const std::wstring& recycle_root, std::vector<DirEntry>& out);
 void EnumerateRecycleBin(std::vector<DirEntry>& out, RecycleBinInfo* info = nullptr);
 
+// Whether the Shell can move an item at `path` into a Recycle Bin. Network
+// shares and anything that is not a fixed disk have nowhere to put it, so
+// Explorer deletes there permanently instead of recycling — callers must do the
+// same rather than refuse the delete.
+bool CanRecyclePath(const std::wstring& path);
+
 inline bool IsRecycleViewPath(const std::wstring& path) {
     return path == L"luling:recycle";
 }

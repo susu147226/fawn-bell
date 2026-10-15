@@ -266,6 +266,18 @@ void DeleteSelected(AppState& s, bool permanent) {
 
 void DeletePaths(AppState& s, std::vector<std::wstring> paths, bool permanent) {
     if (paths.empty()) return;
+    // A share has no Recycle Bin to restore from, and the Shell refuses to
+    // recycle there — which used to make Delete fail outright on a network
+    // path. Explorer deletes permanently instead; the confirmation below is
+    // what keeps that destructive step visible (§8.5.5).
+    if (!permanent) {
+        for (const std::wstring& path : paths) {
+            if (!fs::CanRecyclePath(path)) {
+                permanent = true;
+                break;
+            }
+        }
+    }
     if (permanent) {
         ui::ConfirmDialogSpec confirm;
         confirm.title = l10n::Get(l10n::StringId::PermanentDelete);

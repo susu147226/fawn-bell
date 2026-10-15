@@ -136,4 +136,14 @@ void EnumerateRecycleBin(std::vector<DirEntry>& out, RecycleBinInfo* info) {
     }
 }
 
+bool CanRecyclePath(const std::wstring& path) {
+    const std::wstring plain = path::StripExtendedPathPrefix(path);
+    // A share has no Recycle Bin of ours to restore from: Explorer deletes there
+    // permanently rather than refusing, and so must the caller (§8.5.5).
+    if (plain.size() >= 2 && plain[0] == L'\\' && plain[1] == L'\\') return false;
+    wchar_t volume[32768]{};
+    if (!GetVolumePathNameW(plain.c_str(), volume, ARRAYSIZE(volume))) return false;
+    return GetDriveTypeW(volume) == DRIVE_FIXED;
+}
+
 } // namespace luling::fs
