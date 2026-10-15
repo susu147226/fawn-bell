@@ -1,6 +1,7 @@
 #include <thread>
 // app_navigation.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "network_locations.h"
 #include "shell_window_sync.h"
 #include "app_column_view.h"
 #include "listing_selection_restore.h"
@@ -1218,6 +1219,16 @@ void ApplyWorkerResult(AppState& s, app::WorkResult& res) {
                 ? l10n::Get(l10n::StringId::CachedReadOnly)
                 : l10n::Get(l10n::StringId::DirectoryUnavailable);
         });
+        // A share can fail simply because this account has not signed in to it
+        // yet. Offer the sign-in once per share, off the result handler so the
+        // dialog cannot re-enter it (B34).
+        if (fs::IsUncPath(res.path) && !res.path.empty() &&
+            !app::SameNetworkLocation(s.shareCredentialOffered, res.path)) {
+            s.shareCredentialOffered = res.path;
+            if (s.hwnd)
+                PostMessageW(s.hwnd, WM_SHARE_CREDENTIALS, 0,
+                             reinterpret_cast<LPARAM>(new std::wstring(res.path)));
+        }
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return;
     }

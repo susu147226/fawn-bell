@@ -37,6 +37,7 @@
 #include "snapshot_patch.h"
 #include "session.h"
 #include "session_save.h"
+#include "network_credentials.h"
 #include "window_placement.h"
 #include "context_menu.h"
 #include "context_menu_controller.h"
@@ -1583,6 +1584,15 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_NETWORK_LOCATIONS:
         if (s) ApplyNetworkLocations(*s);
         return 0;
+
+    case WM_SHARE_CREDENTIALS: {
+        std::unique_ptr<std::wstring> target(reinterpret_cast<std::wstring*>(lParam));
+        // The dialog runs here rather than inside the worker-result handler that
+        // posted it, so its own message pump cannot re-enter folder listing (B34).
+        if (s && target && !target->empty() && app::PromptForShareCredentials(hwnd, *target))
+            ScheduleFolderRefresh(*s);
+        return 0;
+    }
 
     case WM_RECYCLE_INFO: {
         auto* info = reinterpret_cast<fs::RecycleBinInfo*>(lParam);

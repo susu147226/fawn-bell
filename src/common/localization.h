@@ -1408,6 +1408,9 @@ enum class StringId : UINT {
     UpdateFailedServer = IDS_UPDATE_FAILED_SERVER,
     UpdateFailedVerify = IDS_UPDATE_FAILED_VERIFY,
     UpdateFailedInsecure = IDS_UPDATE_FAILED_INSECURE,
+    ShareCredentialCaption = IDS_SHARE_CREDENTIAL_CAPTION,
+    ShareCredentialMessage = IDS_SHARE_CREDENTIAL_MESSAGE,
+    ShareCredentialFailed = IDS_SHARE_CREDENTIAL_FAILED,
 };
 
 bool IsLanguageId(std::wstring_view id) noexcept;

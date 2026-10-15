@@ -111,6 +111,10 @@ constexpr UINT WM_EXIT_LULING = WM_APP + 72;  // palette "Exit Luling" (#57)  //
 constexpr UINT kTimerUi = 1;
 constexpr UINT WM_NETWORK_LOCATIONS = WM_APP + 73;
 constexpr UINT WM_ASSOC_CHANGED = WM_APP + 74;  // SHCNE_ASSOCCHANGED: default programs changed
+// A UNC folder the worker could not list: lParam is an owned std::wstring of the
+// path. Posted rather than shown inline so the credential dialog runs outside
+// the worker-result handler (B34).
+constexpr UINT WM_SHARE_CREDENTIALS = WM_APP + 75;
 
 enum class OmnibarMode { Path, Mixed, Command, Project };
 
@@ -181,6 +185,9 @@ struct AppState {
     // The media pack download the Quick Look codec card now starts by itself
     // fires once per session; after that the card's own button is the retry.
     bool media_pack_auto_started = false;
+    // The share the sign-in dialog was already offered for, so a folder that
+    // keeps failing does not re-ask on every refresh (B34).
+    std::wstring shareCredentialOffered;
     app::ListTypeAhead listTypeAhead;
     const app::Tab* listTypeAheadTab = nullptr;
     std::wstring listTypeAheadFolder;

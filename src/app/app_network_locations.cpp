@@ -1,5 +1,6 @@
 #include "app_network_locations.h"
 #include "app_internal.h"
+#include "network_discovery.h"
 #include "network_locations.h"
 #include "../common/localization.h"
 #include <algorithm>
@@ -40,6 +41,13 @@ void RequestNetworkLocations(AppState& state) {
     state.worker.EnqueueIo([load, hwnd, fixture = std::move(fixture)] {
         auto result = app::ReadNetworkLocations(fixture, [load] { return load->cancelled.load(); });
         if (load->cancelled) return;
+        // Machines on the network are appended after the shortcuts. Only the real
+        // scan walks the network — never a test fixture root — and whatever the
+        // walk found within its budget is merged in by path downstream.
+        if (fixture.empty()) {
+            auto computers = app::EnumerateNetworkComputers([load] { return load->cancelled.load(); });
+            for (auto& computer : computers) result.items.push_back(std::move(computer));
+        }
         {
             std::lock_guard lock(load->mutex);
             load->result = std::move(result);

@@ -500,6 +500,7 @@ target_link_options(luling PRIVATE /MAP)
         d3d11 d2d1 dwrite dxgi dcomp dwmapi shcore ole32 shell32 uuid comctl32 advapi32 shlwapi version windowscodecs gdi32 netapi32 mpr bcrypt luling_crash_reporter)
     target_link_libraries(luling PRIVATE propsys oleaut32)  # shell_window_registry.cpp
     target_link_libraries(luling PRIVATE winhttp crypt32 secur32)
+    target_link_libraries(luling PRIVATE credui)  # network_credentials.cpp: the share sign-in dialog
     target_link_libraries(luling PRIVATE luling_localization luling_text)
     luling_enable_lumatext(luling)
     luling_add_version_resource(luling "Luling file manager" "luling" "luling.exe")

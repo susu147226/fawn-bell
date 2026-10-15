@@ -1433,3 +1433,8 @@
 #define IDS_UPDATE_FAILED_SERVER 2588
 #define IDS_UPDATE_FAILED_VERIFY 2589
 #define IDS_UPDATE_FAILED_INSECURE 2590
+// A share that refuses the current sign-in: ask for credentials the way Explorer
+// does, instead of leaving the folder unreachable.
+#define IDS_SHARE_CREDENTIAL_CAPTION 2591
+#define IDS_SHARE_CREDENTIAL_MESSAGE 2592
+#define IDS_SHARE_CREDENTIAL_FAILED 2593
