@@ -474,13 +474,9 @@ void ToggleColumnLayout(AppState& s, int pane_index) {
     app::Tab* tab = pane ? pane->ActiveTab() : nullptr;
     if (!tab) return;
     tab->column_layout = !tab->column_layout;
-    if (!tab->column_layout) {
-        tab->column_strip = {};
-    } else if (!s.showDetailsPanel) {
-        // Preview and tags of the selected file live in the details panel.
-        s.showDetailsPanel = true;
-        s.renderer.SetDetailsPanelVisible(true);
-    }
+    if (!tab->column_layout) tab->column_strip = {};
+    // Switching layout changes nothing else: forcing the details panel open here
+    // overwrote the user's panel state on every toggle (B10, §8.2).
     SyncColumnStrips(s);
     if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
 }

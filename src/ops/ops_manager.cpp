@@ -88,8 +88,14 @@ void ShowMultiFilePropertiesAsync(std::vector<std::wstring> paths) {
             MSG msg;
             while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
                 if (!IsDialogMessageW(GetActiveWindow(), &msg)) {
-                    TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
+                    // The sheet's procedures are Shell code we do not own: an
+                    // exception escaping one must not unwind this pump and take
+                    // the caller with it (B0).
+                    try {
+                        TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    } catch (...) {
+                    }
                 }
             }
             bool owns_window = false;

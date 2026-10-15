@@ -132,6 +132,10 @@ enum MenuCmd : int {
     // 安装到系统 / 卸载（由程序自身完成，不经过安装器）.
     CmdDeployToSystem = 100103,
     CmdRemoveFromSystem = 100104,
+    // Palette: bring the window back when its monitor is gone (B26, §9.3).
+    CmdResetWindowPosition = 100105,
+    // Palette: drop the thumbnail cache and decode everything again (B31).
+    CmdRefreshThumbnails = 100106,
 };
 
 // One merged Explorer row (registry static verb or luling_shell COM item),

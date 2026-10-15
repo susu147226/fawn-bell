@@ -484,28 +484,31 @@ struct PreviewHandlerHost::WorkerState {
         if (!ClientToScreen(owner, &origin)) return;
         const int width = std::max(1L, bounds.right - bounds.left);
         const int height = std::max(1L, bounds.bottom - bounds.top);
-        if (shown && !app_active && !OverlayOwnsForeground()) {
-            pan.Disable();
-            SetWindowPos(hwnd, HWND_NOTOPMOST, origin.x, origin.y, width, height,
-                         SWP_NOACTIVATE | SWP_HIDEWINDOW);
-            return;
-        }
         const bool size_changed = width != placed_w || height != placed_h;
         const bool moved = origin.x != placed_x || origin.y != placed_y || size_changed;
-        if (!moved && shown && IsWindowVisible(hwnd)) {
-            if (handler) pan.Enable(hwnd);
+        // The overlay is topmost while Luling owns the foreground. Losing it
+        // only has to drop that band: the window is owned by ours, so the normal
+        // z-order already puts it behind whatever the user switched to. Hiding
+        // it here is what blanked the preview on every focus change (B22, §8.9).
+        const bool in_front = app_active || OverlayOwnsForeground();
+        const bool band_changed = placed_in_front != in_front;
+        if (!moved && shown && !band_changed && IsWindowVisible(hwnd)) {
+            if (in_front && handler) pan.Enable(hwnd);
+            else pan.Disable();
             return;
         }
         placed_x = origin.x;
         placed_y = origin.y;
         placed_w = width;
         placed_h = height;
+        placed_in_front = in_front;
         pan.Disable();
         // A move keeps the z-order it already has. Re-asserting HWND_TOPMOST on
         // every step of a window drag only makes the window manager re-evaluate
         // the topmost band, with the provider's window (another process) inside.
-        const bool raise = !shown || size_changed;
-        SetWindowPos(hwnd, raise ? HWND_TOPMOST : nullptr, origin.x, origin.y, width, height,
+        const bool raise = !shown || size_changed || band_changed;
+        SetWindowPos(hwnd, raise ? (in_front ? HWND_TOPMOST : HWND_NOTOPMOST) : nullptr,
+                     origin.x, origin.y, width, height,
                      SWP_NOACTIVATE | (raise ? 0 : SWP_NOZORDER) |
                          (shown ? SWP_SHOWWINDOW : SWP_NOREDRAW));
         if (handler && shown && size_changed) {
@@ -659,6 +662,9 @@ struct PreviewHandlerHost::WorkerState {
     int placed_y = INT_MIN;
     int placed_w = 0;
     int placed_h = 0;
+    // Whether the overlay currently sits in the topmost band, so a focus change
+    // can move it between bands instead of hiding it (B22).
+    bool placed_in_front = false;
     IUnknown* handler = nullptr;
     IUnknown* stream = nullptr;
     IUnknown* site = nullptr;

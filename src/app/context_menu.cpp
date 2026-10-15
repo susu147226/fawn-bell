@@ -292,16 +292,12 @@ std::vector<ui::FluentMenuItem> BuildRecyclePlaceMenu(bool can_empty) {
 std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_undo,
                                                     const std::wstring& undo_label) {
     std::vector<ui::FluentMenuItem> items;
-    items.push_back(Item(CmdNewFolder, l10n::Get(l10n::StringId::NewFolder).c_str(), kGlyphNewFolder, L"F7"));
-    items.push_back(Item(CmdNewTextFile, l10n::Get(l10n::StringId::NewTextDocument).c_str(), kGlyphNewFile));
-    {
-        const auto& shell_new = ShellNewItems();
-        const size_t limit = (std::min)(shell_new.size(), static_cast<size_t>(kMaxNewShellItems));
-        for (size_t i = 0; i < limit; ++i)
-            items.push_back(Item(CmdNewShellBase + static_cast<int>(i),
-                                 shell_new[i].display.c_str(), kGlyphNewFile));
-    }
-    items.back().separator_after = true;
+    // Explorer hides these behind 新建, and the toolbar dropdown already owns
+    // the row set, so the blank-area menu reuses it verbatim (B14, §8.5.1).
+    auto new_menu = Item(CmdNone, l10n::Get(l10n::StringId::New).c_str(), kGlyphNewFolder);
+    new_menu.children = BuildNewMenu();
+    new_menu.separator_after = true;
+    items.push_back(std::move(new_menu));
     // In-process deployment: the installer needs elevation, and this lets the
     // portable build register itself (and undo it) without any installer.
     items.push_back(Item(CmdDeployToSystem,
@@ -624,6 +620,10 @@ std::vector<ui::FluentMenuItem> BuildCommandPalette(const std::wstring& query,
         add_cmd(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C");
         add_cmd(CmdInstallFullIndex, l10n::Get(l10n::StringId::EnableFullIndex).c_str(), kGlyphSearch, nullptr);
         add_cmd(CmdSettings, l10n::Get(l10n::StringId::Settings).c_str(), kGlyphSettings, nullptr);
+        add_cmd(CmdResetWindowPosition,
+                l10n::Get(l10n::StringId::ResetWindowPosition).c_str(), L"\xE7C4", nullptr);
+        add_cmd(CmdRefreshThumbnails,
+                l10n::Get(l10n::StringId::RefreshThumbnails).c_str(), L"\xE72C", nullptr);
         add_cmd(CmdExitLuling, l10n::Get(l10n::StringId::ExitLuling).c_str(), L"\xE7E8", nullptr);
         add_cmd(CmdOpenRecycle, l10n::Get(l10n::StringId::RecycleBin).c_str(), kGlyphRecycle, nullptr);
         add_cmd(CmdBatchRename, l10n::Get(l10n::StringId::BatchRename).c_str(), kGlyphRename, L"Ctrl+Shift+R");

@@ -32,6 +32,7 @@
 #include "snapshot_patch.h"
 #include "entry_sort.h"
 #include "session.h"
+#include "window_placement.h"
 #include "context_menu.h"
 #include "app_change_tracking.h"
 #include "batch_rename.h"
@@ -1027,6 +1028,20 @@ void DispatchMenuCommand(AppState& s, int cmd) {
     case app::CmdShortcutHelp:
         ui::ShowShortcutHelp(s.hwnd, s.darkMode, s.accentColor);
         break;
+    case app::CmdResetWindowPosition:
+        // The palette is reachable by keyboard, so this is the way back for a
+        // window stranded on a monitor that no longer exists (B26, §9.3).
+        app::ResetWindowPosition(s.hwnd, s.scale);
+        break;
+    case app::CmdRefreshThumbnails:
+        // Thumbnails that went stale without a change the cache could see (a
+        // repainted icon, a rewritten archive) come back by decoding again
+        // (B31, §8.9).
+        s.renderer.EvictThumbnails();
+        if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
+        s.notification_toast.Show(s.hwnd, l10n::Get(l10n::StringId::RefreshThumbnails),
+                                  l10n::Get(l10n::StringId::ThumbnailCacheRefreshed), false);
+        break;
     case app::CmdColumnLayout:
         ToggleColumnLayout(s,-1);
         break;
@@ -1404,8 +1419,7 @@ void PumpShellMenuMessages(AppState& s) {
     MSG msg{};
     while (PeekMessageW(&msg, s.hwnd, WM_SHELLCTX_ITEMS, WM_SHELLCTX_ITEMS, PM_REMOVE) ||
            PeekMessageW(&msg, s.hwnd, WM_SHELL_VERBS, WM_SHELL_VERBS, PM_REMOVE)) {
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        app::DispatchGuarded(msg);
     }
 }
 

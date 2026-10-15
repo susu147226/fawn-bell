@@ -37,6 +37,7 @@
 #include "snapshot_patch.h"
 #include "session.h"
 #include "session_save.h"
+#include "window_placement.h"
 #include "context_menu.h"
 #include "context_menu_controller.h"
 #include "shell_verbs.h"
@@ -1056,6 +1057,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
     }
+
+    case WM_DISPLAYCHANGE:
+        // A monitor may have just gone away; a window left on it stays running
+        // but cannot be reached, so pull it back into a live work area
+        // (B26, §9.3). The palette's 「重置窗口位置」 is the manual counterpart.
+        if (s) app::EnsureWindowVisibleOnMonitor(hwnd);
+        return 0;
 
     case WM_SETTINGCHANGE:
         if (s && (lParam == 0 ||
@@ -2769,12 +2777,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     wc.lpszClassName = app::SingleInstanceCoordinator::WindowClassName();
     RegisterClassExW(&wc);
 
-    int x = CW_USEDEFAULT, y = CW_USEDEFAULT, w = (int)(1600 * state.scale), h = (int)(960 * state.scale);
+    int x = CW_USEDEFAULT, y = CW_USEDEFAULT,
+        w = (int)(app::kDefaultWindowWidthDip * state.scale),
+        h = (int)(app::kDefaultWindowHeightDip * state.scale);
     if (session.window_rect.right > session.window_rect.left) {
-        x = session.window_rect.left;
-        y = session.window_rect.top;
-        w = session.window_rect.right - session.window_rect.left;
-        h = session.window_rect.bottom - session.window_rect.top;
+        // The monitor this rect was saved on may be gone: restoring those
+        // coordinates would open an invisible, unreachable window (B26, §9.3).
+        RECT saved = session.window_rect;
+        app::ClampWindowRectToVisibleWorkArea(saved);
+        x = saved.left;
+        y = saved.top;
+        w = saved.right - saved.left;
+        h = saved.bottom - saved.top;
     }
     if (state.shot.active && state.shot.width > 0 && state.shot.height > 0) {
         w = state.shot.width;
@@ -3082,8 +3096,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     BOOL ret;
     while ((ret = GetMessageW(&msg, nullptr, 0, 0)) != 0) {
         if (ret == -1) break;
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        app::DispatchGuarded(msg);
     }
     luling::app::hang::Stop();
     OleUninitialize();
