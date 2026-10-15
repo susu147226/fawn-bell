@@ -1,18 +1,30 @@
 @echo off
 rem Pack a Release build into dist\LulingSetup-<version>[-win81].exe with the
 rem Luling setup (src\setup bootstrapper + tools\pack_installer\pack_installer.py).
-rem usage: scripts\pack_setup.bat <build dir> <windows|win81>
+rem usage: scripts\pack_setup.bat <build dir> <windows|win81> [full]
+rem "full" packs the preview packs staged under <build dir>\packs into the
+rem installer and names it LulingSetup-<version>-full.exe.
 setlocal
 cd /d "%~dp0.."
 
 set "LULING_BUILD_DIR=%~1"
 set "LULING_CHANNEL=%~2"
+set "LULING_VARIANT=%~3"
 if not defined LULING_BUILD_DIR set "LULING_BUILD_DIR=build"
 if not defined LULING_CHANNEL set "LULING_CHANNEL=windows"
 rem Accept a relative (to the repository) or absolute build directory.
 for %%I in ("%LULING_BUILD_DIR%") do set "LULING_BUILD_DIR=%%~fI"
 set "LULING_SUFFIX="
 if /i "%LULING_CHANNEL%"=="win81" set "LULING_SUFFIX=-win81"
+set "LULING_PACKSDEF="
+if /i "%LULING_VARIANT%"=="full" (
+    if not exist "%LULING_BUILD_DIR%\packs" (
+        echo Missing staged packs: %LULING_BUILD_DIR%\packs
+        exit /b 1
+    )
+    set "LULING_PACKSDEF=/DPACKSDIR="%LULING_BUILD_DIR%\packs""
+    set "LULING_SUFFIX=%LULING_SUFFIX%-full"
+)
 
 set /p LULING_VERSION=<version.txt
 if not defined LULING_VERSION (
@@ -46,6 +58,6 @@ if not exist "%LULING_MAKENSIS%" (
     echo NSIS not found: install NSIS or set LULING_MAKENSIS
     exit /b 1
 )
-"%LULING_MAKENSIS%" /DVERSION=%LULING_VERSION% /DBUILDDIR="%LULING_BUILD_DIR%" /DOUTDIR="%CD%\dist" /DROOT="%CD%" "%CD%\scripts\installer_luling.nsi" || exit /b 1
+"%LULING_MAKENSIS%" /DVERSION=%LULING_VERSION% /DBUILDDIR="%LULING_BUILD_DIR%" /DOUTDIR="%CD%\dist" /DROOT="%CD%" /DSUFFIX=%LULING_SUFFIX% %LULING_PACKSDEF% "%CD%\scripts\installer_luling.nsi" || exit /b 1
 echo.
 echo Installer written to dist\LulingSetup-%LULING_VERSION%%LULING_SUFFIX%.exe

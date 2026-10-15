@@ -22,10 +22,14 @@ SetCompressor /SOLID lzma
 !ifndef ROOT
   !define ROOT "."
 !endif
+; Set for the build that carries the preview packs; empty for the standard one.
+!ifndef SUFFIX
+  !define SUFFIX ""
+!endif
 
 Name "鹿铃"
 Caption "鹿铃 ${VERSION} 安装程序"
-OutFile "${OUTDIR}\LulingSetup-${VERSION}.exe"
+OutFile "${OUTDIR}\LulingSetup-${VERSION}${SUFFIX}.exe"
 InstallDir "$LOCALAPPDATA\Programs\Luling"
 InstallDirRegKey HKCU "Software\Luling" "InstallLocation"
 
@@ -152,6 +156,16 @@ Section "鹿铃" SecMain
   File "${ROOT}\LICENSE"
   File "${ROOT}\LICENSE-luling.md"
   File "${ROOT}\NOTICE"
+
+!ifdef PACKSDIR
+  ; The preview packs ship as the very .lzms files a download would have fetched,
+  ; so the app decompresses and verifies them from disk instead of the network.
+  ; That is what makes this build work where the download does not. /r keeps the
+  ; <packs>\<key>\ layout the app looks under.
+  SetOutPath "$INSTDIR\packs"
+  File /r "${PACKSDIR}\*.*"
+  SetOutPath "$INSTDIR"
+!endif
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   CreateDirectory "$SMPROGRAMS\鹿铃"

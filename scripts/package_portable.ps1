@@ -16,6 +16,11 @@ $stage = Join-Path $dist ("portable-stage-" + [guid]::NewGuid().ToString('N'))
 $payload = Join-Path $stage "Luling-$version-portable"
 New-Item -ItemType Directory -Path $payload -Force | Out-Null
 foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $build $file) -Destination $payload }
+# The preview packs travel with the portable copy: there is no installer to put
+# them in place, and the point of this build is to work where the download does
+# not. The app decompresses and verifies them exactly like a download.
+$packs = Join-Path $build 'packs'
+if (Test-Path -LiteralPath $packs) { Copy-Item -LiteralPath $packs -Destination $payload -Recurse }
 foreach ($license in @('PDFium', 'LumaText')) {
     $source = Join-Path $build "licenses/$license"
     if (-not (Test-Path -LiteralPath $source)) { throw "Missing licenses: $source" }

@@ -117,17 +117,43 @@ bool WriteWhole(HANDLE file, const std::vector<uint8_t>& data) {
 
 DWORD Fail(DWORD error) { return error ? error : ERROR_INSTALL_FAILURE; }
 
+// A pack shipped beside the executable is the same .lzms a download would have
+// produced. Returns true when one was copied into `packed_path`, so the install
+// becomes a local decompress: the variant that works with no network at all.
+bool SeedFromBundledCopy(const PackRelease& release, const std::wstring& download_name,
+                         const std::wstring& packed_path) {
+    wchar_t module[32768]{};
+    const DWORD length = GetModuleFileNameW(nullptr, module, ARRAYSIZE(module));
+    if (length == 0 || length >= ARRAYSIZE(module)) return false;
+    std::wstring directory(module, length);
+    const auto slash = directory.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) return false;
+    directory.erase(slash);
+    const std::wstring source =
+        directory + L"\\packs\\" + release.key + L"\\" + download_name;
+    const DWORD attributes = GetFileAttributesW(source.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_DIRECTORY))
+        return false;
+    return CopyFileW(source.c_str(), packed_path.c_str(), FALSE) != FALSE;
+}
+
 // Downloads, verifies and decompresses one file into `directory`.
 DWORD InstallFile(const PackRelease& release, const PackFile& file, const std::wstring& directory,
                   Lzms& lzms, PackInstallProgress& progress, uint64_t done_before,
                   const UpdateResponseReader& read) {
     const std::wstring packed_path = directory + L"\\" + file.name + L".lzms";
     const std::wstring final_path = directory + L"\\" + file.name;
+    const std::wstring download_name = file.download_name ? file.download_name
+                                                          : std::wstring(file.name) + L".lzms";
+    // Bundled copies win over the network, and the hash checks below still run:
+    // a tampered bundle is rejected exactly like a tampered download.
+    const bool bundled = SeedFromBundledCopy(release, download_name, packed_path);
     {
         FileHandle packed(CreateFileW(packed_path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
-                                      CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr));
+                                      bundled ? OPEN_EXISTING : CREATE_ALWAYS,
+                                      FILE_ATTRIBUTE_TEMPORARY, nullptr));
         if (!packed.ok()) return Fail(GetLastError());
-        uint64_t received = 0;
+        uint64_t received = bundled ? file.packed_size : 0;
         auto reset = [&] {
             LARGE_INTEGER zero{};
             received = 0;
@@ -142,12 +168,15 @@ DWORD InstallFile(const PackRelease& release, const PackFile& file, const std::w
             progress.received.store(done_before + received, std::memory_order_relaxed);
             return true;
         };
-        const std::wstring download_name = file.download_name ? file.download_name : std::wstring(file.name) + L".lzms";
-        const std::wstring url = std::wstring(release.base_url) + download_name;
-        UpdateError category = UpdateError::None;
-        DWORD error = ERROR_SUCCESS;
-        if (!ReadUpdateWithFallback(url, file.packed_size, progress.cancelled, reset, consume, category, error, read))
-            return progress.cancelled.load() ? ERROR_CANCELLED : Fail(error);
+        if (bundled) {
+            progress.received.store(done_before + received, std::memory_order_relaxed);
+        } else {
+            const std::wstring url = std::wstring(release.base_url) + download_name;
+            UpdateError category = UpdateError::None;
+            DWORD error = ERROR_SUCCESS;
+            if (!ReadUpdateWithFallback(url, file.packed_size, progress.cancelled, reset, consume, category, error, read))
+                return progress.cancelled.load() ? ERROR_CANCELLED : Fail(error);
+        }
         if (received != file.packed_size || !VerifyUpdateInstaller(packed.value, file.packed_sha256))
             return ERROR_INVALID_DATA;
         std::vector<uint8_t> in, out;
