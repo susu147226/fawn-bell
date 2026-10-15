@@ -15,6 +15,9 @@ struct GlobalSearchHandoff {
     std::wstring folder;
 };
 using GlobalSearchHandoffHandler = std::function<void(const GlobalSearchHandoff&)>;
+// Space on a result row: the popup has no item list of its own, so it hands the
+// row's file over for the main window's Quick Look preview instead.
+using GlobalSearchPreviewHandler = std::function<void(std::wstring path, std::wstring name)>;
 
 class GlobalSearchWindow {
 public:
@@ -26,6 +29,8 @@ public:
     void SetAppearance(bool dark, ui::WindowEffect effect, const std::wstring& background_image, D2D1_COLOR_F accent);
     // Called on the UI thread after the popup has hidden itself.
     void SetHandoffHandler(GlobalSearchHandoffHandler handler);
+    // Called on the UI thread while the popup stays open.
+    void SetPreviewHandler(GlobalSearchPreviewHandler handler);
     void Hide();
     void Shutdown();
     bool Visible() const;

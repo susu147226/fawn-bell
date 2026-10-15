@@ -2,6 +2,7 @@
 #include "global_search_handoff.h"
 #include "app_internal.h"
 #include "../common/localization.h"
+#include "../ui/quick_preview_command.h"
 
 namespace luling {
 namespace {
@@ -48,6 +49,29 @@ bool HandleGlobalSearchHotkeyCapture(AppState& s, unsigned key) {
     return consumed;
 }
 
+// The popup hands over a result row rather than an item in the active list, so
+// the preview is built from the row itself. Space toggles it the same way it
+// does in the file list (§8.8.2).
+void ShowGlobalSearchPreview(AppState& s, std::wstring path, std::wstring name) {
+    if (s.quickPreview.visible()) {
+        s.quickPreview.Close();
+        return;
+    }
+    if (path.empty()) return;
+    // The search popup is WS_EX_TOPMOST, so a preview opened underneath it is
+    // invisible. Give the screen to the preview; the popup keeps its query, so
+    // Alt+Space brings the same results straight back.
+    s.globalSearchWindow.Hide();
+    ui::QuickPreviewItem item;
+    item.path = std::move(path);
+    item.name = std::move(name);
+    const auto effect = s.appPrefs.background_image.empty()
+        ? ui::WindowEffectFromId(s.appPrefs.window_effect)
+        : ui::WindowEffect::None;
+    s.quickPreview.Show(item, s.darkMode, effect, s.safeMode, nullptr);
+    s.quickPreviewSelection.Reset(item.path);
+}
+
 void ToggleGlobalSearch(AppState& s) {
     if (!s.appPrefs.global_search_enabled || !s.globalSearchHotkey.Registered()) return;
     if (s.globalSearchWindow.Visible()) {
@@ -60,6 +84,9 @@ void ToggleGlobalSearch(AppState& s) {
     if (const auto* tab = ActiveTab(s); tab && !fs::IsVirtualPath(tab->current_path)) folder = tab->current_path;
     s.globalSearchWindow.SetHandoffHandler([&s](const GlobalSearchHandoff& request) {
         ContinueGlobalSearchInMain(s, request);
+    });
+    s.globalSearchWindow.SetPreviewHandler([&s](std::wstring path, std::wstring name) {
+        ShowGlobalSearchPreview(s, std::move(path), std::move(name));
     });
     if (!s.globalSearchWindow.Show(s.hwnd, s.darkMode, s.scale, folder, s.appPrefs.search_pinyin)) {
         s.tray_controller.RestoreWindow();

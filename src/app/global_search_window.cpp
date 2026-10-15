@@ -106,6 +106,11 @@ struct GlobalSearchWindow::Impl {
     bool backdrop = false;
     bool scope_hover = false, scope_tooltip_visible = false, tracking_mouse = false;
     GlobalSearchHandoffHandler handoff;
+    GlobalSearchPreviewHandler preview;
+    // A space turned into a preview still has a WM_CHAR on its way: the message
+    // loop ran TranslateMessage before the edit could consume the key down, so
+    // the space would land in the query box as well. This drops that one.
+    bool swallow_space = false;
     D2D1_RECT_F handoff_rect{};
     bool handoff_hover = false;
     float scope_pointer_x = 0, scope_pointer_y = 0;
@@ -277,6 +282,13 @@ struct GlobalSearchWindow::Impl {
             else Open((GetKeyState(VK_CONTROL) & 0x8000) != 0);
             return true;
         }
+        if (key == VK_SPACE && preview && !rows.empty()) {
+            ClampSelection();
+            const auto& row = rows[static_cast<size_t>(selected)];
+            preview(row.path, row.name);
+            swallow_space = true;
+            return true;
+        }
         if (key == VK_UP || key == VK_DOWN || key == VK_PRIOR || key == VK_NEXT) {
             if (selected < 0) selected = key == VK_UP || key == VK_PRIOR ? static_cast<int>(rows.size()) - 1 : 0;
             else selected = std::max(0, selected + (key == VK_UP ? -1 : key == VK_DOWN ? 1 : key == VK_PRIOR ? -PageSize() : PageSize()));
@@ -294,6 +306,10 @@ struct GlobalSearchWindow::Impl {
             self->Changed(); return result;
         }
         if (message == WM_KEYDOWN && self->Key(wp)) return 0;
+        if (message == WM_CHAR && self->swallow_space) {
+            self->swallow_space = false;
+            if (wp == VK_SPACE) return 0;
+        }
         if (message == WM_CHAR && !self->composing && (wp == VK_RETURN || wp == VK_ESCAPE || wp == VK_TAB)) return 0;
         LRESULT result = 0;
         if (ui::HandleChildEditMessage(self->compositor, self->edit_format.Get(), self->Theme().text,
@@ -788,6 +804,10 @@ void GlobalSearchWindow::SetAppearance(bool dark, ui::WindowEffect effect, const
 void GlobalSearchWindow::SetHandoffHandler(GlobalSearchHandoffHandler handler) {
     if (!impl_) impl_ = std::make_unique<Impl>();
     impl_->handoff = std::move(handler);
+}
+void GlobalSearchWindow::SetPreviewHandler(GlobalSearchPreviewHandler handler) {
+    if (!impl_) impl_ = std::make_unique<Impl>();
+    impl_->preview = std::move(handler);
 }
 void GlobalSearchWindow::Hide() { if (impl_) impl_->Hide(); }
 void GlobalSearchWindow::Shutdown() { impl_.reset(); }
