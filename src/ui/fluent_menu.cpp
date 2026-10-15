@@ -1472,12 +1472,20 @@ int FluentMenu::RunModalLoop() {
                         CloseSubmenu();
                         swallow = true;
                     } else if (!filter_fn_ && msg.wParam == VK_RETURN) {
-                        if (sub_parent_row_ >= 0) {
+                        if (external_edit_) {
+                            // A popup lent the keyboard by an edit only hints at
+                            // what Enter would do: the edit keeps the last word,
+                            // so the typed address commits instead of the row the
+                            // popup happens to have highlighted.
+                            result_ = 0;
+                            Dismiss();
+                        } else if (sub_parent_row_ >= 0) {
                             const FluentMenuItem* child = sub_model_.At(sub_hover_);
                             if (child && child->enabled && child->command != 0) {
                                 result_ = child->command;
                                 Dismiss();
                             }
+                            swallow = true;
                         } else if (hover_row_ >= 0) {
                             const FluentMenuItem* hov = model_.At(hover_row_);
                             if (hov && hov->enabled && !hov->children.empty()) {
@@ -1488,8 +1496,10 @@ int FluentMenu::RunModalLoop() {
                                 int cmd = InvokeRow(hover_row_);
                                 if (cmd != 0) { result_ = cmd; Dismiss(); }
                             }
+                            swallow = true;
+                        } else {
+                            swallow = true;
                         }
-                        swallow = true;
                     } else if (filter_fn_ && !edit_ && !external_edit_) {
                         msg.hwnd = hwnd_;
                         TranslateMessage(&msg);
