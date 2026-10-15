@@ -55,7 +55,14 @@ Section "鹿铃" SecMain
   ; A running copy holds its own exe and its helper processes open: without this
   ; the File writes fail and half the old build stays behind. The installer runs
   ; elevated, so the kills reach every user's processes.
+  ;
+  ; luling.exe itself is spared on a silent run: that run *is* the app updating
+  ; itself, it has already closed its own window, and the launch at the end of
+  ; this section brings it back. Killing it here left the user with no window and
+  ; nothing to relaunch it.
+  IfSilent luling_skip_app_kill
   ExecWait 'taskkill /f /im luling.exe' $0
+  luling_skip_app_kill:
   ExecWait 'taskkill /f /im "Luling.Index.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Preview.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Document.exe"' $0
@@ -168,6 +175,15 @@ Section "鹿铃" SecMain
   StrCmp $2 "1" 0 luling_service_restored
     ExecWait '"$INSTDIR\Luling.Index.exe" --install' $0
   luling_service_restored:
+
+  ; A silent run is the app updating itself, so it is handed back now that its
+  ; files are in place. explorer.exe starts it with the logged-in user's token:
+  ; launching it directly from here would leave a file manager running elevated.
+  IfSilent luling_relaunch
+  Goto luling_no_relaunch
+  luling_relaunch:
+    Exec '"$WINDIR\explorer.exe" "$INSTDIR\luling.exe"'
+  luling_no_relaunch:
 SectionEnd
 
 Section "Uninstall"

@@ -64,8 +64,14 @@ std::wstring UpdateInstallParameters(std::wstring_view executable) {
     const auto slash = executable.find_last_of(L"\\/");
     if (slash == std::wstring_view::npos || slash == 0 ||
         executable.find_first_of(L"\"\r\n") != std::wstring_view::npos) return {};
-    return L"/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /PULSEUPDATE=1 /LOG /DIR=\"" +
-        std::wstring(executable.substr(0, slash)) + L"\"";
+    // The setup is NSIS: /S is its silent switch, and /D= its install directory.
+    // The Inno switches this used to pass (/VERYSILENT /SUPPRESSMSGBOXES
+    // /NORESTART /LOG /DIR=) mean nothing to it, so it fell back to its normal
+    // wizard — which this launch hides with SW_HIDE while the update waits for
+    // the process to exit, leaving an update that hangs forever with nothing on
+    // screen to click. /D= must come last and takes the rest of the line, so a
+    // path with spaces needs no quotes and would break with them.
+    return L"/S /D=" + std::wstring(executable.substr(0, slash));
 }
 
 struct UpdateInstaller::State {
