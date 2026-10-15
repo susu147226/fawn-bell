@@ -166,6 +166,22 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
         case ui::PackAction::ArchiveInstall: refresh=s.settings.InstallArchivePack(s.hwnd);break;
         case ui::PackAction::ArchiveRemove: refresh=s.settings.RemoveArchivePack();break;
         case ui::PackAction::ArchiveEnable: refresh=s.settings.ToggleArchivePack();break;
+        case ui::PackAction::InstallAll: {
+            // One pass over what is missing; packs already on disk are left alone
+            // rather than downloaded again. Each download reports its own result
+            // on its card, so this only decides what to start.
+            for (const auto id : {packs::PackId::Media, packs::PackId::Images,
+                                  packs::PackId::Raw, packs::PackId::Archives}) {
+                if (packs::ReadInstalledPack(id).present) continue;
+                switch (id) {
+                case packs::PackId::Media: refresh |= s.settings.InstallMediaPack(s.hwnd); break;
+                case packs::PackId::Images: refresh |= s.settings.InstallImagePack(s.hwnd); break;
+                case packs::PackId::Raw: refresh |= s.settings.InstallRawPack(s.hwnd); break;
+                case packs::PackId::Archives: refresh |= s.settings.InstallArchivePack(s.hwnd); break;
+                }
+            }
+            break;
+        }
         case ui::PackAction::UseCustom: refresh=s.settings.ToggleCustomFfmpeg();break;
         case ui::PackAction::UseDetected: refresh=s.settings.UseDetectedFfmpeg();break;
         case ui::PackAction::RemoveOnUninstall: s.settings.ToggleRemovePacksOnUninstall();break;

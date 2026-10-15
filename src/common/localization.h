@@ -1411,6 +1411,8 @@ enum class StringId : UINT {
     ShareCredentialCaption = IDS_SHARE_CREDENTIAL_CAPTION,
     ShareCredentialMessage = IDS_SHARE_CREDENTIAL_MESSAGE,
     ShareCredentialFailed = IDS_SHARE_CREDENTIAL_FAILED,
+    PackInstallAll = IDS_PACK_INSTALL_ALL,
+    PackInstallAllDesc = IDS_PACK_INSTALL_ALL_DESC,
 };
 
 bool IsLanguageId(std::wstring_view id) noexcept;

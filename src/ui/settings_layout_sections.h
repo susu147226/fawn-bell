@@ -569,6 +569,13 @@ float LayoutSettingsPacks(SettingsLayout& l, const WindowViewModel& vm, float sc
                 pack_text::ShowsArchiveEnable(vm), pack_text::ArchiveBadge(vm), pack_text::ArchiveDesc(),
                 pack_text::ArchivePrimary(vm), vm.settings_pack_archive_notice);
 
+    // One button for every pack that is missing: a fresh install otherwise means
+    // walking all four cards one by one.
+    y += 24*scale;
+    const float install_all_w = button_w(l10n::Get(l10n::StringId::PackInstallAll));
+    l.pack_install_all = D2D1::RectF(inner_right - install_all_w, y, inner_right, y + 32*scale);
+    y = l.pack_install_all.bottom + 16*scale;
+
     // Uninstall preferences remain separate from the media source.
     y += 24*scale; l.pack_advanced_section = row(28);
     const float group_top = y;

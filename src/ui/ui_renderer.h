@@ -597,6 +597,8 @@ enum class PackAction : int {
     ImagesEnable,       // image pack: on / off
     RawInstall, RawRemove, RawEnable,
     ArchiveInstall, ArchiveRemove, ArchiveEnable,
+    // Settings > 预览增强包: one pass over every pack still missing.
+    InstallAll,
 };
 
 struct WindowViewModel {

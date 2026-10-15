@@ -404,6 +404,8 @@ BEGIN
     IDS_SHARE_CREDENTIAL_CAPTION "連線到網路共用"
     IDS_SHARE_CREDENTIAL_MESSAGE "此共用拒絕了目前登入認證。請輸入可以存取它的使用者名稱與密碼。"
     IDS_SHARE_CREDENTIAL_FAILED "無法連線到該共用，請確認使用者名稱與密碼。"
+    IDS_PACK_INSTALL_ALL "一次裝齊全部預覽包"
+    IDS_PACK_INSTALL_ALL_DESC "把目前缺少的預覽增強包依序下載並安裝，免去逐個點。"
     IDS_RESTORE_DEFAULTS            "恢復預設"
     IDS_TOOLTIP_CLOSE_TAB           "關閉分頁"
     IDS_TOOLTIP_NEW_TAB             "新增分頁"

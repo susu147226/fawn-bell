@@ -1438,3 +1438,6 @@
 #define IDS_SHARE_CREDENTIAL_CAPTION 2591
 #define IDS_SHARE_CREDENTIAL_MESSAGE 2592
 #define IDS_SHARE_CREDENTIAL_FAILED 2593
+// Preview packs settings: one button for every missing pack at once.
+#define IDS_PACK_INSTALL_ALL 2594
+#define IDS_PACK_INSTALL_ALL_DESC 2595

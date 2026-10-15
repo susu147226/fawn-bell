@@ -280,6 +280,12 @@ void MainRenderer::DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_
                PackAction::ArchiveEnable, PackAction::ArchiveInstall, PackAction::ArchiveRemove,
                vm.settings_pack_archive_notice});
 
+    // One pass over whatever is missing, for a machine that has none of them yet.
+    const bool pack_busy = vm.settings_pack_installing || vm.settings_pack_images_installing ||
+        vm.settings_pack_raw_installing || vm.settings_pack_archive_installing;
+    button(lay.pack_install_all, l10n::Get(l10n::StringId::PackInstallAll), PackAction::InstallAll,
+           fluent::ButtonKind::Standard, !pack_busy);
+
     card(lay.pack_source_group);
     const bool source_switch = pack_text::ShowsEnable(vm);
     const float source_right = source_switch ? lay.pack_enable.left - 14*s : lay.pack_source_status.right - 16*s;
