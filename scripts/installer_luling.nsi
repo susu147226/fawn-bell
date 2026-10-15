@@ -56,6 +56,24 @@ Section "鹿铃" SecMain
   ; never leave two builds mixed in one directory.
   ; ---------------------------------------------------------------------------
 
+  ; Did the user have the full-disk index service on? It goes with everything else
+  ; below and is put back at the end, so an update does not silently drop a feature
+  ; they turned on.
+  ExecWait 'sc query LulingIndex' $0
+  StrCmp $0 "0" 0 luling_no_service
+    StrCpy $2 "1"
+    Goto luling_service_known
+  luling_no_service:
+    StrCpy $2 "0"
+  luling_service_known:
+  ; The service is stopped and deleted *before* any process is killed. Killing it
+  ; first only makes the SCM start it again, and the restarted image holds
+  ; Luling.Index.exe open once more by the time the files are written — which is
+  ; the "cannot open the file to write" abort users hit when the index service
+  ; was on. Deleting it first also means it cannot come back during the install.
+  ExecWait 'sc stop LulingIndex' $0
+  ExecWait 'sc delete LulingIndex' $0
+
   ; A running copy holds its own exe and its helper processes open: without this
   ; the File writes fail and half the old build stays behind. The installer runs
   ; elevated, so the kills reach every user's processes.
@@ -72,26 +90,15 @@ Section "鹿铃" SecMain
   ExecWait 'taskkill /f /im "Luling.Document.exe"' $0
   ExecWait 'taskkill /f /im luling_shell.exe' $0
   ExecWait 'taskkill /f /im luling_integration.exe' $0
+  ; sc stop only signals, and an image takes a moment to unload: give the files
+  ; a beat before anything is copied over them.
+  Sleep 1200
 
   ; The file-manager takeover is deliberately left alone. This update lands in the
   ; same $INSTDIR, so its keys keep pointing at a live luling.exe, and the snapshot
   ; under Software\Luling\ShellIntegration is the only thing that makes the
   ; takeover reversible — removing it here would strand Explorer with no way back.
   ; (The uninstaller restores it, before it removes anything.)
-
-  ; Did the user have the full-disk index service on? It goes with everything else
-  ; below and is put back at the end, so an update does not silently drop a feature
-  ; they turned on.
-  ExecWait 'sc query LulingIndex' $0
-  StrCmp $0 "0" 0 luling_no_service
-    StrCpy $2 "1"
-    Goto luling_service_known
-  luling_no_service:
-    StrCpy $2 "0"
-  luling_service_known:
-  ; Stop it first, or its index files stay locked while the tree is removed.
-  ExecWait 'sc stop LulingIndex' $0
-  ExecWait 'sc delete LulingIndex' $0
 
   ; The user's own state is every top-level .json in the data directory: settings,
   ; pinned places, tags, custom menu rows, address and search history, saved
