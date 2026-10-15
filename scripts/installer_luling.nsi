@@ -59,12 +59,18 @@ Section "鹿铃" SecMain
   ; Did the user have the full-disk index service on? It goes with everything else
   ; below and is put back at the end, so an update does not silently drop a feature
   ; they turned on.
-  ExecWait 'sc query LulingIndex' $0
-  StrCmp $0 "0" 0 luling_no_service
-    StrCpy $2 "1"
-    Goto luling_service_known
-  luling_no_service:
+  ;
+  ; Asked of the registry rather than `sc query`: the exit code of a spawned sc is
+  ; not dependable from this context, and getting it wrong here silently turned the
+  ; service off for everyone who had it. SYSTEM is not redirected for a 32-bit
+  ; installer, so this reads the real key.
+  ClearErrors
+  ReadRegStr $2 HKLM "SYSTEM\CurrentControlSet\Services\LulingIndex" "ImagePath"
+  IfErrors 0 luling_service_present
     StrCpy $2 "0"
+    Goto luling_service_known
+  luling_service_present:
+    StrCpy $2 "1"
   luling_service_known:
   ; The service is stopped and deleted *before* any process is killed. Killing it
   ; first only makes the SCM start it again, and the restarted image holds
