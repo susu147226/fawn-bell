@@ -541,6 +541,12 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             }
             vm.settings_update_available = s.update_result_ready &&
                 s.update_result.update_available;
+            vm.settings_update_failed = s.update_result_ready &&
+                !s.update_result.update_available &&
+                s.update_result.error != app::UpdateError::None &&
+                s.update_result.error != app::UpdateError::Disabled &&
+                s.update_result.error != app::UpdateError::AlreadyChecking &&
+                s.update_result.error != app::UpdateError::UnsupportedWindows;
             vm.settings_update_version = s.update_result.version;
             vm.settings_diagnostics_exporting = s.settings.diagnostics_pending();
             vm.settings_show_performance = s.appPrefs.show_status_performance;
@@ -566,7 +572,29 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_update_status =
                     l10n::Get(l10n::StringId::UpdateUnsupportedWindows);
             } else if (s.update_result.error != app::UpdateError::None) {
-                vm.settings_update_status = l10n::Get(l10n::StringId::UpdateFailed);
+                // Say what actually went wrong: a bare 「检查失败」 left users with
+                // no way to tell a network blip from a rejected manifest, and no
+                // way forward when the download button cannot appear (B27, §8.15).
+                using app::UpdateError;
+                switch (s.update_result.error) {
+                case UpdateError::Network:
+                    vm.settings_update_status = l10n::Get(l10n::StringId::UpdateFailedNetwork);
+                    break;
+                case UpdateError::HttpStatus:
+                case UpdateError::ResponseTooLarge:
+                    vm.settings_update_status = l10n::Get(l10n::StringId::UpdateFailedServer);
+                    break;
+                case UpdateError::InvalidManifest:
+                case UpdateError::InvalidSignature:
+                    vm.settings_update_status = l10n::Get(l10n::StringId::UpdateFailedVerify);
+                    break;
+                case UpdateError::InsecureUrl:
+                    vm.settings_update_status = l10n::Get(l10n::StringId::UpdateFailedInsecure);
+                    break;
+                default:
+                    vm.settings_update_status = l10n::Get(l10n::StringId::UpdateFailed);
+                    break;
+                }
             } else if (s.update_result.update_available) {
                 wchar_t available[160]{};
                 swprintf_s(available,
@@ -1909,6 +1937,15 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         }
         s.quickPreview.SetMediaPackOffer(offer);
         s.quickPreview.SetImagePackOffer(image_offer);
+        // A video the decoders cannot play is exactly when the pack is needed,
+        // so start it there instead of waiting for a click. The card stays up
+        // with live progress and its cancel button, and the one-shot flag keeps
+        // a failed download from being retried on every frame.
+        if (!s.media_pack_auto_started && !s.isolatedTest && !s.shot.active &&
+            offer.installable && s.quickPreview.NeedsMediaPack()) {
+            s.media_pack_auto_started = true;
+            s.settings.InstallMediaPack(s.hwnd);
+        }
     }
     UpdateFolderCompare(s);
     s.changes.visible_paths.clear();
@@ -2593,7 +2630,9 @@ std::wstring TooltipForHover(AppState& s) {
             ? text(actions[s.hoverControlIndex]) : L"";
     }
     case R::SettingsUpdateAction:
-        return text(s.hoverControlIndex == 1 ? I::DownloadUpdate : I::CheckForUpdates);
+        return text(s.hoverControlIndex == 1
+            ? (s.update_result.update_available ? I::DownloadUpdate : I::DownloadManually)
+            : I::CheckForUpdates);
     case R::Minimize: return text(I::Minimize);
     case R::Maximize: return text(s.maximized ? I::Restore : I::Maximize);
     case R::Close: return text(I::Close);

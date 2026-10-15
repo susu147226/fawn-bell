@@ -178,6 +178,9 @@ struct AppState {
     // so the preview steps to the neighbouring file instead of closing.
     int quickPreviewAnchorView = -1;
     app::PreviewSelectionFollow quickPreviewSelection;
+    // The media pack download the Quick Look codec card now starts by itself
+    // fires once per session; after that the card's own button is the retry.
+    bool media_pack_auto_started = false;
     app::ListTypeAhead listTypeAhead;
     const app::Tab* listTypeAheadTab = nullptr;
     std::wstring listTypeAheadFolder;

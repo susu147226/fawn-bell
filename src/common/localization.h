@@ -1400,6 +1400,14 @@ enum class StringId : UINT {
     SortHintSize = IDS_SORT_HINT_SIZE,
     SortHintPath = IDS_SORT_HINT_PATH,
     OpItemsPerSecond = IDS_OP_ITEMS_PER_SECOND,
+    ResetWindowPosition = IDS_RESET_WINDOW_POSITION,
+    RefreshThumbnails = IDS_REFRESH_THUMBNAILS,
+    ThumbnailCacheRefreshed = IDS_THUMBNAIL_CACHE_REFRESHED,
+    DownloadManually = IDS_DOWNLOAD_MANUALLY,
+    UpdateFailedNetwork = IDS_UPDATE_FAILED_NETWORK,
+    UpdateFailedServer = IDS_UPDATE_FAILED_SERVER,
+    UpdateFailedVerify = IDS_UPDATE_FAILED_VERIFY,
+    UpdateFailedInsecure = IDS_UPDATE_FAILED_INSECURE,
 };
 
 bool IsLanguageId(std::wstring_view id) noexcept;

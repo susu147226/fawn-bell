@@ -1421,3 +1421,15 @@
 // Background menu: in-process install / uninstall.
 #define IDS_DEPLOY_TO_SYSTEM 2581
 #define IDS_REMOVE_FROM_SYSTEM 2582
+// Command palette: pull a window back from a monitor that no longer exists.
+#define IDS_RESET_WINDOW_POSITION 2583
+// Command palette: drop every cached thumbnail so it is decoded again (B31).
+#define IDS_REFRESH_THUMBNAILS 2584
+#define IDS_THUMBNAIL_CACHE_REFRESHED 2585
+// Settings > About: a failed update check says why and offers the release page
+// instead of downloading a manifest it never got (B27).
+#define IDS_DOWNLOAD_MANUALLY 2586
+#define IDS_UPDATE_FAILED_NETWORK 2587
+#define IDS_UPDATE_FAILED_SERVER 2588
+#define IDS_UPDATE_FAILED_VERIFY 2589
+#define IDS_UPDATE_FAILED_INSECURE 2590

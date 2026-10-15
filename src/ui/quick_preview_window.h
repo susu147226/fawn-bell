@@ -35,6 +35,9 @@ public:
     void SetStarred(bool starred);
     // The FFmpeg preview pack offer on the codec cards; repaints on change.
     void SetMediaPackOffer(const MediaPackOffer& offer);
+    // The codec card is up for a file the media pack could decode: the app
+    // starts that download itself rather than waiting for a click on the card.
+    bool NeedsMediaPack() const;
     // A pack was installed: a file it can play now is opened again.
     void OnMediaPackInstalled();
     // The image preview pack offer on the picture cards, and its install.

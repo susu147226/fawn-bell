@@ -5,6 +5,7 @@
 #include "vertical_tabs.h"
 #include "tab_shortcuts.h"
 #include "app_updates.h"
+#include "about_info.h"
 #include "app_internal.h"
 #include "app_column_view.h"
 #include "details_column_menu.h"
@@ -2392,7 +2393,13 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             InvalidateRect(hwnd, nullptr, FALSE);
         } else if (hit.region == ui::HitTestResult::SettingsUpdateAction) {
             if (hit.index == 0) CheckForUpdates(*s);
-            else if (hit.index == 1) InstallUpdate(*s);
+            else if (hit.index == 1) {
+                // No manifest came back, so there is nothing to download from
+                // inside the app: the same button opens the release page instead
+                // (B27, §8.15).
+                if (s->update_result.update_available) InstallUpdate(*s);
+                else ShellExecuteW(hwnd, L"open", app::kLulingReleasesPage, nullptr, nullptr, SW_SHOWNORMAL);
+            }
         } else if (hit.region == ui::HitTestResult::SettingsDupScope) {
             if (!s->duplicateScan.scanning && hit.index >= 0 && hit.index <= 2) {
                 s->duplicateScan.scope = static_cast<app::DuplicateScanScope>(hit.index);

@@ -641,13 +641,16 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         painter_.DrawButton({lay.update_action[0],
             luling::l10n::Get(luling::l10n::StringId::CheckForUpdates), {},
             fluent::ButtonKind::Standard, check});
-        if (vm.settings_update_available) {
+        if (vm.settings_update_available || vm.settings_update_failed) {
             fluent::ControlState download{};
             download.enabled = !vm.settings_update_installing;
             download.hovered = IsHovered(vm, HitTestResult::SettingsUpdateAction, 1);
+            const auto label = vm.settings_update_available
+                ? (vm.settings_update_downloading ? luling::l10n::StringId::Cancel
+                                                  : luling::l10n::StringId::DownloadUpdate)
+                : luling::l10n::StringId::DownloadManually;
             painter_.DrawButton({lay.update_action[1],
-                luling::l10n::Get(vm.settings_update_downloading ? luling::l10n::StringId::Cancel :
-                    luling::l10n::StringId::DownloadUpdate), {},
+                luling::l10n::Get(label), {},
                 fluent::ButtonKind::Primary, download});
         }
         if (lay.update_auto_row.bottom > lay.update_auto_row.top) {

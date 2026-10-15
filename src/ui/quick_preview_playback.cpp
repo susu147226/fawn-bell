@@ -732,6 +732,11 @@ bool QuickPreviewWindow::CodecCardVisible(const VideoPreview::State& state) cons
     return kCodecHint && (state.unsupported_audio ||
         (state.missing_decoder && !VideoPreview::IsAudio(item_.path)));
 }
+bool QuickPreviewWindow::NeedsMediaPack() const {
+    if (!visible() || !video_.active()) return false;
+    if (!pack_offer_.installable && !pack_offer_.installing) return false;
+    return CodecCardVisible(video_.Snapshot());
+}
 bool QuickPreviewWindow::OverCodecButton(POINT point) const {
     return Contains(codec_store_rect_, point) || Contains(codec_open_rect_, point) ||
            Contains(codec_pack_rect_, point);

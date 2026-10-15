@@ -822,6 +822,9 @@ struct WindowViewModel {
     bool settings_update_downloading = false;
     bool settings_update_installing = false;
     bool settings_update_available = false;
+    // The check finished without an update *and* with an error: the row shows
+    // why and offers the release page instead of a download button (B27).
+    bool settings_update_failed = false;
     bool settings_update_auto = true;  // background checks + reminders (AppPrefs::auto_check_updates)
     bool settings_diagnostics_exporting = false;
     bool settings_show_performance = false;
