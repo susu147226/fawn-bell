@@ -24,6 +24,13 @@ void IndexClient::Start(HWND notify, UINT status_msg, UINT search_msg, std::wstr
     notify_ = notify;
     status_msg_ = status_msg;
     search_msg_ = search_msg;
+    // Sampled once, on the calling thread: the worker retries far too often to
+    // reopen the service manager each pass. Installing or removing the service
+    // mid-session is picked up by the next Start.
+    service_installed_ = ServiceInstalled();
+    helper_wanted_ = false;
+    helper_spawned_ = false;
+    wake_event_ = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     running_ = true;
     {
         std::lock_guard<std::mutex> lock(mu_);
@@ -37,6 +44,7 @@ void IndexClient::Start(HWND notify, UINT status_msg, UINT search_msg, std::wstr
 void IndexClient::Stop() {
     running_ = false;
     pinyin_ready_ = false;
+    if (wake_event_) SetEvent(wake_event_);
     pending_cv_.notify_all();
     HANDLE pipe = INVALID_HANDLE_VALUE;
     {
@@ -59,12 +67,18 @@ void IndexClient::Stop() {
         CloseHandle(child_thread_);
         child_thread_ = nullptr;
     }
+    if (wake_event_) {
+        CloseHandle(wake_event_);
+        wake_event_ = nullptr;
+    }
     connected_ = false;
+    helper_wanted_ = false;
+    helper_spawned_ = false;
 }
 
 bool IndexClient::SpawnHelper() {
     if (pipe_name_ != kPipeName) return false;
-    if (ServiceInstalled()) {
+    if (service_installed_.load()) {
         {
             std::lock_guard<std::mutex> lock(mu_);
             status_ = L"正在等待索引服务…";
@@ -72,6 +86,10 @@ bool IndexClient::SpawnHelper() {
         if (notify_ && status_msg_) PostMessageW(notify_, status_msg_, 0, 0);
         return false;
     }
+    // On-demand local indexing (#220, B32): with no service installed, spawning
+    // this process is exactly what the user asked us not to do at launch, so
+    // only a live index request may start it.
+    if (!helper_wanted_.load()) return false;
     const std::wstring exe = ExePath();
     if (GetFileAttributesW(exe.c_str()) == INVALID_FILE_ATTRIBUTES) {
         std::lock_guard<std::mutex> lock(mu_);
@@ -90,6 +108,7 @@ bool IndexClient::SpawnHelper() {
     if (child_thread_) CloseHandle(child_thread_);
     child_proc_ = pi.hProcess;
     child_thread_ = pi.hThread;
+    helper_spawned_ = true;
     return true;
 }
 
@@ -108,6 +127,12 @@ bool IndexClient::EnsureConnected() {
     };
     HANDLE h = try_open();
     if (h == INVALID_HANDLE_VALUE) {
+        // No service and nothing asking for the index: the pipe is not coming,
+        // so do not spend the spawn grace waiting on it (#220, B32).
+        if (pipe_name_ == kPipeName && !service_installed_.load() && !helper_wanted_.load()) {
+            connected_ = false;
+            return false;
+        }
         SpawnHelper();
         const ULONGLONG deadline = GetTickCount64() + 8000;
         while (running_ && h == INVALID_HANDLE_VALUE && GetTickCount64() < deadline) {
@@ -351,7 +376,10 @@ void IndexClient::Worker() {
                 if (status_ != L"找不到 Luling.Index.exe")
                     status_ = L"索引未连接";
             }
-            for (int i = 0; i < 10 && running_; ++i) Sleep(100);
+            // Interruptible backoff: a search arriving during it has to start
+            // the on-demand helper now, not after the full second (#220, B32).
+            if (wake_event_) WaitForSingleObject(wake_event_, 1000);
+            else for (int i = 0; i < 10 && running_; ++i) Sleep(100);
             continue;
         }
         WriteMsg(REQ_IDX_STATUS, 0, {});
@@ -385,6 +413,32 @@ void IndexClient::Worker() {
     }
 }
 
+void IndexClient::WakeHelper() {
+    if (helper_wanted_.exchange(true)) return;
+    if (wake_event_) SetEvent(wake_event_);
+}
+
+void IndexClient::ReleaseHelperIfIdle() {
+    // Only a helper this client started is releasable; a service connection
+    // (and a client that never spawned anything) has nothing to give back.
+    if (!helper_spawned_.load()) return;
+    {
+        std::lock_guard<std::mutex> lock(mu_);
+        if (!pending_searches_.empty() || !subscribed_searches_.empty() ||
+            !session_requests_.empty())
+            return;
+    }
+    helper_wanted_ = false;
+    HANDLE pipe = INVALID_HANDLE_VALUE;
+    {
+        std::lock_guard<std::mutex> lock(pipe_mu_);
+        pipe = pipe_;
+    }
+    // Breaking the pipe is enough: index_host exits on its own idle timer once
+    // it has no clients left, so nothing is killed mid-request.
+    if (pipe != INVALID_HANDLE_VALUE) CancelIoEx(pipe, nullptr);
+}
+
 std::wstring IndexClient::Status() const {
     std::lock_guard<std::mutex> lock(mu_);
     return status_;
@@ -392,6 +446,7 @@ std::wstring IndexClient::Status() const {
 
 void IndexClient::SearchAsync(const Query& q, uint32_t id) {
     if (!running_) return;
+    WakeHelper();
     latest_search_id_.store(id);
     {
         std::lock_guard<std::mutex> lock(mu_);
@@ -463,6 +518,7 @@ void IndexClient::CancelSession(uint64_t session_id) {
      pending_searches_.erase(session_id);subscribed_searches_.erase(session_id);cancelled_sessions_.push_back(session_id);
      have_pending_=!pending_searches_.empty();}
     pending_cv_.notify_all();
+    ReleaseHelperIfIdle();
 }
 
 bool IndexClient::ServiceInstalled() const {
@@ -476,7 +532,14 @@ bool IndexClient::ServiceInstalled() const {
 }
 
 bool IndexClient::RequestInstallService() {
-    return InstallServiceElevated();
+    const bool installed = InstallServiceElevated();
+    if (installed) {
+        // The cached answer gates the on-demand helper, so pick up the service
+        // as soon as it exists instead of waiting for the next Start.
+        service_installed_ = true;
+        if (wake_event_) SetEvent(wake_event_);
+    }
+    return installed;
 }
 
 namespace {

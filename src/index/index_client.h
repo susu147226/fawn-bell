@@ -61,6 +61,12 @@ private:
     void Writer();
     bool EnsureConnected();
     bool SpawnHelper();
+    // On-demand local indexing (#220, B32): without the LulingIndex service the
+    // helper must not sit resident from launch. A search wakes it; the last
+    // session going away releases it, and index_host then exits on its own idle
+    // timer because no client is left.
+    void WakeHelper();
+    void ReleaseHelperIfIdle();
     bool WriteMsg(uint32_t type, uint32_t id, const std::vector<uint8_t>& payload);
     bool ReadMsg(ipc::MsgHeader& hdr, std::vector<uint8_t>& payload);
     void HandleStatus(const uint8_t* p, size_t n);
@@ -75,10 +81,20 @@ private:
     std::wstring pipe_name_ = kPipeName;
     HANDLE child_proc_ = nullptr;
     HANDLE child_thread_ = nullptr;
+    // Auto-reset, set to cut the worker's idle backoff short when a search asks
+    // for the on-demand helper.
+    HANDLE wake_event_ = nullptr;
     std::thread worker_;
     std::thread writer_;
     std::atomic<bool> running_{false};
     std::atomic<bool> connected_{false};
+    // Sampled once in Start(): the worker retries far too often to reopen the
+    // service manager on every pass.
+    std::atomic<bool> service_installed_{false};
+    std::atomic<bool> helper_wanted_{false};
+    // True only while a helper this client spawned is alive, so the release
+    // path can tell the on-demand helper apart from a service connection.
+    std::atomic<bool> helper_spawned_{false};
     std::atomic<bool> ready_{false};
     std::atomic<bool> pinyin_ready_{false};
     std::atomic<size_t> count_{0};
