@@ -1472,11 +1472,12 @@ int FluentMenu::RunModalLoop() {
                         CloseSubmenu();
                         swallow = true;
                     } else if (!filter_fn_ && msg.wParam == VK_RETURN) {
-                        if (external_edit_) {
-                            // A popup lent the keyboard by an edit only hints at
-                            // what Enter would do: the edit keeps the last word,
-                            // so the typed address commits instead of the row the
-                            // popup happens to have highlighted.
+                        if (external_edit_ && enter_commits_to_edit_) {
+                            // The address bar's history only hints at where the
+                            // user has been, so Enter keeps working on the edit
+                            // and the typed path commits. Other popups that lend
+                            // the keyboard (search history) do own Enter: theirs
+                            // runs the highlighted suggestion.
                             result_ = 0;
                             Dismiss();
                         } else if (sub_parent_row_ >= 0) {
@@ -1569,6 +1570,7 @@ int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
     if (!EnsureWindow()) {
         dropdown_ = false;
         external_edit_ = nullptr;
+        enter_commits_to_edit_ = false;
         max_visible_rows_ = 0;
         return 0;
     }
@@ -1588,6 +1590,7 @@ int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
     if (items.empty() && !filter_fn_) {
         dropdown_ = false;
         external_edit_ = nullptr;
+        enter_commits_to_edit_ = false;
         max_visible_rows_ = 0;
         return 0;
     }
@@ -1607,6 +1610,7 @@ int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
     LayoutWindow(screen_pt);
     if (!Render()) {
         external_edit_ = nullptr;
+        enter_commits_to_edit_ = false;
         max_visible_rows_ = 0;
         ShowWindow(hwnd_, SW_HIDE);
         anchor_to_rect_ = false;
@@ -1640,6 +1644,7 @@ int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
     const int popup_result = RunModalLoop();
     if (external_edit_) RemoveWindowSubclass(external_edit_, ExternalFilterEditProc, 2);
     external_edit_ = nullptr;
+    enter_commits_to_edit_ = false;
     UpdateTooltip(-1);
     initial_filter_text_.clear();
     filter_min_width_ = 0.0f;

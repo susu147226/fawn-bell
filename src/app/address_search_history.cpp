@@ -115,8 +115,9 @@ void ShowLocationHistory(AppState& s) {
     s.menu->SetTheme(s.darkMode, s.accentColor);
     // Route the keys back to the address edit, the way the search history does:
     // without this the popup owns the keyboard, so Enter opened nothing and the
-    // typed path never reached NavigateTo.
-    s.menu->SetExternalFilterEdit(s.hwndAddressEdit);
+    // typed path never reached NavigateTo. The list is only a hint here, so Enter
+    // is left to the edit.
+    s.menu->SetExternalFilterEdit(s.hwndAddressEdit, true);
     const int command = s.menu->TrackPopup(
         {anchor.left, anchor.bottom + static_cast<LONG>(6 * s.scale)}, items, {});
     if (command >= 300 && command < 300 + static_cast<int>(entries.size())) {

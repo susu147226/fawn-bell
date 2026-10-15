@@ -165,7 +165,13 @@ public:
     void SetMaxVisibleRows(int rows) { max_visible_rows_ = rows > 0 ? rows : 0; }
 
     // Borrow the search editor; show only results below its screen rect.
-    void SetExternalFilterEdit(HWND edit) { external_edit_ = edit; }
+    // enter_commits_to_edit: the list only hints at what Enter would do, so the
+    // edit keeps the last word. Off by default — the search history popup runs
+    // the highlighted suggestion on Enter instead.
+    void SetExternalFilterEdit(HWND edit, bool enter_commits_to_edit = false) {
+        external_edit_ = edit;
+        enter_commits_to_edit_ = enter_commits_to_edit;
+    }
     // Owner hosts a topmost overlay (system preview handler) over the area the
     // menu opens into: place the popup in the topmost band so it stays visible,
     // and dismiss on clicks that land in windows of other threads, which the
@@ -261,6 +267,7 @@ private:
     bool top_center_ = false;
     bool topmost_ = false;
     HWND external_edit_ = nullptr; // borrowed; never moved, hidden or destroyed
+    bool enter_commits_to_edit_ = false;
     HWND edit_ = nullptr;
     HFONT edit_font_ = nullptr;
     std::uint64_t edit_font_generation_ = 0;   // typography::Generation() of edit_font_
