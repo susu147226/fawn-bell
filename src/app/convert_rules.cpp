@@ -94,6 +94,16 @@ std::wstring ScaleFilter(const ConvertOptions& options, const std::wstring& exte
         swprintf_s(factor, L"%.6g", options.scale_factor > 0.01 ? options.scale_factor : 1.0);
         return L"scale=iw*" + std::wstring(factor) + L":ih*" + std::wstring(factor) + L":flags=lanczos";
     }
+    // 按增量 is the same idea with an offset: iw/ih let every picture grow by the
+    // same few pixels while keeping its own size. It also works for videos, whose
+    // pixel size this layer never learns.
+    if (options.scale_mode == ScaleMode::ByDelta) {
+        if (options.delta == 0) return {};
+        wchar_t step[32]{};
+        swprintf_s(step, L"%+d", options.delta);
+        const std::wstring offset(step);
+        return L"scale=iw" + offset + L":ih" + offset + L":flags=lanczos";
+    }
     if (options.width <= 0 && options.height <= 0) return {};
     // One side blank means "keep the ratio, derive the other".
     if (options.height <= 0)
@@ -323,16 +333,37 @@ bool IsOfflinePlaceholder(DWORD attributes) {
 double EstimatedCompressRatio(int quality, const std::wstring& extension) {    // Lossless containers ignore the quality setting entirely — ImageCompressArgs
     // only changes the zlib effort for them — so they must NOT be run through the
     // lossy curve, which used to promise half of what the encoder actually wrote.
-    if (extension == L"png") return 0.79;    // measured 16840 -> 13305
+    // PNG quantises to a palette, so its ratio follows the colour count the quality
+    // picks. The old code returned a flat 0.79 for every setting — that number is
+    // the *lossless* measurement, and a lossy run was promised the same size while
+    // actually landing near a third of it.
+    //
+    // Measured over 15 PNGs with the shipped engine: lossless 0.71–1.00 (median
+    // 0.80), 256 colours 0.24–0.48 (median 0.33), 16 colours 0.15–0.37 (median
+    // 0.23). The spread is inherent — a flat-colour icon and a photo quantise very
+    // differently — so this is an order-of-magnitude estimate, not a promise.
+    if (extension == L"png") {
+        if (quality >= 100) return 0.79;
+        const double colors = static_cast<double>(PaletteColorsFor(quality)) / 256.0;
+        return 0.33 * std::pow(colors, 0.18);
+    }
     if (extension == L"tif" || extension == L"tiff") return 0.85;
     if (extension == L"bmp") return 1.0;     // no compression to speak of
     if (extension == L"gif") return 0.95;
+    // The lossy encoders, measured with the shipped engine over three images
+    // (medians). The old curves were guesses, and two of them advised the opposite
+    // of the truth: JPEG at 100% was promised 0.95 — "barely any saving" — while it
+    // really lands near 0.39, and WebP at 50% was promised 0.14 against a real 0.32.
     const int q = (std::max)(1, (std::min)(100, quality));
-    if (q >= 100) return 0.95;               // highest quality a lossy encoder offers
-    const double t = (q / 100.0) * (q / 100.0) * (q / 100.0);
-    if (extension == L"webp") return 0.10 + 0.32 * t;
-    // jpg / jpeg and anything else routed to the JPEG encoder.
-    return 0.17 + 0.34 * t;
+    const double t = q / 100.0;
+    if (extension == L"webp") {
+        // 100% is a lossless run, far above where the quality curve sits.
+        if (q >= 100) return 0.61;
+        return 0.30 + 0.11 * std::pow(t, 4.0);
+    }
+    // jpg / jpeg and anything else routed to the JPEG encoder. Measured: 100% 0.39,
+    // 90% 0.33, 80% 0.25, 65% 0.20, 50% 0.17.
+    return 0.10 + 0.29 * t * t;
 }
 
 bool FormatUsesQuality(const std::wstring& extension) {
@@ -431,10 +462,60 @@ const wchar_t* CompressTierName(CompressTier tier) {
     return L"";
 }
 
+// A small evaluator for the size fields: numbers combined with + - * /, applied
+// left to right per level with * and / binding tighter, which is what anyone
+// typing "1920/2" or "800+200" expects. No parentheses — the fields are narrow
+// and the expressions short. A number pasted as "1920x1080" yields the part
+// before the x, so pasting a size into one field does something sensible.
+bool EvaluateExpression(const std::wstring& text, double& value) {
+    const wchar_t* p = text.c_str();
+    struct Parser {
+        const wchar_t*& p;
+        void Skip() { while (*p == L' ' || *p == L'\t') ++p; }
+        bool Number(double& out) {
+            Skip();
+            wchar_t* end = nullptr;
+            out = wcstod(p, &end);
+            if (end == p) return false;
+            p = end;
+            Skip();
+            return true;
+        }
+        // A run of numbers joined by * and /.
+        bool Term(double& out) {
+            if (!Number(out)) return false;
+            for (;;) {
+                if (*p != L'*' && *p != L'/') return true;
+                const wchar_t op = *p++;
+                double rhs = 0.0;
+                if (!Number(rhs)) return false;
+                if (op == L'*') out *= rhs;
+                else {
+                    if (rhs == 0.0) return false;
+                    out /= rhs;
+                }
+            }
+        }
+    } parser{p};
+    double total = 0.0;
+    if (!parser.Term(total)) return false;
+    while (*p == L'+' || *p == L'-') {
+        const wchar_t op = *p++;
+        double rhs = 0.0;
+        if (!parser.Term(rhs)) return false;
+        total += (op == L'+') ? rhs : -rhs;
+    }
+    parser.Skip();
+    if (*p != L'\0' && *p != L'x' && *p != L'X' && *p != L'\x00D7') return false;
+    value = total;
+    return true;
+}
+
 const wchar_t* ScaleModeName(ScaleMode mode) {
     switch (mode) {
     case ScaleMode::BySize: return l10n::Pick(L"按尺寸", L"By size");
     case ScaleMode::ByFactor: return l10n::Pick(L"按倍率", L"By factor");
+    case ScaleMode::ByDelta: return l10n::Pick(L"按增量", L"By delta");
     }
     return L"";
 }
@@ -447,6 +528,9 @@ const wchar_t* ScaleModeHint(ScaleMode mode) {
     case ScaleMode::ByFactor: return l10n::Pick(
         L"按倍率整体缩放：1.0 保持原样、1.2 放大两成、0.5 减半，比例不变。",
         L"Multiplies the original size by the factor — 1.0 leaves it alone, 1.2 enlarges it by 20%, 0.5 halves it. The ratio never changes.");
+    case ScaleMode::ByDelta: return l10n::Pick(
+        L"给每张图自己的原尺寸加同一个像素数：填 5 就是宽高各加 5，尺寸不一的素材各自保持大小。填负数则缩小。",
+        L"Adds the same pixel count to every picture's own size — 5 means +5 on both sides, so a selection of mixed sizes keeps each one's size. A negative number shrinks.");
     }
     return L"";
 }
@@ -557,6 +641,13 @@ std::vector<ResizeGroup> BuildResizeGroups(const std::vector<ConvertItem>& items
 // otherwise the dialog-wide width/height.
 void ResolveTargetBox(const ConvertItem& item, const ConvertOptions& options,
                       int& width, int& height) {
+    // 按增量 has no box to report: the filter works off iw/ih, and for a video the
+    // source size is not known here at all. Callers see 0 and skip the box.
+    if (options.scale_mode == ScaleMode::ByDelta) {
+        width = 0;
+        height = 0;
+        return;
+    }
     width = options.width;
     height = options.height;
     for (const auto& group : options.groups) {
@@ -623,20 +714,28 @@ std::vector<ConvertItem> PreviewConvert(const std::vector<std::wstring>& paths,
             target_extension = options.format.empty() ? source_extension.substr(1) : options.format;
         } else if (options.mode == ConvertMode::Resize) {
             target_extension = source_extension.substr(1);
-            std::wstring w, h;
-            if (options.scale_mode == ScaleMode::ByFactor) {
-                // The factor multiplies the file's own size, so the name shows the
-                // result rather than a box the user never set.
-                const double factor = options.scale_factor > 0.01 ? options.scale_factor : 1.0;
-                w = std::to_wstring(static_cast<long long>(std::lround(item.source_width * factor)));
-                h = std::to_wstring(static_cast<long long>(std::lround(item.source_height * factor)));
+            if (options.scale_mode == ScaleMode::ByDelta) {
+                // Every picture ends up its own size, so there is no box to name;
+                // the offset the user typed is the part worth showing.
+                wchar_t step[32]{};
+                swprintf_s(step, L"%+d", options.delta);
+                target_stem = stem + step;
             } else {
-                int box_w = 0, box_h = 0;
-                ResolveTargetBox(item, options, box_w, box_h);
-                w = box_w > 0 ? std::to_wstring(box_w) : L"auto";
-                h = box_h > 0 ? std::to_wstring(box_h) : L"auto";
+                std::wstring w, h;
+                if (options.scale_mode == ScaleMode::ByFactor) {
+                    // The factor multiplies the file's own size, so the name shows the
+                    // result rather than a box the user never set.
+                    const double factor = options.scale_factor > 0.01 ? options.scale_factor : 1.0;
+                    w = std::to_wstring(static_cast<long long>(std::lround(item.source_width * factor)));
+                    h = std::to_wstring(static_cast<long long>(std::lround(item.source_height * factor)));
+                } else {
+                    int box_w = 0, box_h = 0;
+                    ResolveTargetBox(item, options, box_w, box_h);
+                    w = box_w > 0 ? std::to_wstring(box_w) : L"auto";
+                    h = box_h > 0 ? std::to_wstring(box_h) : L"auto";
+                }
+                target_stem = stem + L"-" + w + L"x" + h;
             }
-            target_stem = stem + L"-" + w + L"x" + h;
         } else {
             // Compression keeps the format and the pixel size; only the encoder
             // effort changes. (A PNG therefore stays a PNG.)
@@ -644,10 +743,19 @@ std::vector<ConvertItem> PreviewConvert(const std::vector<std::wstring>& paths,
             target_stem = stem + (options.tier == CompressTier::Lossless ? L"-lossless" : L"-compressed");
         }
 
-        item.target_name = target_stem + L"." + target_extension;
-        if (options.target == ConvertTarget::Overwrite) {
-            item.target = DirectoryOf(path) + L"\\" + item.target_name;
-            if (item.target == path) item.target = DirectoryOf(path) + L"\\" + target_stem + L"." + target_extension;
+        // Overwriting writes the original path back, which only makes sense while
+        // the format stays what it was — resize and compress both do. A format
+        // change lands on a different extension, so there is nothing to overwrite
+        // and the file goes beside the original instead; the dialog says so.
+        std::wstring wanted = target_extension;
+        std::wstring existing = source_extension.substr(1);
+        std::transform(wanted.begin(), wanted.end(), wanted.begin(),
+                       [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
+        std::transform(existing.begin(), existing.end(), existing.begin(),
+                       [](wchar_t c) { return static_cast<wchar_t>(towlower(c)); });
+        if (options.target == ConvertTarget::Overwrite && wanted == existing) {
+            item.target = path;
+            item.target_name = item.source_name;
         } else {
             item.target = UniqueName(DirectoryOf(path), target_stem, target_extension);
             item.target_name = item.target.substr(item.target.find_last_of(L'\\') + 1);

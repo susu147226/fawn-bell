@@ -69,6 +69,12 @@ constexpr wchar_t kClass[] = L"LulingConvertWindow";
 constexpr float kDlgW = 620.0f;
 constexpr float kDlgH = 620.0f;
 constexpr float kRowH = 32.0f;
+// The before/after preview runs a real ffmpeg pass (and a second one for the
+// thumbnail) on the UI thread, which costs a few hundred milliseconds. Rebuilt
+// views arm this timer instead of calling it outright, so a burst of clicks or a
+// slider drag settles first and the buttons answer immediately.
+constexpr UINT_PTR kComparisonTimer = 1;
+constexpr UINT kComparisonDelayMs = 250;
 
 D2D1_RECT_F Rect(float scale, float x, float y, float width, float height) {
     return luling::ui::DipRect(scale, x, y, width, height);
@@ -82,7 +88,7 @@ using app::ScaleMode;
 
 // Two questions, not six modes: how the size is given, and how the picture
 // meets the box.
-constexpr ScaleMode kScaleModes[] = { ScaleMode::BySize, ScaleMode::ByFactor };
+constexpr ScaleMode kScaleModes[] = { ScaleMode::BySize, ScaleMode::ByFactor, ScaleMode::ByDelta };
 constexpr app::SizeFit kSizeFits[] = {
     app::SizeFit::NoPad, app::SizeFit::Pad, app::SizeFit::Crop, app::SizeFit::Stretch,
 };
@@ -195,6 +201,8 @@ private:
     D2D1_RECT_F HeightField() const { return Rect(scale_, 262, 150, 120, kRowH); }
     // ByFactor reuses the width field's slot for the multiplier.
     D2D1_RECT_F FactorField() const { return Rect(scale_, 76, 150, 160, kRowH); }
+    // ByDelta wants one number too, so it takes the same slot.
+    D2D1_RECT_F DeltaField() const { return Rect(scale_, 76, 150, 160, kRowH); }
     D2D1_RECT_F SavePresetRect() const { return Rect(scale_, 418, 150, 162, kRowH); }
     // Row 3: image quality when converting formats, encoder speed for video.
     D2D1_RECT_F QualityRect(int index) const {
@@ -320,7 +328,13 @@ private:
         }
 
         RefreshCounts();
-        UpdateComparison();
+        // Deferred: see kComparisonTimer. Re-arming an already-armed timer only
+        // restarts it, so rapid changes collapse into one run.
+        if (hwnd_) SetTimer(hwnd_, kComparisonTimer, kComparisonDelayMs, nullptr);
+        // The chips decide which fields are on screen (按尺寸 two boxes, 按倍率 /
+        // 按增量 one), so switching mode has to re-place them — laying them out only
+        // at creation left the delta field hidden forever.
+        LayoutEdits();
     }
 
     void RefreshCounts() {
@@ -339,7 +353,10 @@ private:
     }
 
     // Row 3 content: quality choices for image format conversion, speed for video.
-    static constexpr int kQualities[] = { 95, 90, 80, 65 };
+    // 100% leads, because converting a PNG to JPEG without touching the quality is
+    // a thing people ask for and it should be one click, not a slider hunt. Four
+    // entries only: QualityRect lays them out in one row and has no wrap.
+    static constexpr int kQualities[] = { 100, 90, 80, 65 };
     static constexpr app::VideoSpeed kSpeeds[] = {
         app::VideoSpeed::Fast, app::VideoSpeed::Medium, app::VideoSpeed::Slow,
     };
@@ -471,8 +488,21 @@ private:
     // Compression gets a slider under the tier chips: the chips are shortcuts,
     // the slider is the free adjustment the author asked for. Kept clear of the
     // chip row above (56–88) so the "质量" label has room of its own.
-    D2D1_RECT_F SliderBounds() const { return Rect(scale_, 20, 126, kDlgW - 40, 28); }
-    bool showsSlider() const { return options_.mode == ConvertMode::Compress && compressionHasQuality(); }
+    // The slider's own label is drawn 22px above the track, so the track has to
+    // start below whatever sits above it. 转换格式 stacks three things here — the
+    // format chips (up to two rows), the quality chips, then the slider — while
+    // 压缩 only has its tier chips above, so it keeps the higher slot.
+    D2D1_RECT_F SliderBounds() const {
+        const float top = options_.mode == ConvertMode::Format ? 206.0f : 126.0f;
+        return Rect(scale_, 20, top, kDlgW - 40, 28);
+    }
+    // 转换格式 had only the four preset chips, so a PNG-to-JPEG conversion could
+    // not ask for 100% — anyone who just wanted the format changed had no way to
+    // say "leave the quality alone". The slider is that way.
+    bool showsSlider() const {
+        return (options_.mode == ConvertMode::Compress && compressionHasQuality()) ||
+               (options_.mode == ConvertMode::Format && showsQuality());
+    }
 
     void SetQualityFromX(float x) {
         const auto bar = SliderBounds();
@@ -595,17 +625,22 @@ private:
     void LayoutEdits() {
         if (done_) return;
         const bool resize = resizing();
-        const bool by_factor = resize && options_.scale_mode == ScaleMode::ByFactor;
-        PlaceEdit(edit_width_, WidthField(), resize && !by_factor);
-        PlaceEdit(edit_height_, HeightField(), resize && !by_factor);
-        PlaceEdit(edit_factor_, FactorField(), by_factor);
+        // 按倍率 and 按增量 both ask for a single number, not a box.
+        const bool box = resize && options_.scale_mode == ScaleMode::BySize;
+        PlaceEdit(edit_width_, WidthField(), box);
+        PlaceEdit(edit_height_, HeightField(), box);
+        PlaceEdit(edit_factor_, FactorField(), resize && options_.scale_mode == ScaleMode::ByFactor);
+        PlaceEdit(edit_delta_, DeltaField(), resize && options_.scale_mode == ScaleMode::ByDelta);
     }
 
     int FieldValue(HWND edit, int fallback) const {
         if (!edit) return fallback;
-        const std::wstring text = EditText(edit);
-        const int value = _wtoi(text.c_str());
-        return value > 0 ? value : fallback;
+        // A field may hold an expression ("1920/2", "800+200"); anything that
+        // cannot be read keeps the value it already had instead of snapping to 0.
+        double value = 0.0;
+        if (!app::EvaluateExpression(EditText(edit), value)) return fallback;
+        const int rounded = static_cast<int>(std::lround(value));
+        return rounded > 0 ? rounded : fallback;
     }
 
     // The compressed size shown next to each row, and the number in the summary
@@ -627,6 +662,12 @@ private:
             // rather than scaling by zero.
             const double value = _wtof(EditText(edit_factor_).c_str());
             options_.scale_factor = value > 0.01 ? value : 1.0;
+        } else if (resizing() && options_.scale_mode == ScaleMode::ByDelta) {
+            // An offset, so zero and negative numbers are both meaningful: only
+            // text that cannot be read at all keeps the previous value.
+            double value = 0.0;
+            if (app::EvaluateExpression(EditText(edit_delta_), value))
+                options_.delta = static_cast<int>(std::lround(value));
         } else if (resizing() && selected_group_ >= 0 &&
             selected_group_ < static_cast<int>(options_.groups.size())) {
             auto& group = options_.groups[static_cast<size_t>(selected_group_)];
@@ -672,10 +713,13 @@ private:
             font_ = typography::CreateEditFont(scale_);
             if (edit_brush_) { DeleteObject(edit_brush_); edit_brush_ = nullptr; }
             edit_brush_ = CreateSolidBrush(dark_ ? RGB(30, 30, 30) : RGB(255, 255, 255));
-            edit_width_ = CreateField(std::to_wstring(options_.width));
-            edit_height_ = CreateField(std::to_wstring(options_.height));
+            // The size fields accept expressions ("1920/2", "800+200"), so they
+            // must not carry ES_NUMBER, which rejects every operator as it is typed.
+            edit_width_ = CreateField(std::to_wstring(options_.width), false);
+            edit_height_ = CreateField(std::to_wstring(options_.height), false);
             // The multiplier needs a decimal point, so no ES_NUMBER filter.
             edit_factor_ = CreateField(FormatFactor(options_.scale_factor), false);
+            edit_delta_ = CreateField(std::to_wstring(options_.delta), false);
             LayoutEdits();
             // The device context exists only now, so this is the first chance to
             // build the comparison thumbnails and the size estimate.
@@ -704,6 +748,14 @@ private:
         case WM_MOVE:
             compositor_.UpdateTextRenderingParams(MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST));
             return 0;
+        case WM_TIMER:
+            if (wparam == kComparisonTimer) {
+                KillTimer(hwnd_, kComparisonTimer);
+                UpdateComparison();
+                InvalidateRect(hwnd_, nullptr, FALSE);
+                return 0;
+            }
+            break;
         case WM_MOUSEMOVE: {
             if (dragging_slider_) {
                 SetQualityFromX(static_cast<float>(GET_X_LPARAM(lparam)));
@@ -989,18 +1041,28 @@ private:
                                       state });
             }
             // Resize gets an extra block: what the mode does, the two numbers, and
-            // the saved sizes.
-            const bool by_factor = options_.scale_mode == ScaleMode::ByFactor;
-            painter_.DrawText(by_factor ? app::ScaleModeHint(options_.scale_mode)
-                                        : app::SizeFitHint(options_.size_fit),
+            // the saved sizes. 按倍率 and 按增量 are both a single number, so they
+            // share the label layout and differ only in wording.
+            const bool single_value = options_.scale_mode != ScaleMode::BySize;
+            painter_.DrawText(single_value ? app::ScaleModeHint(options_.scale_mode)
+                                           : app::SizeFitHint(options_.size_fit),
                               Rect(scale_, 20, 92, kDlgW - 40, 24),
                               compositor_.SmallFormat(), theme.text_secondary);
-            if (by_factor) {
+            if (options_.scale_mode == ScaleMode::ByFactor) {
                 painter_.DrawText(l10n::Pick(L"倍率", L"Factor"),
                                   Rect(scale_, 20, 157, 52, 20), compositor_.SmallFormat(), theme.text_secondary);
+                // On its own line: the row above already carries the preset button.
                 painter_.DrawText(l10n::Pick(L"1.0 保持原样 · 1.2 放大两成 · 0.5 减半",
                                              L"1.0 leaves it alone · 1.2 enlarges 20% · 0.5 halves"),
-                                  Rect(scale_, 246, 157, 360, 20),
+                                  Rect(scale_, 20, 180, kDlgW - 40, 20),
+                                  compositor_.SmallFormat(), theme.text_secondary);
+            } else if (options_.scale_mode == ScaleMode::ByDelta) {
+                painter_.DrawText(l10n::Pick(L"增量", L"Delta"),
+                                  Rect(scale_, 20, 157, 52, 20), compositor_.SmallFormat(), theme.text_secondary);
+                // On its own line: the row above already carries the preset button.
+                painter_.DrawText(l10n::Pick(L"每张按自己的原尺寸加这么多：正数放大、负数缩小，宽高都加",
+                                             L"Added to each picture's own size on both sides — positive grows, negative shrinks"),
+                                  Rect(scale_, 20, 180, kDlgW - 40, 20),
                                   compositor_.SmallFormat(), theme.text_secondary);
             } else {
                 painter_.DrawText(l10n::Pick(L"宽度", L"Width"),
@@ -1084,6 +1146,15 @@ private:
                                   state.checked ? fluent::ButtonKind::Primary : fluent::ButtonKind::Standard,
                                   state });
         }
+
+        // A format change cannot replace the original — the result would carry a
+        // different extension, so there would be two files. Say so next to the
+        // choice instead of quietly writing a second file and calling it done.
+        if (options_.mode == ConvertMode::Format && options_.target == app::ConvertTarget::Overwrite)
+            painter_.DrawText(l10n::Pick(L"转格式无法覆盖原文件（缩放、压缩可以）",
+                                         L"A format change cannot replace the original (resize and compress can)"),
+                              Rect(scale_, 322, 288, kDlgW - 342, 20),
+                              compositor_.SmallFormat(), theme.text_secondary);
 
         const auto preview = ListBounds();
         painter_.FillRoundedRect(preview, 8.0f * scale_, theme.fill_input);
@@ -1238,6 +1309,7 @@ private:
     HWND edit_width_ = nullptr;
     HWND edit_height_ = nullptr;
     HWND edit_factor_ = nullptr;
+    HWND edit_delta_ = nullptr;
     HFONT font_ = nullptr;
     HBRUSH edit_brush_ = nullptr;
     std::vector<std::wstring> paths_;

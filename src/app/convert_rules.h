@@ -27,6 +27,8 @@ enum class ConvertTarget { NewFile, Overwrite };
 enum class ScaleMode {
     BySize,     // 按尺寸: fill in width/height, then choose how it meets the box
     ByFactor,   // 按倍率: multiply the original size (1.2 = 20% larger)
+    ByDelta,    // 按增量: add this many pixels to each side of every picture, so a
+                // selection of mixed sizes keeps its own proportions
 };
 
 // What happens when the picture's ratio differs from the box.
@@ -74,6 +76,7 @@ struct ConvertOptions {
     int width = 0;                             // BySize; 0 = derive from height
     int height = 0;                            // BySize; 0 = derive from width
     double scale_factor = 1.0;                 // ByFactor: 1.0 = unchanged
+    int delta = 0;                             // ByDelta: pixels added to each side
     ScaleMode scale_mode = ScaleMode::BySize;
     SizeFit size_fit = SizeFit::Pad;           // BySize only
     ConvertTarget target = ConvertTarget::NewFile;
@@ -142,6 +145,11 @@ bool FormatUsesQuality(const std::wstring& extension);
 bool CompressUsesQuality(const std::wstring& extension);
 // The scale mode's name, shown next to the size fields.
 const wchar_t* ScaleModeName(ScaleMode mode);
+// Reads a size field: a plain number, or a small arithmetic expression over them
+// ("1920/2", "800+200", "1920x1080" — the part before the x is taken). `*` and `/`
+// bind tighter than `+` and `-`. False when the text cannot be read, so a caller
+// can keep the value it already had instead of showing a zero.
+bool EvaluateExpression(const std::wstring& text, double& value);
 // One line explaining what the mode does, for the hint under the fields.
 const wchar_t* ScaleModeHint(ScaleMode mode);
 // The fit's name and explanation ("等比缩放", "居中留边"…).

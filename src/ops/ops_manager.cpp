@@ -260,7 +260,14 @@ bool RunOneConvertJob(const std::wstring& tool, const ConvertJob& job,
     std::wstring out_path = job.target;
     std::wstring temp_path;
     if (job.overwrite) {
-        temp_path = job.target + L".luling-part";
+        // Keep the extension: ffmpeg reads the output format off it, and appending
+        // ".luling-part" to the whole name turned "aa_0.png" into "aa_0.png.luling-part",
+        // which every overwrite run rejected with "unable to choose an output format".
+        const size_t dot = job.target.find_last_of(L'.');
+        const size_t slash = job.target.find_last_of(L"\\/");
+        temp_path = (dot != std::wstring::npos && (slash == std::wstring::npos || dot > slash))
+            ? job.target.substr(0, dot) + L".luling-part" + job.target.substr(dot)
+            : job.target + L".luling-part";
         DeleteFileW(temp_path.c_str());
         out_path = temp_path;
     }
