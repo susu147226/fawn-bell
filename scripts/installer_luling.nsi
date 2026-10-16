@@ -84,13 +84,14 @@ Section "鹿铃" SecMain
   ; the File writes fail and half the old build stays behind. The installer runs
   ; elevated, so the kills reach every user's processes.
   ;
-  ; luling.exe itself is spared on a silent run: that run *is* the app updating
-  ; itself, it has already closed its own window, and the launch at the end of
-  ; this section brings it back. Killing it here left the user with no window and
-  ; nothing to relaunch it.
-  IfSilent luling_skip_app_kill
+  ; luling.exe is killed on a silent run too, even though that run *is* the app
+  ; updating itself and it also closes on its own: this process may already be
+  ; running by the time it does, and a locked luling.exe makes every File write
+  ; fail. With /S the failure is silent and the installer still exits 0, so the
+  ; app reported a successful update that never replaced a single file -- the
+  ; About page kept showing the old version. The launch at the end of this
+  ; section brings the app back either way.
   ExecWait 'taskkill /f /im luling.exe' $0
-  luling_skip_app_kill:
   ExecWait 'taskkill /f /im "Luling.Index.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Preview.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Document.exe"' $0
