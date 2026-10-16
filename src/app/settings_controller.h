@@ -182,6 +182,10 @@ public:
     bool TakeTranscodePackResult();
     bool RemoveTranscodePack();
     bool ToggleTranscodePack();
+    // True once, after a pack has installed and none is still downloading — the
+    // caller shows the "quit and restart to use it" prompt. Cleared on read, so an
+    // ignored prompt does not come back on every frame.
+    bool TakePackRestartPrompt();
     bool ToggleCustomFfmpeg();
     bool SetCustomFfmpeg(const std::wstring& path);
     bool UseDetectedFfmpeg();
@@ -292,6 +296,8 @@ private:
     float scroll_ = 0.0f;
     PackState packs_;
     uint64_t packs_checked_ = 0;
+    // Set when a pack install succeeds; read once by TakePackRestartPrompt().
+    bool pack_just_installed_ = false;
     uint64_t offer_checked_ = 0;
     bool offer_missing_ = false;   // published, not installed, no own FFmpeg
     void RefreshPacks();

@@ -6,6 +6,7 @@
 #include "luling_version.h"
 #include "../common/localization.h"
 #include "../common/runtime_log.h"
+#include "../ui/confirm_dialog.h"
 #include <cstdio>
 
 namespace luling {
@@ -149,8 +150,18 @@ void CompleteUpdateCheck(AppState& state) {
         wchar_t title[160]{};
         swprintf_s(title, l10n::Get(l10n::StringId::UpdateAvailableFormat).c_str(),
             state.update_result.version.c_str());
-        state.notification_toast.Show(state.hwnd, title,
-            l10n::Get(l10n::StringId::UpdateClickToInstall), true, WM_UPDATE_INSTALL);
+        // A modal question, not the toast: a new version is worth stopping for, and
+        // "later" should be a deliberate answer rather than a bubble that faded
+        // while the user was busy elsewhere. One prompt per version.
+        ui::ConfirmDialogSpec spec;
+        spec.title = title;
+        spec.message = l10n::Pick(L"新版本已经发布，下载后会自动安装到本机。",
+                                  L"A new version is out; it downloads and installs itself once ready.");
+        spec.confirm_text = l10n::Pick(L"立即更新", L"Update now");
+        spec.cancel_text = l10n::Pick(L"稍后", L"Later");
+        spec.tone = ui::ConfirmTone::Info;
+        if (ui::ShowConfirmDialog(state.hwnd, spec, state.darkMode, state.accentColor))
+            PostMessageW(state.hwnd, WM_UPDATE_INSTALL, 0, 0);
     }
     InvalidateRect(state.hwnd, nullptr, FALSE);
 }

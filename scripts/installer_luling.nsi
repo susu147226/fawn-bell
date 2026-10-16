@@ -126,6 +126,18 @@ Section "鹿铃" SecMain
 
   ; The whole tree the previous version owned: program files, data directories,
   ; leftovers under ProgramData, shortcuts and registration.
+  ;
+  ; The downloaded preview packs are an exception. They are user content (100+ MB
+  ; of downloads), not a cache: wiping them was what made the packs look like they
+  ; had vanished after an update, and re-fetching them costs the user real time.
+  ; The tree is moved aside first — a same-volume rename, so it is instant — and
+  ; put back afterwards. The app re-associates through each pack's installed.json
+  ; and never notices the install happened.
+  RMDir /r "$LOCALAPPDATA\LulingPacksKeep"
+  IfFileExists "$LOCALAPPDATA\Luling\packs\*.*" 0 luling_no_pack_keep
+    Rename "$LOCALAPPDATA\Luling\packs" "$LOCALAPPDATA\LulingPacksKeep"
+  luling_no_pack_keep:
+
   RMDir /r "$INSTDIR"
   RMDir /r "$LOCALAPPDATA\Luling"
   RMDir /r "$LOCALAPPDATA\鹿铃"
@@ -156,6 +168,11 @@ Section "鹿铃" SecMain
   CreateDirectory "$LOCALAPPDATA\Luling"
   CopyFiles /SILENT "$TEMP\LulingKeep\*.*" "$LOCALAPPDATA\Luling\"
   RMDir /r "$TEMP\LulingKeep"
+
+  ; And so do the packs moved aside above.
+  IfFileExists "$LOCALAPPDATA\LulingPacksKeep\*.*" 0 luling_no_pack_restore
+    Rename "$LOCALAPPDATA\LulingPacksKeep" "$LOCALAPPDATA\Luling\packs"
+  luling_no_pack_restore:
 
   SetOutPath "$INSTDIR"
   File "${BUILDDIR}\luling.exe"

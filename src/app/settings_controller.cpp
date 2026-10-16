@@ -264,6 +264,8 @@ bool SettingsController::TakePackResult(packs::PackId id) {
             }
             RefreshPacks();
         }
+        // Taken by TakePackRestartPrompt() once the remaining downloads settle.
+        pack_just_installed_ = true;
         return true;
     }
     case PackInstallOutcome::Cancelled:
@@ -362,6 +364,18 @@ bool SettingsController::ToggleArchivePack() {
 
 bool SettingsController::InstallTranscodePack(HWND notify) { return InstallPack(packs::PackId::Transcode, notify); }
 bool SettingsController::TakeTranscodePackResult() { return TakePackResult(packs::PackId::Transcode); }
+
+bool SettingsController::TakePackRestartPrompt() {
+    if (!pack_just_installed_) return false;
+    const PackState& state = Packs();
+    // Hold the prompt until every download has landed: a restart now would cut the
+    // remaining ones short, and "all packs are ready" would not be true yet.
+    if (state.installing || state.images_installing || state.raw_installing ||
+        state.archive_installing || state.transcode_installing)
+        return false;
+    pack_just_installed_ = false;
+    return true;
+}
 bool SettingsController::RemoveTranscodePack() { return RemovePack(packs::PackId::Transcode); }
 bool SettingsController::ToggleTranscodePack() {
     constexpr uint32_t index = static_cast<uint32_t>(packs::PackId::Transcode);

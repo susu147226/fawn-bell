@@ -16,6 +16,7 @@
 #include "../ui/quick_preview_window.h"
 #include "../ui/typography.h"
 #include "../ui/color_picker.h"
+#include "../ui/confirm_dialog.h"
 #include "../common/localization.h"
 #include "../common/text_format.h"
 #include "../common/path_utils.h"
@@ -1933,6 +1934,20 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     if (raw_installed || archive_installed) {
         s.renderer.EvictThumbnails();
         s.quickPreview.OnExtraPackInstalled();
+    }
+    // Once every download has landed, say so: the packs load into a child process
+    // that caches its tools, so a freshly installed engine only takes effect after
+    // the app is fully restarted.
+    if (s.settings.TakePackRestartPrompt() && s.hwnd) {
+        ui::ConfirmDialogSpec ready;
+        ready.title = l10n::Pick(L"增强包已就绪", L"Packs are ready");
+        ready.message = l10n::Pick(
+            L"预览增强包已全部安装完成。请彻底退出鹿铃后重新启动，新装的引擎才会生效。",
+            L"All preview packs are installed. Quit Luling completely and start it again so the new tools take effect.");
+        ready.confirm_text = l10n::Pick(L"知道了", L"Got it");
+        ready.cancel_text = l10n::Pick(L"稍后", L"Later");
+        ready.tone = ui::ConfirmTone::Info;
+        ui::ShowConfirmDialog(s.hwnd, ready, s.darkMode, s.accentColor);
     }
     if (s.quickPreview.visible()) {
         ui::MediaPackOffer offer, image_offer;
