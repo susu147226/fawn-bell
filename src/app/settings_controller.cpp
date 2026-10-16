@@ -193,6 +193,8 @@ const SettingsController::PackState& SettingsController::Packs() {
     packs_.raw_progress = packs_.raw_installing ? raw_installer_.progress() : 0.0f;
     packs_.archive_installing = archive_installer_.running();
     packs_.archive_progress = packs_.archive_installing ? archive_installer_.progress() : 0.0f;
+    packs_.transcode_installing = transcode_installer_.running();
+    packs_.transcode_progress = packs_.transcode_installing ? transcode_installer_.progress() : 0.0f;
     return packs_;
 }
 

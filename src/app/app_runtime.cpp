@@ -467,6 +467,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                         vm.settings_pack_transcode_installing = true;
                     vm.settings_pack_progress = vm.settings_pack_images_progress =
                         vm.settings_pack_raw_progress = vm.settings_pack_archive_progress =
+                        vm.settings_pack_transcode_progress =
                         static_cast<float>(_wtoi(fake_progress)) / 100.0f;
                 }
             }
@@ -1924,6 +1925,11 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     }
     const bool raw_installed = s.settings.TakeRawPackResult();
     const bool archive_installed = s.settings.TakeArchivePackResult();
+    // The transcode pack feeds the right-click 转换 submenu instead of thumbnails,
+    // so its result only has to be taken: that is what puts "download failed" /
+    // "cancelled" on its card. Without it the card stayed silent, and the only
+    // way out looked like pressing the button again — which cancels the install.
+    s.settings.TakeTranscodePackResult();
     if (raw_installed || archive_installed) {
         s.renderer.EvictThumbnails();
         s.quickPreview.OnExtraPackInstalled();
@@ -1948,8 +1954,10 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         // A video the decoders cannot play is exactly when the pack is needed,
         // so start it there instead of waiting for a click. The card stays up
         // with live progress and its cancel button, and the one-shot flag keeps
-        // a failed download from being retried on every frame.
-        if (!s.media_pack_auto_started && !s.isolatedTest && !s.shot.active &&
+        // a failed download from being retried on every frame. Never while a
+        // download is already running: InstallMediaPack would read that as the
+        // user cancelling it, killing an install started from Settings.
+        if (!s.media_pack_auto_started && !offer.installing && !s.isolatedTest && !s.shot.active &&
             offer.installable && s.quickPreview.NeedsMediaPack()) {
             s.media_pack_auto_started = true;
             s.settings.InstallMediaPack(s.hwnd);
