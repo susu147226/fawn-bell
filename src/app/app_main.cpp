@@ -1529,8 +1529,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             return 0;
         }
         // Alt+Enter arrives as WM_SYSKEYDOWN, so HandleKeyDown's advertised
-        // Properties shortcut (alt && VK_RETURN) was unreachable.
-        if (s && wParam == VK_RETURN && (GetKeyState(VK_MENU) & 0x8000))
+        // Properties shortcut (alt && VK_RETURN) was unreachable. The navigation
+        // ones (Alt+Up / Alt+Left / Alt+Right) come the same way, and forwarding
+        // only VK_RETURN is why those advertised shortcuts did nothing at all.
+        if (s && (GetKeyState(VK_MENU) & 0x8000) &&
+            (wParam == VK_RETURN || wParam == VK_UP || wParam == VK_LEFT || wParam == VK_RIGHT))
             return HandleKeyDown(s, hwnd, msg, wParam, lParam);
         break;
 
