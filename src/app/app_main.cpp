@@ -1528,12 +1528,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             ShowOmnibar(*s, OmnibarMode::Path);
             return 0;
         }
-        // Alt+Enter arrives as WM_SYSKEYDOWN, so HandleKeyDown's advertised
-        // Properties shortcut (alt && VK_RETURN) was unreachable. The navigation
-        // ones (Alt+Up / Alt+Left / Alt+Right) come the same way, and forwarding
-        // only VK_RETURN is why those advertised shortcuts did nothing at all.
+        // Every Alt combination arrives as WM_SYSKEYDOWN, never WM_KEYDOWN, so any
+        // shortcut HandleKeyDown owns that involves Alt has to be listed here or it
+        // silently does nothing: that is how Alt+Enter, then Alt+Up/Left/Right, and
+        // then Ctrl+Alt+C/X each went dead in turn. When adding an Alt shortcut,
+        // add its key here too.
         if (s && (GetKeyState(VK_MENU) & 0x8000) &&
-            (wParam == VK_RETURN || wParam == VK_UP || wParam == VK_LEFT || wParam == VK_RIGHT))
+            (wParam == VK_RETURN || wParam == VK_UP || wParam == VK_LEFT || wParam == VK_RIGHT ||
+             wParam == L'C' || wParam == L'X'))
             return HandleKeyDown(s, hwnd, msg, wParam, lParam);
         break;
 
