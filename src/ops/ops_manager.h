@@ -34,7 +34,11 @@ namespace luling::ops {
 enum class OpType { Copy, Move, RecycleDelete, RealDelete, Rename, CreateFolder, CreateTextFile, RestoreRecycle, EmptyRecycle, BatchRename,
                     // Appended, never inserted: the recovery journal stores these
                     // as numbers. Template-backed 新建 runs in-process like Rename.
-                    CreateFromTemplate };
+                    CreateFromTemplate,
+                    // 0.2.0: FFmpeg-backed 转换. Never journaled — a conversion
+                    // writes new files and leaves the originals in place — so
+                    // ParseRecoveryEntry's range check deliberately excludes it.
+                    Convert };
 enum class CollisionPolicy { System, Replace, KeepBoth };
 enum class OpPhase { Queued, Scanning, WaitingForConflict, Running, Paused,
                      Verifying, Cancelling, Completed, Failed };
@@ -72,6 +76,17 @@ struct ConflictItemInfo {
     size_t remaining = 0;
 };
 
+// Convert (0.2.0): one FFmpeg invocation. `args` sit between the input and the
+// output on the command line; the app layer builds them from the preview
+// options, so the ops layer never has to know about codecs or formats.
+struct ConvertJob {
+    std::wstring source;
+    std::wstring target;
+    std::vector<std::wstring> args;
+    bool overwrite = false;
+    DWORD timeout_ms = 600000;   // a 4K transcode can legitimately take minutes
+};
+
 struct OpRequest {
     OpType type = OpType::Copy;
     std::vector<std::wstring> sources;
@@ -93,6 +108,8 @@ struct OpRequest {
     // HKCR ShellNew FileName / Data shapes.
     std::wstring template_path;
     std::vector<uint8_t> template_data;
+    // Convert: one job per file.
+    std::vector<ConvertJob> convert_jobs;
 };
 
 struct UndoEntry {

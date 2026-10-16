@@ -2005,6 +2005,8 @@ struct SettingsLayout {
     float pack_raw_desc_h = 0.0f;
     D2D1_RECT_F pack_archive_section{}, pack_archive_card{}, pack_archive_badge{}, pack_archive_enable{}, pack_archive_primary{}, pack_archive_notice{};
     float pack_archive_desc_h = 0.0f;
+    D2D1_RECT_F pack_transcode_section{}, pack_transcode_card{}, pack_transcode_badge{}, pack_transcode_enable{}, pack_transcode_primary{}, pack_transcode_notice{};
+    float pack_transcode_desc_h = 0.0f;
     D2D1_RECT_F content_header{}, content_types{}, content_pause{}, content_options{}, content_rebuild{}, content_empty{};
     D2D1_RECT_F body{};
     D2D1_RECT_F nav{};

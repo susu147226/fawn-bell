@@ -405,7 +405,7 @@ luling_enable_lumatext(luling_file_operation_authorization_dialog_test)
 add_executable(luling_file_picker_operations_test
     src/bench/file_picker_operations_test.cpp
     src/ui/folder_picker_operations.cpp ${LULING_PERMISSION_UI_SOURCES}
-    src/ops/ops_manager.cpp src/ops/duplicate_cleanup_guard.cpp
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp
     src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_file_picker_operations_test PRIVATE
     d3d11 d2d1 dwrite dxgi dcomp dwmapi shcore ole32 windowscodecs comctl32 uxtheme
@@ -465,7 +465,7 @@ if(LULING_APP_SOURCES)
         target_sources(luling PRIVATE src/bench/quick_preview_audit_test.cpp)
         target_sources(luling PRIVATE src/bench/tray_completion_test.cpp)
     endif()
-    target_sources(luling PRIVATE src/app/luling.rc src/common/ffmpeg_tool.cpp src/bench/file_picker_dialog_test.cpp src/bench/file_picker_operations_test.cpp)
+    target_sources(luling PRIVATE src/app/luling.rc src/common/ffmpeg_tool.cpp src/common/temp_files.cpp src/bench/file_picker_dialog_test.cpp src/bench/file_picker_operations_test.cpp)
     include(cmake/release_notes.cmake)
     luling_embed_release_notes(luling)
     set_property(SOURCE src/app/luling.rc APPEND PROPERTY OBJECT_DEPENDS
@@ -556,30 +556,30 @@ add_executable(luling_cover_palette_test src/bench/cover_palette_test.cpp)
 add_executable(luling_ops_test
     src/bench/ops_test_main.cpp
     src/ops/duplicate_cleanup_guard.cpp
-    src/ops/ops_manager.cpp
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp
     src/ops/file_lock_owner.cpp
     src/ops/clipboard.cpp
     src/ipc/shell_client.cpp)
 target_link_libraries(luling_ops_test PRIVATE ole32 shell32 uuid bcrypt luling_localization)
 add_executable(luling_authorization_flow_test src/bench/authorization_flow_test.cpp
-    src/ops/ops_manager.cpp src/ops/duplicate_cleanup_guard.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_authorization_flow_test PRIVATE ole32 shell32 uuid bcrypt advapi32 luling_localization)
 
 add_executable(luling_rename_ops_test src/bench/rename_ops_test.cpp
     src/app/batch_rename.cpp
     src/ops/duplicate_cleanup_guard.cpp
-    src/ops/ops_manager.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_rename_ops_test PRIVATE ole32 shell32 uuid bcrypt luling_localization luling_fs_watch)
 
 add_executable(luling_create_rename_intent_test src/bench/create_rename_intent_test.cpp
     src/app/create_rename_intent.cpp src/ops/duplicate_cleanup_guard.cpp
-    src/ops/ops_manager.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_create_rename_intent_test PRIVATE ole32 shell32 uuid bcrypt luling_localization luling_fs_watch)
 
 # Locked-item lookup (Restart Manager) + end-process-and-retry through OpsManager.
 add_executable(luling_file_lock_test src/bench/file_lock_owner_test.cpp
     src/ops/duplicate_cleanup_guard.cpp
-    src/ops/file_lock_owner.cpp src/ops/ops_manager.cpp src/ipc/shell_client.cpp)
+    src/ops/file_lock_owner.cpp src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_file_lock_test PRIVATE ole32 shell32 uuid bcrypt rstrtmgr luling_localization)
 
 # ---- Luling.Shell.exe: COM isolation process (stage 1: recycle bin / IFileOperation) ----
@@ -587,7 +587,7 @@ set(LULING_ELEVATED_HOST_SOURCES
     src/elevated_host/main.cpp
     src/ops/elevated_delete.cpp
     src/ipc/elevated_transfer_transport.cpp
-    src/ops/ops_manager.cpp
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp
     src/ops/duplicate_cleanup_guard.cpp
     src/ops/file_lock_owner.cpp
     src/ipc/shell_client.cpp)
@@ -610,7 +610,7 @@ add_executable(luling_elevated_session_test src/bench/elevated_session_test.cpp
     src/ops/elevated_transfer_client.cpp src/ipc/elevated_transfer_transport.cpp)
 target_compile_definitions(luling_elevated_session_test PRIVATE LULING_ELEVATED_TEST_CLIENT=1)
 target_sources(luling_elevated_session_test PRIVATE src/bench/review_transfer_test.cpp
-    src/ops/ops_manager.cpp src/ops/duplicate_cleanup_guard.cpp
+    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp
     src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_elevated_session_test PRIVATE ole32 shell32 advapi32 bcrypt
     uuid rstrtmgr luling_localization)

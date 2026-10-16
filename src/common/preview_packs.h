@@ -25,8 +25,8 @@
 
 namespace luling::packs {
 
-enum class PackId : uint32_t { Media = 0, Images = 1, Raw = 2, Archives = 3 };
-inline constexpr uint32_t kPackCount = 4;
+enum class PackId : uint32_t { Media = 0, Images = 1, Raw = 2, Archives = 3, Transcode = 4 };
+inline constexpr uint32_t kPackCount = 5;
 
 // Directory and settings-key name of a pack.
 inline const wchar_t* PackKey(PackId id) {
@@ -35,6 +35,7 @@ inline const wchar_t* PackKey(PackId id) {
     case PackId::Images: return L"images";
     case PackId::Raw: return L"raw";
     case PackId::Archives: return L"archive";
+    case PackId::Transcode: return L"transcode";
     }
     return L"";
 }
@@ -53,6 +54,7 @@ inline const wchar_t* PackMainTool(PackId id) {
     case PackId::Images: return L"pulse-imgpack.exe";
     case PackId::Raw: return L"pulse-rawpack.exe";
     case PackId::Archives: return L"7z.exe";
+    case PackId::Transcode: return L"ffmpeg.exe";
     }
     return L"";
 }
@@ -83,7 +85,7 @@ inline std::wstring DirectoryOf(const std::wstring& file) {
 
 // User settings (packs.json). Flat keys so json_utils' key search is exact.
 struct PackSettings {
-    bool enabled[kPackCount] = {true, true, true, true};
+    bool enabled[kPackCount] = {true, true, true, true, true};
     // Media pack only: an FFmpeg the user already has (path to ffmpeg.exe).
     bool use_custom_ffmpeg = false;
     std::wstring custom_ffmpeg;
@@ -98,6 +100,7 @@ inline PackSettings ParsePackSettings(const std::wstring& text) {
     s.enabled[1] = json::ExtractBool(text, L"images_enabled", true);
     s.enabled[2] = json::ExtractBool(text, L"raw_enabled", true);
     s.enabled[3] = json::ExtractBool(text, L"archive_enabled", true);
+    s.enabled[4] = json::ExtractBool(text, L"transcode_enabled", true);
     s.use_custom_ffmpeg = json::ExtractBool(text, L"ffmpeg_use_custom", false);
     s.custom_ffmpeg = json::ExtractString(text, L"ffmpeg_custom_path");
     s.auto_update = json::ExtractBool(text, L"auto_update", true);
@@ -115,6 +118,7 @@ inline std::wstring SerializePackSettings(const PackSettings& s) {
     out += L"  \"images_enabled\": " + std::wstring(s.enabled[1] ? L"true" : L"false") + L",\n";
     out += L"  \"raw_enabled\": " + std::wstring(s.enabled[2] ? L"true" : L"false") + L",\n";
     out += L"  \"archive_enabled\": " + std::wstring(s.enabled[3] ? L"true" : L"false") + L",\n";
+    out += L"  \"transcode_enabled\": " + std::wstring(s.enabled[4] ? L"true" : L"false") + L",\n";
     out += L"  \"ffmpeg_use_custom\": " + std::wstring(s.use_custom_ffmpeg ? L"true" : L"false") + L",\n";
     out += L"  \"ffmpeg_custom_path\": \"" + path + L"\",\n";
     out += L"  \"auto_update\": " + std::wstring(s.auto_update ? L"true" : L"false") + L",\n";

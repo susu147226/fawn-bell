@@ -901,6 +901,10 @@ void DispatchMenuCommand(AppState& s, int cmd) {
     case app::CmdDelete: DeleteSelected(s, (GetKeyState(VK_SHIFT) & 0x8000) != 0); break;
     case app::CmdRename: ShowRenameOverlay(s); break;
     case app::CmdBatchRename: ShowBatchRename(s); break;
+    // 转换 submenu (0.2.0).
+    case app::CmdConvertFormat: ShowConvert(s, app::ConvertMode::Format); break;
+    case app::CmdConvertResize: ShowConvert(s, app::ConvertMode::Resize); break;
+    case app::CmdConvertCompress: ShowConvert(s, app::ConvertMode::Compress); break;
     case app::CmdAdvancedSearch: ShowAdvancedSearch(s); break;
     case app::CmdRestoreRecycle: RestoreSelected(s); break;
     case app::CmdRestoreAllRecycle: RestoreAllRecycle(s); break;

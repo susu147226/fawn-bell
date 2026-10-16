@@ -4,6 +4,8 @@
 /build-*/
 /out/
 /dist/
+# FFmpeg sources and staging trees for the transcode pack (~100MB).
+/packs/transcode/build-pack-transcode/
 CMakeCache.txt
 CMakeFiles/
 build.ninja

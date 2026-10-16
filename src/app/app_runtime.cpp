@@ -451,12 +451,20 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_pack_archive_notice = packs.archive_notice;
                 vm.settings_pack_archive_installing = packs.archive_installing;
                 vm.settings_pack_archive_progress = packs.archive_progress;
+                vm.settings_pack_transcode_available = packs.transcode_available;
+                vm.settings_pack_transcode_installed = packs.transcode_installed;
+                vm.settings_pack_transcode_enabled = packs.transcode_enabled;
+                vm.settings_pack_transcode_version = packs.transcode_version;
+                vm.settings_pack_transcode_notice = packs.transcode_notice;
+                vm.settings_pack_transcode_installing = packs.transcode_installing;
+                vm.settings_pack_transcode_progress = packs.transcode_progress;
                 // Screenshot fixture for the downloading state (percent).
                 wchar_t fake_progress[8]{};
                 if (s.shot.active && s.isolatedTest &&
                     GetEnvironmentVariableW(L"LULING_TEST_PACK_PROGRESS", fake_progress, ARRAYSIZE(fake_progress))) {
                     vm.settings_pack_installing = vm.settings_pack_images_installing =
-                        vm.settings_pack_raw_installing = vm.settings_pack_archive_installing = true;
+                        vm.settings_pack_raw_installing = vm.settings_pack_archive_installing =
+                        vm.settings_pack_transcode_installing = true;
                     vm.settings_pack_progress = vm.settings_pack_images_progress =
                         vm.settings_pack_raw_progress = vm.settings_pack_archive_progress =
                         static_cast<float>(_wtoi(fake_progress)) / 100.0f;

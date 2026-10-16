@@ -10,7 +10,7 @@ namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
 // Must stay on the highest allocated string id, otherwise Get() returns empty.
-constexpr UINT kLastString = IDS_PACK_INSTALL_ALL_DESC;
+constexpr UINT kLastString = IDS_CONVERT_COMPRESS;
 // Adding a string means moving kLastString with it: Get() returns an empty
 // string for anything above the bound, so a forgotten bump shows up as blank
 // labels rather than as a compile error.
@@ -26,6 +26,8 @@ static_assert(static_cast<UINT>(StringId::BatchRenameMore) <= kLastString);
 static_assert(static_cast<UINT>(StringId::BatchRenameFewer) <= kLastString);
 static_assert(static_cast<UINT>(StringId::RemoveFromSystem) <= kLastString);
 static_assert(static_cast<UINT>(StringId::AppName) <= kLastString);
+static_assert(static_cast<UINT>(StringId::MenuConvert) <= kLastString &&
+              static_cast<UINT>(StringId::ConvertCompress) <= kLastString);
 static_assert(static_cast<UINT>(StringId::UiFontLarger) <= kLastString);
 static_assert(static_cast<UINT>(StringId::OpAuthorizationNotGranted) <= kLastString);
 static_assert(static_cast<UINT>(StringId::ListThumbnailBadgesDesc) <= kLastString);

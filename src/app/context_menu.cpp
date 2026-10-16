@@ -42,6 +42,9 @@ constexpr const wchar_t* kGlyphWildcard = L"\xE71C";
 constexpr const wchar_t* kGlyphViewMenu = L"\xE8A9";
 constexpr const wchar_t* kGlyphSortMenu = L"\xE8CB";
 constexpr const wchar_t* kGlyphGroupMenu = L"\xF168";
+// 转换 flyout header (0.2.0). Its glyph is also how the settings page
+// recognises the row, so it has to match BuiltinItemForRow.
+constexpr const wchar_t* kGlyphConvertMenu = L"\xE8B5";
 
 ui::FluentMenuItem Item(int cmd, const wchar_t* text, const wchar_t* glyph,
                         const wchar_t* shortcut = nullptr, bool enabled = true) {
@@ -103,6 +106,12 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
     items.push_back(Item(CmdAppendNameSuffix,
         l10n::Get(l10n::StringId::MenuAppendSuffix).c_str(), kGlyphRename));
     items.back().separator_after = true;
+    // 转换 submenu (0.2.0). Hidden from the settings page's 右键菜单 card via
+    // BuiltinMenuItem::Convert, which is why the header carries a known glyph.
+    auto convert_menu = Item(CmdNone, l10n::Get(l10n::StringId::MenuConvert).c_str(), kGlyphConvertMenu);
+    convert_menu.children = BuildConvertMenu();
+    convert_menu.separator_after = true;
+    items.push_back(std::move(convert_menu));
     items.push_back(UndoItem(can_undo, undo_label));
     return items;
 }
@@ -144,6 +153,7 @@ BuiltinMenuItem BuiltinItemForRow(const ui::FluentMenuItem& item) {
     if (item.glyph == kGlyphViewMenu) return BuiltinMenuItem::View;
     if (item.glyph == kGlyphSortMenu) return BuiltinMenuItem::Sort;
     if (item.glyph == kGlyphGroupMenu) return BuiltinMenuItem::Group;
+    if (item.glyph == kGlyphConvertMenu) return BuiltinMenuItem::Convert;
     return BuiltinMenuItem::Count;
 }
 } // namespace
@@ -454,6 +464,19 @@ std::vector<ui::FluentMenuItem> BuildNewMenu() {
     for (size_t i = 0; i < limit; ++i)
         items.push_back(Item(CmdNewShellBase + static_cast<int>(i),
                              shell_new[i].display.c_str(), kGlyphNewFile));
+    return items;
+}
+
+// 转换 submenu (0.2.0): format conversion, resize, compress. Each row carries
+// its own command; the flyout header is identified by its glyph so the settings
+// page can hide the whole group.
+std::vector<ui::FluentMenuItem> BuildConvertMenu() {
+    std::vector<ui::FluentMenuItem> items;
+    // Never pass nullptr for the glyph: FluentMenuItem::glyph is a std::wstring,
+    // and constructing one from a null pointer is undefined behaviour.
+    items.push_back(Item(CmdConvertFormat, l10n::Get(l10n::StringId::ConvertFormat).c_str(), L""));
+    items.push_back(Item(CmdConvertResize, l10n::Get(l10n::StringId::ConvertResize).c_str(), L""));
+    items.push_back(Item(CmdConvertCompress, l10n::Get(l10n::StringId::ConvertCompress).c_str(), L""));
     return items;
 }
 

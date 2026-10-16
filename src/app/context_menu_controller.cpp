@@ -245,7 +245,11 @@ bool ContextMenuController::ExecuteShellCommand(
     int command,
     const std::function<void()>& wait_until_ready,
     const std::function<void()>& refresh_folder) {
-    if (command >= CmdShellComBase) {
+    // Session-local COM rows live in [CmdShellComBase, CmdShellComBase + 0x7FFF]
+    // (see the host-menu-id note in context_menu.h). Without the upper bound any
+    // higher command id — 安装到系统, 刷新缩略图缓存, the 转换 rows — was taken
+    // for a COM item and swallowed.
+    if (command >= CmdShellComBase && command <= CmdShellComBase + 0x7FFF) {
         const uint32_t clicked = static_cast<uint32_t>(command - CmdShellComBase);
         std::wstring text, verb;
         if (const auto* snapshot = FindComItemIn(menu_com_items_, clicked)) {

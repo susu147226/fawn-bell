@@ -594,6 +594,9 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     {&lay.pack_archive_primary, vm.settings_pack_archive_installed && !vm.settings_pack_archive_installing
                         ? PackAction::ArchiveRemove : PackAction::ArchiveInstall},
                     {&lay.pack_archive_enable, PackAction::ArchiveEnable},
+                    {&lay.pack_transcode_primary, vm.settings_pack_transcode_installed && !vm.settings_pack_transcode_installing
+                        ? PackAction::TranscodeRemove : PackAction::TranscodeInstall},
+                    {&lay.pack_transcode_enable, PackAction::TranscodeEnable},
                     {&lay.pack_install_all, PackAction::InstallAll},
                     {&lay.pack_detect, PackAction::UseDetected},
                     {&lay.pack_browse, PackAction::Browse},
@@ -609,6 +612,8 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         vm.settings_pack_raw_installed, vm.settings_pack_raw_installing)) continue;
                     if (action == PackAction::ArchiveInstall && !pack_text::PrimaryEnabled(vm.settings_pack_archive_available,
                         vm.settings_pack_archive_installed, vm.settings_pack_archive_installing)) continue;
+                    if (action == PackAction::TranscodeInstall && !pack_text::PrimaryEnabled(vm.settings_pack_transcode_available,
+                        vm.settings_pack_transcode_installed, vm.settings_pack_transcode_installing)) continue;
                     // The install-all pass walks the same downloads one at a time,
                     // so it waits while any of them is running.
                     if (action == PackAction::InstallAll && (vm.settings_pack_installing ||

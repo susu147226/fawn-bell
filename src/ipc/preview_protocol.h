@@ -55,7 +55,11 @@ constexpr uint32_t kPreviewMaxArchiveChars = 512u * 1024u;
 constexpr uint32_t kPreviewMaxTableChars = 2u * 1024u * 1024u;
 constexpr uint32_t kPreviewMinPixelSize = 32;
 constexpr uint32_t kPreviewDefaultPixelSize = 512;
-constexpr uint32_t kPreviewMaxPixelSize = 1024;
+// Decoding cap for stills and video frames. It used to be 1024, which meant a
+// 1080p clip was decoded at 1024 and then scaled up to fill the preview pane —
+// visibly soft. 4096 covers a 4K clip shown full-screen; one RGBA frame at that
+// size is 64 MB, which is a fair trade for a preview that is actually sharp.
+constexpr uint32_t kPreviewMaxPixelSize = 4096;
 constexpr uint32_t kPreviewGifMaxPixelSize = 512;
 constexpr uint32_t kPreviewPixelBucket = 128;
 

@@ -1,0 +1,183 @@
+name: Build Luling transcode pack
+
+# FFmpeg with encoders for Luling's format conversion / resize / compression.
+# Unlike the preview pack this one is GPL-2.0-or-later (libx264, libx265);
+# Luling runs it as a separate process and never links it.
+# A tag "pack-transcode-<version>" publishes the zip and manifest to a release
+# of that name, where Luling's pack installer finds it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ffmpeg_version:
+        description: FFmpeg release to build (e.g. 7.1.1)
+        required: true
+        default: '7.1.1'
+  push:
+    tags: ['pack-transcode-[0-9]*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make diffutils tar xz curl
+            mingw-w64-x86_64-gcc mingw-w64-x86_64-nasm mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-zlib mingw-w64-x86_64-dav1d
+            mingw-w64-x86_64-x264 mingw-w64-x86_64-x265 mingw-w64-x86_64-aom
+            mingw-w64-x86_64-libvpx mingw-w64-x86_64-lame
+            mingw-w64-x86_64-libvorbis mingw-w64-x86_64-opus mingw-w64-x86_64-libwebp
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/pack-transcode-* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/pack-transcode-}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.ffmpeg_version || '7.1.1' }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build
+        # Windows runners check out with CRLF; bash needs LF.
+        run: sed -i "s/\r$//" packs/transcode/build.sh && bash packs/transcode/build.sh "${{ steps.version.outputs.value }}" pack-out
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $ff = "pack-out/ffmpeg.exe"
+          $encoders = (& $ff -hide_banner -encoders) -join "`n"
+          foreach ($e in 'libx264','libx265','libaom-av1','libvpx-vp9','mjpeg','png','libwebp','aac','libmp3lame','libopus','flac') {
+            if ($encoders -notmatch "\s$([regex]::Escape($e))\s") { throw "missing encoder: $e" }
+          }
+          $muxers = (& $ff -hide_banner -muxers) -join "`n"
+          foreach ($m in 'mp4','matroska','webm','mp3','flac','image2') {
+            if ($muxers -notmatch "\s$([regex]::Escape($m))\s") { throw "missing muxer: $m" }
+          }
+          # GPL is expected here; nonfree never is.
+          & $ff -hide_banner -buildconf | Select-String -Pattern 'enable-nonfree' | ForEach-Object { throw "nonfree flag in build: $_" }
+          # A 44.1 kHz tone, encoded with three formats.
+          $stream = [IO.File]::Create((Join-Path $PWD 'tone.wav'))
+          $writer = [IO.BinaryWriter]::new($stream)
+          try {
+            $dataSize = 44100
+            $writer.Write([Text.Encoding]::ASCII.GetBytes('RIFF')); $writer.Write([int](36 + $dataSize))
+            $writer.Write([Text.Encoding]::ASCII.GetBytes('WAVEfmt ')); $writer.Write([int]16)
+            $writer.Write([int16]1); $writer.Write([int16]1); $writer.Write([int]44100)
+            $writer.Write([int]44100); $writer.Write([int16]1); $writer.Write([int16]8)
+            $writer.Write([Text.Encoding]::ASCII.GetBytes('data')); $writer.Write([int]$dataSize)
+            for ($i = 0; $i -lt 44100; $i++) { $writer.Write([byte](128 + 100 * [Math]::Sin(2 * [Math]::PI * 440 * $i / 44100))) }
+          } finally { $writer.Dispose(); $stream.Dispose() }
+          foreach ($case in @(@('libmp3lame','out.mp3'), @('aac','out.m4a'), @('flac','out.flac'))) {
+            & $ff -v error -y -i tone.wav -c:a $case[0] $case[1]
+            if ($LASTEXITCODE -ne 0 -or (Get-Item $case[1]).Length -eq 0) { throw "audio encode failed: $($case[0])" }
+          }
+          # One raw frame to H.264 in MP4, and the same to PNG.
+          [IO.File]::WriteAllBytes((Join-Path $PWD 'frame.rgb'), [byte[]]::new(64 * 64 * 3))
+          & $ff -v error -y -f rawvideo -pixel_format rgb24 -video_size 64x64 -framerate 10 -i frame.rgb -frames:v 1 -c:v libx264 -pix_fmt yuv420p out.mp4
+          if ($LASTEXITCODE -ne 0 -or (Get-Item out.mp4).Length -eq 0) { throw 'libx264 encode failed' }
+          & $ff -v error -y -f rawvideo -pixel_format rgb24 -video_size 64x64 -framerate 10 -i frame.rgb -frames:v 1 -c:v png -compression_level 9 -pred mixed out.png
+          if ($LASTEXITCODE -ne 0 -or (Get-Item out.png).Length -eq 0) { throw 'lossless PNG encode failed' }
+      - name: Check the pack is self-contained
+        run: |
+          for exe in pack-out/ffmpeg.exe pack-out/ffprobe.exe; do
+            if objdump -p "$exe" | grep -iE 'DLL Name: (libwinpthread|libgcc|libstdc|x264|x265|libaom|libvpx|lame|vorbis|opus|webp|dav1d|zlib1)'; then
+              echo "$exe depends on a MinGW DLL"; exit 1
+            fi
+          done
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $zip = "luling-pack-transcode-$version-win64.zip"
+          Compress-Archive -Path pack-out/* -DestinationPath $zip
+          # Luling downloads each file as <name>.lzms and checks the hashes
+          # pinned in src/app/pack_catalog_generated.h.
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.ComponentModel;
+          using System.Runtime.InteropServices;
+          public static class Lzms {
+              [DllImport("cabinet.dll", SetLastError = true)] static extern bool CreateCompressor(uint algorithm, IntPtr routines, out IntPtr handle);
+              [DllImport("cabinet.dll", SetLastError = true)] static extern bool Compress(IntPtr handle, byte[] data, UIntPtr size, byte[] output, UIntPtr outputSize, out UIntPtr written);
+              [DllImport("cabinet.dll")] static extern bool CloseCompressor(IntPtr handle);
+              public static byte[] Pack(byte[] data) {
+                  IntPtr handle;
+                  if (!CreateCompressor(5, IntPtr.Zero, out handle)) throw new Win32Exception();
+                  try {
+                      UIntPtr needed;
+                      Compress(handle, data, (UIntPtr)data.Length, null, UIntPtr.Zero, out needed);
+                      byte[] output = new byte[(int)needed.ToUInt64()];
+                      UIntPtr written;
+                      if (!Compress(handle, data, (UIntPtr)data.Length, output, (UIntPtr)output.Length, out written)) throw new Win32Exception();
+                      Array.Resize(ref output, (int)written.ToUInt64());
+                      return output;
+                  } finally { CloseCompressor(handle); }
+              }
+          }
+          '@
+          $sha = { param($p) (Get-FileHash $p -Algorithm SHA256).Hash.ToLower() }
+          $files = Get-ChildItem pack-out -File | Sort-Object Name | ForEach-Object {
+            $packed = "transcode-$($_.Name).lzms"
+            [IO.File]::WriteAllBytes((Join-Path $PWD $packed), [Lzms]::Pack([IO.File]::ReadAllBytes($_.FullName)))
+            [ordered]@{
+              name = $_.Name; size = $_.Length; sha256 = & $sha $_.FullName
+              packed = [ordered]@{ name = $packed; size = (Get-Item $packed).Length; sha256 = & $sha $packed }
+            }
+          }
+          $base = "https://github.com/${{ github.repository }}/releases/download/pack-transcode-$version/"
+          $lines = @("// pack-transcode-$version, generated by .github/workflows/transcode-pack.yml",
+                     'inline constexpr PackFile kTranscodePackFiles[] = {')
+          foreach ($f in $files) {
+            $lines += "    {L`"$($f.name)`", $($f.size), L`"$($f.sha256)`", $($f.packed.size), L`"$($f.packed.sha256)`", L`"$($f.packed.name)`"},"
+          }
+          $lines += '};'
+          $lines += "inline constexpr PackRelease kTranscodePackRelease{L`"transcode`", L`"$version`", L`"$base`","
+          $lines += '    kTranscodePackFiles, sizeof(kTranscodePackFiles) / sizeof(kTranscodePackFiles[0])};'
+          $lines | Set-Content -Encoding utf8 pack-catalog.inc
+          $manifest = [ordered]@{
+            id = 'transcode'; version = $version; license = 'GPL-2.0-or-later'
+            archive = [ordered]@{ name = $zip; size = (Get-Item $zip).Length; sha256 = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() }
+            files = $files
+            min_luling = '0.2.0'
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 "luling-pack-transcode-$version.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pack-transcode
+          path: |
+            luling-pack-transcode-*.zip
+            luling-pack-transcode-*.json
+            transcode-*.lzms
+            pack-catalog.inc
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/pack-transcode-')
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pack-transcode
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          # --latest=false: Luling's updater reads releases/latest/download/update-manifest.json,
+          # so a pack release must never become the repository's "latest" release.
+          gh release create $tag --repo '${{ github.repository }}' --latest=false --title "Luling transcode pack $($tag -replace 'pack-transcode-','')" `
+            --notes 'Optional FFmpeg with encoders (GPL) for Luling format conversion, resizing and compression.' `
+            (Get-ChildItem luling-pack-transcode-*, transcode-*.lzms, pack-catalog.inc)

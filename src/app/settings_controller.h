@@ -146,6 +146,11 @@ public:
         bool archive_available = false;
         float archive_progress = 0.0f;
         std::wstring archive_version, archive_notice;
+        // The transcode pack (转换, 0.2.0): FFmpeg *with* encoders, GPL.
+        bool transcode_installed = false, transcode_enabled = true, transcode_installing = false;
+        bool transcode_available = false;
+        float transcode_progress = 0.0f;
+        std::wstring transcode_version, transcode_notice;
     };
     const PackState& Packs();
     // Each returns true when thumbnails have to be decoded again.
@@ -172,6 +177,11 @@ public:
     bool TakeArchivePackResult();
     bool RemoveArchivePack();
     bool ToggleArchivePack();
+    // The same for the transcode pack (转换 format / resize / compress).
+    bool InstallTranscodePack(HWND notify);
+    bool TakeTranscodePackResult();
+    bool RemoveTranscodePack();
+    bool ToggleTranscodePack();
     bool ToggleCustomFfmpeg();
     bool SetCustomFfmpeg(const std::wstring& path);
     bool UseDetectedFfmpeg();
@@ -289,7 +299,7 @@ private:
     uint64_t image_offer_checked_ = 0;
     bool image_offer_missing_ = false;   // published, not installed
     PackInstaller image_installer_;
-    PackInstaller raw_installer_, archive_installer_;
+    PackInstaller raw_installer_, archive_installer_, transcode_installer_;
     PackInstaller& InstallerFor(packs::PackId id);
     std::wstring& NoticeFor(packs::PackId id);
     bool InstallPack(packs::PackId id, HWND notify);

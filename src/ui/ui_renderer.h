@@ -597,6 +597,8 @@ enum class PackAction : int {
     ImagesEnable,       // image pack: on / off
     RawInstall, RawRemove, RawEnable,
     ArchiveInstall, ArchiveRemove, ArchiveEnable,
+    // 转换 pack (0.2.0): FFmpeg with encoders, GPL.
+    TranscodeInstall, TranscodeRemove, TranscodeEnable,
     // Settings > 预览增强包: one pass over every pack still missing.
     InstallAll,
 };
@@ -731,6 +733,11 @@ struct WindowViewModel {
     bool settings_pack_archive_available = false;
     float settings_pack_archive_progress = 0.0f;
     std::wstring settings_pack_archive_version, settings_pack_archive_notice;
+    // 转换 pack (0.2.0).
+    bool settings_pack_transcode_installed = false, settings_pack_transcode_enabled = true, settings_pack_transcode_installing = false;
+    bool settings_pack_transcode_available = false;
+    float settings_pack_transcode_progress = 0.0f;
+    std::wstring settings_pack_transcode_version, settings_pack_transcode_notice;
     int settings_theme = 0; // system, light, dark
     bool settings_open = false;
     int settings_page = 0; // 0 general, 1 search/index, 2 context menu, 3 about, 4 duplicates

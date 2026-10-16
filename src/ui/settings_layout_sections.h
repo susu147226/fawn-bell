@@ -297,6 +297,12 @@ inline const wchar_t* ArchiveDesc() { return l10n::Pick(
     L"通过 7-Zip 扩展压缩包内容列表预览，支持 7z、RAR、ISO、CAB、WIM 等格式。",
     L"Use 7-Zip to preview archive contents, including 7z, RAR, ISO, CAB and WIM."); }
 inline const wchar_t* ArchiveMeta() { return L"7-Zip · LGPL-2.1 + unRAR"; }
+inline const wchar_t* TranscodeSection() { return l10n::Pick(L"转换", L"Conversion"); }
+inline const wchar_t* TranscodeTitle() { return l10n::Pick(L"转换引擎", L"Conversion engine"); }
+inline const wchar_t* TranscodeDesc() { return l10n::Pick(
+    L"右键「转换」里的格式转换、调整尺寸与压缩需要它：带编码器的 FFmpeg，可输出 H.264 / H.265 / AV1 / VP9 与 JPEG / WebP。",
+    L"Powers the 转换 submenu — format conversion, resizing and compression. An FFmpeg with encoders for H.264 / H.265 / AV1 / VP9 and JPEG / WebP."); }
+inline const wchar_t* TranscodeMeta() { return l10n::Pick(L"FFmpeg · GPL-2.0+ · 含 libx264 / libx265", L"FFmpeg · GPL-2.0+ · includes libx264 / libx265"); }
 inline const wchar_t* Install() { return l10n::Pick(L"下载并安装", L"Download and install"); }
 inline const wchar_t* Remove() { return l10n::Pick(L"卸载", L"Remove"); }
 inline const wchar_t* CustomTitle() { return l10n::Pick(L"使用已有 FFmpeg", L"Use existing FFmpeg"); }
@@ -399,6 +405,14 @@ inline const wchar_t* ArchivePrimary(const WindowViewModel& vm) {
     return PrimaryLabel(vm.settings_pack_archive_available, vm.settings_pack_archive_installed, vm.settings_pack_archive_installing);
 }
 inline bool ShowsArchiveEnable(const WindowViewModel& vm) { return vm.settings_pack_archive_installed; }
+inline Badge TranscodeBadge(const WindowViewModel& vm) {
+    return PackBadge(vm.settings_pack_transcode_available, vm.settings_pack_transcode_installed,
+        vm.settings_pack_transcode_installing, vm.settings_pack_transcode_enabled, vm.settings_pack_transcode_version);
+}
+inline const wchar_t* TranscodePrimary(const WindowViewModel& vm) {
+    return PrimaryLabel(vm.settings_pack_transcode_available, vm.settings_pack_transcode_installed, vm.settings_pack_transcode_installing);
+}
+inline bool ShowsTranscodeEnable(const WindowViewModel& vm) { return vm.settings_pack_transcode_installed; }
 // Switch and path rows exist once there is something to switch.
 inline bool ShowsEnable(const WindowViewModel& vm) { return vm.settings_pack_ffmpeg != 0 || vm.settings_pack_use_custom; }
 inline bool ShowsPath(const WindowViewModel&) {
@@ -568,6 +582,13 @@ float LayoutSettingsPacks(SettingsLayout& l, const WindowViewModel& vm, float sc
                  &l.pack_archive_notice, &l.pack_archive_desc_h},
                 pack_text::ShowsArchiveEnable(vm), pack_text::ArchiveBadge(vm), pack_text::ArchiveDesc(),
                 pack_text::ArchivePrimary(vm), vm.settings_pack_archive_notice);
+
+    // 转换 engine card (0.2.0).
+    y += 24*scale; l.pack_transcode_section = row(28);
+    card_layout({&l.pack_transcode_card, &l.pack_transcode_badge, &l.pack_transcode_enable, &l.pack_transcode_primary,
+                 &l.pack_transcode_notice, &l.pack_transcode_desc_h},
+                pack_text::ShowsTranscodeEnable(vm), pack_text::TranscodeBadge(vm), pack_text::TranscodeDesc(),
+                pack_text::TranscodePrimary(vm), vm.settings_pack_transcode_notice);
 
     // One button for every pack that is missing: a fresh install otherwise means
     // walking all four cards one by one.

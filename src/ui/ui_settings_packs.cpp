@@ -280,9 +280,20 @@ void MainRenderer::DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_
                PackAction::ArchiveEnable, PackAction::ArchiveInstall, PackAction::ArchiveRemove,
                vm.settings_pack_archive_notice});
 
+    // 转换 engine (0.2.0): the FFmpeg with encoders behind the 转换 submenu.
+    text(pack_text::TranscodeSection(), lay.pack_transcode_section);
+    draw_card({lay.pack_transcode_card, lay.pack_transcode_badge, lay.pack_transcode_enable, lay.pack_transcode_primary,
+               lay.pack_transcode_notice, L"\xE8B5",
+               pack_text::TranscodeTitle(), pack_text::TranscodeDesc(), pack_text::TranscodeMeta(), pack_text::TranscodeBadge(vm),
+               pack_text::ShowsTranscodeEnable(vm), vm.settings_pack_transcode_enabled, vm.settings_pack_transcode_installed,
+               vm.settings_pack_transcode_installing, vm.settings_pack_transcode_available, vm.settings_pack_transcode_progress, pack_text::TranscodePrimary(vm),
+               PackAction::TranscodeEnable, PackAction::TranscodeInstall, PackAction::TranscodeRemove,
+               vm.settings_pack_transcode_notice});
+
     // One pass over whatever is missing, for a machine that has none of them yet.
     const bool pack_busy = vm.settings_pack_installing || vm.settings_pack_images_installing ||
-        vm.settings_pack_raw_installing || vm.settings_pack_archive_installing;
+        vm.settings_pack_raw_installing || vm.settings_pack_archive_installing ||
+        vm.settings_pack_transcode_installing;
     button(lay.pack_install_all, l10n::Get(l10n::StringId::PackInstallAll), PackAction::InstallAll,
            fluent::ButtonKind::Standard, !pack_busy);
 

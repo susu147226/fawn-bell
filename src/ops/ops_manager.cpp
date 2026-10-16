@@ -9,6 +9,8 @@
 #include "../ipc/shell_client.h"
 #include "../common/json_utils.h"
 #include "../common/localization.h"
+#include "../common/ffmpeg_tool.h"
+#include "../common/preview_packs.h"
 #include "../common/path_utils.h"
 #include "../common/rename_filename.h"
 #include "../common/utf8_file.h"
@@ -24,6 +26,7 @@
 #include <cstdint>
 #include <cwctype>
 #include <filesystem>
+#include <functional>
 #include <system_error>
 #include <thread>
 #include <vector>
@@ -187,6 +190,7 @@ const wchar_t* OpVerb(OpType t) {
     case OpType::EmptyRecycle: return l10n::Pick(L"清空回收站", L"Empty Recycle Bin");
     case OpType::BatchRename: return l10n::Pick(L"批量重命名", L"Batch rename");
     case OpType::CreateFromTemplate: return l10n::Pick(L"新建文件", L"New file");
+    case OpType::Convert: return l10n::Pick(L"转换", L"Convert");
     }
     return l10n::Pick(L"操作", L"Operation");
 }
@@ -205,6 +209,7 @@ const wchar_t* OpGerund(OpType t) {
     case OpType::EmptyRecycle: return L"Emptying Recycle Bin";
     case OpType::BatchRename: return L"Batch renaming";
     case OpType::CreateFromTemplate: return L"Creating file";
+    case OpType::Convert: return L"Converting";
     }
     return L"Working";
 }
@@ -246,6 +251,88 @@ std::wstring Describe(const OpRequest& r) {
 // In-place rename avoids the Shell IPC round trip. Failed renames report their
 // error directly: the current Shell host suppresses confirmation and can
 // overwrite an existing target, so it is not a safe rename fallback.
+// 转换 (0.2.0): runs one job through the sandboxed FFmpeg wrapper. Replacing
+// the original goes through a temporary file first, so a cancelled or crashed
+// run can never leave a half-written file in its place.
+bool RunOneConvertJob(const std::wstring& tool, const ConvertJob& job,
+                      const std::function<bool()>& cancelled, bool* was_cancelled,
+                      std::wstring* error) {
+    std::wstring out_path = job.target;
+    std::wstring temp_path;
+    if (job.overwrite) {
+        temp_path = job.target + L".luling-part";
+        DeleteFileW(temp_path.c_str());
+        out_path = temp_path;
+    }
+    std::wstring command = L"-hide_banner -nostdin -loglevel error -y -i "
+        + ffmpeg::QuoteArgument(ffmpeg::InputArgument(job.source));
+    for (const std::wstring& argument : job.args)
+        command += L" " + ffmpeg::QuoteArgument(argument);
+    command += L" " + ffmpeg::QuoteArgument(out_path);
+
+    ffmpeg::LaunchOptions options;
+    options.memory_limit = static_cast<SIZE_T>(4096) * 1024 * 1024;
+    ffmpeg::Process process;
+    if (!process.Start(tool, command, options)) {
+        if (error) *error = l10n::Pick(L"无法启动转换引擎", L"Could not start the conversion engine");
+        return false;
+    }
+    // ffmpeg reports on stderr; drain it so a full pipe cannot stall the
+    // encoder. Keep only the head, which is where its error text sits.
+    std::string diagnostics;
+    std::thread drain([&] {
+        char buffer[4096];
+        DWORD read = 0;
+        while ((read = process.ReadErr(buffer, sizeof(buffer))) > 0)
+            if (diagnostics.size() < 8192) diagnostics.append(buffer, read);
+    });
+
+    bool finished = false;
+    bool cancelled_run = false;
+    bool timed_out = false;
+    const ULONGLONG start = GetTickCount64();
+    const DWORD timeout = job.timeout_ms == 0 ? 600000u : job.timeout_ms;
+    for (;;) {
+        if (process.Wait(200)) { finished = true; break; }
+        if (cancelled()) { cancelled_run = true; process.Terminate(); break; }
+        if (GetTickCount64() - start > timeout) { timed_out = true; process.Terminate(); break; }
+    }
+    drain.join();
+
+    if (!finished || process.ExitCode() != 0) {
+        if (!temp_path.empty()) DeleteFileW(temp_path.c_str());
+        if (was_cancelled) *was_cancelled = cancelled_run;
+        if (error) {
+            if (timed_out) {
+                *error = l10n::Pick(L"转换超时", L"Conversion timed out");
+            } else if (cancelled_run) {
+                *error = l10n::Pick(L"已取消", L"Canceled");
+            } else {
+                std::wstring detail;
+                const size_t end = diagnostics.find('\n');
+                const std::string line = end == std::string::npos ? diagnostics : diagnostics.substr(0, end);
+                if (!line.empty()) {
+                    const int need = MultiByteToWideChar(CP_UTF8, 0, line.c_str(), static_cast<int>(line.size()), nullptr, 0);
+                    if (need > 0) {
+                        detail.resize(static_cast<size_t>(need));
+                        MultiByteToWideChar(CP_UTF8, 0, line.c_str(), static_cast<int>(line.size()), detail.data(), need);
+                    }
+                }
+                *error = detail.empty() ? l10n::Pick(L"转换失败", L"Conversion failed") : detail;
+            }
+        }
+        return false;
+    }
+    if (job.overwrite && !temp_path.empty()) {
+        if (!MoveFileExW(temp_path.c_str(), job.target.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+            DeleteFileW(temp_path.c_str());
+            if (error) *error = l10n::Pick(L"无法替换原文件", L"Could not replace the original file");
+            return false;
+        }
+    }
+    return true;
+}
+
 bool IsRenameComponent(const std::wstring& name) {
     return IsRenameFilename(name);
 }
@@ -2866,6 +2953,65 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
                 st.summary = Describe(req) + l10n::Pick(L" 完成", L" completed");
                 if (ok_sources.size() != req.sources.size())
                     st.last_error = last_error;
+            }
+        });
+        return;
+    }
+
+    if (req.type == OpType::Convert) {
+        const size_t total = req.convert_jobs.size();
+        const std::wstring tool = packs::PackToolPath(packs::PackId::Transcode, L"ffmpeg.exe");
+        if (tool.empty()) {
+            SetStatus([&](OpStatus& st) {
+                st.active = false; st.phase = OpPhase::Failed; st.percent = -1.0f;
+                ++st.completed_ops;
+                st.last_error = l10n::Pick(L"转换引擎不可用，请在设置中安装转换包",
+                                           L"The conversion engine is missing. Install it in Settings.");
+            });
+            return;
+        }
+        const auto cancel_requested = [this] { return stopping_.load() || shell_cancel_requested_.load(); };
+        std::vector<std::wstring> ok_sources;
+        std::wstring last_error;
+        bool cancelled = false;
+        for (size_t i = 0; i < total; ++i) {
+            if (cancel_requested()) { cancelled = true; break; }
+            const ConvertJob& job = req.convert_jobs[i];
+            SetStatus([&](OpStatus& st) {
+                st.current_item = FileName(job.source);
+                st.completed_items = i;
+                st.total_items = total;
+                st.percent = total ? 100.0f * static_cast<float>(i) / static_cast<float>(total) : -1.0f;
+            });
+            bool job_cancelled = false;
+            std::wstring error;
+            if (RunOneConvertJob(tool, job, cancel_requested, &job_cancelled, &error)) {
+                ok_sources.push_back(job.source);
+            } else {
+                last_error = error;
+                if (job_cancelled) { cancelled = true; break; }
+            }
+        }
+        current_req_id_.store(0);
+        shell_cancel_requested_ = false;
+        // No undo entry: a conversion writes new files and leaves the originals
+        // in place, so there is nothing for the stack to reverse.
+        SetStatus([&](OpStatus& st) {
+            st.active = false;
+            st.percent = -1.0f;
+            st.completed_ops++;
+            st.completed_items = ok_sources.size();
+            st.total_items = total;
+            if (cancelled) {
+                st.phase = OpPhase::Failed;
+                st.last_error = l10n::Pick(L"已取消", L"Canceled");
+            } else if (ok_sources.empty()) {
+                st.phase = OpPhase::Failed;
+                st.last_error = last_error.empty() ? l10n::Pick(L"转换失败", L"Conversion failed") : last_error;
+            } else {
+                st.phase = OpPhase::Completed;
+                st.summary = Describe(req) + l10n::Pick(L" 完成", L" completed");
+                if (ok_sources.size() != total) st.last_error = last_error;
             }
         });
         return;

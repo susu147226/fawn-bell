@@ -1413,6 +1413,10 @@ enum class StringId : UINT {
     ShareCredentialFailed = IDS_SHARE_CREDENTIAL_FAILED,
     PackInstallAll = IDS_PACK_INSTALL_ALL,
     PackInstallAllDesc = IDS_PACK_INSTALL_ALL_DESC,
+    MenuConvert = IDS_MENU_CONVERT,
+    ConvertFormat = IDS_CONVERT_FORMAT,
+    ConvertResize = IDS_CONVERT_RESIZE,
+    ConvertCompress = IDS_CONVERT_COMPRESS,
 };
 
 bool IsLanguageId(std::wstring_view id) noexcept;

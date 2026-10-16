@@ -1441,3 +1441,8 @@
 // Preview packs settings: one button for every missing pack at once.
 #define IDS_PACK_INSTALL_ALL 2594
 #define IDS_PACK_INSTALL_ALL_DESC 2595
+// 转换 submenu (0.2.0): convert format, resize, compress.
+#define IDS_MENU_CONVERT 2596
+#define IDS_CONVERT_FORMAT 2597
+#define IDS_CONVERT_RESIZE 2598
+#define IDS_CONVERT_COMPRESS 2599

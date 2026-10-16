@@ -136,7 +136,17 @@ enum MenuCmd : int {
     CmdResetWindowPosition = 100105,
     // Palette: drop the thumbnail cache and decode everything again (B31).
     CmdRefreshThumbnails = 100106,
+    // 转换 submenu (0.2.0): convert format, resize, compress.
+    CmdConvertFormat = 100107,
+    CmdConvertResize = 100108,
+    CmdConvertCompress = 100109,
 };
+
+// These sit above the session-local COM id window, so ExecuteShellCommand's
+// range check must not claim them (it checks both bounds now). Failing this
+// means a 转换 row would silently do nothing when clicked.
+static_assert(CmdConvertFormat > CmdShellComBase + 0x7FFF);
+static_assert(CmdConvertCompress > CmdShellComBase + 0x7FFF);
 
 // One merged Explorer row (registry static verb or luling_shell COM item),
 // already mapped to its final command id. Software-owned submenus keep one
@@ -222,6 +232,7 @@ std::vector<ui::FluentMenuItem> BuildRecyclePlaceMenu(bool can_empty);
 
 // Toolbar "新建▾" dropdown (reuses the same FluentMenu component).
 std::vector<ui::FluentMenuItem> BuildNewMenu();
+std::vector<ui::FluentMenuItem> BuildConvertMenu();
 
 std::vector<ui::FluentMenuItem> BuildBreadcrumbMenu(bool filesystem);
 

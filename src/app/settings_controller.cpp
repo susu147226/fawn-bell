@@ -112,6 +112,12 @@ void SettingsController::RefreshPacks() {
     state.images_available = kImagePackRelease.file_count != 0;
     state.raw_available = kRawPackRelease.file_count != 0;
     state.archive_available = kArchivePackRelease.file_count != 0;
+    state.transcode_notice = std::move(packs_.transcode_notice);
+    const auto transcode = packs::ReadInstalledPack(PackId::Transcode);
+    state.transcode_installed = transcode.present;
+    state.transcode_version = transcode.version;
+    state.transcode_enabled = settings.enabled[static_cast<uint32_t>(PackId::Transcode)];
+    state.transcode_available = kTranscodePackRelease.file_count != 0;
     state.enabled = settings.enabled[static_cast<uint32_t>(PackId::Media)];
     state.images_enabled = settings.enabled[static_cast<uint32_t>(PackId::Images)];
     state.use_custom = settings.use_custom_ffmpeg;
@@ -195,6 +201,7 @@ PackInstaller& SettingsController::InstallerFor(packs::PackId id) {
     case packs::PackId::Images: return image_installer_;
     case packs::PackId::Raw: return raw_installer_;
     case packs::PackId::Archives: return archive_installer_;
+    case packs::PackId::Transcode: return transcode_installer_;
     default: return media_installer_;
     }
 }
@@ -204,6 +211,7 @@ std::wstring& SettingsController::NoticeFor(packs::PackId id) {
     case packs::PackId::Images: return packs_.images_notice;
     case packs::PackId::Raw: return packs_.raw_notice;
     case packs::PackId::Archives: return packs_.archive_notice;
+    case packs::PackId::Transcode: return packs_.transcode_notice;
     default: return packs_.notice;
     }
 }
@@ -212,7 +220,9 @@ bool SettingsController::InstallPack(packs::PackId id, HWND notify) {
     const bool images = id == packs::PackId::Images;
     PackInstaller& installer = InstallerFor(id);
     const PackRelease& release = id == packs::PackId::Raw ? kRawPackRelease :
-        id == packs::PackId::Archives ? kArchivePackRelease : images ? kImagePackRelease : kMediaPackRelease;
+        id == packs::PackId::Archives ? kArchivePackRelease :
+        id == packs::PackId::Transcode ? kTranscodePackRelease :
+        images ? kImagePackRelease : kMediaPackRelease;
     std::wstring& notice = NoticeFor(id);
     if (installer.running()) {
         installer.Cancel();
@@ -344,6 +354,17 @@ bool SettingsController::ToggleArchivePack() {
     constexpr uint32_t index = static_cast<uint32_t>(packs::PackId::Archives);
     const bool saved = UpdatePackSettings([](packs::PackSettings& s) { s.enabled[index] = !s.enabled[index]; });
     packs_.archive_notice.clear();
+    RefreshPacks();
+    return saved;
+}
+
+bool SettingsController::InstallTranscodePack(HWND notify) { return InstallPack(packs::PackId::Transcode, notify); }
+bool SettingsController::TakeTranscodePackResult() { return TakePackResult(packs::PackId::Transcode); }
+bool SettingsController::RemoveTranscodePack() { return RemovePack(packs::PackId::Transcode); }
+bool SettingsController::ToggleTranscodePack() {
+    constexpr uint32_t index = static_cast<uint32_t>(packs::PackId::Transcode);
+    const bool saved = UpdatePackSettings([](packs::PackSettings& s) { s.enabled[index] = !s.enabled[index]; });
+    packs_.transcode_notice.clear();
     RefreshPacks();
     return saved;
 }

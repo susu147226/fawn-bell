@@ -3255,3 +3255,21 @@ BEGIN
     IDS_OP_AUTHORIZATION_PROMPT "Approve the Windows prompt to continue this operation."
     IDS_OP_AUTHORIZATION_NOT_GRANTED "Administrator permission was not granted. Retry, skip this item, or cancel."
 END
+
+LANGUAGE 0x04, 0x02
+STRINGTABLE
+BEGIN
+    IDS_MENU_CONVERT "转换"
+    IDS_CONVERT_FORMAT "转换格式"
+    IDS_CONVERT_RESIZE "调整尺寸"
+    IDS_CONVERT_COMPRESS "压缩"
+END
+
+LANGUAGE 0x09, 0x01
+STRINGTABLE
+BEGIN
+    IDS_MENU_CONVERT "Convert"
+    IDS_CONVERT_FORMAT "Convert format"
+    IDS_CONVERT_RESIZE "Resize"
+    IDS_CONVERT_COMPRESS "Compress"
+END

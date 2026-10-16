@@ -10,8 +10,11 @@ import json
 from pathlib import Path
 import re
 
-SYMBOLS = {'ffmpeg': 'Media', 'images': 'Image', 'raw': 'Raw', 'archive': 'Archive'}
-TOOLS = {'ffmpeg': 'ffmpeg.exe', 'images': 'luling-imgpack.exe', 'raw': 'luling-rawpack.exe', 'archive': '7z.exe'}
+SYMBOLS = {'ffmpeg': 'Media', 'images': 'Image', 'raw': 'Raw', 'archive': 'Archive', 'transcode': 'Transcode'}
+# The image and RAW helpers keep their upstream `pulse-` names on purpose: the
+# catalog hashes were taken over exactly those files and Luling only ever
+# launches them, so renaming them here made both packs look uninstalled.
+TOOLS = {'ffmpeg': 'ffmpeg.exe', 'images': 'pulse-imgpack.exe', 'raw': 'pulse-rawpack.exe', 'archive': '7z.exe', 'transcode': 'ffmpeg.exe'}
 MAX_FILE = 256 * 1024 * 1024
 
 
@@ -65,7 +68,7 @@ def main():
     parser.add_argument('--version', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--catalog', type=Path, required=True)
-    parser.add_argument('--pack', action='append', required=True, help='key=pack-directory; provide all four keys')
+    parser.add_argument('--pack', action='append', required=True, help='key=pack-directory; provide every key in SYMBOLS')
     args = parser.parse_args()
     for value in (args.tag, args.version):
         require(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', value), 'Invalid release tag/version')
@@ -74,7 +77,7 @@ def main():
         key, directory = item.split('=', 1)
         require(key in SYMBOLS and key not in packs, 'Unknown/duplicate pack key')
         packs[key] = Path(directory).resolve(strict=True)
-    require(set(packs) == set(SYMBOLS), 'All four pack directories are required')
+    require(set(packs) == set(SYMBOLS), 'Every pack directory in SYMBOLS is required')
     for key, directory in packs.items():
         require((directory / TOOLS[key]).is_file(), f'Missing main tool: {key}')
     args.output.mkdir(parents=True, exist_ok=True)

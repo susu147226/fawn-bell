@@ -2,6 +2,7 @@
 #pragma once
 #include "app_runtime.h"
 #include "batch_rename.h"
+#include "convert_rules.h"
 #include "../ui/confirm_dialog.h"
 
 namespace luling {
@@ -34,6 +35,8 @@ void RememberTrayDest(AppState& s, const std::wstring& dir);
 void SendTrayToDest(AppState& s, const std::wstring& dir, bool move);
 // Batch rename an explicit path list (staging tray); tray entries follow.
 void ShowBatchRenamePaths(AppState& s, const std::vector<std::wstring>& paths);
+// 转换 (0.2.0): format conversion, resize, compress. One entry per 转换 submenu row.
+void ShowConvert(AppState& s, app::ConvertMode mode);
 void PinAndShowOperationWindow(AppState& s);
 void UpdateOperationWindow(AppState& s, bool allow_conflict_dialog);
 } // namespace luling

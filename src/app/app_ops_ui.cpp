@@ -5,6 +5,7 @@
 #include "../ui/drag_drop.h"
 #include "../ui/file_operation_dialog.h"
 #include "../ui/batch_rename_dialog.h"
+#include "../ui/convert_dialog.h"
 #include "../ui/quick_preview_window.h"
 #include "../ui/typography.h"
 #include "../ui/color_picker.h"
@@ -435,6 +436,39 @@ void ShowBatchRename(AppState& s, const app::BatchRenameRule& initial) {
 }
 void ShowBatchRenamePaths(AppState& s, const std::vector<std::wstring>& paths) {
     SubmitBatchRename(s, paths, nullptr);
+}
+
+// 转换 (0.2.0). The dialog owns the preview; here we only turn the approved
+// items into jobs. Originals are never touched when the user kept them, and the
+// ops layer takes no undo entry either way.
+static void SubmitConvert(AppState& s, const std::vector<std::wstring>& paths, app::ConvertMode mode) {
+    if (paths.empty()) return;
+    const auto result = ui::ShowConvertDialog(s.hwnd, paths, s.darkMode, s.accentColor, mode);
+    if (!result.accepted) return;
+    ops::OpRequest req;
+    req.type = ops::OpType::Convert;
+    for (const auto& item : result.items) {
+        if (item.status != app::ConvertStatus::Ok) continue;
+        ops::ConvertJob job;
+        job.source = item.source;
+        job.target = item.target;
+        job.args = app::BuildConvertArgs(item, result.options);
+        job.overwrite = result.options.target == app::ConvertTarget::Overwrite;
+        // Stills finish in seconds; a 4K transcode legitimately takes many minutes.
+        job.timeout_ms = item.kind == app::ConvertKind::Image ? 60000u : 1800000u;
+        req.convert_jobs.push_back(std::move(job));
+        req.sources.push_back(item.source);
+    }
+    if (req.convert_jobs.empty()) return;
+    s.ops.Submit(std::move(req));
+    InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
+void ShowConvert(AppState& s, app::ConvertMode mode) {
+    if (DeferContentSelection(s, [=](AppState& v) { ShowConvert(v, mode); })) return;
+    app::Tab* tab = ActiveTab(s);
+    if (!tab || IsRecycleTab(tab) || tab->net_readonly) return;
+    SubmitConvert(s, SelectedFullPaths(*tab), mode);
 }
 
 void UpdateOperationWindow(AppState& s, bool allow_conflict_dialog) {
