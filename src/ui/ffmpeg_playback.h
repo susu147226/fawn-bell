@@ -41,6 +41,10 @@ struct FfmpegFrame {
     std::vector<uint8_t> pixels;     // BGRA, top-down, stride = width * 4
     uint32_t width = 0, height = 0;
     int64_t time = 0;                // 100 ns
+    // The zoom this frame was decoded at. The preview draws it scaled by
+    // (current zoom / this), so the wheel responds at once while the decoder
+    // catches up with a sharper frame.
+    double zoom = 1.0;
 };
 
 // A display size fitted into `box`: never enlarged, even, at least 16 px.
@@ -60,7 +64,7 @@ public:
 
     // (Re)starts the decoders at `position` (100 ns). When paused, only the
     // first frame is shown and the audio waits, ready to resume at once.
-    bool Start(int64_t position, float rate, SIZE box, bool playing);
+    bool Start(int64_t position, float rate, SIZE box, bool playing, double zoom = 1.0);
     void SetPlaying(bool playing);
     void SetVolume(float volume, bool muted);
     // The frame due now, or nullptr. Call every few milliseconds.
@@ -94,6 +98,9 @@ private:
     int64_t start_ = 0;
     float rate_ = 1.0f;
     bool playing_ = false;
+    // Zoom this session decodes at; stamped on every frame so the preview can
+    // scale it against the zoom the user is asking for right now.
+    double zoom_ = 1.0;
     std::atomic<bool> failed_{false};
     std::function<void()> wake_;
     bool first_shown_ = false;

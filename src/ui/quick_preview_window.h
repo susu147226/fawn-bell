@@ -106,6 +106,8 @@ private:
     void DrawFfmpegFrame(ID2D1DeviceContext* dc, const D2D1_RECT_F& frame, float radius);
     bool PlaybackHover(POINT client);             // true when hover state changed
     bool PlaybackWheel(POINT client, float steps);  // wheel over the volume button
+    // Wheel anywhere else over a playing video: magnify the decoder's output.
+    bool PlaybackZoom(POINT client, float steps);
     // Card shown instead of a black frame when no decoder handles the video track.
     bool CodecCardVisible(const VideoPreview::State& state) const;
     void DrawCodecCard(ID2D1DeviceContext* dc, const D2D1_RECT_F& content,
@@ -177,6 +179,13 @@ private:
     void ZoomAt(float cursor_x, float cursor_y, float factor);
     void ClampPan(float view_w, float view_h);
     D2D1_RECT_F ImageDest(const D2D1_RECT_F& content) const;
+    // The ffmpeg picture's canvas: the fitted video rect magnified by the video
+    // zoom and shifted by the pan. Unlike the fitted rect it may exceed the
+    // content area (drawing clips to it), which is what makes the wheel feel like
+    // the image preview's.
+    D2D1_RECT_F VideoCanvasRect(const VideoPreview::State& state) const;
+    bool CanPanVideo() const;
+    void ClampVideoPan(const D2D1_RECT_F& base, float zoom);
     uint32_t RequestedPixelSize(const D2D1_RECT_F& content) const;
     void DrawHud(ID2D1DeviceContext* dc, const D2D1_RECT_F& content,
                  ID2D1SolidColorBrush* text_brush);
@@ -278,6 +287,13 @@ private:
     float text_scroll_ = 0.0f;
     float pan_x_ = 0.0f;
     float pan_y_ = 0.0f;
+    // FFmpeg playback canvas: offset from the fitted rect's centre, in pixels.
+    float video_pan_x_ = 0.0f;
+    float video_pan_y_ = 0.0f;
+    bool video_panning_ = false;
+    POINT video_pan_anchor_{};
+    float video_pan_start_x_ = 0.0f;
+    float video_pan_start_y_ = 0.0f;
     bool image_fit_ = true;
     float image_zoom_ = 1.0f;
     uint32_t preview_pixels_ = 0;

@@ -167,9 +167,10 @@ void FfmpegPlayback::Stop() {
     stepped_frame_.reset();
 }
 
-bool FfmpegPlayback::Start(int64_t position, float rate, SIZE box, bool playing) {
+bool FfmpegPlayback::Start(int64_t position, float rate, SIZE box, bool playing, double zoom) {
     Stop();
     stop_.store(false);
+    zoom_ = zoom > 0.01 ? zoom : 1.0;
     failed_ = false;
     { std::lock_guard lock(error_mutex_); diagnostic_.clear(); }
     first_shown_ = false;
@@ -184,11 +185,17 @@ bool FfmpegPlayback::Start(int64_t position, float rate, SIZE box, bool playing)
     bool any = false;
 
     if (info_.video) {
+        // Decode at the size the pane actually shows. The cap used to be
+        // min(pane, 1920x1080), which squashed a phone-orientation clip
+        // (1080x2640) down to 442x1080 and then scaled it back up — the softness
+        // users noticed. The 3840x2160 ceiling is only there to bound memory.
         frame_size_ = FfmpegFrameSize(info_.width, info_.height,
-                                      {(std::min)(box.cx, 1920L), (std::min)(box.cy, 1080L)});
+                                      {(std::min)(box.cx, 3840L), (std::min)(box.cy, 2160L)});
         out_fps_ = FfmpegOutputRate(info_.fps);
         wchar_t filter[160];
-        swprintf_s(filter, L"fps=%.4f,scale=%ld:%ld:flags=bilinear,format=bgra", out_fps_,
+        // bicubic stays sharp when the pane is larger than the decoded frame;
+        // bilinear visibly softened the result.
+        swprintf_s(filter, L"fps=%.4f,scale=%ld:%ld:flags=bicubic,format=bgra", out_fps_,
                    frame_size_.cx, frame_size_.cy);
         const std::wstring args = L"-hide_banner -nostdin -nostats -loglevel error" + seek + L" -i " + input +
             L" -map 0:v:0 -an -sn -dn -vf " + ffmpeg::QuoteArgument(filter) + L" -f rawvideo -pix_fmt bgra pipe:1";
@@ -258,7 +265,6 @@ bool FfmpegPlayback::Start(int64_t position, float rate, SIZE box, bool playing)
 }
 
 void FfmpegPlayback::ReadVideo() {
-    const size_t bytes = static_cast<size_t>(frame_size_.cx) * frame_size_.cy * 4;
     const double interval = kSecond / out_fps_;
     for (uint64_t index = 0; !stop_.load(); ++index) {
         {
@@ -266,10 +272,16 @@ void FfmpegPlayback::ReadVideo() {
             queue_cv_.wait(lock, [&] { return stop_.load() || queue_.size() < kMaxQueuedFrames; });
             if (stop_.load()) break;
         }
+        // Read the size per frame: `frame_size_` changes when the pane is zoomed
+        // and the decoder is restarted. Caching it once meant the bytes read and
+        // the width/height stamped on the frame could disagree, which showed up
+        // as a torn picture right after a zoom.
+        const size_t bytes = static_cast<size_t>(frame_size_.cx) * frame_size_.cy * 4;
         auto frame = pool_->Make(pool_, bytes);
         if (!video_->ReadOutExact(frame->pixels.data(), static_cast<DWORD>(bytes))) break;
         frame->width = static_cast<uint32_t>(frame_size_.cx);
         frame->height = static_cast<uint32_t>(frame_size_.cy);
+        frame->zoom = zoom_;
         frame->time = start_ + static_cast<int64_t>(std::llround(index * interval));
         std::lock_guard lock(queue_mutex_);
         queue_.push_back(std::move(frame));

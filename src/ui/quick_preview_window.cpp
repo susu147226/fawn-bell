@@ -196,6 +196,9 @@ void QuickPreviewWindow::ResetView() {
     text_scroll_ = 0.0f;
     pan_x_ = 0.0f;
     pan_y_ = 0.0f;
+    video_pan_x_ = 0.0f;
+    video_pan_y_ = 0.0f;
+    video_panning_ = false;
     image_fit_ = true;
     image_zoom_ = 1.0f;
     decoded_w_ = decoded_h_ = 0;
@@ -1614,6 +1617,7 @@ HCURSOR QuickPreviewWindow::ContentCursor(POINT client) const {
     if (native_kind_ == NativeKind::Pages)
         return LoadCursorW(nullptr, panning_ ? IDC_SIZEALL : IDC_ARROW);
     if (panning_ || CanPanImage()) return LoadCursorW(nullptr, IDC_SIZEALL);
+    if (video_panning_ || CanPanVideo()) return LoadCursorW(nullptr, IDC_SIZEALL);
     return LoadCursorW(nullptr, IDC_ARROW);
 }
 
@@ -2259,6 +2263,9 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
         if (PlaybackWheel(cursor, steps)) {
             return 0;
         }
+        if (PlaybackZoom(cursor, steps)) {
+            return 0;
+        }
         if (PagesWheel(cursor, steps, (GET_KEYSTATE_WPARAM(wparam) & MK_CONTROL) != 0,
                        (GET_KEYSTATE_WPARAM(wparam) & MK_SHIFT) != 0)) {
             // handled by the page reader
@@ -2367,6 +2374,11 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
             pan_anchor_ = point;
             pan_start_x_ = pan_x_;
             pan_start_y_ = pan_y_;
+        } else if (CanPanVideo()) {
+            video_panning_ = true;
+            video_pan_anchor_ = point;
+            video_pan_start_x_ = video_pan_x_;
+            video_pan_start_y_ = video_pan_y_;
         } else if (native_kind_ == NativeKind::Markdown && (wparam & MK_CONTROL) &&
                    !markdown_.LinkAt(static_cast<float>(point.x),
                                      static_cast<float>(point.y)).empty()) {
@@ -2466,7 +2478,12 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
             if (tree_.Dragging() ? tree_.MouseMove(x, y) : tree_.Hover(x, y))
                 InvalidateRect(hwnd_, nullptr, FALSE);
         }
-        if (panning_ && native_kind_ == NativeKind::Pages) {
+        if (video_panning_) {
+            video_pan_x_ = video_pan_start_x_ + static_cast<float>(point.x - video_pan_anchor_.x);
+            video_pan_y_ = video_pan_start_y_ + static_cast<float>(point.y - video_pan_anchor_.y);
+            ClampVideoPan(VideoFrameRect(video_.Snapshot()), video_.zoom());
+            InvalidateRect(hwnd_, nullptr, FALSE);
+        } else if (panning_ && native_kind_ == NativeKind::Pages) {
             pages_pan_x_ = pan_start_x_ - static_cast<float>(point.x - pan_anchor_.x);
             pages_scroll_ = pan_start_y_ - static_cast<float>(point.y - pan_anchor_.y);
             ClampPages(ComputePagesLayout());
@@ -2505,6 +2522,7 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
         EndPlaybackDrag(message == WM_LBUTTONUP);
         panning_ = false;
         selecting_ = false;
+        video_panning_ = false;
         if (table_.Dragging()) {
             table_.MouseUp();
             InvalidateRect(hwnd_, nullptr, FALSE);

@@ -59,6 +59,11 @@ public:
     void SetVolume(float volume);  // 0..1
     void SetMuted(bool muted);
     void SetRate(float rate);
+    // FFmpeg path only: decode at (the video rect the owner laid out × zoom), so
+    // magnifying the canvas shows real detail rather than an upscaled frame.
+    // 1.0 is the fitted size; smaller is clamped away.
+    void SetZoom(float zoom);
+    float zoom() const;
     State Snapshot() const;
     // FFmpeg playback (State::ffmpeg): the picture for the owner to draw, already
     // scaled for it; serial changes with every new frame.

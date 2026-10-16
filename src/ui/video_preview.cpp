@@ -177,6 +177,16 @@ struct VideoPreview::Shared {
     double seek_fraction = 0;
     unsigned steps = 0;
     bool audio_dirty = true;  // volume / mute / rate to apply on the player thread
+    // Zoom for the ffmpeg path: frames are decoded at the video rect times this,
+    // so magnifying stays sharp instead of upscaling a pane-sized picture.
+    // Changing it makes `box_at()` report a different size, which the grow-check
+    // below turns into a decoder restart.
+    double zoom = 1.0;
+    // The video rect the window laid out, in pixels. Written by Layout on the UI
+    // thread and read by the decoder thread, so it is atomic rather than under
+    // the mutex; zero until the first layout, when the client area stands in.
+    std::atomic<LONG> box_width{0};
+    std::atomic<LONG> box_height{0};
     // FFmpeg playback: the latest picture. The owner composes it (a GDI child
     // would not show in a WS_EX_NOREDIRECTIONBITMAP window).
     std::shared_ptr<const FfmpegFrame> frame;
@@ -302,7 +312,12 @@ void VideoPreview::Layout(const RECT& bounds, bool visible, int corner_radius) {
     SetWindowPos(child_, nullptr, bounds.left, bounds.top, width, height,
         SWP_NOACTIVATE | SWP_NOZORDER | (visible ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
     if (width != region_size_.cx || height != region_size_.cy || corner_radius != region_radius_) {
-        if (state_) state_->Wake();
+        if (state_) {
+            // The ffmpeg decoder sizes its frames to this rect times the zoom.
+            state_->box_width.store(width);
+            state_->box_height.store(height);
+            state_->Wake();
+        }
         region_size_ = SIZE{width, height};
         region_radius_ = corner_radius;
         // The window owns the region after SetWindowRgn.
@@ -369,6 +384,18 @@ void VideoPreview::SetRate(float rate) {
     state_->snapshot.rate = std::clamp(rate, 0.25f, 4.0f);
     state_->audio_dirty = true;
 }
+void VideoPreview::SetZoom(float zoom) {
+    if (!state_) return;
+    struct Notify { Shared* state; ~Notify() { state->Wake(); } } notify{state_.get()};
+    std::lock_guard lock(state_->mutex);
+    // 1.0 is the fitted rect; the canvas is never smaller than that.
+    state_->zoom = std::clamp(static_cast<double>(zoom), 1.0, 8.0);
+}
+float VideoPreview::zoom() const {
+    if (!state_) return 1.0f;
+    std::lock_guard lock(state_->mutex);
+    return static_cast<float>(state_->zoom);
+}
 void VideoPreview::Step() {
     if (!state_) return;
     struct Notify { Shared* state; ~Notify() { state->Wake(); } } notify{state_.get()};
@@ -413,11 +440,15 @@ void VideoPreview::Run(std::shared_ptr<Shared> state, std::wstring path) {
             state->snapshot.store_id = codec.store;
         }
     }
-    // The FFmpeg preview pack takes over what Media Foundation cannot play:
-    // containers it does not know, and videos without an installed decoder.
+    // The preview pack does the decoding whenever it is installed. Media
+    // Foundation renders through a child window, which cannot zoom and cannot be
+    // asked to decode at a given size — so a video that MF handles happily still
+    // came out soft when the pane was larger than the child. ffmpeg gives the
+    // preview both the sharpness and the wheel zoom. MF stays as the fallback for
+    // machines without the pack, and for anything ffmpeg refuses.
     const std::wstring pack_ffmpeg = packs::PackToolPath(packs::PackId::Media, L"ffmpeg.exe");
     const bool mf_format = NativeExtension(LowerExtension(path));
-    if (!pack_ffmpeg.empty() && !state->stop.load() && (!mf_format || state->snapshot.missing_decoder)) {
+    if (!pack_ffmpeg.empty() && !state->stop.load()) {
         if (RunFfmpeg(state, path, pack_ffmpeg)) { CoUninitialize(); return; }
     }
     if (!mf_format) {
@@ -645,21 +676,35 @@ bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::ws
         state->seek_pending = false;
         state->steps = 0;
     }
-    // Frames are scaled for the Quick Look's client area (the video child may
-    // not be laid out yet); a much larger window later restarts the decoder.
-    auto box = [&] {
-        RECT client{};
-        GetClientRect(GetParent(state->child), &client);
-        return SIZE{(std::max)(client.right - client.left, 320L), (std::max)(client.bottom - client.top, 180L)};
+    // Frames are decoded at the size the preview draws them: the video rect the
+    // window laid out (Layout), times the zoom. Drawing is 1:1 at rest and stays
+    // sharp when magnified, instead of upscaling a pane-sized picture.
+    auto box_at = [&](double zoom) {
+        LONG w = state->box_width.load();
+        LONG h = state->box_height.load();
+        if (w <= 0 || h <= 0) {
+            // Before the first layout: the whole client area stands in.
+            RECT client{};
+            GetClientRect(GetParent(state->child), &client);
+            w = client.right - client.left;
+            h = client.bottom - client.top;
+        }
+        w = (std::max)(w, 160L);
+        h = (std::max)(h, 90L);
+        return SIZE{static_cast<LONG>(std::lround(w * zoom)), static_cast<LONG>(std::lround(h * zoom))};
     };
     FfmpegPlayback player(ffmpeg_exe, media_path, info, [state] { state->Wake(); });
+    // The zoom the preview is asking for right now; stamped on every session so
+    // the frame can be scaled while a restart catches up.
+    auto zoom_now = [&] { std::lock_guard lock(state->mutex); return state->zoom; };
     player.SetVolume(volume, muted);
     bool playing = false;
     {
         std::lock_guard lock(state->mutex);
         playing = state->playing;
     }
-    player.Start(0, rate, box(), playing);
+    const double start_zoom = zoom_now();
+    player.Start(0, rate, box_at(start_zoom), playing, start_zoom);
     // 1 ms timer resolution only while frames are being paced.
     struct TimerResolution {
         bool on = false;
@@ -702,14 +747,18 @@ bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::ws
             player.SetVolume(volume, muted);
             if (std::fabs(wanted_rate - rate) > 0.001f) {
                 rate = wanted_rate;
-                if (!ended) player.Start(player.Position(), rate, player.frame_size(), want_play);
+                if (!ended) {
+                    const double zoom = zoom_now();
+                    player.Start(player.Position(), rate, box_at(zoom), want_play, zoom);
+                }
             }
         }
         if (seek && info.duration > 0) {
             // Stay clear of the very end, where some files decode no frame.
             const int64_t last = info.duration - (std::min)(info.duration / 2, int64_t{5'000'000});
+            const double zoom = zoom_now();
             player.Start((std::min)(last, static_cast<int64_t>(fraction * static_cast<double>(info.duration))),
-                         rate, box(), want_play);
+                         rate, box_at(zoom), want_play, zoom);
             ended = false;
             stepped = 0;
         } else if (want_play != player.playing() && !ended) {
@@ -722,18 +771,25 @@ bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::ws
                 ++state->steps;   // the next frame is still decoding
             }
         }
-        // Grow the frames once the window has been much larger for a moment.
+        // Re-decode whenever the box implies a different frame size — in either
+        // direction. Doing this only for large growth was why the zoom wheel
+        // changed the percentage but not the picture when zooming back out, and
+        // the 1920x1080 ceiling meant zooming past 100% changed nothing either.
         if (info.video && !ended) {
-            const SIZE now_box = box();
-            const SIZE fit = FfmpegFrameSize(info.width, info.height,
-                                             {(std::min)(now_box.cx, 1920L), (std::min)(now_box.cy, 1080L)});
+            const double zoom = zoom_now();
+            const SIZE now_box = box_at(zoom);
+            const SIZE want = FfmpegFrameSize(info.width, info.height, {now_box.cx, now_box.cy});
             const SIZE have = player.frame_size();
-            if (static_cast<double>(fit.cx) * fit.cy > 1.4 * have.cx * have.cy) {
+            // A few pixels of difference is not worth a decoder restart.
+            const bool differs = std::abs(want.cx - have.cx) > 16 || std::abs(want.cy - have.cy) > 16;
+            if (differs) {
                 if (now_box.cx != grown_box.cx || now_box.cy != grown_box.cy) {
                     grown_box = now_box;
                     grown_since = GetTickCount64();
-                } else if (GetTickCount64() - grown_since > 400) {
-                    player.Start(player.Position(), rate, now_box, want_play);
+                } else if (GetTickCount64() - grown_since > 80) {
+                    // Short settle: the preview already scales the current frame,
+                    // so this only decides when to spend a decoder restart.
+                    player.Start(player.Position(), rate, now_box, want_play, zoom);
                     grown_box = {};
                 }
             } else {

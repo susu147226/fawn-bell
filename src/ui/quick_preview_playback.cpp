@@ -20,6 +20,8 @@ constexpr float kPlaybackHeight = 76.0f;
 // Rollback switch: false restores the text-button bar and full-bleed video.
 constexpr bool kVideoChrome = true;
 constexpr float kChromeBarHeight = 56.0f;
+// Magnification ceiling for the ffmpeg canvas (VideoPreview::SetZoom clamps too).
+constexpr float kMaxVideoZoom = 8.0f;
 // Rollback switch: false leaves an undecodable video track as a black frame.
 constexpr bool kCodecHint = true;
 constexpr float kRates[] = {1.0f, 1.25f, 1.5f, 2.0f, 0.5f};
@@ -169,6 +171,10 @@ D2D1_RECT_F QuickPreviewWindow::VideoFrameRect(const VideoPreview::State& state)
 void QuickPreviewWindow::LayoutVideo(ID2D1DeviceContext* dc, const VideoPreview::State& state,
                                      bool show) {
     const D2D1_RECT_F frame = VideoFrameRect(state);
+    // The ffmpeg picture is composed by this window, so the canvas the wheel
+    // magnifies is `frame` scaled by the zoom; the Media Foundation child cannot
+    // zoom, and stays on the fitted rect.
+    const D2D1_RECT_F canvas = state.ffmpeg ? VideoCanvasRect(state) : frame;
     const RECT bounds{std::lround(frame.left), std::lround(frame.top), std::lround(frame.right),
                       std::lround(frame.bottom)};
     const int radius = kVideoChrome ? static_cast<int>(std::lround(10.0f * scale_)) : 0;
@@ -178,17 +184,54 @@ void QuickPreviewWindow::LayoutVideo(ID2D1DeviceContext* dc, const VideoPreview:
         if (shadow.get()) {
             for (int i = 6; i >= 1; --i) {
                 const float grow = static_cast<float>(i) * 2.0f * scale_;
-                const D2D1_RECT_F r = D2D1::RectF(frame.left - grow, frame.top - grow + 3.0f * scale_,
-                                                  frame.right + grow, frame.bottom + grow + 3.0f * scale_);
+                const D2D1_RECT_F r = D2D1::RectF(canvas.left - grow, canvas.top - grow + 3.0f * scale_,
+                                                  canvas.right + grow, canvas.bottom + grow + 3.0f * scale_);
                 const float rr = static_cast<float>(radius) + grow;
                 dc->FillRoundedRectangle(D2D1::RoundedRect(r, rr, rr), shadow.get());
             }
         }
     }
     video_.Layout(bounds, show && !state.ffmpeg, radius);
-    if (show && state.ffmpeg && dc) DrawFfmpegFrame(dc, frame, static_cast<float>(radius));
+    if (show && state.ffmpeg && dc) DrawFfmpegFrame(dc, canvas, static_cast<float>(radius));
 }
-void QuickPreviewWindow::DrawFfmpegFrame(ID2D1DeviceContext* dc, const D2D1_RECT_F& frame, float radius) {
+D2D1_RECT_F QuickPreviewWindow::VideoCanvasRect(const VideoPreview::State& state) const {
+    const D2D1_RECT_F base = VideoFrameRect(state);
+    const float zoom = video_.zoom();
+    if (!(zoom > 1.001f)) return base;
+    const float w = (base.right - base.left) * zoom;
+    const float h = (base.bottom - base.top) * zoom;
+    const float cx = (base.left + base.right) * 0.5f + video_pan_x_;
+    const float cy = (base.top + base.bottom) * 0.5f + video_pan_y_;
+    return D2D1::RectF(cx - w * 0.5f, cy - h * 0.5f, cx + w * 0.5f, cy + h * 0.5f);
+}
+bool QuickPreviewWindow::CanPanVideo() const {
+    if (!kVideoChrome || !video_.active()) return false;
+    const auto state = video_.Snapshot();
+    if (!state.ffmpeg || !state.width || !state.height) return false;
+    const float zoom = video_.zoom();
+    if (!(zoom > 1.001f)) return false;
+    const D2D1_RECT_F base = VideoFrameRect(state);
+    const D2D1_RECT_F content = ContentRect();
+    const float view_w = content.right - content.left;
+    const float view_h = content.bottom - content.top;
+    return (base.right - base.left) * zoom > view_w + 0.5f ||
+           (base.bottom - base.top) * zoom > view_h + 0.5f;
+}
+void QuickPreviewWindow::ClampVideoPan(const D2D1_RECT_F& base, float zoom) {
+    if (!(zoom > 1.001f)) {
+        video_pan_x_ = 0.0f;
+        video_pan_y_ = 0.0f;
+        return;
+    }
+    const D2D1_RECT_F content = ContentRect();
+    const float max_x = (std::max)(0.0f, ((base.right - base.left) * zoom -
+                                          (content.right - content.left)) * 0.5f);
+    const float max_y = (std::max)(0.0f, ((base.bottom - base.top) * zoom -
+                                          (content.bottom - content.top)) * 0.5f);
+    video_pan_x_ = std::clamp(video_pan_x_, -max_x, max_x);
+    video_pan_y_ = std::clamp(video_pan_y_, -max_y, max_y);
+}
+void QuickPreviewWindow::DrawFfmpegFrame(ID2D1DeviceContext* dc, const D2D1_RECT_F& canvas, float radius) {
     uint64_t serial = 0;
     const auto picture = video_.Frame(serial);
     if (!picture || !picture->width || !picture->height) return;
@@ -211,13 +254,33 @@ void QuickPreviewWindow::DrawFfmpegFrame(ID2D1DeviceContext* dc, const D2D1_RECT
         ffmpeg_serial_ = serial;
     }
     if (!ffmpeg_brush_.get() && FAILED(dc->CreateBitmapBrush(ffmpeg_bitmap_.get(), &ffmpeg_brush_))) return;
-    // The frame was scaled to the viewport by FFmpeg; this only fits it.
-    const float sx = (frame.right - frame.left) / static_cast<float>(size.width);
-    const float sy = (frame.bottom - frame.top) / static_cast<float>(size.height);
+    // The frame was decoded at `picture->zoom`; show it at the zoom the user is
+    // asking for now. While the decoder is still catching up (a restart takes a
+    // moment) the old frame is scaled rather than frozen, so the wheel feels
+    // immediate and sharpens on its own.
+    const float pane_w = canvas.right - canvas.left;
+    const float pane_h = canvas.bottom - canvas.top;
+    const double decoded_zoom = picture->zoom > 0.01 ? picture->zoom : 1.0;
+    const float visual = static_cast<float>(video_.zoom() / decoded_zoom);
+    const float draw_w = static_cast<float>(size.width) * visual;
+    const float draw_h = static_cast<float>(size.height) * visual;
+    const float left = canvas.left + (pane_w - draw_w) / 2.0f;
+    const float top = canvas.top + (pane_h - draw_h) / 2.0f;
     ffmpeg_brush_->SetInterpolationMode(D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
-    ffmpeg_brush_->SetTransform(D2D1::Matrix3x2F::Scale(sx, sy) * D2D1::Matrix3x2F::Translation(frame.left, frame.top));
-    if (radius > 0.0f) dc->FillRoundedRectangle(D2D1::RoundedRect(frame, radius, radius), ffmpeg_brush_.get());
-    else dc->FillRectangle(frame, ffmpeg_brush_.get());
+    ffmpeg_brush_->SetTransform(D2D1::Matrix3x2F::Scale(visual, visual) *
+                                D2D1::Matrix3x2F::Translation(left, top));
+    // A magnified canvas overflows the content area: clip it there, not to the
+    // canvas, or the picture would be cut back to the fitted rect.
+    const D2D1_RECT_F content = ContentRect();
+    const bool clipped = radius > 0.0f || canvas.left < content.left || canvas.top < content.top ||
+        canvas.right > content.right || canvas.bottom > content.bottom;
+    if (clipped) dc->PushAxisAlignedClip(content, D2D1_ANTIALIAS_MODE_ALIASED);
+    if (radius > 0.0f) {
+        dc->FillRoundedRectangle(D2D1::RoundedRect(canvas, radius, radius), ffmpeg_brush_.get());
+    } else {
+        dc->FillRectangle(D2D1::RectF(left, top, left + draw_w, top + draw_h), ffmpeg_brush_.get());
+    }
+    if (clipped) dc->PopAxisAlignedClip();
 }
 bool QuickPreviewWindow::PlaybackHover(POINT point) {
     float hover_x = -1.0f;
@@ -236,6 +299,34 @@ bool QuickPreviewWindow::PlaybackHover(POINT point) {
     playback_hover_button_ = button;
     return AudioHover(point) || changed;
 }
+bool QuickPreviewWindow::PlaybackZoom(POINT point, float steps) {
+    // Only the ffmpeg path can magnify: it decodes at (canvas × zoom), so a
+    // bigger picture means more detail rather than a stretched frame. The Media
+    // Foundation path renders through a child window, which has no equivalent.
+    if (!kVideoChrome || !video_.active()) return false;
+    if (Contains(PlaybackLayout().volume, point)) return false;
+    const auto state = video_.Snapshot();
+    if (!state.ffmpeg || !state.width || !state.height) return false;
+    const float current = video_.zoom();
+    const float next = std::clamp(current * std::pow(1.15f, steps), 1.0f, kMaxVideoZoom);
+    if (std::fabs(next - current) < 0.001f) return false;
+    // Keep the point under the pointer put, exactly like the image preview.
+    const D2D1_RECT_F base = VideoFrameRect(state);
+    const float cx = (base.left + base.right) * 0.5f;
+    const float cy = (base.top + base.bottom) * 0.5f;
+    const float u = (point.x - cx - video_pan_x_) / current;
+    const float v = (point.y - cy - video_pan_y_) / current;
+    video_pan_x_ = point.x - u * next - cx;
+    video_pan_y_ = point.y - v * next - cy;
+    ClampVideoPan(base, next);
+    video_.SetZoom(next);
+    playback_note_ = Label(L"\x7F29\x653E ", L"Zoom ") +
+        std::to_wstring(std::lround(next * 100.0f)) + L"%";
+    playback_note_until_ = GetTickCount64() + 1200;
+    InvalidateRect(hwnd_, nullptr, FALSE);
+    return true;
+}
+
 bool QuickPreviewWindow::PlaybackWheel(POINT point, float steps) {
     if (!kVideoChrome || !video_.active() || !Contains(PlaybackLayout().volume, point)) return false;
     playback_volume_ = std::clamp(playback_volume_ + steps * 0.05f, 0.0f, 1.0f);
