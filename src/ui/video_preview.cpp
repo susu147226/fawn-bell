@@ -388,8 +388,8 @@ void VideoPreview::SetZoom(float zoom) {
     if (!state_) return;
     struct Notify { Shared* state; ~Notify() { state->Wake(); } } notify{state_.get()};
     std::lock_guard lock(state_->mutex);
-    // 1.0 is the fitted rect; the canvas is never smaller than that.
-    state_->zoom = std::clamp(static_cast<double>(zoom), 1.0, 8.0);
+    // 1.0 is the fitted rect; below it the picture shrinks inside that rect.
+    state_->zoom = std::clamp(static_cast<double>(zoom), 0.25, 8.0);
 }
 float VideoPreview::zoom() const {
     if (!state_) return 1.0f;
@@ -679,6 +679,13 @@ bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::ws
     // Frames are decoded at the size the preview draws them: the video rect the
     // window laid out (Layout), times the zoom. Drawing is 1:1 at rest and stays
     // sharp when magnified, instead of upscaling a pane-sized picture.
+    // The 3840x2160 ceiling has to be applied *here*, exactly as Start applies it
+    // to the same box: otherwise the size the playback loop asks for can never
+    // equal the size in hand past a certain zoom (a tall 1080x2640 clip crossed it
+    // around 400%), so it decided to restart the decoder every 80 ms and the
+    // picture froze.
+    constexpr LONG kMaxDecodeSize = 3840;
+    constexpr LONG kMaxDecodeHeight = 2160;
     auto box_at = [&](double zoom) {
         LONG w = state->box_width.load();
         LONG h = state->box_height.load();
@@ -691,7 +698,8 @@ bool VideoPreview::RunFfmpeg(const std::shared_ptr<Shared>& state, const std::ws
         }
         w = (std::max)(w, 160L);
         h = (std::max)(h, 90L);
-        return SIZE{static_cast<LONG>(std::lround(w * zoom)), static_cast<LONG>(std::lround(h * zoom))};
+        return SIZE{(std::min)(static_cast<LONG>(std::lround(w * zoom)), kMaxDecodeSize),
+                    (std::min)(static_cast<LONG>(std::lround(h * zoom)), kMaxDecodeHeight)};
     };
     FfmpegPlayback player(ffmpeg_exe, media_path, info, [state] { state->Wake(); });
     // The zoom the preview is asking for right now; stamped on every session so

@@ -60,8 +60,9 @@ public:
     void SetMuted(bool muted);
     void SetRate(float rate);
     // FFmpeg path only: decode at (the video rect the owner laid out × zoom), so
-    // magnifying the canvas shows real detail rather than an upscaled frame.
-    // 1.0 is the fitted size; smaller is clamped away.
+    // magnifying the canvas shows real detail rather than an upscaled frame. The
+    // owner scales that whole rect by the same factor, down as well as up; 1.0 is
+    // the fitted size.
     void SetZoom(float zoom);
     float zoom() const;
     State Snapshot() const;

@@ -179,10 +179,10 @@ private:
     void ZoomAt(float cursor_x, float cursor_y, float factor);
     void ClampPan(float view_w, float view_h);
     D2D1_RECT_F ImageDest(const D2D1_RECT_F& content) const;
-    // The ffmpeg picture's canvas: the fitted video rect magnified by the video
-    // zoom and shifted by the pan. Unlike the fitted rect it may exceed the
-    // content area (drawing clips to it), which is what makes the wheel feel like
-    // the image preview's.
+    // The ffmpeg picture's canvas: the fitted video rect scaled by the video zoom
+    // and shifted by the pan — the whole rect, so magnifying and shrinking look
+    // alike. Unlike the fitted rect it may exceed the content area (drawing clips
+    // to it), which is what makes the wheel feel like the image preview's.
     D2D1_RECT_F VideoCanvasRect(const VideoPreview::State& state) const;
     bool CanPanVideo() const;
     void ClampVideoPan(const D2D1_RECT_F& base, float zoom);

@@ -20,8 +20,10 @@ constexpr float kPlaybackHeight = 76.0f;
 // Rollback switch: false restores the text-button bar and full-bleed video.
 constexpr bool kVideoChrome = true;
 constexpr float kChromeBarHeight = 56.0f;
-// Magnification ceiling for the ffmpeg canvas (VideoPreview::SetZoom clamps too).
+// Magnification range for the ffmpeg canvas (VideoPreview::SetZoom clamps to the
+// same range). Below 1 the picture shrinks inside its fitted rect.
 constexpr float kMaxVideoZoom = 8.0f;
+constexpr float kMinVideoZoom = 0.25f;
 // Rollback switch: false leaves an undecodable video track as a black frame.
 constexpr bool kCodecHint = true;
 constexpr float kRates[] = {1.0f, 1.25f, 1.5f, 2.0f, 0.5f};
@@ -195,9 +197,11 @@ void QuickPreviewWindow::LayoutVideo(ID2D1DeviceContext* dc, const VideoPreview:
     if (show && state.ffmpeg && dc) DrawFfmpegFrame(dc, canvas, static_cast<float>(radius));
 }
 D2D1_RECT_F QuickPreviewWindow::VideoCanvasRect(const VideoPreview::State& state) const {
+    // The whole rect scales with the zoom, in both directions: shrinking has to
+    // take the frame down with the picture, not leave a fixed frame around a
+    // smaller picture. Below 1 the pan is zero (ClampVideoPan), so it drops out.
     const D2D1_RECT_F base = VideoFrameRect(state);
     const float zoom = video_.zoom();
-    if (!(zoom > 1.001f)) return base;
     const float w = (base.right - base.left) * zoom;
     const float h = (base.bottom - base.top) * zoom;
     const float cx = (base.left + base.right) * 0.5f + video_pan_x_;
@@ -308,7 +312,7 @@ bool QuickPreviewWindow::PlaybackZoom(POINT point, float steps) {
     const auto state = video_.Snapshot();
     if (!state.ffmpeg || !state.width || !state.height) return false;
     const float current = video_.zoom();
-    const float next = std::clamp(current * std::pow(1.15f, steps), 1.0f, kMaxVideoZoom);
+    const float next = std::clamp(current * std::pow(1.15f, steps), kMinVideoZoom, kMaxVideoZoom);
     if (std::fabs(next - current) < 0.001f) return false;
     // Keep the point under the pointer put, exactly like the image preview.
     const D2D1_RECT_F base = VideoFrameRect(state);
