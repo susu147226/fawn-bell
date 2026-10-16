@@ -287,9 +287,10 @@ add_executable(luling_pack_installer_test
     src/bench/pack_installer_test.cpp
     src/app/pack_installer.cpp
     src/app/update_installer.cpp
+    src/app/update_download_cleanup.cpp
     src/app/update_transport.cpp)
 target_include_directories(luling_pack_installer_test PRIVATE "${CMAKE_BINARY_DIR}/generated")
-target_link_libraries(luling_pack_installer_test PRIVATE luling_runtime_log bcrypt cabinet shell32 user32 winhttp)
+target_link_libraries(luling_pack_installer_test PRIVATE luling_runtime_log bcrypt crypt32 cabinet shell32 user32 winhttp)
 
 add_executable(luling_update_session_test src/bench/update_session_test.cpp src/app/startup_location.cpp)
 

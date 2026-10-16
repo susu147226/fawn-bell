@@ -40,11 +40,18 @@ inline const wchar_t* PackKey(PackId id) {
 }
 
 // Main executable of a pack; its siblings live in the same directory.
+//
+// The image and RAW helpers keep their upstream `pulse-` names on purpose: they
+// are prebuilt third-party binaries shipped inside the packs, the catalog's
+// hashes are taken over exactly those names, and the application only ever
+// launches them. Renaming them here made every image and RAW pack look
+// uninstalled, because PackMainTool stopped matching what the pack unpacks —
+// the same trap the wire-format identifiers carry.
 inline const wchar_t* PackMainTool(PackId id) {
     switch (id) {
     case PackId::Media: return L"ffmpeg.exe";
-    case PackId::Images: return L"luling-imgpack.exe";
-    case PackId::Raw: return L"luling-rawpack.exe";
+    case PackId::Images: return L"pulse-imgpack.exe";
+    case PackId::Raw: return L"pulse-rawpack.exe";
     case PackId::Archives: return L"7z.exe";
     }
     return L"";

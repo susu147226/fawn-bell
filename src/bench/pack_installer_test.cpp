@@ -214,7 +214,10 @@ int wmain(int argc, wchar_t** argv) {
     const auto roundtrip = packs::ParsePackSettings(packs::SerializePackSettings(settings));
     Check(!roundtrip.enabled[2] && !roundtrip.enabled[3] && roundtrip.enabled[0] && roundtrip.enabled[1],
           "RAW and archive enable states round-trip independently");
-    Check(std::wstring(packs::PackMainTool(packs::PackId::Raw)) == L"luling-rawpack.exe" &&
+    // The image and RAW helpers keep their upstream names: they are prebuilt
+    // binaries shipped inside the packs, and the catalog's hashes cover them.
+    Check(std::wstring(packs::PackMainTool(packs::PackId::Raw)) == L"pulse-rawpack.exe" &&
+          std::wstring(packs::PackMainTool(packs::PackId::Images)) == L"pulse-imgpack.exe" &&
           std::wstring(packs::PackMainTool(packs::PackId::Archives)) == L"7z.exe", "new pack tool routing");
 
     const std::wstring root = MakeRoot();

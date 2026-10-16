@@ -1,10 +1,10 @@
-// image_pack_protocol.h - what the preview host and luling-imgpack.exe (the
+// image_pack_protocol.h - what the preview host and pulse-imgpack.exe (the
 // image preview pack, packs/images) agree on. Header-only, no dependencies:
 // the pack is built from this repository by its own CI job.
 //
-//   luling-imgpack.exe decode <file> <cap>   stdout: FrameHeader + pixels
-//   luling-imgpack.exe probe <file>          stdout: UTF-8 "key=value" lines
-//   luling-imgpack.exe formats               stdout: supported extensions
+//   pulse-imgpack.exe decode <file> <cap>   stdout: FrameHeader + pixels
+//   pulse-imgpack.exe probe <file>          stdout: UTF-8 "key=value" lines
+//   pulse-imgpack.exe formats               stdout: supported extensions
 //
 // Pixels are 32bpp premultiplied BGRA, top-down, scaled to fit cap x cap
 // (never enlarged). HDR pictures are tone-mapped to sRGB by the pack.

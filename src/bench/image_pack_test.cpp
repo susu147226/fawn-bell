@@ -1,8 +1,8 @@
 // image_pack_test - image preview pack: parsing units, pack resolution and an
-// end-to-end run of luling-imgpack.exe, directly and through Luling.Preview.exe.
+// end-to-end run of pulse-imgpack.exe, directly and through Luling.Preview.exe.
 //
 // Integration needs a built pack (LULING_TEST_IMGPACK=<folder holding
-// luling-imgpack.exe>) and FFmpeg to generate fixtures (LULING_TEST_FFMPEG, else
+// pulse-imgpack.exe>) and FFmpeg to generate fixtures (LULING_TEST_FFMPEG, else
 // C:\ffmpeg\bin). HEIC fixtures are optional: LULING_TEST_HEIC_DIR with
 // photo.heic (1600x1200, a 320 px thumbnail), alpha.heic, pq10.heic (10-bit
 // PQ). Missing pieces are skipped (reported, not failed). Everything runs
@@ -142,8 +142,8 @@ static void ResolutionTests(const fs::path& profile) {
     Check(ResolvePackUncached(PackId::Images).source == ToolSource::None, "no image pack -> unavailable");
     const fs::path base = profile / L"Luling" / L"packs" / L"images";
     WriteBytes(base / L"installed.json", "{\"version\":\"1\",\"dir\":\"1\"}");
-    Check(!ReadInstalledPack(PackId::Images).present, "installed.json without luling-imgpack.exe is not present");
-    WriteBytes(base / L"1" / L"luling-imgpack.exe", "MZ");
+    Check(!ReadInstalledPack(PackId::Images).present, "installed.json without pulse-imgpack.exe is not present");
+    WriteBytes(base / L"1" / L"pulse-imgpack.exe", "MZ");
     Check(ResolvePackUncached(PackId::Images).source == ToolSource::Pack, "installed image pack resolves");
     PackSettings settings;
     settings.enabled[static_cast<uint32_t>(PackId::Images)] = false;
@@ -169,7 +169,7 @@ int wmain() {
     const std::wstring pack_dir = Env(L"LULING_TEST_IMGPACK");
     std::wstring ffmpeg = Env(L"LULING_TEST_FFMPEG");
     if (ffmpeg.empty() && packs::IsRegularFile(L"C:\\ffmpeg\\bin\\ffmpeg.exe")) ffmpeg = L"C:\\ffmpeg\\bin\\ffmpeg.exe";
-    if (pack_dir.empty() || !packs::IsRegularFile(pack_dir + L"\\luling-imgpack.exe") || ffmpeg.empty()) {
+    if (pack_dir.empty() || !packs::IsRegularFile(pack_dir + L"\\pulse-imgpack.exe") || ffmpeg.empty()) {
         printf("SKIP integration: set LULING_TEST_IMGPACK (and LULING_TEST_FFMPEG)\n");
     } else {
         // Fixtures. A space and CJK in the folder name on purpose.

@@ -41,14 +41,14 @@ int wmain(int argc, wchar_t** argv) {
     const fs::path pack = root / L"Luling/packs/raw/test";
     fs::create_directories(pack);
     wchar_t self[32768]{}; GetModuleFileNameW(nullptr, self, 32768);
-    fs::copy_file(self, pack / L"luling-rawpack.exe", fs::copy_options::overwrite_existing);
+    fs::copy_file(self, pack / L"pulse-rawpack.exe", fs::copy_options::overwrite_existing);
     std::ofstream(pack.parent_path() / L"installed.json") << "{\"dir\":\"test\",\"version\":\"test\"}";
     check(preview::RawPackAvailable(), "offline installed pack available");
     {
         ffmpeg::Process process;
         ffmpeg::LaunchOptions options;
         options.discard_stderr = true;
-        const bool started = process.Start((pack / L"luling-rawpack.exe").wstring(), L"decode embedded 32", options);
+        const bool started = process.Start((pack / L"pulse-rawpack.exe").wstring(), L"decode embedded 32", options);
         printf("diagnostic start=%d error=%lu\n", started, GetLastError());
         if (started) {
             unsigned char bytes[64]{};
