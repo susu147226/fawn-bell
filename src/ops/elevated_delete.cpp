@@ -39,9 +39,13 @@ std::wstring ErrorText(HRESULT hr) {
 // failure is never interpreted here as permission to invoke permanent deletion.
 class RecycleSink final : public ITransferAdviseSink {
 public:
-    RecycleSink(const std::wstring& source, std::atomic<bool>& cancel, const ShellTransferProgress& progress)
-        : source_(source), cancel_(cancel), progress_(progress) {}
+    RecycleSink(std::atomic<bool>& cancel, const ShellTransferProgress& progress)
+        : cancel_(cancel), progress_(progress) {}
     HRESULT failure = S_OK;
+    // Which file the shell is reporting on right now. One sink serves the whole
+    // batch, so this moves with the run instead of being fixed at construction —
+    // a fresh sink per file was part of what made large deletes crawl.
+    std::wstring current;
     IFACEMETHODIMP QueryInterface(REFIID iid, void** out) override {
         if (!out) return E_POINTER;
         *out = nullptr;
@@ -51,7 +55,7 @@ public:
     IFACEMETHODIMP_(ULONG) AddRef() override { return ++refs_; }
     IFACEMETHODIMP_(ULONG) Release() override { const ULONG refs = --refs_; if (!refs) delete this; return refs; }
     IFACEMETHODIMP UpdateProgress(ULONGLONG done, ULONGLONG total, int, int, int, int) override {
-        try { if (progress_) progress_(source_, total ? static_cast<float>(100.0 * static_cast<double>(done) / static_cast<double>(total)) : -1.0f); }
+        try { if (progress_) progress_(current, total ? static_cast<float>(100.0 * static_cast<double>(done) / static_cast<double>(total)) : -1.0f); }
         catch (...) { return Fail(E_FAIL); }
         return cancel_.load() ? kCancelled : S_OK;
     }
@@ -64,28 +68,19 @@ public:
 private:
     HRESULT Fail(HRESULT hr) { if (SUCCEEDED(hr)) hr = E_FAIL; if (SUCCEEDED(failure)) failure = hr; return hr; }
     std::atomic<ULONG> refs_{1};
-    const std::wstring& source_;
     std::atomic<bool>& cancel_;
     const ShellTransferProgress& progress_;
 };
-HRESULT RecycleOnly(const std::wstring& source, std::atomic<bool>& cancel,
+// `transfer` and `bin` are supplied by the caller, which builds them once per
+// batch (and per parent folder) rather than once per file — see the delete loop.
+HRESULT RecycleOnly(const std::wstring& source, ITransferSource* transfer, IShellItem* bin,
+                    RecycleSink& sink, std::atomic<bool>& cancel,
                     ShellTransferResult& result, const ShellTransferProgress& progress) {
-    ComPtr<IShellItem> item, parent, bin;
+    ComPtr<IShellItem> item;
     HRESULT hr = SHCreateItemFromParsingName(path::StripExtendedPathPrefix(source).c_str(), nullptr, IID_PPV_ARGS(&item));
     if (FAILED(hr)) return hr;
-    hr = item->GetParent(&parent);
-    if (FAILED(hr)) return hr;
-    ComPtr<ITransferSource> transfer;
-    hr = parent->BindToHandler(nullptr, BHID_Transfer, IID_PPV_ARGS(&transfer));
-    if (FAILED(hr)) return hr;
-    hr = SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr, IID_PPV_ARGS(&bin));
-    if (FAILED(hr)) return hr;
-    ComPtr<RecycleSink> sink;
-    sink.Attach(new (std::nothrow) RecycleSink(source, cancel, progress));
-    if (!sink) return E_OUTOFMEMORY;
-    DWORD cookie = 0;
-    hr = transfer->Advise(sink.Get(), &cookie);
-    if (FAILED(hr)) return hr;
+    sink.current = source;
+    sink.failure = S_OK;
     ComPtr<IShellItem> recycled;
     bool attempted = false;
     if (cancel.load()) hr = kCancelled;
@@ -94,10 +89,9 @@ HRESULT RecycleOnly(const std::wstring& source, std::atomic<bool>& cancel,
         if (cancel.load()) hr = kCancelled;
         else {
             attempted = true;
-            hr = transfer->RecycleItem(item.Get(), bin.Get(), TSF_NORMAL, &recycled);
+            hr = transfer->RecycleItem(item.Get(), bin, TSF_NORMAL, &recycled);
         }
     }
-    transfer->Unadvise(cookie);
     const DWORD attributes = GetFileAttributesW(source.c_str());
     const DWORD source_error = attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : ERROR_SUCCESS;
     const bool missing = attributes == INVALID_FILE_ATTRIBUTES &&
@@ -108,10 +102,10 @@ HRESULT RecycleOnly(const std::wstring& source, std::atomic<bool>& cancel,
     if (recycled || (attempted && attributes == INVALID_FILE_ATTRIBUTES)) result.mutated = true;
     if ((hr == S_OK || hr == COPYENGINE_S_DONT_PROCESS_CHILDREN) && recycled && missing) {
         result.sources.push_back(source);
-        return FAILED(sink->failure) ? sink->failure : S_OK;
+        return FAILED(sink.failure) ? sink.failure : S_OK;
     }
     if (FAILED(hr)) return hr;
-    if (FAILED(sink->failure)) return sink->failure;
+    if (FAILED(sink.failure)) return sink.failure;
     // Skipped/pending results and a missing output object are not completion.
     return E_FAIL;
 }
@@ -202,6 +196,41 @@ private:
 ShellTransferResult DeleteWithCurrentToken(const std::vector<std::wstring>& sources,
     bool permanent, HWND owner, std::atomic<bool>& cancel, ShellTransferProgress progress) {
     ShellTransferResult result;
+    // Built once for the whole batch. Rebuilding the Recycle Bin item, the transfer
+    // source and the advise sink for every file is what made deleting a large
+    // selection crawl — each of those spins up shell machinery that serves any
+    // number of items. A transfer source belongs to one parent folder, so it is
+    // kept and reused until the batch moves elsewhere; selections are usually a
+    // single folder anyway, and a mixed one still pays only once per folder.
+    ComPtr<IShellItem> recycle_bin;
+    ComPtr<RecycleSink> recycle_sink;
+    ComPtr<ITransferSource> cached_transfer;
+    std::wstring cached_parent;
+    DWORD cached_cookie = 0;
+    if (!permanent) {
+        result.hr = SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr,
+                                         IID_PPV_ARGS(&recycle_bin));
+        if (FAILED(result.hr)) { result.error = ErrorText(result.hr); return result; }
+        recycle_sink.Attach(new (std::nothrow) RecycleSink(cancel, progress));
+        if (!recycle_sink) { result.hr = E_OUTOFMEMORY; return result; }
+    }
+    // One IFileOperation serves the whole batch — it holds any number of items, and a
+    // fresh one per file paid COM startup plus shell-engine spin-up for every single
+    // file. Each file still gets its own sink (a sink tracks which item is the root
+    // of its own subtree and when that subtree is gone), so the per-file bookkeeping
+    // is unchanged; the work just happens in one PerformOperations at the end.
+    struct PendingDelete { ComPtr<DeleteSink> sink; std::wstring source; DWORD cookie = 0; };
+    ComPtr<IFileOperation> batch;
+    std::vector<PendingDelete> pending;
+    if (permanent) {
+        result.hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&batch));
+        if (FAILED(result.hr)) { result.error = ErrorText(result.hr); return result; }
+        result.hr = batch->SetOwnerWindow(owner);
+        if (SUCCEEDED(result.hr))
+            result.hr = batch->SetOperationFlags(
+                FOF_NO_UI | FOF_NO_CONNECTED_ELEMENTS | FOFX_EARLYFAILURE | FOFX_NOCOPYHOOKS);
+        if (FAILED(result.hr)) { result.error = ErrorText(result.hr); return result; }
+    }
     for (const auto& source : sources) {
         if (cancel.load()) { result.hr = kCancelled; result.cancelled = true; break; }
         if (!permanent) {
@@ -221,51 +250,73 @@ ShellTransferResult DeleteWithCurrentToken(const std::vector<std::wstring>& sour
                 result.error = L"This location cannot be safely sent to the Recycle Bin. The item was not deleted.";
                 break;
             }
-            result.hr = RecycleOnly(source, cancel, result, progress);
+            const size_t slash = plain.find_last_of(L"\\/");
+            const std::wstring parent_dir = slash == std::wstring::npos ? std::wstring{}
+                                                                        : plain.substr(0, slash);
+            if (!cached_transfer || parent_dir != cached_parent) {
+                if (cached_transfer) cached_transfer->Unadvise(cached_cookie);
+                cached_transfer.Reset();
+                cached_cookie = 0;
+                ComPtr<IShellItem> item, parent;
+                if (SUCCEEDED(SHCreateItemFromParsingName(plain.c_str(), nullptr, IID_PPV_ARGS(&item))) &&
+                    SUCCEEDED(item->GetParent(&parent)) &&
+                    SUCCEEDED(parent->BindToHandler(nullptr, BHID_Transfer, IID_PPV_ARGS(&cached_transfer))) &&
+                    SUCCEEDED(cached_transfer->Advise(recycle_sink.Get(), &cached_cookie))) {
+                    cached_parent = parent_dir;
+                } else {
+                    cached_transfer.Reset();
+                    result.hr = E_FAIL;
+                    break;
+                }
+            }
+            result.hr = RecycleOnly(source, cached_transfer.Get(), recycle_bin.Get(), *recycle_sink.Get(),
+                                    cancel, result, progress);
             result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT || result.hr == COPYENGINE_E_USER_CANCELLED;
             if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
             if (FAILED(result.hr) || result.cancelled) break;
             continue;
         }
-        ComPtr<IFileOperation> operation;
-        result.hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&operation));
-        if (FAILED(result.hr)) break;
-        result.hr = operation->SetOwnerWindow(owner);
-        if (FAILED(result.hr)) break;
-        result.hr = operation->SetOperationFlags(FOF_NO_UI | FOF_NO_CONNECTED_ELEMENTS | FOFX_EARLYFAILURE | FOFX_NOCOPYHOOKS);
-        if (FAILED(result.hr)) break;
+        // Only stage the item here; the batch runs once, after the loop.
         ComPtr<IShellItem> item;
         result.hr = SHCreateItemFromParsingName(path::StripExtendedPathPrefix(source).c_str(), nullptr, IID_PPV_ARGS(&item));
         if (FAILED(result.hr)) break;
-        ComPtr<DeleteSink> sink;
-        sink.Attach(new (std::nothrow) DeleteSink(source, cancel, result, progress));
-        if (!sink) { result.hr = E_OUTOFMEMORY; break; }
-        DWORD cookie = 0;
-        result.hr = operation->Advise(sink.Get(), &cookie);
+        PendingDelete entry;
+        entry.sink.Attach(new (std::nothrow) DeleteSink(source, cancel, result, progress));
+        if (!entry.sink) { result.hr = E_OUTOFMEMORY; break; }
+        result.hr = batch->Advise(entry.sink.Get(), &entry.cookie);
         if (FAILED(result.hr)) break;
-        result.hr = operation->DeleteItem(item.Get(), nullptr);
-        if (SUCCEEDED(result.hr)) {
-            const HRESULT performed = operation->PerformOperations();
-            if (FAILED(performed) && SUCCEEDED(result.hr)) result.hr = performed;
-            BOOL aborted = FALSE;
-            const HRESULT queried = operation->GetAnyOperationsAborted(&aborted);
-            if (FAILED(queried) && SUCCEEDED(result.hr)) result.hr = queried;
-            if (aborted && SUCCEEDED(result.hr)) result.hr = HRESULT_FROM_WIN32(ERROR_OPERATION_ABORTED);
-            const bool source_missing = Missing(source);
+        result.hr = batch->DeleteItem(item.Get(), nullptr);
+        if (FAILED(result.hr)) break;
+        entry.source = source;
+        pending.push_back(std::move(entry));
+    }
+
+    // Run the batch, then let each sink report on its own file.
+    if (permanent && !pending.empty() && SUCCEEDED(result.hr) && !cancel.load()) {
+        const HRESULT performed = batch->PerformOperations();
+        if (FAILED(performed)) result.hr = performed;
+        BOOL aborted = FALSE;
+        const HRESULT queried = batch->GetAnyOperationsAborted(&aborted);
+        if (FAILED(queried) && SUCCEEDED(result.hr)) result.hr = queried;
+        if (aborted && SUCCEEDED(result.hr)) result.hr = HRESULT_FROM_WIN32(ERROR_OPERATION_ABORTED);
+        for (auto& entry : pending) {
+            const bool source_missing = Missing(entry.source);
             if (source_missing) result.mutated = true;
-            if (SUCCEEDED(result.hr) && !aborted && sink->DeferredDirectory() && source_missing &&
-                (result.sources.empty() || result.sources.back() != source))
-                result.sources.push_back(source);
-        }
-        operation->Unadvise(cookie);
-        result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT || result.hr == COPYENGINE_E_USER_CANCELLED;
-        if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
-        if (FAILED(result.hr) || result.cancelled) break;
-        if (result.sources.empty() || result.sources.back() != source) {
-            // No completion callback must never become a fabricated success.
-            result.hr = E_FAIL; break;
+            if (SUCCEEDED(result.hr) && !aborted && entry.sink->DeferredDirectory() && source_missing &&
+                (result.sources.empty() || result.sources.back() != entry.source))
+                result.sources.push_back(entry.source);
+            if (result.sources.empty() || result.sources.back() != entry.source) {
+                // No completion callback must never become a fabricated success.
+                if (SUCCEEDED(result.hr)) result.hr = E_FAIL;
+                break;
+            }
         }
     }
+    for (auto& entry : pending) batch->Unadvise(entry.cookie);
+    result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT ||
+                       result.hr == COPYENGINE_E_USER_CANCELLED;
+    if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
+    if (cached_transfer) cached_transfer->Unadvise(cached_cookie);
     if (FAILED(result.hr) && !result.cancelled && result.error.empty()) result.error = ErrorText(result.hr);
     return result;
 }

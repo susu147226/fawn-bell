@@ -464,7 +464,9 @@ HRESULT FileDataObject::GetData(FORMATETC* fmt, STGMEDIUM* out) {
     if (fmt->cfFormat == CF_HDROP) {
         h = RenderHDrop();
     } else if (fmt->cfFormat == (CLIPFORMAT)PreferredEffectFormat()) {
-        h = RenderDword(DROPEFFECT_COPY | DROPEFFECT_MOVE);
+        // One preferred effect, not the whole mask: the format holds a single value,
+        // and a target that reads COPY|MOVE out of it may pick the wrong one.
+        h = RenderDword(DROPEFFECT_COPY);
     } else if (fmt->cfFormat == (CLIPFORMAT)PerformedEffectFormat()) {
         h = RenderDword(performed_effect_);
     } else if (fmt->cfFormat == (CLIPFORMAT)FileNameWFormat()) {

@@ -495,6 +495,15 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
 // dropped on a row that is out of view. QueryContinueDrag fires on every pointer
 // move during the drag, which is what drives this.
 static void AutoScrollDuringDrag(AppState& s) {
+    // QueryContinueDrag runs on every pointer move — hundreds of times a second on a
+    // fast drag — and ListRect walks the pane layout. Doing that inline starved the
+    // drop target (browsers asking for the dragged data got no answer, which read as
+    // "can't drop onto a web page" and sometimes as a hang). Scrolling only has to
+    // keep up with the eye, not the mouse.
+    static ULONGLONG last_check = 0;
+    const ULONGLONG now = GetTickCount64();
+    if (now - last_check < 80) return;
+    last_check = now;
     app::Tab* tab = ActiveTab(s);
     if (!tab || !tab->snapshot) return;
     POINT cursor{};
