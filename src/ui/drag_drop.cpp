@@ -150,6 +150,36 @@ bool LooksLikeFolderShortcut(const std::wstring& path) {
     return _wcsicmp(path.c_str() + (path.size() - 4), L".lnk") == 0;
 }
 
+bool LooksLikeExecutable(const std::wstring& path) {
+    const auto ends_with = [&path](const wchar_t* suffix) {
+        const size_t n = wcslen(suffix);
+        return path.size() >= n && _wcsicmp(path.c_str() + (path.size() - n), suffix) == 0;
+    };
+    if (ends_with(L".exe")) return true;
+    if (!ends_with(L".lnk")) return false;
+    // A shortcut can point at a folder just as well as at a program, and dropping
+    // onto the former must keep its ordinary "move it into there" meaning — that
+    // is how Explorer treats it. Only a shortcut to a program means "open with".
+    IShellLinkW* link = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&link))) || !link) return false;
+    bool program = false;
+    IPersistFile* file = nullptr;
+    if (SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&file))) && file) {
+        if (SUCCEEDED(file->Load(path.c_str(), STGM_READ))) {
+            wchar_t target[MAX_PATH]{};
+            WIN32_FIND_DATAW data{};
+            if (SUCCEEDED(link->GetPath(target, ARRAYSIZE(target), &data, SLGP_RAWPATH)) && target[0]) {
+                const DWORD attrs = GetFileAttributesW(target);
+                program = attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+            }
+        }
+        file->Release();
+    }
+    link->Release();
+    return program;
+}
+
 // ---------------------------------------------------------------------------
 // IDataObject inspection
 // ---------------------------------------------------------------------------
@@ -493,6 +523,7 @@ ULONG ListDropSource::Release() {
 }
 
 HRESULT ListDropSource::QueryContinueDrag(BOOL escape_pressed, DWORD key_state) {
+    if (scroll_hook_) scroll_hook_();
     if (escape_pressed) {
         if (esc_hook_ && esc_hook_()) return S_OK; // target consumed Esc (spring-back)
         return DRAGDROP_S_CANCEL;
@@ -502,7 +533,8 @@ HRESULT ListDropSource::QueryContinueDrag(BOOL escape_pressed, DWORD key_state) 
 }
 
 DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effects,
-                     std::function<bool()> esc_consumed, const std::wstring& source_view) {
+                     std::function<bool()> esc_consumed, const std::wstring& source_view,
+                     std::function<void()> scroll_during_drag) {
     // Recycle rows name the original path, which may now belong to a new file.
     if (paths.empty() || fs::IsRecycleViewPath(source_view)) return DROPEFFECT_NONE;
 
@@ -518,7 +550,10 @@ DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effec
         medium.tymed = TYMED_HGLOBAL;
         medium.hGlobal = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(DWORD));
         if (medium.hGlobal) {
-            *static_cast<DWORD*>(GlobalLock(medium.hGlobal)) = allowed_effects;
+            // CFSTR_PREFERREDDROPEFFECT carries *one* preferred effect, not the set
+            // of allowed ones: the whole mask (COPY|MOVE|LINK) is an invalid value
+            // that a target may interpret any way it likes.
+            *static_cast<DWORD*>(GlobalLock(medium.hGlobal)) = DROPEFFECT_COPY;
             GlobalUnlock(medium.hGlobal);
             if (FAILED(data->SetData(&fmt, &medium, TRUE))) ReleaseStgMedium(&medium);
         }
@@ -526,6 +561,7 @@ DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effec
 
     auto* source = new ListDropSource();
     source->SetEscHook(std::move(esc_consumed));
+    source->SetScrollHook(std::move(scroll_during_drag));
     DWORD effect = DROPEFFECT_NONE;
     ::DoDragDrop(data, source, allowed_effects, &effect);
     if (effect == DROPEFFECT_NONE) {

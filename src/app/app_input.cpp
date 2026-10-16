@@ -92,6 +92,7 @@ void ClearDropFeedback(AppState& s) {
     s.dropBadge.clear();
     s.dropBadgeMove = false;
     s.dropDestDir.clear();
+    s.dropOpenWith.clear();
     s.springRow = -1;
     s.springStart = 0;
     InvalidateRect(s.hwnd, nullptr, FALSE);
@@ -177,6 +178,29 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
     if (!tab) return DROPEFFECT_NONE;
 
     std::wstring destName;
+    // Dropping onto an .exe, or a shortcut to a program, means "open these files
+    // with it" — the way Explorer does it. This has to be checked before the
+    // folder-row branch below, which would otherwise read the row as "the current
+    // folder" and try to move the files onto themselves (they usually sit in that
+    // very directory), which is why a drop on VS Code's shortcut did nothing at all.
+    if (hit.region == ui::HitTestResult::Row && hit.index >= 0 && tab->snapshot &&
+        hit.index < static_cast<int>(tab->EntryCount()) && (allowed & DROPEFFECT_LINK)) {
+        const auto& entry = tab->EntryAt(hit.index);
+        if (!entry.is_dir) {
+            const std::wstring full = EntryFullPath(*tab, hit.index);
+            if (!full.empty() && ui::LooksLikeExecutable(full)) {
+                s.dropOpenWith = full;
+                s.dropPaneIndex = hit.pane_index;
+                destName = entry.name;
+                s.dropBadge = l10n::Pick(L"用 ", L"Open with ") + entry.name;
+                s.dropBadgeX = static_cast<float>(pt.x);
+                s.dropBadgeY = static_cast<float>(pt.y);
+                s.springRow = -1;
+                InvalidateRect(s.hwnd, nullptr, FALSE);
+                return DROPEFFECT_LINK;
+            }
+        }
+    }
     if (hit.region == ui::HitTestResult::Row && hit.index >= 0 &&
         tab->snapshot && hit.index < (int)tab->EntryCount() &&
         tab->EntryAt(hit.index).is_dir) {
@@ -344,6 +368,7 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
     if (s.trayDragOut) allowed &= DROPEFFECT_COPY;
     DWORD effect = ResolveDropTarget(s, sources, pt, key_state, allowed, preferred_effect);
     std::wstring dest = s.dropDestDir;
+    const std::wstring open_with = s.dropOpenWith;   // read before ClearDropFeedback
     bool tray = s.dropTray;
     const bool header = s.dropHeader;
     const int header_pane = s.dropPaneIndex;
@@ -351,6 +376,19 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
     ClearDropFeedback(s);
     s.springEntered = false;
     if (effect == DROPEFFECT_NONE || !(effect & allowed)) return DROPEFFECT_NONE;
+
+    if (!open_with.empty()) {
+        // Launch the program with every dragged file as an argument — what the shell
+        // does for a drop on an executable. Passing them in one call keeps an editor
+        // from opening one window per file where it can help it.
+        std::wstring parameters;
+        for (const auto& source : sources) {
+            if (!parameters.empty()) parameters += L' ';
+            parameters += L'"' + source + L'"';
+        }
+        ShellExecuteW(s.hwnd, L"open", open_with.c_str(), parameters.c_str(), nullptr, SW_SHOWNORMAL);
+        return DROPEFFECT_LINK;
+    }
 
     if (pin_quick_access) {
         std::vector<std::wstring> folders;
@@ -453,6 +491,28 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
 }
 
 // Starts the modal OLE drag-out for the selected entries.
+// Explorer scrolls the listing when a drag reaches its edge, so a file can be
+// dropped on a row that is out of view. QueryContinueDrag fires on every pointer
+// move during the drag, which is what drives this.
+static void AutoScrollDuringDrag(AppState& s) {
+    app::Tab* tab = ActiveTab(s);
+    if (!tab || !tab->snapshot) return;
+    POINT cursor{};
+    if (!GetCursorPos(&cursor)) return;
+    ScreenToClient(s.hwnd, &cursor);
+    // Outside the window the pointer is on its way somewhere else (another pane, or
+    // another application entirely) — scrolling the listing then would be noise.
+    RECT client{};
+    GetClientRect(s.hwnd, &client);
+    if (cursor.x < 0 || cursor.y < 0 || cursor.x >= client.right || cursor.y >= client.bottom)
+        return;
+    const D2D1_RECT_F list = ListRect(s);
+    const float margin = 28.0f * s.scale;
+    // StartSmoothScroll takes a wheel-style delta: negative scrolls up.
+    if (cursor.y < list.top + margin) StartSmoothScroll(s, -s.renderer.RowHeight());
+    else if (cursor.y > list.bottom - margin) StartSmoothScroll(s, s.renderer.RowHeight());
+}
+
 void StartDragOut(AppState& s) {
     if(DeferContentSelection(s,[](AppState& v){if(GetKeyState(VK_LBUTTON)&0x8000) StartDragOut(v);})) return;
     app::Tab* tab = ActiveTab(s);
@@ -464,8 +524,12 @@ void StartDragOut(AppState& s) {
     s.clickCollapseIndex = -1;
     CancelScrollAnimation(s); // DoDragDrop's modal loop coexists with on-demand render
     g_internal_drag = true;
-    DWORD effect = ui::DoFileDragDrop(paths, DROPEFFECT_COPY | DROPEFFECT_MOVE,
-        [&s] { return s.springEntered; }, tab->current_path); // Esc = 退回 when spring-entered
+    // LINK is what "drop a file onto an .exe to open it with that program" asks
+    // for: the target's drop handler checks whether the source offers LINK and
+    // refuses the drag outright when it does not.
+    DWORD effect = ui::DoFileDragDrop(paths, DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK,
+        [&s] { return s.springEntered; }, tab->current_path,   // Esc = 退回 when spring-entered
+        [&s] { AutoScrollDuringDrag(s); });
     g_internal_drag = false;
     s.springEntered = false;
     ClearDropFeedback(s);
@@ -488,7 +552,8 @@ static void StartTrayDragOut(AppState& s) {
     if (paths.empty()) return;
     CancelScrollAnimation(s);
     s.trayDragOut = true;
-    ui::DoFileDragDrop(paths, DROPEFFECT_COPY, [&s] { return s.springEntered; });
+    // Same LINK allowance as StartDragOut, so dropping onto an .exe works here too.
+    ui::DoFileDragDrop(paths, DROPEFFECT_COPY | DROPEFFECT_LINK, [&s] { return s.springEntered; });
     s.trayDragOut = false;
     s.springEntered = false;
     ClearDropFeedback(s);

@@ -42,6 +42,10 @@ std::wstring FirstDroppableFolder(const std::vector<std::wstring>& sources);
 // True when path looks like a .lnk, so a header drop can try to open the target.
 bool LooksLikeFolderShortcut(const std::wstring& path);
 
+// True when dropping onto `path` means "open the dropped files with this program":
+// an .exe, or a .lnk whose target is a program rather than a folder.
+bool LooksLikeExecutable(const std::wstring& path);
+
 // ---------------------------------------------------------------------------
 // IDataObject inspection (drop-in side).
 // ---------------------------------------------------------------------------
@@ -96,6 +100,10 @@ public:
     // When set and returning true, Esc is consumed by the drop target
     // (spring-loaded "go back") instead of cancelling the drag.
     void SetEscHook(std::function<bool()> hook) { esc_hook_ = std::move(hook); }
+    // Runs on every QueryContinueDrag, i.e. whenever the pointer moves during the
+    // drag. The owner uses it to scroll the listing when the pointer nears an edge,
+    // the way Explorer does, so a file can be dropped on a row out of view.
+    void SetScrollHook(std::function<void()> hook) { scroll_hook_ = std::move(hook); }
 
     IFACEMETHODIMP QueryInterface(REFIID riid, void** out) override;
     IFACEMETHODIMP_(ULONG) AddRef() override { return ++ref_; }
@@ -106,12 +114,16 @@ public:
 private:
     LONG ref_ = 1;
     std::function<bool()> esc_hook_;
+    std::function<void()> scroll_hook_;
 };
 
 // Runs the modal DoDragDrop loop. Returns the performed DROPEFFECT_*.
+// `scroll_during_drag`, when given, is called on every pointer move so the caller
+// can auto-scroll near the edges.
 DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effects,
                      std::function<bool()> esc_consumed,
-                     const std::wstring& source_view = {});
+                     const std::wstring& source_view = {},
+                     std::function<void()> scroll_during_drag = {});
 
 // ---------------------------------------------------------------------------
 // Drop-in target.

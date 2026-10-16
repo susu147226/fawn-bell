@@ -574,6 +574,9 @@ struct AppState {
     ULONGLONG teachShownAt = 0;
     bool teachShownThisSession = false; // at most one tip per launch
     std::wstring dropDestDir;                 // resolved drop destination ("" = none/tray)
+    // Set when the row under the pointer is an .exe / .lnk: this drag means "open
+    // the dropped files with that program", not a move into a folder.
+    std::wstring dropOpenWith;
 
     // Spring-loaded folder enter during drag-over (ui.md §7.8).
     int springRow = -1;
