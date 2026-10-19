@@ -1,5 +1,6 @@
 // app_ops_ui.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "../fs/shell_namespace.h"
 #include "../ui/lumatext_renderer.h"
 #include "../ui/fluent_menu.h"
 #include "../ui/drag_drop.h"
@@ -194,7 +195,61 @@ void SendTrayToDest(AppState& s, const std::wstring& dir, bool move) {
 // Ctrl+V: release newest tray batch, else paste from the system clipboard.
 void PasteIntoCurrent(AppState& s) {
     app::Tab* tab = ActiveTab(s);
-    if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) || tab->net_readonly) return;
+    if (!tab || tab->current_path.empty() || tab->net_readonly) return;
+    const bool shell_target = fs::IsShellPath(tab->current_path);
+    // Items copied from a device live only in this process: CF_HDROP cannot
+    // describe them. Paste them before considering the system clipboard.
+    if (!s.shellClipboardPaths.empty()) {
+        const auto sources = s.shellClipboardPaths;
+        const bool move = s.shellClipboardCut;
+        s.shellClipboardPaths.clear();
+        s.shellClipboardCut = false;
+        s.cutPaths.clear();
+        const bool copied = shell_target
+            ? fs::ShellCopyWithin(sources, tab->current_path, move)
+            : fs::ShellCopyToLocal(sources, tab->current_path, move);
+        if (copied) {
+            RefreshPath(s, tab->current_path, RefreshReason::Explicit);
+            if (move) {
+                // A cut also changed the source folders; refresh them so their
+                // tabs do not keep showing rows that are already gone.
+                for (const auto& source : sources)
+                    RefreshPath(s, fs::ParentPath(source), RefreshReason::OperationCompleted);
+            }
+        } else {
+            s.notification_toast.Show(s.hwnd,
+                l10n::Pick(L"复制失败", L"Copy failed"),
+                l10n::Pick(L"无法在设备与本地文件夹之间完成复制。",
+                           L"Could not copy between the device and this folder."));
+        }
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        return;
+    }
+    if (shell_target) {
+        // Local files dropped onto a phone or camera via the clipboard.
+        ops::ClipboardData cb;
+        if (ops::ReadClipboard(cb) && !cb.paths.empty()) {
+            std::vector<std::wstring> sources;
+            sources.reserve(cb.paths.size());
+            for (auto& path : cb.paths) sources.push_back(fs::NormalizePath(path));
+            if (fs::ShellCopyFromLocal(sources, tab->current_path, cb.cut)) {
+                if (cb.cut) TrackCutClipboard(s, cb);
+                RefreshPath(s, tab->current_path, RefreshReason::Explicit);
+                if (cb.cut) {
+                    for (const auto& source : sources)
+                        RefreshPath(s, fs::ParentPath(source), RefreshReason::OperationCompleted);
+                }
+            } else {
+                s.notification_toast.Show(s.hwnd,
+                    l10n::Pick(L"复制失败", L"Copy failed"),
+                    l10n::Pick(L"无法把文件复制到该设备。",
+                               L"Could not copy the files to this device."));
+            }
+        }
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        return;
+    }
+    if (fs::IsVirtualPath(tab->current_path)) return;
     if (!s.tray.batches().empty()) {
         size_t idx = s.tray.batches().size() - 1;
         if (s.tray.batches()[idx].move_intent) s.cutPaths.clear();
@@ -267,6 +322,39 @@ void DeleteSelected(AppState& s, bool permanent) {
 
 void DeletePaths(AppState& s, std::vector<std::wstring> paths, bool permanent) {
     if (paths.empty()) return;
+    const bool has_shell = std::any_of(paths.begin(), paths.end(),
+        [](const std::wstring& path) { return fs::IsShellPath(path); });
+    if (has_shell) {
+        // A device has no Recycle Bin and no filesystem path; delete through
+        // the Shell after the same destructive confirmation.
+        ui::ConfirmDialogSpec confirm;
+        confirm.title = l10n::Get(l10n::StringId::PermanentDelete);
+        if (paths.size() == 1) {
+            confirm.message = l10n::Get(l10n::StringId::PermanentDeleteOne);
+        } else {
+            wchar_t buf[256]{};
+            swprintf_s(buf, l10n::Get(l10n::StringId::PermanentDeleteManyFormat).c_str(),
+                       paths.size());
+            confirm.message = buf;
+        }
+        for (const std::wstring& path : paths) {
+            const std::wstring name = fs::ShellDisplayName(path);
+            confirm.items.push_back(name.empty() ? ClipboardPath(path) : name);
+        }
+        confirm.confirm_text = l10n::Get(l10n::StringId::PermanentDelete);
+        confirm.danger = true;
+        if (!ui::ShowConfirmDialog(s.hwnd, confirm, s.darkMode, s.accentColor)) return;
+        if (fs::ShellDelete(paths)) {
+            if (auto* tab = ActiveTab(s))
+                RefreshActiveTab(s, RefreshReason::OperationCompleted);
+        } else {
+            s.notification_toast.Show(s.hwnd,
+                l10n::Get(l10n::StringId::PermanentDelete),
+                l10n::Pick(L"设备无法删除这些项目，可能没有权限。",
+                           L"The device could not delete these items."));
+        }
+        return;
+    }
     // A share has no Recycle Bin to restore from, and the Shell refuses to
     // recycle there — which used to make Delete fail outright on a network
     // path. Explorer deletes permanently instead; the confirmation below is
@@ -378,6 +466,19 @@ void MirrorSelectionToClipboard(AppState& s, bool move_intent) {
 
 void MirrorPathsToClipboard(AppState& s, const std::vector<std::wstring>& paths, bool move_intent) {
     if (paths.empty()) return;
+    const bool has_shell = std::any_of(paths.begin(), paths.end(),
+        [](const std::wstring& path) { return fs::IsShellPath(path); });
+    s.shellClipboardPaths.clear();
+    s.shellClipboardCut = false;
+    if (has_shell) {
+        // A portable device item has no CF_HDROP representation. Keep it in
+        // process so Ctrl+V can run an IFileOperation against it.
+        s.shellClipboardPaths = paths;
+        s.shellClipboardCut = move_intent;
+        s.cutPaths = move_intent ? paths : std::vector<std::wstring>{};
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        return;
+    }
     // The cut state still shows on the list rows; only the clipboard is written.
     s.cutPaths = move_intent ? paths : std::vector<std::wstring>{};
     std::vector<std::wstring> cbPaths;

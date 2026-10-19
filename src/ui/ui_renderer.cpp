@@ -6,6 +6,7 @@
 #include "ui_renderer_internal.h"
 #include "../common/localization.h"
 #include "../common/display_path.h"
+#include "../fs/shell_namespace.h"
 #include "tab_shape.h"
 #include "bloom_accent_picker.h"
 #include "typography.h"
@@ -294,6 +295,17 @@ std::vector<BreadcrumbSegment> SplitBreadcrumb(const std::wstring& path) {
         return out;
     }
     std::wstring luling_kind, luling_rest;
+    if (luling::fs::IsShellPath(p)) {
+        // Device namespace paths carry no readable segments; show the device
+        // (or folder) name as one crumb that navigates to itself.
+        BreadcrumbSegment seg;
+        seg.path = path;
+        seg.text = luling::fs::ShellDisplayName(p);
+        if (seg.text.empty())
+            seg.text = luling::l10n::Pick(L"便携设备", L"Portable device");
+        out.push_back(seg);
+        return out;
+    }
     if (app::ParseLulingPath(p, &luling_kind, &luling_rest)) {
         if (luling_kind == L"recycle") {
             BreadcrumbSegment pc;

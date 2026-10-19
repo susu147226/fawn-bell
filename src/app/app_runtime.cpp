@@ -1,5 +1,6 @@
 // app_runtime.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "../fs/shell_namespace.h"
 #include "pane_layout.h"
 #include "vertical_tabs.h"
 #include "app_column_view.h"
@@ -983,6 +984,10 @@ int TrayItemTotalCount(const app::StagingTray& tray) {
 
 // Extended-length prefixes leak into tooltips otherwise: \\?\C:\x -> C:\x.
 std::wstring TrayDisplayPath(const std::wstring& path) {
+    if (fs::IsShellPath(path)) {
+        const auto name = fs::ShellDisplayName(path);
+        if (!name.empty()) return name;
+    }
     return luling::path::FriendlyPathText(path);
 }
 

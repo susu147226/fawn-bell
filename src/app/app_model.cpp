@@ -10,6 +10,7 @@
 #include "../common/path_utils.h"
 #include "../common/display_path.h"
 #include "../common/text_format.h"
+#include "../fs/shell_namespace.h"
 #include <commctrl.h>
 #include <prsht.h>
 #include <shlobj.h>
@@ -807,6 +808,10 @@ std::wstring FindGitRoot(const std::wstring& path) {
 
 std::wstring TabTitle(const std::wstring& path) {
     if (path.empty()) return l10n::Get(l10n::StringId::ThisPc);
+    if (fs::IsShellPath(path)) {
+        const auto name = fs::ShellDisplayName(path);
+        return name.empty() ? l10n::Pick(L"便携设备", L"Portable device") : name;
+    }
     std::wstring kind, rest;
     if (ParseLulingPath(path, &kind, &rest)) {
         if (kind == L"settings") return l10n::Get(l10n::StringId::Settings);
@@ -826,6 +831,10 @@ std::wstring TabTitle(const std::wstring& path) {
 
 static std::wstring DisplayPath(const std::wstring& path) {
     if (path.empty()) return l10n::Get(l10n::StringId::ThisPc);
+    if (fs::IsShellPath(path)) {
+        const std::wstring name = fs::ShellDisplayName(path);
+        return name.empty() ? l10n::Pick(L"便携设备", L"Portable device") : name;
+    }
     // Keep the UNC prefix. Dropping it turns \\server\share into a relative
     // path; breadcrumb clicks then resolve against the process CWD.
     return luling::path::FriendlyPathText(path);
@@ -1324,6 +1333,17 @@ SidebarModel BuildSidebarModel(const fs::RecycleBinInfo* recycle) {
         e.glyph = L"\xE7F1"; // HardDrive (Segoe Fluent Icons)
         e.fallback = L"Drive";
         e.path = fs::NormalizePath(std::wstring(root));
+        e.is_drive = true;
+        e.color = ui::HexColor(kDrivePalette[m.drives.size() % 4]);
+        m.drives.push_back(std::move(e));
+    }
+    for (const auto& device : fs::PortableDevicesSnapshot()) {
+        SidebarEntry e;
+        e.label = device.name;
+        e.detail = l10n::Pick(L"便携设备", L"Portable device");
+        e.glyph = L"\xE8EA"; // CellPhone
+        e.fallback = L"Device";
+        e.path = device.full_path;
         e.is_drive = true;
         e.color = ui::HexColor(kDrivePalette[m.drives.size() % 4]);
         m.drives.push_back(std::move(e));

@@ -7,15 +7,23 @@
 #include <chrono>
 // fs_enum.cpp
 #include "fs_enum.h"
+#include "shell_namespace.h"
 #include "bounded_enumeration.h"
 #include "../common/localization.h"
+#include "../common/path_utils.h"
 #include <windows.h>
 #include <shellapi.h>
+#include <shlobj.h>
+#include <shobjidl.h>
 #include <shlwapi.h>
+#include <propkey.h>
+#include <wrl/client.h>
 #include <lm.h>
 #include <algorithm>
+#include <filesystem>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
 
 #pragma comment(lib, "shlwapi.lib")
 
@@ -167,6 +175,7 @@ std::wstring NormalizePath(std::wstring path) {
 }
 
 std::wstring ParentPath(const std::wstring& path) {
+    if (IsShellPath(path)) return ShellParentPath(path);
     std::wstring normalized = NormalizePath(path);
     if (normalized.empty()) throw std::runtime_error("Invalid directory path");
     std::wstring_view view = normalized;
@@ -390,6 +399,8 @@ static void EnumerateThisPc(std::vector<DirEntry>& out) {
         }
         out.push_back(std::move(e));
     }
+    // Phones and cameras live in the Shell namespace, not on a drive letter.
+    AppendPortableDevices(out);
 }
 
 // Server-root view (\\server, normalized as \\?\UNC\server with no further
@@ -426,6 +437,10 @@ static void EnumerateServerShares(const std::wstring& server, std::vector<DirEnt
 
 static void EnumerateDirectoryImpl(const std::wstring& path, std::vector<DirEntry>& out, const std::atomic<bool>* cancelled) {
     out.clear();
+    if (IsShellPath(path)) {
+        EnumerateShellDirectory(path, out, cancelled);
+        return;
+    }
     if (path.empty()) {
         EnumerateThisPc(out);
         return;
@@ -524,6 +539,565 @@ void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>& out, co
     }
     if (request->error) std::rethrow_exception(request->error);
     out = std::move(request->entries);
+}
+
+namespace {
+
+using Microsoft::WRL::ComPtr;
+
+constexpr std::wstring_view kShellPathPrefix = L"luling:shell:";
+
+void LogDeviceCopy(const std::wstring& text) {
+    wchar_t temp[MAX_PATH]{};
+    if (!GetTempPathW(MAX_PATH, temp)) return;
+    const std::wstring path = std::wstring(temp) + L"luling-device-copy.log";
+    FILE* file = nullptr;
+    if (_wfopen_s(&file, path.c_str(), L"a, ccs=UTF-8") != 0 || !file) return;
+    fwprintf(file, L"%s\n", text.c_str());
+    fclose(file);
+}
+
+struct ShellComInit {
+    HRESULT hr = E_FAIL;
+    ShellComInit() { hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); }
+    ~ShellComInit() { if (SUCCEEDED(hr)) CoUninitialize(); }
+    // Another apartment is fine: the Shell calls still work, and this thread
+    // must not tear down an initialization it did not perform.
+    bool ok() const { return SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE; }
+};
+
+bool DecodeShellHex(std::wstring_view hex, std::vector<BYTE>& bytes) {
+    auto digit = [](wchar_t c) -> int {
+        if (c >= L'0' && c <= L'9') return c - L'0';
+        if (c >= L'a' && c <= L'f') return c - L'a' + 10;
+        if (c >= L'A' && c <= L'F') return c - L'A' + 10;
+        return -1;
+    };
+    if (hex.empty() || (hex.size() & 1u) != 0) return false;
+    bytes.resize(hex.size() / 2);
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        const int high = digit(hex[i * 2]);
+        const int low = digit(hex[i * 2 + 1]);
+        if (high < 0 || low < 0) return false;
+        bytes[i] = static_cast<BYTE>((high << 4) | low);
+    }
+    return true;
+}
+
+bool ParseShellPidl(const std::wstring& path, PIDLIST_ABSOLUTE& pidl) {
+    pidl = nullptr;
+    if (!IsShellPath(path)) return false;
+    std::vector<BYTE> bytes;
+    if (!DecodeShellHex(std::wstring_view(path).substr(kShellPathPrefix.size()), bytes))
+        return false;
+    if (bytes.size() < sizeof(USHORT) || bytes[bytes.size() - 1] != 0 ||
+        bytes[bytes.size() - 2] != 0)
+        return false;
+    void* memory = CoTaskMemAlloc(bytes.size());
+    if (!memory) return false;
+    std::memcpy(memory, bytes.data(), bytes.size());
+    pidl = reinterpret_cast<PIDLIST_ABSOLUTE>(memory);
+    return true;
+}
+
+ComPtr<IShellItem> ShellItemFromPidl(PCIDLIST_ABSOLUTE pidl) {
+    ComPtr<IShellItem> item;
+    if (FAILED(SHCreateItemFromIDList(pidl, IID_PPV_ARGS(&item)))) return {};
+    return item;
+}
+
+std::wstring ShellNormalName(IShellItem* item) {
+    if (!item) return {};
+    PWSTR text = nullptr;
+    if (FAILED(item->GetDisplayName(SIGDN_NORMALDISPLAY, &text)) || !text) return {};
+    std::wstring name(text);
+    CoTaskMemFree(text);
+    return name;
+}
+
+void FillShellProperties(IShellItem2* item, DirEntry& entry) {
+    if (!item) return;
+    PROPVARIANT size{};
+    PropVariantInit(&size);
+    if (SUCCEEDED(item->GetProperty(PKEY_Size, &size))) {
+        if (size.vt == VT_UI8) entry.size = size.uhVal.QuadPart;
+        else if (size.vt == VT_UI4) entry.size = size.ulVal;
+    }
+    PropVariantClear(&size);
+    FILETIME modified{};
+    if (SUCCEEDED(item->GetFileTime(PKEY_DateModified, &modified))) entry.mtime = modified;
+    FILETIME created{};
+    if (SUCCEEDED(item->GetFileTime(PKEY_DateCreated, &created))) entry.ctime = created;
+}
+
+bool IsPortableDevice(IShellItem* item) {    if (!item) return false;
+    // Explorer's own test: a portable device's parsing name carries the
+    // Portable Devices category GUID. Some handlers leave the category
+    // property empty, so the path is the dependable signal.
+    PWSTR parsing = nullptr;
+    bool portable = false;
+    if (SUCCEEDED(item->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &parsing)) && parsing) {
+        std::wstring text(parsing);
+        CoTaskMemFree(parsing);
+        CharLowerW(text.data());
+        portable = text.find(L"{6ac27878-a6fa-4155-ba85-f98f491d4f33}") != std::wstring::npos;
+    }
+    if (portable) return true;
+    ComPtr<IShellItem2> item2;
+    if (FAILED(item->QueryInterface(IID_PPV_ARGS(&item2))) || !item2) return false;
+    PROPVARIANT categories{};
+    PropVariantInit(&categories);
+    if (SUCCEEDED(item2->GetProperty(PKEY_Devices_CategoryIds, &categories))) {
+        if (categories.vt == (VT_VECTOR | VT_LPWSTR)) {
+            const auto& list = categories.calpwstr;
+            for (ULONG i = 0; i < list.cElems && !portable; ++i) {
+                portable = list.pElems[i] &&
+                    _wcsicmp(list.pElems[i], L"{6AC27878-A6FA-4155-BA85-F98F491D4F33}") == 0;
+            }
+        } else if (categories.vt == VT_LPWSTR) {
+            portable = categories.pwszVal &&
+                _wcsicmp(categories.pwszVal, L"{6AC27878-A6FA-4155-BA85-F98F491D4F33}") == 0;
+        }
+    }
+    PropVariantClear(&categories);
+    return portable;
+}
+
+bool RunShellFileOperation(const std::vector<ComPtr<IShellItem>>& sources,
+                           IShellItem* destination, bool move) {    if (!destination || sources.empty()) return false;
+    ComPtr<IFileOperation> operation;
+    if (FAILED(CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL,
+                                IID_PPV_ARGS(&operation))))
+        return false;
+    if (FAILED(operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI |
+                                            FOF_ALLOWUNDO | FOF_RENAMEONCOLLISION))) {
+        LogDeviceCopy(L"op: SetOperationFlags failed");
+        return false;
+    }
+    for (const auto& source : sources) {
+        if (!source) continue;
+        const HRESULT queued = move
+            ? operation->MoveItem(source.Get(), destination, nullptr, nullptr)
+            : operation->CopyItem(source.Get(), destination, nullptr, nullptr);
+        wchar_t line[64]{};
+        swprintf_s(line, L"op: queue hr=0x%08X", static_cast<unsigned>(queued));
+        LogDeviceCopy(line);
+        if (FAILED(queued)) return false;
+    }
+    const HRESULT performed = operation->PerformOperations();
+    {
+        wchar_t line[64]{};
+        swprintf_s(line, L"op: perform hr=0x%08X", static_cast<unsigned>(performed));
+        LogDeviceCopy(line);
+    }
+    if (FAILED(performed)) return false;
+    BOOL aborted = FALSE;
+    operation->GetAnyOperationsAborted(&aborted);
+    LogDeviceCopy(std::wstring(L"op: aborted=") + (aborted ? L"1" : L"0"));
+    return aborted == FALSE;
+}
+
+std::mutex g_portable_mutex;
+std::vector<DirEntry> g_portable_devices;
+ULONGLONG g_portable_devices_at = 0;
+// Display names are asked for on every title/breadcrumb build; resolving the
+// PIDL each time would put a Shell call on the paint path.
+std::mutex g_shell_name_mutex;
+std::unordered_map<std::wstring, std::wstring> g_shell_names;
+
+} // namespace
+
+bool IsShellPath(const std::wstring& path) {
+    return path.starts_with(kShellPathPrefix);
+}
+
+std::wstring MakeShellPath(PCIDLIST_ABSOLUTE pidl) {
+    if (!pidl) return {};
+    const UINT bytes = ILGetSize(pidl);
+    if (bytes < sizeof(USHORT)) return {};
+    static constexpr wchar_t kHex[] = L"0123456789abcdef";
+    std::wstring out(kShellPathPrefix);
+    out.reserve(out.size() + static_cast<size_t>(bytes) * 2);
+    const auto* data = reinterpret_cast<const BYTE*>(pidl);
+    for (UINT i = 0; i < bytes; ++i) {
+        out.push_back(kHex[data[i] >> 4]);
+        out.push_back(kHex[data[i] & 0x0F]);
+    }
+    return out;
+}
+
+void EnumerateShellDirectory(const std::wstring& path, std::vector<DirEntry>& out,
+                             const std::atomic<bool>* cancelled) {
+    out.clear();
+    ShellComInit com;
+    if (!com.ok()) throw std::runtime_error("Shell COM initialization failed");
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(path, pidl)) throw std::runtime_error("Invalid shell path");
+    ComPtr<IShellFolder> folder;
+    HRESULT hr = SHBindToObject(nullptr, pidl, nullptr, IID_PPV_ARGS(&folder));
+    if (FAILED(hr) || !folder) {
+        CoTaskMemFree(pidl);
+        throw std::runtime_error("Could not open the portable device");
+    }
+    ComPtr<IEnumIDList> items;
+    hr = folder->EnumObjects(nullptr, SHCONTF_FOLDERS | SHCONTF_NONFOLDERS, &items);
+    if (FAILED(hr) || !items) {
+        CoTaskMemFree(pidl);
+        throw std::runtime_error("Could not enumerate the portable device");
+    }
+    LPITEMIDLIST child = nullptr;
+    while (items->Next(1, &child, nullptr) == S_OK) {
+        if (cancelled && cancelled->load()) {
+            CoTaskMemFree(child);
+            break;
+        }
+        SFGAOF attributes = SFGAO_FOLDER | SFGAO_STREAM;
+        PCUITEMID_CHILD child_ref = child;
+        folder->GetAttributesOf(1, &child_ref, &attributes);
+        PIDLIST_ABSOLUTE absolute = ILCombine(pidl, child);
+        ComPtr<IShellItem2> item;
+        if (absolute) {
+            ComPtr<IShellItem> plain;
+            SHCreateItemFromIDList(absolute, IID_PPV_ARGS(&plain));
+            if (plain) plain.As(&item);
+        }
+        DirEntry entry;
+        entry.name = ShellNormalName(item.Get());
+        if (entry.name.empty()) {
+            STRRET text{};
+            if (SUCCEEDED(folder->GetDisplayNameOf(child, SHGDN_NORMAL, &text))) {
+                wchar_t buffer[512]{};
+                if (SUCCEEDED(StrRetToBufW(&text, child, buffer, ARRAYSIZE(buffer))))
+                    entry.name.assign(buffer);
+            }
+        }
+        if (entry.name.empty() || entry.name == L"." || entry.name == L"..") {
+            if (absolute) CoTaskMemFree(absolute);
+            CoTaskMemFree(child);
+            continue;
+        }
+        entry.is_dir = (attributes & SFGAO_FOLDER) != 0;
+        entry.attrs = entry.is_dir ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL;
+        if (absolute) entry.full_path = MakeShellPath(absolute);
+        FillShellProperties(item.Get(), entry);
+        if (absolute) CoTaskMemFree(absolute);
+        CoTaskMemFree(child);
+        out.push_back(std::move(entry));
+    }
+    CoTaskMemFree(pidl);
+}
+
+void AppendPortableDevices(std::vector<DirEntry>& out) {
+    std::vector<DirEntry> devices;
+    ShellComInit com;
+    if (!com.ok()) return;
+    PIDLIST_ABSOLUTE computer = nullptr;
+    if (FAILED(SHGetKnownFolderIDList(FOLDERID_ComputerFolder, 0, nullptr, &computer)) || !computer)
+        return;
+    ComPtr<IShellFolder> folder;
+    if (FAILED(SHBindToObject(nullptr, computer, nullptr, IID_PPV_ARGS(&folder))) || !folder) {
+        CoTaskMemFree(computer);
+        return;
+    }
+    ComPtr<IEnumIDList> items;
+    if (FAILED(folder->EnumObjects(nullptr, SHCONTF_FOLDERS | SHCONTF_NONFOLDERS, &items)) ||
+        !items) {
+        CoTaskMemFree(computer);
+        return;
+    }
+    LPITEMIDLIST child = nullptr;
+    while (items->Next(1, &child, nullptr) == S_OK) {
+        SFGAOF attributes = SFGAO_FILESYSTEM | SFGAO_FOLDER | SFGAO_STORAGE |
+                            SFGAO_FILESYSANCESTOR;
+        PCUITEMID_CHILD child_ref = child;
+        folder->GetAttributesOf(1, &child_ref, &attributes);
+        const bool filesystem = (attributes & SFGAO_FILESYSTEM) != 0;
+        if (filesystem) {
+            CoTaskMemFree(child);
+            continue;
+        }
+        PIDLIST_ABSOLUTE absolute = ILCombine(computer, child);
+        if (!absolute) {
+            CoTaskMemFree(child);
+            continue;
+        }
+        ComPtr<IShellItem> item = ShellItemFromPidl(absolute);
+        if (!IsPortableDevice(item.Get())) {
+            CoTaskMemFree(absolute);
+            CoTaskMemFree(child);
+            continue;
+        }
+        DirEntry entry;
+        entry.name = ShellNormalName(item.Get());
+        entry.is_dir = true;
+        entry.attrs = FILE_ATTRIBUTE_DIRECTORY;
+        entry.full_path = MakeShellPath(absolute);
+        CoTaskMemFree(absolute);
+        CoTaskMemFree(child);
+        if (!entry.name.empty() && !entry.full_path.empty())
+            devices.push_back(std::move(entry));
+    }
+    CoTaskMemFree(computer);
+    {
+        std::lock_guard<std::mutex> lock(g_portable_mutex);
+        g_portable_devices = devices;
+        g_portable_devices_at = GetTickCount64();
+    }
+    out.insert(out.end(), devices.begin(), devices.end());
+}
+
+std::vector<DirEntry> PortableDevicesSnapshot() {
+    {
+        std::lock_guard<std::mutex> lock(g_portable_mutex);
+        if (g_portable_devices_at && GetTickCount64() - g_portable_devices_at < 30000)
+            return g_portable_devices;
+    }
+    std::vector<DirEntry> devices;
+    AppendPortableDevices(devices);
+    return devices;
+}
+
+std::wstring ShellParentPath(const std::wstring& path) {
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(path, pidl)) return {};
+    PIDLIST_ABSOLUTE parent = ILClone(pidl);
+    CoTaskMemFree(pidl);
+    if (!parent) return {};
+    if (!ILRemoveLastID(parent)) {
+        CoTaskMemFree(parent);
+        return {};
+    }
+    if (ILIsEmpty(parent)) {
+        CoTaskMemFree(parent);
+        return {};
+    }
+    PIDLIST_ABSOLUTE computer = nullptr;
+    SHGetKnownFolderIDList(FOLDERID_ComputerFolder, 0, nullptr, &computer);
+    const bool is_this_pc = computer && ILIsEqual(parent, computer);
+    if (computer) CoTaskMemFree(computer);
+    std::wstring result;
+    if (!is_this_pc) result = MakeShellPath(parent);
+    CoTaskMemFree(parent);
+    return result;
+}
+
+std::wstring ShellDisplayName(const std::wstring& path) {
+    {
+        std::lock_guard<std::mutex> lock(g_shell_name_mutex);
+        const auto found = g_shell_names.find(path);
+        if (found != g_shell_names.end()) return found->second;
+    }
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(path, pidl)) return {};
+    ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
+    CoTaskMemFree(pidl);
+    std::wstring name = ShellNormalName(item.Get());
+    if (!name.empty()) {
+        std::lock_guard<std::mutex> lock(g_shell_name_mutex);
+        if (g_shell_names.size() >= 512) g_shell_names.clear();
+        g_shell_names.emplace(path, name);
+    }
+    return name;
+}
+
+bool ShellOpen(const std::wstring& path) {
+    ShellComInit com;
+    if (!com.ok()) return false;
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(path, pidl)) return false;
+    SHELLEXECUTEINFOW execute{};
+    execute.cbSize = sizeof(execute);
+    execute.fMask = SEE_MASK_IDLIST;
+    execute.lpVerb = L"open";
+    execute.lpIDList = pidl;
+    execute.nShow = SW_SHOWNORMAL;
+    const bool ok = ShellExecuteExW(&execute) != FALSE;
+    CoTaskMemFree(pidl);
+    return ok;
+}
+
+bool ShellCopyToLocal(const std::vector<std::wstring>& shell_sources,
+                      const std::wstring& local_dir, bool move) {
+    ShellComInit com;
+    if (!com.ok()) return false;
+    ComPtr<IShellItem> destination;
+    const std::wstring plain_destination = luling::path::StripExtendedPathPrefix(local_dir);
+    if (FAILED(SHCreateItemFromParsingName(plain_destination.c_str(), nullptr,
+                                           IID_PPV_ARGS(&destination))))
+        return false;
+    std::vector<ComPtr<IShellItem>> sources;
+    for (const auto& path : shell_sources) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        if (!ParseShellPidl(path, pidl)) continue;
+        ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
+        CoTaskMemFree(pidl);
+        if (item) sources.push_back(std::move(item));
+    }
+    return RunShellFileOperation(sources, destination.Get(), move);
+}
+
+bool ShellCopyFromLocal(const std::vector<std::wstring>& local_sources,
+                        const std::wstring& shell_dest, bool move) {
+    ShellComInit com;
+    if (!com.ok()) return false;
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(shell_dest, pidl)) return false;
+    ComPtr<IShellItem> destination = ShellItemFromPidl(pidl);
+    CoTaskMemFree(pidl);
+    if (!destination) return false;
+    std::vector<ComPtr<IShellItem>> sources;
+    for (const auto& path : local_sources) {
+        ComPtr<IShellItem> item;
+        const std::wstring plain = luling::path::StripExtendedPathPrefix(path);
+        if (SUCCEEDED(SHCreateItemFromParsingName(plain.c_str(), nullptr,
+                                                  IID_PPV_ARGS(&item))))
+            sources.push_back(std::move(item));
+    }
+    return RunShellFileOperation(sources, destination.Get(), move);
+}
+
+static bool DeleteShellItemsOnce(const std::vector<std::wstring>& paths) {
+    ShellComInit com;
+    if (!com.ok()) return false;
+    ComPtr<IFileOperation> operation;
+    if (FAILED(CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL,
+                                IID_PPV_ARGS(&operation))))
+        return false;
+    // A device has no Recycle Bin, so FOF_ALLOWUNDO makes the delete fail.
+    if (FAILED(operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI)))
+        return false;
+    for (const auto& path : paths) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        if (!ParseShellPidl(path, pidl)) continue;
+        ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
+        CoTaskMemFree(pidl);
+        if (item) {
+            const HRESULT queued = operation->DeleteItem(item.Get(), nullptr);
+            wchar_t line[64]{};
+            swprintf_s(line, L"delete: queue hr=0x%08X", static_cast<unsigned>(queued));
+            LogDeviceCopy(line);
+        }
+    }
+    const HRESULT performed = operation->PerformOperations();
+    {
+        wchar_t line[64]{};
+        swprintf_s(line, L"delete: perform hr=0x%08X", static_cast<unsigned>(performed));
+        LogDeviceCopy(line);
+    }
+    if (FAILED(performed)) return false;
+    BOOL aborted = FALSE;
+    operation->GetAnyOperationsAborted(&aborted);
+    LogDeviceCopy(std::wstring(L"delete: aborted=") + (aborted ? L"1" : L"0"));
+    return aborted == FALSE;
+}
+
+static bool DeleteShellItems(const std::vector<std::wstring>& paths) {
+    // The device can still be finishing the upload that just landed.
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        if (DeleteShellItemsOnce(paths)) return true;
+        if (attempt == 0) Sleep(300);
+    }
+    return false;
+}
+
+static std::wstring MakeStagingDirectory() {
+    wchar_t temp[MAX_PATH]{};
+    if (!GetTempPathW(MAX_PATH, temp)) return {};
+    std::wstring directory = std::wstring(temp) + L"luling-device-copy-" +
+        std::to_wstring(GetCurrentProcessId()) + L"-" +
+        std::to_wstring(GetTickCount64());
+    if (!CreateDirectoryW(directory.c_str(), nullptr)) return {};
+    return directory;
+}
+
+static std::vector<std::wstring> ListStagingItems(const std::wstring& directory) {
+    std::vector<std::wstring> items;
+    WIN32_FIND_DATAW data{};
+    const std::wstring pattern = directory + L"\\*";
+    HANDLE find = FindFirstFileW(pattern.c_str(), &data);
+    if (find == INVALID_HANDLE_VALUE) return items;
+    do {
+        if (wcscmp(data.cFileName, L".") == 0 || wcscmp(data.cFileName, L"..") == 0)
+            continue;
+        items.push_back(directory + L"\\" + data.cFileName);
+    } while (FindNextFileW(find, &data));
+    FindClose(find);
+    return items;
+}
+
+bool ShellRename(const std::wstring& path, const std::wstring& new_name) {
+    ShellComInit com;
+    if (!com.ok() || new_name.empty()) return false;
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(path, pidl)) return false;
+    ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
+    CoTaskMemFree(pidl);
+    if (!item) return false;
+    ComPtr<IFileOperation> operation;
+    if (FAILED(CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL,
+                                IID_PPV_ARGS(&operation))))
+        return false;
+    if (FAILED(operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI |
+                                            FOF_ALLOWUNDO))) {
+        LogDeviceCopy(L"rename: SetOperationFlags failed");
+        return false;
+    }
+    const HRESULT queued = operation->RenameItem(item.Get(), new_name.c_str(), nullptr);
+    {
+        wchar_t line[64]{};
+        swprintf_s(line, L"rename: queue hr=0x%08X", static_cast<unsigned>(queued));
+        LogDeviceCopy(line);
+    }
+    if (FAILED(queued)) return false;
+    const HRESULT performed = operation->PerformOperations();
+    {
+        wchar_t line[64]{};
+        swprintf_s(line, L"rename: perform hr=0x%08X", static_cast<unsigned>(performed));
+        LogDeviceCopy(line);
+    }
+    if (FAILED(performed)) return false;
+    BOOL aborted = FALSE;
+    operation->GetAnyOperationsAborted(&aborted);
+    LogDeviceCopy(std::wstring(L"rename: aborted=") + (aborted ? L"1" : L"0"));
+    return aborted == FALSE;
+}
+
+bool ShellDelete(const std::vector<std::wstring>& paths) {
+    return DeleteShellItems(paths);
+}
+
+bool ShellCopyWithin(const std::vector<std::wstring>& shell_sources,
+                     const std::wstring& shell_dest, bool move) {
+    if (shell_sources.empty()) return false;
+    LogDeviceCopy(L"within: start sources=" + std::to_wstring(shell_sources.size()));
+    // MTP rejects device-to-device copies, and that failed first attempt can
+    // leave the device busy for the next operation. Stage through a local
+    // folder instead: download, upload, then drop the local copies.
+    const std::wstring staging = MakeStagingDirectory();
+    if (staging.empty()) {
+        LogDeviceCopy(L"within: staging directory failed");
+        return false;
+    }
+    bool ok = ShellCopyToLocal(shell_sources, staging, false);
+    if (!ok) {
+        // A device that just finished another operation can refuse the next
+        // one; one short retry recovers without disturbing the user.
+        Sleep(300);
+        ok = ShellCopyToLocal(shell_sources, staging, false);
+    }
+    LogDeviceCopy(L"within: download " + std::wstring(ok ? L"ok" : L"failed"));
+    std::vector<std::wstring> items;
+    if (ok) items = ListStagingItems(staging);
+    LogDeviceCopy(L"within: staged items=" + std::to_wstring(items.size()));
+    ok = ok && !items.empty() && ShellCopyFromLocal(items, shell_dest, false);
+    LogDeviceCopy(L"within: upload " + std::wstring(ok ? L"ok" : L"failed"));
+    if (ok && move) {
+        const bool deleted = DeleteShellItems(shell_sources);
+        LogDeviceCopy(L"within: delete source " + std::wstring(deleted ? L"ok" : L"failed"));
+    }
+    std::error_code ignored;
+    std::filesystem::remove_all(staging, ignored);
+    return ok;
 }
 
 } // namespace luling::fs

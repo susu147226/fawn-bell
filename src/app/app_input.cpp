@@ -3937,7 +3937,9 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         } else if (ctrl && wParam == L'F') {
             if (IsAddressSearchResults(tab)) ShowAddressSearch(*s);
             else ShowFilterEditor(*s);
-        } else if (ctrl && wParam == L'D') {
+        } else if (ctrl && !shift && wParam == L'D') {
+            DeleteSelected(*s, false);
+        } else if (shift && !ctrl && wParam == L'D') {
             MarkTargetPane(*s);
         } else if (wParam == VK_F6) {
             CycleFocus(*s);

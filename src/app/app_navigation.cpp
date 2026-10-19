@@ -1,6 +1,7 @@
 #include <thread>
 // app_navigation.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "../fs/shell_namespace.h"
 #include "network_locations.h"
 #include "shell_window_sync.h"
 #include "app_column_view.h"
@@ -1107,7 +1108,7 @@ void StartLoadingPath(AppState& s, app::Tab& tab, const std::wstring& path, Path
         SyncVisibleWatches(s);
         return;
     }
-    if (fs::IsVirtualPath(normalized)) {
+    if (fs::IsVirtualPath(normalized) && !fs::IsShellPath(normalized)) {
         LoadVirtualView(s, tab, normalized, reason);
         return;
     }
@@ -1402,7 +1403,8 @@ void RefreshPath(AppState& s, const std::wstring& path, RefreshReason reason) {
         if (tab && tab->current_path == normalized) tabs.push_back(tab);
     });
     if (tabs.empty()) return;
-    if (fs::IsVirtualPath(normalized) && !fs::IsRecycleViewPath(normalized)) {
+    if (fs::IsVirtualPath(normalized) && !fs::IsShellPath(normalized) &&
+        !fs::IsRecycleViewPath(normalized)) {
         for (app::Tab* tab : tabs) {
             if (tab->search_content_stopped && reason != RefreshReason::Explicit) continue;
             // The subscribed session consumes changes since its initial snapshot,
@@ -2141,7 +2143,8 @@ void OpenSelected(AppState& s) {
         std::wstring full = EntryFullPath(*tab, indices[0]);
         if (e.is_dir) NavigateTo(s, full);
         else {
-            s.ops.OpenWith(full);
+            if (fs::IsShellPath(full)) fs::ShellOpen(full);
+            else s.ops.OpenWith(full);
             RecordRecentOpen(s, full, app::PlaceItemKind::File);
         }
         return;
@@ -2159,13 +2162,18 @@ void OpenSelected(AppState& s) {
         if (e.is_dir) continue;
         std::wstring full = EntryFullPath(*tab, index);
         if (!full.empty()) {
-            s.ops.OpenWith(full);
+            if (fs::IsShellPath(full)) fs::ShellOpen(full);
+            else s.ops.OpenWith(full);
             RecordRecentOpen(s, full, app::PlaceItemKind::File);
         }
     }
 }
 
 void OpenPath(AppState& s, const std::wstring& path) {
+    if (fs::IsShellPath(path)) {
+        NavigateTo(s, path);
+        return;
+    }
     const DWORD attrs = GetFileAttributesW(path.c_str());
     if (attrs == INVALID_FILE_ATTRIBUTES) return;
     if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
@@ -2183,7 +2191,7 @@ void GoUp(AppState& s) {
         NavigateTo(s, L"");
         return;
     }
-    if (fs::IsVirtualPath(tab->current_path)) {
+    if (fs::IsVirtualPath(tab->current_path) && !fs::IsShellPath(tab->current_path)) {
         if (tab->CanGoBack()) GoBack(s);
         return;
     }

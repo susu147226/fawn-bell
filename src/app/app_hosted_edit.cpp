@@ -3,6 +3,7 @@
 // app_hosted_edit.cpp — extracted from app_main.cpp.
 #include "app_network_locations.h"
 #include "app_internal.h"
+#include "../fs/shell_namespace.h"
 #include "address_bar_command.h"
 #include "tab_shortcuts.h"
 #include "../ui/address_search_layout.h"
@@ -173,7 +174,11 @@ void ShowAddressEditor(AppState& s) {
             return;
         }
     }
-    const std::wstring shown = ClipboardPath(tab->current_path);
+    std::wstring shown = ClipboardPath(tab->current_path);
+    if (fs::IsShellPath(tab->current_path)) {
+        const auto name = fs::ShellDisplayName(tab->current_path);
+        if (!name.empty()) shown = name;
+    }
     SendMessageW(s.hwndAddressEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(L""));
     SetWindowTextW(s.hwndAddressEdit, shown.empty() ? l10n::Get(l10n::StringId::ThisPc).c_str() : shown.c_str());
     LayoutAddressEditor(s);
@@ -457,6 +462,19 @@ void HideRenameOverlay(AppState& s, bool commit) {
                         RefreshActiveTab(s, RefreshReason::OperationCompleted);
                     else
                         MessageBeep(MB_ICONWARNING);
+                } else if (fs::IsShellPath(full)) {
+                    if (fs::ShellRename(full, buf)) {
+                        tab->pending_selected_name = buf;
+                        tab->pending_selected_names = { buf };
+                        tab->pending_selection_revision = tab->selection_revision;
+                        tab->held_renames.push_back({tab->EntryAt(index).name, buf});
+                        RefreshActiveTab(s, RefreshReason::OperationCompleted);
+                    } else {
+                        s.notification_toast.Show(s.hwnd,
+                            l10n::Get(l10n::StringId::CannotRename),
+                            l10n::Pick(L"设备拒绝了该名称，或不允许重命名。",
+                                       L"The device rejected the new name or does not allow renaming."));
+                    }
                 } else {
                     ops::OpRequest req;
                     req.type = ops::OpType::Rename;

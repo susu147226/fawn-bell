@@ -77,4 +77,8 @@ void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>& out, co
 // Metadata-only lookup for worker-side updates; never follows the target.
 DWORD ReadReparseTag(const std::wstring& path);
 
+// Portable devices (phones, cameras) for the sidebar. Cached briefly because
+// building the sidebar happens often and probing WPD is not free.
+std::vector<DirEntry> PortableDevicesSnapshot();
+
 } // namespace luling::fs

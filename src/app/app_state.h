@@ -194,7 +194,7 @@ struct AppState {
 
     app::WindowTabs window_tabs;
     app::Pane* pane = nullptr;          // focused leaf of the current layout tab
-    app::Pane* targetPane = nullptr;    // Ctrl+D marked destination
+    app::Pane* targetPane = nullptr;    // Shift+D marked destination
 
     fs::SnapshotStore store;
     app::WorkerPool worker;
@@ -775,6 +775,10 @@ struct AppState {
 
     // Cut state mirrored into list rows (ui.md §5.2 rule 6: 55% opacity).
     std::vector<std::wstring> cutPaths;
+    // Device namespace items cannot be expressed as CF_HDROP. Copying one keeps
+    // the selection here so paste can hand it to IFileOperation.
+    std::vector<std::wstring> shellClipboardPaths;
+    bool shellClipboardCut = false;
     DWORD pendingCutClipboardSequence = 0;
     std::vector<std::wstring> pendingCutClipboardPaths;
     std::vector<std::wstring> completedCutClipboardPaths;
