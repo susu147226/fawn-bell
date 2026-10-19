@@ -127,6 +127,9 @@ struct Tab {
     uint64_t content_total_files = 0;
     std::shared_ptr<ContentSelectionRestore> content_selection_restore;
     uint64_t selection_revision = 0;
+    // Last observed directory timestamp; a cheap fallback when a watcher misses
+    // an external change (download managers, network shares).
+    uint64_t folder_stamp = 0;
     std::shared_ptr<ContentSizeSummary> content_size_summary;
     // Cached file-size summary of a snapshot selection (see SelectionSizeSummary).
     struct SelectionSizeCache {

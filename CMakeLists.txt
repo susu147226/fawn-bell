@@ -251,8 +251,8 @@ add_executable(luling_duplicate_scan_test
     src/app/duplicate_scan.cpp)
 target_link_libraries(luling_duplicate_scan_test PRIVATE ole32)
 
-add_executable(luling_drag_drop_test src/bench/drag_drop_test_main.cpp)
-target_link_libraries(luling_drag_drop_test PRIVATE ole32 shell32 uuid user32)
+add_executable(luling_drag_drop_test src/bench/drag_drop_test_main.cpp src/fs/fs_enum.cpp)
+target_link_libraries(luling_drag_drop_test PRIVATE ole32 shell32 uuid user32 netapi32 mpr luling_localization)
 
 add_executable(luling_drop_staging_test src/bench/drop_staging_test.cpp src/app/drop_staging.cpp)
 add_executable(luling_drop_staging_failure_test src/bench/drop_staging_failure_test.cpp)

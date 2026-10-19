@@ -1,6 +1,7 @@
 // drag_drop.cpp — See drag_drop.h for the contract.
 #include "drag_drop.h"
 #include "../fs/fs_recycle.h"
+#include "../fs/shell_namespace.h"
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
@@ -547,10 +548,16 @@ DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effec
 
     IDataObject* data = nullptr;
     FileDataObject* fallback = nullptr;
-    if (FAILED(CreateShellFilesDataObject(paths, &data)) || !data) {
+    const bool shell_drag = std::any_of(paths.begin(), paths.end(),
+        [](const std::wstring& path) { return fs::IsShellPath(path); });
+    if (shell_drag) {
+        data = fs::ShellCreateDragDataObject(paths);
+        if (!data) return DROPEFFECT_NONE;
+    } else if (FAILED(CreateShellFilesDataObject(paths, &data)) || !data) {
         fallback = FileDataObject::Create(paths);
         data = fallback;
-    } else {
+    }
+    if (data && !fallback) {
         // CFSTR_PREFERREDDROPEFFECT holds the effect the pressed modifier asks for,
         // not the allowed set. Writing COPY unconditionally made every
         // Luling-to-Luling drag a copy: our own drop target reads this value and
@@ -593,6 +600,29 @@ DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effec
     return effect;
 }
 
+static bool ExtractDropPaths(IDataObject* obj, std::vector<std::wstring>& out) {
+    if (ExtractHDropPaths(obj, out)) return true;
+    out.clear();
+    IShellItemArray* array = nullptr;
+    if (FAILED(SHCreateShellItemArrayFromDataObject(
+            obj, IID_IShellItemArray, reinterpret_cast<void**>(&array))) || !array)
+        return false;
+    DWORD count = 0;
+    if (FAILED(array->GetCount(&count))) {
+        array->Release();
+        return false;
+    }
+    for (DWORD i = 0; i < count; ++i) {
+        IShellItem* item = nullptr;
+        if (FAILED(array->GetItemAt(i, &item)) || !item) continue;
+        const std::wstring path = luling::fs::ShellPathFromItem(item);
+        if (!path.empty()) out.push_back(path);
+        item->Release();
+    }
+    array->Release();
+    return !out.empty();
+}
+
 // ---------------------------------------------------------------------------
 // WindowDropTarget
 // ---------------------------------------------------------------------------
@@ -627,7 +657,7 @@ HRESULT WindowDropTarget::DragEnter(IDataObject* obj, DWORD key_state, POINTL pt
     if (!effect) return E_POINTER;
     sources_.clear();
     preferred_ = 0;
-    if (!ExtractHDropPaths(obj, sources_)) {
+    if (!ExtractDropPaths(obj, sources_)) {
         *effect = DROPEFFECT_NONE;
         return S_OK;
     }
@@ -661,7 +691,7 @@ HRESULT WindowDropTarget::Drop(IDataObject* obj, DWORD key_state, POINTL pt, DWO
     if (!effect) return E_POINTER;
     const DWORD allowed = *effect & (DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK);
     std::vector<std::wstring> sources;
-    if (!allowed || !ExtractHDropPaths(obj, sources)) {
+    if (!allowed || !ExtractDropPaths(obj, sources)) {
         *effect = DROPEFFECT_NONE;
         DragLeave();
         return S_OK;

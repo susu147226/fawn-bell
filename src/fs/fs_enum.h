@@ -80,5 +80,7 @@ DWORD ReadReparseTag(const std::wstring& path);
 // Portable devices (phones, cameras) for the sidebar. Cached briefly because
 // building the sidebar happens often and probing WPD is not free.
 std::vector<DirEntry> PortableDevicesSnapshot();
+// A device arrived or left: the cached list is stale until the next probe.
+void InvalidatePortableDevices();
 
 } // namespace luling::fs

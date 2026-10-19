@@ -4,6 +4,8 @@
 #pragma once
 #include "fs_enum.h"
 #include <windows.h>
+#include <objidl.h>
+#include <shobjidl.h>
 #include <shtypes.h>
 
 #include <atomic>
@@ -35,5 +37,16 @@ bool ShellCopyFromLocal(const std::vector<std::wstring>& local_sources,
                         const std::wstring& shell_dest, bool move);
 bool ShellCopyWithin(const std::vector<std::wstring>& shell_sources,
                      const std::wstring& shell_dest, bool move);
+
+// True when `name` already exists directly under the device folder `directory`.
+bool ShellChildExists(const std::wstring& directory, const std::wstring& name);
+// Shell path of that child, or empty when it does not exist.
+std::wstring ShellChildPath(const std::wstring& directory, const std::wstring& name);
+
+// Drag and drop: a Shell data object for device items, and conversion from a
+// Shell item (including parsing names) to Luling's path form.
+IDataObject* ShellCreateDragDataObject(const std::vector<std::wstring>& shell_paths);
+std::wstring ShellPathFromItem(IShellItem* item);
+std::wstring ShellPathFromParsingName(const std::wstring& parsing_name);
 
 } // namespace luling::fs

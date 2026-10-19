@@ -1083,15 +1083,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return 0;
 
     case WM_DEVICECHANGE:
-        // A USB stick, a mounted image, or any new volume changes the drive
-        // list. The sidebar model is built once, so rebuild it here instead of
-        // waiting for a language switch or a restart.
-        if (s && (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE)) {
-            const auto* header = reinterpret_cast<const DEV_BROADCAST_HDR*>(lParam);
-            if (!header || header->dbch_devicetype == DBT_DEVTYP_VOLUME) {
-                RefreshSidebarModel(*s);
-                InvalidateRect(hwnd, nullptr, FALSE);
-            }
+        // A USB stick, a mounted image, a phone (MTP) arriving or leaving: the
+        // sidebar model is built once, so rebuild it here instead of waiting
+        // for the portable-device cache to expire or for a restart.
+        if (s && (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE ||
+                  wParam == DBT_DEVNODES_CHANGED)) {
+            fs::InvalidatePortableDevices();
+            RefreshSidebarModel(*s);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         return 0;
 
@@ -1219,6 +1218,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             DrainDirNotifies(*s);
             const ULONGLONG now = GetTickCount64();
             TickUpdates(*s, now);
+            TickLaunchedSelection(*s, now);
+            TickFolderValidation(*s, now);
             TickQuickPreviewSelection(*s, now);
             if (TickSidebarRefresh(*s, now)) dirty = true;
             TickSessionAutosave(*s, hwnd, now);

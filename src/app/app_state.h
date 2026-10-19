@@ -775,6 +775,11 @@ struct AppState {
 
     // Cut state mirrored into list rows (ui.md §5.2 rule 6: 55% opacity).
     std::vector<std::wstring> cutPaths;
+    ULONGLONG next_folder_validate = 0;
+    std::wstring launched_select_name;
+    bool launched_select_newest = false;
+    ULONGLONG launched_select_until = 0;
+    ULONGLONG launched_select_next_try = 0;
     // Device namespace items cannot be expressed as CF_HDROP. Copying one keeps
     // the selection here so paste can hand it to IFileOperation.
     std::vector<std::wstring> shellClipboardPaths;

@@ -267,9 +267,34 @@ void ShellIconCache::WorkerLoop() {
                 generic_index_[key] = index;
             }
         } else {
-            const UINT flags = SHGFI_SYSICONINDEX | SHGFI_SMALLICON;
+            // Shell icon handlers for ordinary files open their content and can
+            // keep a handle for seconds, which blocks delete/rename. Only
+            // programs and shortcuts need their embedded icon; everything else
+            // uses the extension-only icon and leaves the file alone.
+            bool use_attributes = true;
+            const auto dot = path.find_last_of(L'.');
+            if (dot != std::wstring::npos) {
+                static constexpr const wchar_t* kContentExtensions[] = {
+                    L".exe", L".lnk", L".ico", L".url",
+                };
+                for (const wchar_t* extension : kContentExtensions) {
+                    if (_wcsicmp(path.c_str() + dot, extension) == 0) {
+                        use_attributes = false;
+                        break;
+                    }
+                }
+            }
+            const UINT flags = SHGFI_SYSICONINDEX | SHGFI_SMALLICON |
+                (use_attributes ? SHGFI_USEFILEATTRIBUTES : 0);
             const std::wstring query = ShellPath(path);
-            if (SHGetFileInfoW(query.c_str(), 0, &info, sizeof(info), flags)) {
+            DWORD attributes = FILE_ATTRIBUTE_NORMAL;
+            if (use_attributes) {
+                const DWORD actual = GetFileAttributesW(query.c_str());
+                if (actual != INVALID_FILE_ATTRIBUTES && (actual & FILE_ATTRIBUTE_DIRECTORY))
+                    attributes = FILE_ATTRIBUTE_DIRECTORY;
+            }
+            if (SHGetFileInfoW(query.c_str(), use_attributes ? attributes : 0,
+                               &info, sizeof(info), flags)) {
                 index = info.iIcon;
                 if (info.hIcon) DestroyIcon(info.hIcon);
             }

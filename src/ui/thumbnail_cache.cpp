@@ -1,5 +1,6 @@
 #include "thumbnail_cache.h"
 #include "../common/utf8_file.h"
+#include "../fs/shell_namespace.h"
 #include "thumbnail_artwork_layout.h"
 #include <algorithm>
 #include <cwctype>
@@ -222,6 +223,30 @@ PreviewDrawResult ThumbnailCache::Draw(ID2D1DeviceContext* dc, const D2D1_RECT_F
         if (direct_preview) SelectDetailsLocked(identity);
         auto queue_request = [&] {
             if (pending_.contains(key)) return;
+            const ULONGLONG now_tick = GetTickCount64();
+            if (const auto skip = recent_write_skip_.find(key); skip != recent_write_skip_.end()) {
+                if (now_tick < skip->second) return;
+                recent_write_skip_.erase(skip);
+            }
+            if (!luling::fs::IsShellPath(path)) {
+                WIN32_FILE_ATTRIBUTE_DATA data{};
+                if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) {
+                    ULARGE_INTEGER modified{};
+                    modified.LowPart = data.ftLastWriteTime.dwLowDateTime;
+                    modified.HighPart = data.ftLastWriteTime.dwHighDateTime;
+                    FILETIME current{};
+                    GetSystemTimeAsFileTime(&current);
+                    ULARGE_INTEGER now_filetime{};
+                    now_filetime.LowPart = current.dwLowDateTime;
+                    now_filetime.HighPart = current.dwHighDateTime;
+                    if (now_filetime.QuadPart > modified.QuadPart &&
+                        now_filetime.QuadPart - modified.QuadPart < 30ull * 1000 * 10000) {
+                        if (recent_write_skip_.size() >= 512) recent_write_skip_.clear();
+                        recent_write_skip_[key] = now_tick + 10000;
+                        return;
+                    }
+                }
+            }
             for (auto old = queue_.begin(); old != queue_.end();) {
                 if (old->document && !old->document->active.load()) {
                     pending_.erase(old->key);

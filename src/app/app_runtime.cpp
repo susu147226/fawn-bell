@@ -272,6 +272,36 @@ std::wstring ResolveOpenFolderPath(std::wstring path) {
     return fs::NormalizePath(path);
 }
 
+static bool SelectNewestRecentFile(AppState& s, app::Tab& tab) {
+    if (!tab.snapshot) return false;
+    FILETIME now{};
+    GetSystemTimeAsFileTime(&now);
+    ULARGE_INTEGER current{};
+    current.LowPart = now.dwLowDateTime;
+    current.HighPart = now.dwHighDateTime;
+    constexpr uint64_t kRecentWindow = 15ull * 60 * 1000 * 10000; // 15 minutes
+    const uint64_t cutoff = current.QuadPart > kRecentWindow
+        ? current.QuadPart - kRecentWindow : 0;
+    int best = -1;
+    uint64_t best_time = 0;
+    for (size_t i = 0; i < tab.EntryCount(); ++i) {
+        const fs::DirEntry& entry = tab.EntryAt(i);
+        if (entry.is_dir || entry.change_record_only || !entry.recycle_path.empty()) continue;
+        ULARGE_INTEGER modified{};
+        modified.LowPart = entry.mtime.dwLowDateTime;
+        modified.HighPart = entry.mtime.dwHighDateTime;
+        if (modified.QuadPart < cutoff) continue;
+        if (modified.QuadPart > best_time) {
+            best_time = modified.QuadPart;
+            best = static_cast<int>(i);
+        }
+    }
+    if (best < 0) return false;
+    tab.SelectOnly(best);
+    EnsureRowVisible(s, tab, best);
+    return true;
+}
+
 void SelectLaunchedFile(AppState& s, const std::wstring& raw) {
     std::wstring path = raw;
     while (!path.empty() && (path.front() == L'"' || path.back() == L'"')) {
@@ -279,11 +309,94 @@ void SelectLaunchedFile(AppState& s, const std::wstring& raw) {
         if (!path.empty() && path.back() == L'"') path.pop_back();
     }
     const DWORD attrs = path.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(path.c_str());
-    if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0) return;
+    if (attrs == INVALID_FILE_ATTRIBUTES) return;
+    if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
+        // Browsers and download managers hand over only the folder. The file
+        // they mean is the one just written, so pick the newest recent one.
+        if (app::Tab* tab = ActiveTab(s)) {
+            if (SelectNewestRecentFile(s, *tab)) return;
+            s.launched_select_name.clear();
+            s.launched_select_newest = true;
+            s.launched_select_until = GetTickCount64() + 5000;
+            s.launched_select_next_try = GetTickCount64() + 150;
+        }
+        return;
+    }
     const size_t slash = path.find_last_of(L"\\/");
     const std::wstring leaf = slash == std::wstring::npos ? path : path.substr(slash + 1);
     if (leaf.empty()) return;
-    if (app::Tab* tab = ActiveTab(s)) SelectNameInTab(s, *tab, leaf);
+    if (app::Tab* tab = ActiveTab(s)) {
+        SelectNameInTab(s, *tab, leaf);
+        bool present = false;
+        if (tab->snapshot) {
+            for (size_t i = 0; i < tab->EntryCount(); ++i) {
+                if (_wcsicmp(tab->EntryAt(i).name.c_str(), leaf.c_str()) == 0) {
+                    present = true;
+                    break;
+                }
+            }
+        }
+        if (!present) {
+            s.launched_select_name = leaf;
+            s.launched_select_newest = false;
+            s.launched_select_until = GetTickCount64() + 5000;
+            s.launched_select_next_try = GetTickCount64() + 150;
+        }
+    }
+}
+
+void TickLaunchedSelection(AppState& s, ULONGLONG now) {
+    if (s.launched_select_name.empty() && !s.launched_select_newest) return;
+    if (now >= s.launched_select_until) {
+        s.launched_select_name.clear();
+        s.launched_select_newest = false;
+        return;
+    }
+    if (now < s.launched_select_next_try) return;
+    app::Tab* tab = ActiveTab(s);
+    if (!tab) {
+        s.launched_select_name.clear();
+        s.launched_select_newest = false;
+        return;
+    }
+    if (s.launched_select_newest) {
+        if (SelectNewestRecentFile(s, *tab)) {
+            s.launched_select_newest = false;
+            return;
+        }
+    } else if (tab->snapshot) {
+        for (size_t i = 0; i < tab->EntryCount(); ++i) {
+            if (_wcsicmp(tab->EntryAt(i).name.c_str(), s.launched_select_name.c_str()) == 0) {
+                SelectNameInTab(s, *tab, s.launched_select_name);
+                s.launched_select_name.clear();
+                return;
+            }
+        }
+    }
+    // Do not refresh here: doing so restarts an in-flight load. The watcher and
+    // the 1s folder validation keep the snapshot current on their own.
+    s.launched_select_next_try = now + 150;
+}
+
+void TickFolderValidation(AppState& s, ULONGLONG now) {
+    if (now < s.next_folder_validate) return;
+    s.next_folder_validate = now + 1000;
+    for (const auto& pane : Panes(s)) {
+        if (!pane) continue;
+        app::Tab* tab = pane->ActiveTab();
+        if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) ||
+            fs::IsUncPath(tab->current_path))
+            continue;
+        WIN32_FILE_ATTRIBUTE_DATA data{};
+        if (!GetFileAttributesExW(tab->current_path.c_str(), GetFileExInfoStandard, &data))
+            continue;
+        const uint64_t stamp =
+            (static_cast<uint64_t>(data.ftLastWriteTime.dwHighDateTime) << 32) |
+            data.ftLastWriteTime.dwLowDateTime;
+        if (tab->folder_stamp != 0 && tab->folder_stamp != stamp)
+            RefreshPath(s, tab->current_path, RefreshReason::OperationCompleted);
+        tab->folder_stamp = stamp;
+    }
 }
 
 void OpenFolderInNewTab(AppState& s, const std::wstring& raw) {

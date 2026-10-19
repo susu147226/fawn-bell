@@ -193,6 +193,105 @@ void SendTrayToDest(AppState& s, const std::wstring& dir, bool move) {
 }
 
 // Ctrl+V: release newest tray batch, else paste from the system clipboard.
+bool ResolveShellCopyConflicts(AppState& s, std::vector<std::wstring>& sources,
+                               const std::wstring& dest, bool dest_shell) {
+    if (sources.empty() || dest.empty()) return false;
+    const app::Tab* destination_tab = nullptr;
+    if (dest_shell) {
+        // Snapshot lookup is fastest when the folder is open; otherwise ask the
+        // Shell for the exact name (no full enumeration on the UI thread).
+        for (const auto& pane : Panes(s)) {
+            if (!pane) continue;
+            const app::Tab* tab = pane->ActiveTab();
+            if (tab && tab->current_path == dest && tab->snapshot) {
+                destination_tab = tab;
+                break;
+            }
+        }
+    }
+    std::vector<std::wstring> conflicting;
+    std::vector<std::wstring> targets;
+    for (const auto& source : sources) {
+        std::wstring name;
+        if (fs::IsShellPath(source)) {
+            name = fs::ShellDisplayName(source);
+        } else {
+            const size_t slash = source.find_last_of(L"\\/");
+            name = slash == std::wstring::npos ? source : source.substr(slash + 1);
+        }
+        if (name.empty()) continue;
+        std::wstring target;
+        if (dest_shell) {
+            if (destination_tab) {
+                for (size_t i = 0; i < destination_tab->EntryCount(); ++i) {
+                    const fs::DirEntry& entry = destination_tab->EntryAt(i);
+                    if (_wcsicmp(entry.name.c_str(), name.c_str()) == 0) {
+                        target = entry.full_path;
+                        break;
+                    }
+                }
+            } else {
+                target = fs::ShellChildPath(dest, name);
+            }
+        } else {
+            std::wstring candidate = dest;
+            if (!candidate.ends_with(L"\\")) candidate += L'\\';
+            candidate += name;
+            if (GetFileAttributesW(candidate.c_str()) != INVALID_FILE_ATTRIBUTES)
+                target = candidate;
+        }
+        if (!target.empty()) {
+            conflicting.push_back(source);
+            targets.push_back(target);
+        }
+    }
+    if (conflicting.empty()) return true;
+    ui::ConfirmDialogSpec confirm;
+    confirm.title = l10n::Pick(L"同名文件已存在", L"Files already exist");
+    confirm.message = l10n::Pick(
+        L"目标文件夹中已有同名文件。是否复制并替换？",
+        L"Files with the same names already exist. Replace them?");
+    confirm.confirm_text = l10n::Pick(L"复制并替换", L"Copy and replace");
+    confirm.cancel_text = l10n::Pick(L"不要复制", L"Don't copy");
+    confirm.danger = true;
+    if (!ui::ShowConfirmDialog(s.hwnd, confirm, s.darkMode, s.accentColor)) {
+        for (const auto& source : conflicting) std::erase(sources, source);
+        return !sources.empty();
+    }
+    bool replaced = true;
+    if (dest_shell) {
+        replaced = fs::ShellDelete(targets);
+        // MTP deletion is asynchronous. Copying while the old item still exists
+        // drives Shell into its conflict path, which made the process exit.
+        for (size_t i = 0; replaced && i < conflicting.size(); ++i) {
+            const std::wstring name = fs::ShellDisplayName(conflicting[i]);
+            bool gone = false;
+            for (int attempt = 0; attempt < 25 && !gone; ++attempt) {
+                gone = !fs::ShellChildExists(dest, name);
+                if (!gone) Sleep(100);
+            }
+            replaced = gone;
+        }
+    } else {
+        for (const auto& target : targets) {
+            const DWORD attrs = GetFileAttributesW(target.c_str());
+            const BOOL removed =
+                attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)
+                    ? RemoveDirectoryW(target.c_str())
+                    : DeleteFileW(target.c_str());
+            if (!removed) replaced = false;
+        }
+    }
+    if (!replaced) {
+        s.notification_toast.Show(s.hwnd,
+            l10n::Pick(L"无法替换", L"Could not replace"),
+            l10n::Pick(L"目标文件仍然存在，已取消复制。",
+                       L"The destination file still exists; the copy was cancelled."));
+        return false;
+    }
+    return true;
+}
+
 void PasteIntoCurrent(AppState& s) {
     app::Tab* tab = ActiveTab(s);
     if (!tab || tab->current_path.empty() || tab->net_readonly) return;
@@ -200,11 +299,15 @@ void PasteIntoCurrent(AppState& s) {
     // Items copied from a device live only in this process: CF_HDROP cannot
     // describe them. Paste them before considering the system clipboard.
     if (!s.shellClipboardPaths.empty()) {
-        const auto sources = s.shellClipboardPaths;
+        auto sources = s.shellClipboardPaths;
         const bool move = s.shellClipboardCut;
         s.shellClipboardPaths.clear();
         s.shellClipboardCut = false;
         s.cutPaths.clear();
+        if (!ResolveShellCopyConflicts(s, sources, tab->current_path, shell_target)) {
+            InvalidateRect(s.hwnd, nullptr, FALSE);
+            return;
+        }
         const bool copied = shell_target
             ? fs::ShellCopyWithin(sources, tab->current_path, move)
             : fs::ShellCopyToLocal(sources, tab->current_path, move);
@@ -232,6 +335,10 @@ void PasteIntoCurrent(AppState& s) {
             std::vector<std::wstring> sources;
             sources.reserve(cb.paths.size());
             for (auto& path : cb.paths) sources.push_back(fs::NormalizePath(path));
+            if (!ResolveShellCopyConflicts(s, sources, tab->current_path, true)) {
+                InvalidateRect(s.hwnd, nullptr, FALSE);
+                return;
+            }
             if (fs::ShellCopyFromLocal(sources, tab->current_path, cb.cut)) {
                 if (cb.cut) TrackCutClipboard(s, cb);
                 RefreshPath(s, tab->current_path, RefreshReason::Explicit);

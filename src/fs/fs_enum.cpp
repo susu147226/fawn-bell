@@ -547,15 +547,6 @@ using Microsoft::WRL::ComPtr;
 
 constexpr std::wstring_view kShellPathPrefix = L"luling:shell:";
 
-void LogDeviceCopy(const std::wstring& text) {
-    wchar_t temp[MAX_PATH]{};
-    if (!GetTempPathW(MAX_PATH, temp)) return;
-    const std::wstring path = std::wstring(temp) + L"luling-device-copy.log";
-    FILE* file = nullptr;
-    if (_wfopen_s(&file, path.c_str(), L"a, ccs=UTF-8") != 0 || !file) return;
-    fwprintf(file, L"%s\n", text.c_str());
-    fclose(file);
-}
 
 struct ShellComInit {
     HRESULT hr = E_FAIL;
@@ -671,7 +662,6 @@ bool RunShellFileOperation(const std::vector<ComPtr<IShellItem>>& sources,
         return false;
     if (FAILED(operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI |
                                             FOF_ALLOWUNDO | FOF_RENAMEONCOLLISION))) {
-        LogDeviceCopy(L"op: SetOperationFlags failed");
         return false;
     }
     for (const auto& source : sources) {
@@ -679,21 +669,14 @@ bool RunShellFileOperation(const std::vector<ComPtr<IShellItem>>& sources,
         const HRESULT queued = move
             ? operation->MoveItem(source.Get(), destination, nullptr, nullptr)
             : operation->CopyItem(source.Get(), destination, nullptr, nullptr);
-        wchar_t line[64]{};
-        swprintf_s(line, L"op: queue hr=0x%08X", static_cast<unsigned>(queued));
-        LogDeviceCopy(line);
         if (FAILED(queued)) return false;
     }
     const HRESULT performed = operation->PerformOperations();
     {
-        wchar_t line[64]{};
-        swprintf_s(line, L"op: perform hr=0x%08X", static_cast<unsigned>(performed));
-        LogDeviceCopy(line);
     }
     if (FAILED(performed)) return false;
     BOOL aborted = FALSE;
     operation->GetAnyOperationsAborted(&aborted);
-    LogDeviceCopy(std::wstring(L"op: aborted=") + (aborted ? L"1" : L"0"));
     return aborted == FALSE;
 }
 
@@ -857,6 +840,12 @@ std::vector<DirEntry> PortableDevicesSnapshot() {
     return devices;
 }
 
+void InvalidatePortableDevices() {
+    std::lock_guard<std::mutex> lock(g_portable_mutex);
+    g_portable_devices_at = 0;
+    g_portable_devices.clear();
+}
+
 std::wstring ShellParentPath(const std::wstring& path) {
     PIDLIST_ABSOLUTE pidl = nullptr;
     if (!ParseShellPidl(path, pidl)) return {};
@@ -971,23 +960,12 @@ static bool DeleteShellItemsOnce(const std::vector<std::wstring>& paths) {
         if (!ParseShellPidl(path, pidl)) continue;
         ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
         CoTaskMemFree(pidl);
-        if (item) {
-            const HRESULT queued = operation->DeleteItem(item.Get(), nullptr);
-            wchar_t line[64]{};
-            swprintf_s(line, L"delete: queue hr=0x%08X", static_cast<unsigned>(queued));
-            LogDeviceCopy(line);
-        }
+        if (item && FAILED(operation->DeleteItem(item.Get(), nullptr))) return false;
     }
     const HRESULT performed = operation->PerformOperations();
-    {
-        wchar_t line[64]{};
-        swprintf_s(line, L"delete: perform hr=0x%08X", static_cast<unsigned>(performed));
-        LogDeviceCopy(line);
-    }
     if (FAILED(performed)) return false;
     BOOL aborted = FALSE;
     operation->GetAnyOperationsAborted(&aborted);
-    LogDeviceCopy(std::wstring(L"delete: aborted=") + (aborted ? L"1" : L"0"));
     return aborted == FALSE;
 }
 
@@ -1039,26 +1017,18 @@ bool ShellRename(const std::wstring& path, const std::wstring& new_name) {
         return false;
     if (FAILED(operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI |
                                             FOF_ALLOWUNDO))) {
-        LogDeviceCopy(L"rename: SetOperationFlags failed");
         return false;
     }
     const HRESULT queued = operation->RenameItem(item.Get(), new_name.c_str(), nullptr);
     {
-        wchar_t line[64]{};
-        swprintf_s(line, L"rename: queue hr=0x%08X", static_cast<unsigned>(queued));
-        LogDeviceCopy(line);
     }
     if (FAILED(queued)) return false;
     const HRESULT performed = operation->PerformOperations();
     {
-        wchar_t line[64]{};
-        swprintf_s(line, L"rename: perform hr=0x%08X", static_cast<unsigned>(performed));
-        LogDeviceCopy(line);
     }
     if (FAILED(performed)) return false;
     BOOL aborted = FALSE;
     operation->GetAnyOperationsAborted(&aborted);
-    LogDeviceCopy(std::wstring(L"rename: aborted=") + (aborted ? L"1" : L"0"));
     return aborted == FALSE;
 }
 
@@ -1066,16 +1036,123 @@ bool ShellDelete(const std::vector<std::wstring>& paths) {
     return DeleteShellItems(paths);
 }
 
+std::wstring ShellChildPath(const std::wstring& directory, const std::wstring& name) {
+    if (directory.empty() || name.empty()) return {};
+    ShellComInit com;
+    if (!com.ok()) return {};
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(directory, pidl)) return {};
+    ComPtr<IShellFolder> folder;
+    HRESULT hr = SHBindToObject(nullptr, pidl, nullptr, IID_PPV_ARGS(&folder));
+    if (FAILED(hr) || !folder) {
+        CoTaskMemFree(pidl);
+        return {};
+    }
+    LPITEMIDLIST child = nullptr;
+    ULONG eaten = 0;
+    hr = folder->ParseDisplayName(nullptr, nullptr, const_cast<LPWSTR>(name.c_str()),
+                                  &eaten, &child, nullptr);
+    std::wstring result;
+    if (SUCCEEDED(hr) && child) {
+        PIDLIST_ABSOLUTE absolute = ILCombine(pidl, child);
+        if (absolute) {
+            result = MakeShellPath(absolute);
+            CoTaskMemFree(absolute);
+        }
+    }
+    if (child) CoTaskMemFree(child);
+    CoTaskMemFree(pidl);
+    return result;
+}
+
+bool ShellChildExists(const std::wstring& directory, const std::wstring& name) {
+    if (directory.empty() || name.empty()) return false;
+    ShellComInit com;
+    if (!com.ok()) return false;
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(directory, pidl)) return false;
+    ComPtr<IShellFolder> folder;
+    HRESULT hr = SHBindToObject(nullptr, pidl, nullptr, IID_PPV_ARGS(&folder));
+    CoTaskMemFree(pidl);
+    if (FAILED(hr) || !folder) return false;
+    LPITEMIDLIST child = nullptr;
+    ULONG eaten = 0;
+    hr = folder->ParseDisplayName(nullptr, nullptr, const_cast<LPWSTR>(name.c_str()),
+                                  &eaten, &child, nullptr);
+    if (child) CoTaskMemFree(child);
+    return SUCCEEDED(hr);
+}
+
+std::wstring ShellPathFromItem(IShellItem* item) {
+    if (!item) return {};
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (FAILED(SHGetIDListFromObject(item, &pidl)) || !pidl) return {};
+    std::wstring path = MakeShellPath(pidl);
+    CoTaskMemFree(pidl);
+    return path;
+}
+
+std::wstring ShellPathFromParsingName(const std::wstring& parsing_name) {
+    if (!parsing_name.starts_with(L"::{")) return parsing_name;
+    ShellComInit com;
+    if (!com.ok()) return {};
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    SFGAOF attributes = 0;
+    if (FAILED(SHParseDisplayName(parsing_name.c_str(), nullptr, &pidl, 0, &attributes)) || !pidl)
+        return {};
+    std::wstring path = MakeShellPath(pidl);
+    CoTaskMemFree(pidl);
+    return path;
+}
+
+IDataObject* ShellCreateDragDataObject(const std::vector<std::wstring>& shell_paths) {
+    ShellComInit com;
+    if (!com.ok() || shell_paths.empty()) return nullptr;
+    PIDLIST_ABSOLUTE parent = nullptr;
+    std::vector<PCUITEMID_CHILD> children;
+    bool ok = true;
+    for (const auto& path : shell_paths) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        if (!ParseShellPidl(path, pidl)) { ok = false; break; }
+        PIDLIST_ABSOLUTE item_parent = ILClone(pidl);
+        if (!item_parent || !ILRemoveLastID(item_parent)) {
+            if (item_parent) CoTaskMemFree(item_parent);
+            CoTaskMemFree(pidl);
+            ok = false;
+            break;
+        }
+        if (!parent) {
+            parent = ILClone(item_parent);
+        } else if (!ILIsEqual(parent, item_parent)) {
+            // SHCreateDataObject takes one parent; a selection spanning
+            // folders cannot be represented as a single shell data object.
+            CoTaskMemFree(item_parent);
+            CoTaskMemFree(pidl);
+            ok = false;
+            break;
+        }
+        children.push_back(ILClone(ILFindLastID(pidl)));
+        CoTaskMemFree(item_parent);
+        CoTaskMemFree(pidl);
+    }
+    IDataObject* object = nullptr;
+    if (ok && parent && !children.empty()) {
+        SHCreateDataObject(parent, static_cast<UINT>(children.size()), children.data(),
+                           nullptr, IID_IDataObject, reinterpret_cast<void**>(&object));
+    }
+    for (PCUITEMID_CHILD child : children) CoTaskMemFree(const_cast<ITEMIDLIST*>(child));
+    if (parent) CoTaskMemFree(parent);
+    return object;
+}
+
 bool ShellCopyWithin(const std::vector<std::wstring>& shell_sources,
                      const std::wstring& shell_dest, bool move) {
     if (shell_sources.empty()) return false;
-    LogDeviceCopy(L"within: start sources=" + std::to_wstring(shell_sources.size()));
     // MTP rejects device-to-device copies, and that failed first attempt can
     // leave the device busy for the next operation. Stage through a local
     // folder instead: download, upload, then drop the local copies.
     const std::wstring staging = MakeStagingDirectory();
     if (staging.empty()) {
-        LogDeviceCopy(L"within: staging directory failed");
         return false;
     }
     bool ok = ShellCopyToLocal(shell_sources, staging, false);
@@ -1085,16 +1162,10 @@ bool ShellCopyWithin(const std::vector<std::wstring>& shell_sources,
         Sleep(300);
         ok = ShellCopyToLocal(shell_sources, staging, false);
     }
-    LogDeviceCopy(L"within: download " + std::wstring(ok ? L"ok" : L"failed"));
     std::vector<std::wstring> items;
     if (ok) items = ListStagingItems(staging);
-    LogDeviceCopy(L"within: staged items=" + std::to_wstring(items.size()));
     ok = ok && !items.empty() && ShellCopyFromLocal(items, shell_dest, false);
-    LogDeviceCopy(L"within: upload " + std::wstring(ok ? L"ok" : L"failed"));
-    if (ok && move) {
-        const bool deleted = DeleteShellItems(shell_sources);
-        LogDeviceCopy(L"within: delete source " + std::wstring(deleted ? L"ok" : L"failed"));
-    }
+    if (ok && move) DeleteShellItems(shell_sources);
     std::error_code ignored;
     std::filesystem::remove_all(staging, ignored);
     return ok;

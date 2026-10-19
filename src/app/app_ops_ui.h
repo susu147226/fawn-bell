@@ -9,6 +9,11 @@ namespace luling {
 bool SubmitWithConflictResolution(AppState& s, ops::OpRequest request, uint64_t* task_id = nullptr);
 void ReleaseTrayBatch(AppState& s, size_t idx);
 void PasteIntoCurrent(AppState& s);
+// Device copies cannot rely on IFileOperation's conflict UI: a same-name item
+// makes Shell abort the process. Detect it first and ask "copy and replace" or
+// "don't copy"; false means nothing is left to copy.
+bool ResolveShellCopyConflicts(AppState& s, std::vector<std::wstring>& sources,
+                               const std::wstring& dest, bool dest_shell);
 void DeleteSelected(AppState& s, bool permanent);
 void DeletePaths(AppState& s, std::vector<std::wstring> paths, bool permanent);
 // Confirmation shown before Delete moves items to the Recycle Bin (opt-in setting).

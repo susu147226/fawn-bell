@@ -182,6 +182,9 @@ private:
     size_t max_items_ = kDefaultMaxItems;
     std::unordered_map<std::wstring, std::wstring> still_by_identity_;
     std::unordered_map<std::wstring, uint32_t> transient_failures_;
+    // Keys of files written moments ago (downloads still settling). A thumbnail
+    // decoder would open them and race the browser's delete; skip until this tick.
+    std::unordered_map<std::wstring, ULONGLONG> recent_write_skip_;
     std::wstring latest_details_identity_;
     std::atomic<uint32_t> epoch_{1};
     std::thread worker_;

@@ -68,6 +68,11 @@ std::wstring ResolveOpenFolderPath(std::wstring path);
 // When `raw` (a launch or forwarded path) names an existing file, selects it
 // in the active tab, which ResolveOpenFolderPath opened on its folder.
 void SelectLaunchedFile(AppState& s, const std::wstring& raw);
+// Finishes a reveal whose file had not landed in the snapshot yet.
+void TickLaunchedSelection(AppState& s, ULONGLONG now);
+// Cheap fallback: refresh a visible folder whose timestamp changed even when
+// its watcher missed the event.
+void TickFolderValidation(AppState& s, ULONGLONG now);
 void OpenFolderInNewTab(AppState& s, const std::wstring& raw);
 void PostWorkerResult(AppState& s, app::WorkResult res);
 D2D1_RECT_F FocusedPaneRect(const AppState& s);

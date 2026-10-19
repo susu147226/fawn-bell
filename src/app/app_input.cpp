@@ -1,3 +1,4 @@
+#include "../fs/shell_namespace.h"
 #include "pane_column_input.h"
 // app_input.cpp — extracted from app_main.cpp.
 #include "quick_access.h"
@@ -321,6 +322,9 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
         if (pt.x >= trayRc.left && pt.x < trayRc.right &&
             pt.y >= trayRc.top && pt.y < trayRc.bottom) {
             if (!(allowed & DROPEFFECT_COPY)) return DROPEFFECT_NONE;
+            if (std::any_of(sources.begin(), sources.end(),
+                    [](const std::wstring& path) { return fs::IsShellPath(path); }))
+                return DROPEFFECT_NONE; // the staging tray is a filesystem feature
             s.dropTray = true;
             s.springRow = -1;
             // Staging defaults to a copy batch; Shift stages it as a move.
@@ -340,9 +344,27 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
         return DROPEFFECT_NONE;
     }
 
-    DWORD effect = ui::ComputeDropEffect(key_state, sources.front(), s.dropDestDir,
-                                        allowed & (DROPEFFECT_COPY | DROPEFFECT_MOVE),
-                                        preferred_effect);
+    const bool shell_source = std::any_of(sources.begin(), sources.end(),
+        [](const std::wstring& path) { return fs::IsShellPath(path); });
+    const bool shell_dest = fs::IsShellPath(s.dropDestDir);
+    DWORD effect = DROPEFFECT_NONE;
+    if (shell_source || shell_dest) {
+        // Device items have no volume to compare. Explorer's rule applies by
+        // kind: move inside the device, copy between device and disk.
+        const bool ctrl = (key_state & MK_CONTROL) != 0;
+        const bool shift = (key_state & MK_SHIFT) != 0;
+        effect = ctrl ? DROPEFFECT_COPY : shift ? DROPEFFECT_MOVE
+            : (shell_source && shell_dest ? DROPEFFECT_MOVE : DROPEFFECT_COPY);
+        effect &= allowed & (DROPEFFECT_COPY | DROPEFFECT_MOVE);
+        if (effect == 0) {
+            InvalidateRect(s.hwnd, nullptr, FALSE);
+            return DROPEFFECT_NONE;
+        }
+    } else {
+        effect = ui::ComputeDropEffect(key_state, sources.front(), s.dropDestDir,
+                                       allowed & (DROPEFFECT_COPY | DROPEFFECT_MOVE),
+                                       preferred_effect);
+    }
     s.dropBadge = (effect == DROPEFFECT_MOVE ? l10n::Get(l10n::StringId::DropMove).c_str() : l10n::Get(l10n::StringId::DropCopy).c_str()) + destName;
     // Say how to switch before the drop, not after (Explorer rules: Ctrl copies, Shift moves).
     if (effect == DROPEFFECT_MOVE && (allowed & DROPEFFECT_COPY))
@@ -425,13 +447,16 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
         if (app::Pane* pane = PaneAtSlot(s, header_pane)) {
             if (app::Tab* tab = pane->ActiveTab()) dest = tab->current_path;
         }
-        if (dest.empty() || fs::IsVirtualPath(dest)) return DROPEFFECT_NONE;
+        if (dest.empty() || (fs::IsVirtualPath(dest) && !fs::IsShellPath(dest))) return DROPEFFECT_NONE;
         effect = ui::ComputeDropEffect(key_state, sources.front(), dest,
                                        allowed & (DROPEFFECT_COPY | DROPEFFECT_MOVE),
                                        preferred_effect);
     }
 
     if (tray) {
+        if (std::any_of(sources.begin(), sources.end(),
+                [](const std::wstring& path) { return fs::IsShellPath(path); }))
+            return DROPEFFECT_NONE;
         std::vector<std::wstring> paths;
         for (auto& p : sources) paths.push_back(fs::NormalizePath(p));
         const bool stage_move = (key_state & MK_SHIFT) != 0 && (allowed & DROPEFFECT_MOVE) != 0;
@@ -449,6 +474,57 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
         QueueTagAds(s, std::move(ads_updates));
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return DROPEFFECT_COPY;
+    }
+    const bool shell_source = std::any_of(sources.begin(), sources.end(),
+        [](const std::wstring& path) { return fs::IsShellPath(path); });
+    const bool shell_dest = fs::IsShellPath(dest);
+    if (shell_source || shell_dest) {
+        if (dest.empty() || (!shell_dest && fs::IsVirtualPath(dest)) ||
+            (effect != DROPEFFECT_COPY && effect != DROPEFFECT_MOVE))
+            return DROPEFFECT_NONE;
+        std::vector<std::wstring> drop_sources = sources;
+        if (!ResolveShellCopyConflicts(s, drop_sources, dest, shell_dest))
+            return DROPEFFECT_NONE;
+        std::vector<std::wstring> shell_sources;
+        std::vector<std::wstring> local_sources;
+        for (const auto& source : drop_sources) {
+            if (fs::IsShellPath(source)) shell_sources.push_back(source);
+            else local_sources.push_back(fs::NormalizePath(source));
+        }
+        const bool move = effect == DROPEFFECT_MOVE;
+        bool ok = false;
+        if (shell_dest) {
+            const bool from_local = local_sources.empty() ||
+                fs::ShellCopyFromLocal(local_sources, dest, move);
+            const bool within = shell_sources.empty() ||
+                fs::ShellCopyWithin(shell_sources, dest, move);
+            ok = from_local && within;
+        } else {
+            ok = shell_sources.empty() || fs::ShellCopyToLocal(shell_sources, dest, move);
+            if (ok && !local_sources.empty()) {
+                ops::OpRequest req;
+                req.type = move ? ops::OpType::Move : ops::OpType::Copy;
+                req.dest_dir = fs::NormalizePath(dest);
+                for (auto& path : local_sources) req.sources.push_back(path);
+                ok = SubmitWithConflictResolution(s, std::move(req));
+            }
+        }
+        if (!ok) {
+            s.notification_toast.Show(s.hwnd,
+                l10n::Pick(L"拖动失败", L"Drop failed"),
+                l10n::Pick(L"无法完成设备与本地文件夹之间的操作。",
+                           L"Could not complete the device operation."));
+            return DROPEFFECT_NONE;
+        }
+        RefreshPath(s, dest, RefreshReason::OperationCompleted);
+        if (move) {
+            for (const auto& source : sources) {
+                const std::wstring parent = fs::ParentPath(source);
+                if (!parent.empty())
+                    RefreshPath(s, parent, RefreshReason::OperationCompleted);
+            }
+        }
+        return effect;
     }
     if (dest.empty() || fs::IsVirtualPath(dest) || !(effect & allowed) ||
         (effect != DROPEFFECT_COPY && effect != DROPEFFECT_MOVE)) return DROPEFFECT_NONE;
