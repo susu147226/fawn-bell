@@ -31,6 +31,9 @@ public:
     }
     bool OwnsEndpoint(HWND window) const;
     static HWND FindPrimaryWindow(std::wstring_view endpoint_name = {});
+    // A restart replacement starts before the old process exits; wait until the
+    // singleton mutex is released (or abandoned by a terminated owner).
+    static bool WaitForPreviousInstance(DWORD timeout_ms);
     static bool NormalizeLaunchPath(const std::wstring& input, std::wstring& output);
     bool ForwardOpenPath(const std::wstring& path, DWORD timeout_ms = 2000) const;
     enum class OpenAcceptance { Invalid, New, Duplicate };

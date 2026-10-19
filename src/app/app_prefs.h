@@ -14,6 +14,9 @@ struct AppPrefs {
     bool persist = true;
     bool launch_on_startup = false;
     bool keep_running_on_close = false;
+    // The first close that leaves Luling in the tray explains how to come back
+    // and how to exit; later closes stay quiet.
+    bool tray_hint_shown = false;
     // notify_icon_mode: the notification-area icon while closing keeps Luling
     // running: 0 always, 1 only while the window is closed to it, 2 never
     // (a second launch brings the window back; #57).

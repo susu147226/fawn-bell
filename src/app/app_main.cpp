@@ -61,6 +61,7 @@
 #include "startup_location.h"
 #include "update_checker.h"
 #include "app_updates.h"
+#include "app_restart.h"
 #include "update_download_cleanup.h"
 #include "update_shutdown.h"
 #include "link_resolve.h"
@@ -1026,7 +1027,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case app::TrayController::kCallbackMessage: {
         if (!s) return 0;
         const auto result = s->tray_controller.HandleCallback(lParam);
-        if (result == app::TrayController::CallbackResult::ExitRequested)
+        if (result == app::TrayController::CallbackResult::RestartRequested)
+            RestartLuling(*s);
+        else if (result == app::TrayController::CallbackResult::ExitRequested)
             DestroyWindow(hwnd);
         return 0;
     }
@@ -2697,6 +2700,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
                    wcscmp(__wargv[i], L"--tag-remove") == 0) {
             if (i + 2 >= __argc) return 1;
             i += 2;
+        } else if (wcscmp(__wargv[i], L"--restart") == 0) {
+            state.restart_launch = true;
         } else if (wcscmp(__wargv[i], L"--fps") == 0) {
             state.forceStatusPerformance = true;
             state.showFps = true;
@@ -2749,6 +2754,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     // Launched by the HKCU Run value (app_prefs.cpp), not by the user.
     const bool startup_launch = app::HasStartupArgument(__argc, __wargv);
     if (!SkipSingletonFromArgv()) {
+        if (state.restart_launch) app::SingleInstanceCoordinator::WaitForPreviousInstance(10000);
         const auto result = state.single_instance.Acquire();
         if (result == app::SingleInstanceCoordinator::AcquireResult::Failed) {
             MessageBoxW(nullptr, L"Could not establish the Luling instance endpoint.", L"Luling", MB_OK | MB_ICONERROR);

@@ -724,6 +724,11 @@ void ClientThread(std::shared_ptr<Client> c) {
             if (g.stop) SetEvent(g.stop);
             PostMessageW(g.hwnd, WM_QUIT_HOST, 0, 0);
             break;
+        } else if (hdr.type == REQ_IDX_QUIT && !g.as_service) {
+            g.running = false;
+            if (g.stop) SetEvent(g.stop);
+            PostMessageW(g.hwnd, WM_QUIT_HOST, 0, 0);
+            break;
         }
     }
     DropClient(c);

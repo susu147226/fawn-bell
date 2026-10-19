@@ -19,6 +19,9 @@ enum IndexMsg : uint32_t {
     REQ_IDX_CHANGE_LEASE = 4,
     REQ_IDX_CHANGE_SUMMARIES = 5,
     REQ_IDX_CHANGE_DETAILS = 6,
+    // Sent by a client that spawned this helper, so it exits immediately instead
+    // of waiting out the idle timer after Luling quits. Services ignore it.
+    REQ_IDX_QUIT = 7,
     REQ_IDX_TEST_SHUTDOWN = 0x7fff0001,
     RSP_IDX_STATUS = 101,
     RSP_IDX_SEARCH = 102,

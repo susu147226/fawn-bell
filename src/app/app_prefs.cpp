@@ -50,6 +50,7 @@ bool IsStoredWallpaper(const std::wstring& path, const std::wstring& dir) {
 void AppPrefs::ResetToDefaults() {
     launch_on_startup = false;
     keep_running_on_close = false;
+    tray_hint_shown = false;
     notify_icon_mode = 0;
     open_folders_in_luling = false;
     take_over_win_e = false;
@@ -127,6 +128,8 @@ std::wstring AppPrefs::ToJson() const {
     out += launch_on_startup ? L"true" : L"false";
     out += L",\n  \"keep_running_on_close\":";
     out += keep_running_on_close ? L"true" : L"false";
+    out += L",\n  \"tray_hint_shown\":";
+    out += tray_hint_shown ? L"true" : L"false";
     out += L",\n  \"notify_icon_mode\":";
     out += std::to_wstring(notify_icon_mode >= 0 && notify_icon_mode <= 2 ? notify_icon_mode : 0);
     out += L",\n  \"open_folders_in_luling\":";
@@ -292,6 +295,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     folder_groups.ReadJson(json);
     launch_on_startup = luling::json::ExtractBool(json, L"launch_on_startup", false);
     keep_running_on_close = luling::json::ExtractBool(json, L"keep_running_on_close", false);
+    tray_hint_shown = luling::json::ExtractBool(json, L"tray_hint_shown", false);
     notify_icon_mode = luling::json::ExtractInt(json, L"notify_icon_mode", 0);
     if (notify_icon_mode < 0 || notify_icon_mode > 2) notify_icon_mode = 0;
     open_folders_in_luling = luling::json::ExtractBool(json, L"open_folders_in_luling", false);

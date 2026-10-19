@@ -4,6 +4,7 @@
 #include <shellapi.h>
 
 #include <functional>
+#include <string_view>
 
 namespace luling::app {
 
@@ -17,7 +18,7 @@ inline bool TrayIconWanted(bool background, int mode, bool window_hidden) {
 
 class TrayController {
 public:
-    enum class CallbackResult { NotHandled, Handled, ExitRequested };
+    enum class CallbackResult { NotHandled, Handled, ExitRequested, RestartRequested };
     static constexpr UINT kCallbackMessage = WM_APP + 50;
 
     TrayController() = default;
@@ -45,6 +46,9 @@ public:
     // Runs inside RestoreWindow() just before a hidden window is shown again
     // (tray click, tray "Open", a second launch), so the app can reset it first.
     void SetBeforeRestore(std::function<void()> hook) { before_restore_ = std::move(hook); }
+    // Explains the first close-to-tray, where the window disappears but the app
+    // keeps running. Only works once the icon is visible.
+    bool ShowBalloon(std::wstring_view title, std::wstring_view message);
     CallbackResult HandleCallback(LPARAM event);
 
     bool IsVisible() const noexcept { return icon_added_; }

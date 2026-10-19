@@ -71,6 +71,17 @@ void TrayController::RestoreWindow() {
     SetForegroundWindow(hwnd_);
 }
 
+bool TrayController::ShowBalloon(std::wstring_view title, std::wstring_view message) {
+    if (!hwnd_ || !icon_added_) return false;
+    auto data = IconData(NIF_INFO);
+    const std::wstring title_text(title);
+    const std::wstring message_text(message);
+    wcsncpy_s(data.szInfoTitle, title_text.c_str(), _TRUNCATE);
+    wcsncpy_s(data.szInfo, message_text.c_str(), _TRUNCATE);
+    data.dwInfoFlags = NIIF_INFO;
+    return Shell_NotifyIconW(NIM_MODIFY, &data) != FALSE;
+}
+
 bool TrayController::StartHidden(bool maximized, bool show_icon) {
     if (!hwnd_) return false;
     if (show_icon && !SetVisible(true) && FindWindowW(L"Shell_TrayWnd", nullptr)) return false;
@@ -102,6 +113,8 @@ TrayController::CallbackResult TrayController::HandleCallback(LPARAM event) {
         HMENU menu = CreatePopupMenu();
         if (!menu) return CallbackResult::Handled;
         AppendMenuW(menu, MF_STRING, 1, l10n::Get(l10n::StringId::Open).c_str());
+        AppendMenuW(menu, MF_STRING, 3, l10n::Get(l10n::StringId::TrayRestart).c_str());
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, MF_STRING, 2, l10n::Get(l10n::StringId::TrayExit).c_str());
         SetForegroundWindow(hwnd_);
         const int command = TrackPopupMenu(
@@ -110,6 +123,7 @@ TrayController::CallbackResult TrayController::HandleCallback(LPARAM event) {
         DestroyMenu(menu);
         PostMessageW(hwnd_, WM_NULL, 0, 0);
         if (command == 1) RestoreWindow();
+        if (command == 3) return CallbackResult::RestartRequested;
         return command == 2 ? CallbackResult::ExitRequested : CallbackResult::Handled;
     }
     default:

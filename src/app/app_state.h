@@ -421,6 +421,7 @@ struct AppState {
 
     ShotRequest shot;
     std::wstring open_path;   // folder to open as a new tab after session restore
+    bool restart_launch = false; // --restart: wait for the old process before claiming the singleton
     Timing timing;
     std::wstring session_path;
     std::vector<app::LayoutTabSnapshot> session_layout_tabs;

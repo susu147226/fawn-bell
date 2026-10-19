@@ -140,8 +140,15 @@ bool SingleInstanceCoordinator::OwnsEndpoint(HWND window) const {
     return mutex_ && endpoint_view_ && endpoint_window_ == window &&
         GetPropW(window, endpoint_nonce_.c_str()) == reinterpret_cast<HANDLE>(1);
 }
-HWND SingleInstanceCoordinator::FindPrimaryWindow(std::wstring_view endpoint_name) {
-    const auto base = EndpointName(endpoint_name);
+bool SingleInstanceCoordinator::WaitForPreviousInstance(DWORD timeout_ms) {
+    HANDLE mutex = OpenMutexW(SYNCHRONIZE, FALSE, kMutexName);
+    if (!mutex) return true;
+    const DWORD result = WaitForSingleObject(mutex, timeout_ms);
+    CloseHandle(mutex);
+    return result == WAIT_OBJECT_0 || result == WAIT_ABANDONED;
+}
+
+HWND SingleInstanceCoordinator::FindPrimaryWindow(std::wstring_view endpoint_name) {    const auto base = EndpointName(endpoint_name);
     if (base.empty()) return nullptr;
     HANDLE mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, (base + L".Endpoint").c_str());
     if (!mapping) return nullptr;

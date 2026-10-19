@@ -42,6 +42,9 @@ void IndexClient::Start(HWND notify, UINT status_msg, UINT search_msg, std::wstr
 }
 
 void IndexClient::Stop() {
+    // A helper this client spawned should go away with the app; without this it
+    // lingers for the idle timer and looks like a process that failed to exit.
+    if (helper_spawned_.load() && connected_.load()) WriteMsg(REQ_IDX_QUIT, 0, {});
     running_ = false;
     pinyin_ready_ = false;
     if (wake_event_) SetEvent(wake_event_);

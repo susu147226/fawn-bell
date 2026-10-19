@@ -541,8 +541,9 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             static constexpr luling::l10n::StringId kAboutActions[] = {
                 luling::l10n::StringId::AboutCopyInfo,
                 luling::l10n::StringId::AboutHomepage,
+                luling::l10n::StringId::AboutRestart,
             };
-            for (int i = 0; i < 2; ++i) {
+            for (int i = 0; i < 3; ++i) {
                 fluent::ControlState state{};
                 state.enabled = true;
                 state.hovered = IsHovered(vm, HitTestResult::SettingsAboutAction, i);

@@ -2,12 +2,22 @@
 #include "tray_reveal.h"
 #include "app_internal.h"
 #include "startup_location.h"
+#include "../common/localization.h"
 
 namespace luling {
 
 void HideMainWindowToTray(AppState& s) {
     s.hidden_to_tray = true;
-    s.tray_controller.HideWindow(WantsTrayIcon(s, true));
+    const bool show_icon = WantsTrayIcon(s, true);
+    s.tray_controller.SetVisible(show_icon);
+    if (show_icon && !s.appPrefs.tray_hint_shown) {
+        s.appPrefs.tray_hint_shown = true;
+        s.appPrefs.Save();
+        s.tray_controller.ShowBalloon(
+            l10n::Get(l10n::StringId::TrayStillRunningTitle),
+            l10n::Get(l10n::StringId::TrayStillRunningText));
+    }
+    s.tray_controller.HideWindow(show_icon);
 }
 
 bool WantsTrayIcon(const AppState& s, bool window_hidden) {

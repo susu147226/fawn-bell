@@ -2,6 +2,7 @@
 #include "../common/windows_compat.h"
 #include "../common/localization.h"
 #include "about_info.h"
+#include "app_restart.h"
 #include "../ui/preview_format_catalog.h"
 #include "../ui/folder_picker_dialog.h"
 #include "../common/preview_packs.h"
@@ -240,9 +241,12 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
         if(hit.index==0) {
             if(app::CopyTextToClipboard(s.hwnd,app::AboutRowsText(BuildVm(s,false).settings_about_rows)))
                 s.renderer.NotifyCopied(static_cast<int>(H::SettingsAboutAction),0);
-        } else if(hit.index>=1 && hit.index<=2) {
-            static constexpr const wchar_t* kPages[]={app::kLulingHomepage,app::kLulingReleasesPage};
-            ShellExecuteW(s.hwnd,L"open",kPages[hit.index-1],nullptr,nullptr,SW_SHOWNORMAL);
+        } else if(hit.index==1) {
+            ShellExecuteW(s.hwnd,L"open",app::kLulingHomepage,nullptr,nullptr,SW_SHOWNORMAL);
+        } else if(hit.index==2) {
+            RestartLuling(s);
+        } else if(hit.index==3) {
+            ShellExecuteW(s.hwnd,L"open",app::kLulingReleasesPage,nullptr,nullptr,SW_SHOWNORMAL);
         }
         break;
     case H::SettingsReleaseNote: {
