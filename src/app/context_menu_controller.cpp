@@ -12,6 +12,126 @@ namespace luling::app {
 
 namespace {
 
+bool ReadRegString(HKEY root, const std::wstring& path, const wchar_t* name, std::wstring& out) {
+    wchar_t buf[1024]{};
+    DWORD size = sizeof(buf);
+    if (RegGetValueW(root, path.c_str(), name, RRF_RT_REG_SZ, nullptr, buf, &size) != ERROR_SUCCESS)
+        return false;
+    if (size < sizeof(wchar_t)) return false;
+    out.assign(buf, size / sizeof(wchar_t) - 1);
+    return !out.empty();
+}
+
+// "path,index" -> path + index. A bare path means index 0.
+void SplitIconValue(std::wstring value, std::wstring& path, int& index) {
+    index = 0;
+    const size_t comma = value.find_last_of(L',');
+    if (comma != std::wstring::npos) {
+        wchar_t* end = nullptr;
+        const long parsed = wcstol(value.c_str() + comma + 1, &end, 10);
+        if (end && *end == L'\0') {
+            index = static_cast<int>(parsed);
+            value.resize(comma);
+        }
+    }
+    if (value.size() >= 2 && value.front() == L'"' && value.back() == L'"')
+        value = value.substr(1, value.size() - 2);
+    wchar_t expanded[1024]{};
+    if (!value.empty() && ExpandEnvironmentStringsW(value.c_str(), expanded, 1024) > 0)
+        value = expanded;
+    path = std::move(value);
+}
+
+// The icon Explorer draws for a third-party verb. On a typical machine none of
+// these rows registers an Icon value at all: the picture comes from the command's
+// executable, or from the handler CLSID's DefaultIcon / its own DLL at index 0.
+// Many of those live in the 32-bit registry view, so both views are consulted.
+void ResolveVerbIcon(ShellMenuEntry& entry) {
+    static constexpr const wchar_t* kRoots[] = {
+        L"*", L"Directory", L"Folder", L"AllFilesystemObjects", L"Directory\\Background"};
+    const wchar_t* kViews[] = {L"", L"Wow6432Node\\"};
+    std::wstring path;
+    int index = 0;
+    std::wstring clsid = entry.clsid;
+
+    if (!entry.verb.empty()) {
+        for (const wchar_t* root : kRoots) {
+            const std::wstring key = std::wstring(root) + L"\\shell\\" + entry.verb;
+            for (const wchar_t* view : kViews) {
+                std::wstring value;
+                if (ReadRegString(HKEY_CLASSES_ROOT, std::wstring(view) + key + L"\\Icon", L"", value) ||
+                    ReadRegString(HKEY_CLASSES_ROOT, std::wstring(view) + key, L"Icon", value)) {
+                    SplitIconValue(value, path, index);
+                    if (!path.empty()) {
+                        entry.icon_path = std::move(path);
+                        entry.icon_index = index;
+                        return;
+                    }
+                }
+                if (clsid.empty()) {
+                    std::wstring handler;
+                    if (ReadRegString(HKEY_CLASSES_ROOT, std::wstring(view) + key,
+                                      L"ExplorerCommandHandler", handler))
+                        clsid = handler;
+                }
+            }
+        }
+    }
+    if (!clsid.empty()) {
+        for (const wchar_t* view : kViews) {
+            const std::wstring base = std::wstring(view) + L"CLSID\\" + clsid;
+            std::wstring value;
+            if (ReadRegString(HKEY_CLASSES_ROOT, base + L"\\DefaultIcon", L"", value)) {
+                SplitIconValue(value, path, index);
+                if (!path.empty()) {
+                    entry.icon_path = std::move(path);
+                    entry.icon_index = index;
+                    return;
+                }
+            }
+            // An extension without a registered icon draws its own; its DLL's first
+            // icon is what that usually is.
+            if (ReadRegString(HKEY_CLASSES_ROOT, base + L"\\InProcServer32", L"", value)) {
+                entry.icon_path = std::move(value);
+                entry.icon_index = 0;
+                return;
+            }
+        }
+    }
+    // Last resort: the verb's command line names the program that owns the icon.
+    if (!entry.verb.empty()) {
+        for (const wchar_t* root : kRoots) {
+            for (const wchar_t* view : kViews) {
+                const std::wstring key = std::wstring(view) + std::wstring(root) +
+                                         L"\\shell\\" + entry.verb + L"\\command";
+                std::wstring command;
+                if (!ReadRegString(HKEY_CLASSES_ROOT, key, L"", command)) continue;
+                // "C:\Program Files\App\app.exe" "%1"  ->  the quoted path.
+                std::wstring exe;
+                if (command.front() == L'"') {
+                    const size_t close = command.find(L'"', 1);
+                    if (close != std::wstring::npos) exe = command.substr(1, close - 1);
+                } else {
+                    const size_t space = command.find(L' ');
+                    exe = command.substr(0, space);
+                }
+                if (exe.empty()) continue;
+                wchar_t expanded[1024]{};
+                if (ExpandEnvironmentStringsW(exe.c_str(), expanded, 1024) > 0) exe = expanded;
+                // "notepad %1" is a bare name; resolve it through the search path.
+                if (exe.find_first_of(L"\\/:") == std::wstring::npos) {
+                    wchar_t full[1024]{};
+                    if (SearchPathW(nullptr, exe.c_str(), nullptr, 1024, full, nullptr) == 0) continue;
+                    exe = full;
+                }
+                entry.icon_path = std::move(exe);
+                entry.icon_index = 0;
+                return;
+            }
+        }
+    }
+}
+
 ShellMenuEntry ComEntry(const ops::ShellMenuItem& item, int command = 0) {
     ShellMenuEntry entry;
     entry.command = command;
@@ -21,6 +141,7 @@ ShellMenuEntry ComEntry(const ops::ShellMenuItem& item, int command = 0) {
     entry.from_com = true;
     entry.clsid = item.clsid;
     entry.handler = item.handler;
+    ResolveVerbIcon(entry);
     return entry;
 }
 
@@ -50,6 +171,8 @@ void AppendShellSection(std::vector<ui::FluentMenuItem>& items,
         row.command = e.command;
         row.text = e.text;
         row.enabled = e.enabled;
+        row.icon_path = e.icon_path;
+        row.icon_index = e.icon_index;
         // Software-owned submenu: keep the hierarchy as a one-level flyout.
         for (const auto& c : e.children) {
             if (c.text.empty() || c.command == 0) continue;
@@ -57,6 +180,8 @@ void AppendShellSection(std::vector<ui::FluentMenuItem>& items,
             child.command = c.command;
             child.text = c.text;
             child.enabled = c.enabled;
+            child.icon_path = c.icon_path;
+            child.icon_index = c.icon_index;
             row.children.push_back(std::move(child));
         }
         if (header && row.children.empty()) continue;
@@ -71,6 +196,9 @@ std::vector<ShellMenuEntry> ApplyExplorerPrefs(const ContextMenuPrefs& prefs,
     struct Ranked {
         ShellMenuEntry entry;
         int rank = 4;
+        // Position inside the rank group; the third-party section uses it to honour
+        // the order the user arranged in settings.
+        int sub = 1000000;
     };
     std::vector<Ranked> kept;
     kept.reserve(entries.size());
@@ -103,12 +231,20 @@ std::vector<ShellMenuEntry> ApplyExplorerPrefs(const ContextMenuPrefs& prefs,
         // "is a flyout" keeps the 发送到 submenu from jumping above the software
         // section now that the share group defaults to on.
         int rank = 4;
-        if (cat == ipc::CtxMenuCategory::Software) rank = flyout ? 0 : 1;
+        int sub = 0;
+        if (cat == ipc::CtxMenuCategory::Software) {
+            rank = flyout ? 0 : 1;
+            // A row the user moved takes that position; rows never arranged keep
+            // their discovery order and sort after the arranged ones, so a package
+            // installed later still turns up without being placed by hand.
+            const int custom = prefs.ComOrderIndex(key);
+            sub = custom >= 0 ? custom : 1000000;
+        }
         else if (cat == ipc::CtxMenuCategory::OpenWith) rank = 2;
         else if (cat == ipc::CtxMenuCategory::Print) rank = 3;
         if (flyout && ipc::IsCompressVendorFlyout(e.text))
             vendor_index = static_cast<int>(kept.size());
-        kept.push_back({ e, rank });
+        kept.push_back({ e, rank, sub });
     }
 
     auto append_compress_children = [&](ShellMenuEntry& dest) {
@@ -137,7 +273,9 @@ std::vector<ShellMenuEntry> ApplyExplorerPrefs(const ContextMenuPrefs& prefs,
     }
 
     std::stable_sort(kept.begin(), kept.end(),
-                     [](const Ranked& a, const Ranked& b) { return a.rank < b.rank; });
+                     [](const Ranked& a, const Ranked& b) {
+                         return a.rank != b.rank ? a.rank < b.rank : a.sub < b.sub;
+                     });
 
     std::vector<ShellMenuEntry> out;
     const size_t cap = static_cast<size_t>((std::max)(1, prefs.explorer_cap));

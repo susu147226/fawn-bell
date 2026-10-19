@@ -103,6 +103,9 @@ struct MenuItemSpec {
     std::wstring_view shortcut;
     std::wstring_view badge_text;
     std::wstring_view glyph;
+    // Non-empty: draw this file's icon (index `icon_index`) in the glyph slot.
+    std::wstring_view icon_path;
+    int icon_index = 0;
     ControlState state{};
     bool has_submenu = false;
     bool separator_after = false;

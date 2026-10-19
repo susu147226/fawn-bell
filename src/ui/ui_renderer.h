@@ -805,6 +805,10 @@ struct WindowViewModel {
     int settings_menu_drag = -1;
     float settings_menu_drag_pos = 0.0f;
     float settings_menu_drag_grab = 0.0f;
+    // Third-party row being dragged on the 右键菜单 page (-1 when none), and where
+    // the pointer is, so the row can be dimmed and the drop point shown.
+    int settings_context_drag = -1;
+    float settings_context_drag_pos = 0.0f;
     std::vector<SettingsRowView> settings_items;
     bool settings_index_service = false;
     bool settings_index_installed = false;
@@ -1382,6 +1386,10 @@ public:
     // gives (empty when the pointer is too far outside the preview).
     float SettingsMenuRowStart(const WindowViewModel& vm, const D2D1_RECT_F& rect, int item);
     app::BuiltinMenuOrder SettingsMenuDropOrder(const WindowViewModel& vm, const D2D1_RECT_F& rect, float x, float y);
+    // Third-party rows of the 右键菜单 page: the key order that dropping row `from`
+    // at `y` produces. Empty when the pointer is outside the third-party block.
+    std::vector<std::wstring> SettingsContextDropOrder(const WindowViewModel& vm, const D2D1_RECT_F& rect,
+                                                       int from, float y);
     int SettingsSliderValueAt(const WindowViewModel& vm, const D2D1_RECT_F& rect,
                               int which, float x) const;
 

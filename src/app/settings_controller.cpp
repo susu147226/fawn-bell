@@ -786,6 +786,28 @@ void SettingsController::SetMenuOrder(const BuiltinMenuOrder& order) {
     if (surface == BuiltinMenuSurface::RowButtons) Apply(SettingsEffect::ListStyle);
 }
 
+void SettingsController::BeginContextDrag(int row, float pos, float grab) noexcept {
+    context_drag_row_ = row;
+    context_drag_live_ = false;
+    context_drag_start_ = context_drag_pos_ = pos;
+    context_drag_grab_ = grab;
+}
+
+bool SettingsController::ContextDragMove(float pos) noexcept {
+    if (context_drag_row_ < 0) return false;
+    // A few pixels of slack keeps a plain click on the switch from starting a drag.
+    if (!context_drag_live_ && std::fabs(pos - context_drag_start_) < 4.0f) return false;
+    context_drag_live_ = true;
+    context_drag_pos_ = pos;
+    return true;
+}
+
+void SettingsController::SetContextOrder(const std::vector<std::wstring>& keys) {
+    if (!context_ || keys.empty()) return;
+    context_->SetComOrder(keys);
+    context_->Save();
+}
+
 void SettingsController::EndSlider() {
     if (slider_drag_ < 0) return;
     slider_drag_ = -1;

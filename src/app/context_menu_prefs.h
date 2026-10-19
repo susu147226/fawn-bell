@@ -64,6 +64,10 @@ struct ContextMenuPrefs {
     uint32_t builtin_hidden = 0;
     // Their order per BuiltinMenuSurface; empty = table order.
     BuiltinMenuOrder builtin_order[static_cast<size_t>(BuiltinMenuSurface::Count)];
+    // Catalog keys of the third-party (COM) rows in the order the user arranged
+    // them. Keys not listed keep their discovery order, so a package installed
+    // later still appears where Explorer would have put it.
+    std::vector<std::wstring> com_order;
 
     void ResetToDefaults();
     // Re-keys the seen catalog through CatalogKey and carries the per-item
@@ -97,6 +101,12 @@ struct ContextMenuPrefs {
     // Stores `order`; the table order is stored as empty.
     void SetBuiltinOrder(BuiltinMenuSurface surface, const BuiltinMenuOrder& order);
     void ResetBuiltinOrder();
+    // Position of a third-party row in com_order, or -1 when the user never moved
+    // it. Callers sort rows with it and keep -1 (discovery order) at the end.
+    int ComOrderIndex(const std::wstring& key) const;
+    // Stores the third-party order. Keys missing from `keys` fall back to discovery
+    // order, so a partial list is not a loss.
+    void SetComOrder(const std::vector<std::wstring>& keys);
 
     std::wstring ToJson() const;
     bool FromJson(const std::wstring& json);

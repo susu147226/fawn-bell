@@ -1534,7 +1534,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         // then Ctrl+Alt+C/X each went dead in turn. When adding an Alt shortcut,
         // add its key here too.
         if (s && (GetKeyState(VK_MENU) & 0x8000) &&
-            (wParam == VK_RETURN || wParam == VK_UP || wParam == VK_LEFT || wParam == VK_RIGHT ||
+            (wParam == VK_RETURN || wParam == VK_UP || wParam == VK_DOWN ||
+             wParam == VK_LEFT || wParam == VK_RIGHT ||
              wParam == L'C' || wParam == L'X'))
             return HandleKeyDown(s, hwnd, msg, wParam, lParam);
         break;

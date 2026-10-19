@@ -41,18 +41,38 @@ void MainRenderer::DrawSettingsContext(const WindowViewModel& vm,const D2D1_RECT
         const auto r=l.context_rows[i];if(r.bottom<=r.top) continue;
         const auto& row=vm.settings_items[i];
         if(row.group==5) continue; // drawn by DrawSettingsLulingMenu
-        if(IsHovered(vm,HitTestResult::SettingsToggle,100+static_cast<int>(i))) {
+        const bool dragging = static_cast<int>(i) == vm.settings_context_drag;
+        if(IsHovered(vm,HitTestResult::SettingsToggle,100+static_cast<int>(i)) || dragging) {
             MakeBrush(dc,theme.fill_hover,brFillHover_);
             dc->FillRoundedRectangle(D2D1::RoundedRect(r,4*scale_,4*scale_),brFillHover_.get());
         }
         // A row auto-disabled after timeouts (#77) is dimmed and carries the
         // reason right of its text; the switch stays clickable to recover.
+        const D2D1_COLOR_F text_color = (row.slow_disabled || dragging) ? theme.text_secondary : theme.text;
         const float text_right=row.slow_disabled ? r.right-268*scale_ : r.right-76*scale_;
-        painter_.DrawText(row.text,D2D1::RectF(r.left+16*scale_,r.top,text_right,r.bottom),compositor_->TextFormat(),row.slow_disabled?theme.text_secondary:theme.text);
+        painter_.DrawText(row.text,D2D1::RectF(r.left+16*scale_,r.top,text_right,r.bottom),compositor_->TextFormat(),text_color);
         if(row.slow_disabled)
             painter_.DrawText(l10n::Get(I::ContextSlowDisabled),D2D1::RectF(r.right-252*scale_,r.top,r.right-76*scale_,r.bottom),compositor_->SmallFormat(),theme.text_secondary);
         fluent::ControlState state{};state.checked=row.on;state.hovered=IsHovered(vm,HitTestResult::SettingsToggle,100+static_cast<int>(i));
         painter_.DrawSwitch(D2D1::RectF(r.right-60*scale_,r.top+4*scale_,r.right-16*scale_,r.bottom-4*scale_),L"",state);
+    }
+    // Insertion line while a third-party row is being dragged. Uniform rows, so the
+    // line sits exactly where the row would land.
+    if(vm.settings_context_drag>=0 && static_cast<size_t>(vm.settings_context_drag)<vm.settings_builtin_first) {
+        const size_t first=vm.settings_builtin_first;
+        if(first>0 && first<=l.context_rows.size()) {
+            const float row_h=l.context_rows[0].bottom-l.context_rows[0].top;
+            if(row_h>0.0f) {
+                int slot=std::clamp(static_cast<int>(std::lround(
+                    (vm.settings_context_drag_pos-l.context_rows[0].top)/row_h)),0,static_cast<int>(first));
+                const float line=l.context_rows[0].top+static_cast<float>(slot)*row_h;
+                MakeBrush(dc,theme.accent,brFillSelected_);
+                if(brFillSelected_.get())
+                    dc->FillRectangle(D2D1::RectF(l.context_rows[0].left,line-1*scale_,
+                                                  l.context_rows[0].right,line+1*scale_),
+                                      brFillSelected_.get());
+            }
+        }
     }
     fluent::ControlState restore{};restore.hovered=IsHovered(vm,HitTestResult::SettingsRestore);
     painter_.DrawButton({l.context_restore,l10n::Get(I::RestoreDefaults),L"",fluent::ButtonKind::Standard,restore});
@@ -285,5 +305,28 @@ app::BuiltinMenuOrder MainRenderer::SettingsMenuDropOrder(const WindowViewModel&
     if(pv.bottom<=pv.top || x<pv.left-slack || x>pv.right+slack || y<pv.top-slack || y>pv.bottom+slack) return {};
     const auto pl=LayoutLulingPreview(vm,LulingPreviewBox(pv,scale_),scale_);
     return pl.dragging ? pl.order : app::BuiltinMenuOrder{};
+}
+
+std::vector<std::wstring> MainRenderer::SettingsContextDropOrder(
+    const WindowViewModel& vm, const D2D1_RECT_F& rect, int from, float y) {
+    const auto l=MakeSettingsLayout(vm,rect,scale_,title_bar_height_,status_height_,&painter_);
+    const size_t first=vm.settings_builtin_first;
+    if(from<0 || static_cast<size_t>(from)>=first || first==0 || l.context_rows.size()<first) return {};
+    // These rows are all the same height, so the landing slot is simply whichever
+    // gap is nearest the pointer — no per-row comparison, no grab offset to undo.
+    const float row_h=l.context_rows[0].bottom-l.context_rows[0].top;
+    if(row_h<=0.0f) return {};
+    std::vector<std::wstring> keys;
+    keys.reserve(first);
+    for(size_t i=0;i<first;++i) keys.push_back(vm.settings_items[i].key);
+    int slot=static_cast<int>(std::lround((y-l.context_rows[0].top)/row_h));
+    slot=std::clamp(slot,0,static_cast<int>(first));
+    std::vector<std::wstring> result=keys;
+    const std::wstring moving=result[static_cast<size_t>(from)];
+    result.erase(result.begin()+from);
+    if(slot>from) --slot;
+    slot=std::clamp(slot,0,static_cast<int>(result.size()));
+    result.insert(result.begin()+slot,moving);
+    return result;
 }
 }

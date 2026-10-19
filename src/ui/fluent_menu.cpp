@@ -621,6 +621,8 @@ bool FluentMenu::RenderSurface(const FluentMenuModel& model, int hover_row, int 
                                       (float)(kShadowMargin + cw), y + model.RowHeightPx());
             spec.text = it->text;
             spec.glyph = it->glyph;
+            spec.icon_path = it->icon_path;
+            spec.icon_index = it->icon_index;
             spec.glyph_scale = it->glyph_scale;
             spec.shortcut = it->shortcut;
             spec.shortcut_inline = it->shortcut_inline;

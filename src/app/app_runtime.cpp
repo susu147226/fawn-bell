@@ -720,18 +720,28 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_group_on[g] = s.ctxMenuPrefs.GroupEnabled(kGroups[g]);
             vm.settings_items.clear();
             vm.settings_items.reserve(s.ctxMenuPrefs.seen.size() + app::kBuiltinMenuItemCount);
-            for (const auto& seen : s.ctxMenuPrefs.seen) {
+            // The user's arrangement first; rows never moved keep discovery order and
+            // follow, so a package installed later still turns up without placement.
+            std::vector<const app::SeenMenuItem*> ordered;
+            ordered.reserve(s.ctxMenuPrefs.seen.size());
+            for (const auto& seen : s.ctxMenuPrefs.seen) ordered.push_back(&seen);
+            std::stable_sort(ordered.begin(), ordered.end(), [&](const auto* a, const auto* b) {
+                const int ra = s.ctxMenuPrefs.ComOrderIndex(a->key);
+                const int rb = s.ctxMenuPrefs.ComOrderIndex(b->key);
+                return (ra < 0 ? 1000000 : ra) < (rb < 0 ? 1000000 : rb);
+            });
+            for (const auto* seen : ordered) {
                 ui::SettingsRowView row;
-                row.key = seen.key;
+                row.key = seen->key;
                 // Luling's own compress row is stored in Simplified; shell rows
                 // already use the system language.
-                row.text = seen.key == ipc::CompressCatalogKey()
-                    ? std::wstring(l10n::Cn(ipc::CompressCatalogText())) : seen.text;
-                row.group = static_cast<int>(ipc::GroupOf(seen.category));
-                row.on = s.ctxMenuPrefs.RowEnabled(seen.key, seen.category, seen.from_com);
+                row.text = seen->key == ipc::CompressCatalogKey()
+                    ? std::wstring(l10n::Cn(ipc::CompressCatalogText())) : seen->text;
+                row.group = static_cast<int>(ipc::GroupOf(seen->category));
+                row.on = s.ctxMenuPrefs.RowEnabled(seen->key, seen->category, seen->from_com);
                 // A row the slow-extension auto-disable turned off (#77) shows
                 // why it is missing from the menu; toggling it recovers.
-                row.slow_disabled = s.ctxMenuPrefs.ComDisabled(seen.key);
+                row.slow_disabled = s.ctxMenuPrefs.ComDisabled(seen->key);
                 vm.settings_items.push_back(std::move(row));
             }
             // Luling's own commands: card 5, after the seen catalog (see
@@ -751,6 +761,10 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_menu_drag = s.settings.menu_drag_item();
                 vm.settings_menu_drag_pos = s.settings.menu_drag_pos();
                 vm.settings_menu_drag_grab = s.settings.menu_drag_grab();
+            }
+            if (s.settings.context_drag_live()) {
+                vm.settings_context_drag = s.settings.context_drag_row();
+                vm.settings_context_drag_pos = s.settings.context_drag_pos();
             }
             for (int i = 0; i < app::kBuiltinMenuItemCount; ++i) {
                 const auto item = static_cast<app::BuiltinMenuItem>(i);

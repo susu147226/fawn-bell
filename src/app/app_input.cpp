@@ -1035,6 +1035,21 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
         }
 
+        // Third-party row held on the 右键菜单 page: same idea as the preview rows
+        // below, but the rows live in the Explorer-group list.
+        if (s->settings.context_drag_row() >= 0) {
+            if (!(wParam & MK_LBUTTON)) {
+                s->settings.EndContextDrag(); // capture lost without WM_LBUTTONUP
+                InvalidateRect(hwnd, nullptr, FALSE);
+            } else {
+                if (s->settings.ContextDragMove(static_cast<float>(my)))
+                    InvalidateRect(hwnd, nullptr, FALSE);
+                if (s->settings.context_drag_live())
+                    SetCursor(LoadCursorW(nullptr, IDC_SIZENS));
+                return 0;
+            }
+        }
+
         // Luling menu preview row held on the 右键菜单 page: follow the pointer.
         if (s->settings.menu_drag_item() >= 0) {
             if (!(wParam & MK_LBUTTON)) {
@@ -2385,7 +2400,15 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             OpenSettingsTab(*s, hit.index);
         } else if (HandleSettingsControl(*s, hit)) {
         } else if (hit.region == ui::HitTestResult::SettingsToggle) {
-            s->settings.ToggleUi(hit.index);
+            if (hit.index >= 100) {
+                // A third-party row: the press may start a drag. Whether it is a
+                // drag or just a click on the switch is decided on release, once we
+                // know the pointer did not move.
+                s->settings.BeginContextDrag(hit.index - 100, static_cast<float>(my), 0.0f);
+                SetCapture(hwnd);
+            } else {
+                s->settings.ToggleUi(hit.index);
+            }
             InvalidateRect(hwnd, nullptr, FALSE);
         } else if (hit.region == ui::HitTestResult::SettingsAccent) {
             s->bloom_accent.SetPressed(hit.index);
@@ -3108,6 +3131,25 @@ LRESULT HandleLButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     if (!order.empty()) s->settings.SetMenuOrder(order);
                 } else {
                     s->settings.EndMenuDrag();
+                }
+                if (GetCapture() == hwnd) ReleaseCapture();
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            }
+            if (s->settings.context_drag_row() >= 0) {
+                const int row = s->settings.context_drag_row();
+                if (s->settings.context_drag_live()) {
+                    const ui::WindowViewModel vm = BuildVm(*s, false);
+                    const D2D1_RECT_F rect = D2D1::RectF(0, 0, (float)s->compositor.Width(),
+                                                         (float)s->compositor.Height());
+                    const auto order = s->renderer.SettingsContextDropOrder(
+                        vm, rect, row, (float)GET_Y_LPARAM(lParam));
+                    s->settings.EndContextDrag();
+                    if (!order.empty()) s->settings.SetContextOrder(order);
+                } else {
+                    // Never moved: it was a click on the row's switch after all.
+                    s->settings.ToggleUi(100 + row);
+                    s->settings.EndContextDrag();
                 }
                 if (GetCapture() == hwnd) ReleaseCapture();
                 InvalidateRect(hwnd, nullptr, FALSE);
@@ -3946,6 +3988,10 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             GoBack(*s);
         } else if (alt && wParam == VK_RIGHT) {
             GoForward(*s);
+        } else if (alt && wParam == VK_DOWN) {
+            // Opens the highlighted folder (or file) without leaving the keyboard,
+            // the way Explorer's own Alt+Down does.
+            OpenSelected(*s);
         } else if (wParam == VK_F5) {
             DispatchMenuCommand(*s, app::CmdRefresh);
         } else if (wParam == VK_F1) {

@@ -44,6 +44,7 @@ void ContextMenuPrefs::ResetToDefaults() {
     slow_ext.clear();
     builtin_hidden = 0;
     ResetBuiltinOrder();
+    com_order.clear();
 }
 
 bool ContextMenuPrefs::CategoryEnabled(ipc::CtxMenuCategory c) const {
@@ -118,6 +119,22 @@ void ContextMenuPrefs::SetBuiltinOrder(BuiltinMenuSurface surface, const Builtin
 
 void ContextMenuPrefs::ResetBuiltinOrder() {
     for (auto& order : builtin_order) order.clear();
+}
+
+int ContextMenuPrefs::ComOrderIndex(const std::wstring& key) const {
+    if (key.empty()) return -1;
+    const auto it = std::find(com_order.begin(), com_order.end(), key);
+    return it == com_order.end() ? -1 : static_cast<int>(it - com_order.begin());
+}
+
+void ContextMenuPrefs::SetComOrder(const std::vector<std::wstring>& keys) {
+    com_order.clear();
+    com_order.reserve(keys.size());
+    for (const auto& key : keys) {
+        if (key.empty()) continue;
+        if (std::find(com_order.begin(), com_order.end(), key) != com_order.end()) continue;
+        com_order.push_back(key);
+    }
 }
 
 void ContextMenuPrefs::SetItemEnabled(const std::wstring& key, bool on) {
@@ -270,7 +287,19 @@ std::wstring ContextMenuPrefs::ToJson() const {
         out += L"\"";
         first_order = false;
     }
-    out += first_order ? L"},\n  \"items\":{\n" : L"\n  },\n  \"items\":{\n";
+    out += first_order ? L"},\n" : L"\n  },\n";
+    if (!com_order.empty()) {
+        // Third-party rows, comma-joined in the order the user arranged them.
+        out += L"  \"com_order\":\"";
+        bool first_com = true;
+        for (const auto& key : com_order) {
+            if (!first_com) out += L",";
+            out += key;
+            first_com = false;
+        }
+        out += L"\",\n";
+    }
+    out += L"  \"items\":{\n";
     size_t n = 0;
     for (const auto& kv : item_enabled) {
         std::wstring key;
@@ -346,6 +375,18 @@ bool ContextMenuPrefs::FromJson(const std::wstring& json) {
             at = end + 1;
         }
         SetBuiltinOrder(static_cast<BuiltinMenuSurface>(s), order);
+    }
+    {
+        // Third-party order, same comma-joined shape as the builtin lists.
+        std::vector<std::wstring> keys;
+        const std::wstring text = luling::json::ExtractString(json, L"com_order");
+        for (size_t at = 0; at < text.size();) {
+            size_t end = text.find(L',', at);
+            if (end == std::wstring::npos) end = text.size();
+            if (end > at) keys.emplace_back(text.substr(at, end - at));
+            at = end + 1;
+        }
+        SetComOrder(keys);
     }
 
     // Keys are menu ids such as "h:{GUID}" and texts are whatever the menu

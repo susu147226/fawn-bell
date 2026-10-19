@@ -464,9 +464,14 @@ HRESULT FileDataObject::GetData(FORMATETC* fmt, STGMEDIUM* out) {
     if (fmt->cfFormat == CF_HDROP) {
         h = RenderHDrop();
     } else if (fmt->cfFormat == (CLIPFORMAT)PreferredEffectFormat()) {
-        // One preferred effect, not the whole mask: the format holds a single value,
-        // and a target that reads COPY|MOVE out of it may pick the wrong one.
-        h = RenderDword(DROPEFFECT_COPY);
+        // The modifier's effect, matching the shell data object above; with no
+        // modifier the format is not offered at all, so receivers fall back to
+        // Explorer's same-volume rule.
+        const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+        const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+        const DWORD preferred = ctrl != shift ? (ctrl ? DROPEFFECT_COPY : DROPEFFECT_MOVE) : 0;
+        if (!preferred) return DV_E_FORMATETC;
+        h = RenderDword(preferred);
     } else if (fmt->cfFormat == (CLIPFORMAT)PerformedEffectFormat()) {
         h = RenderDword(performed_effect_);
     } else if (fmt->cfFormat == (CLIPFORMAT)FileNameWFormat()) {
@@ -546,18 +551,26 @@ DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effec
         fallback = FileDataObject::Create(paths);
         data = fallback;
     } else {
-        FORMATETC fmt{ (CLIPFORMAT)PreferredEffectFormat(), nullptr, DVASPECT_CONTENT, -1,
-                       TYMED_HGLOBAL };
-        STGMEDIUM medium{};
-        medium.tymed = TYMED_HGLOBAL;
-        medium.hGlobal = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(DWORD));
-        if (medium.hGlobal) {
-            // CFSTR_PREFERREDDROPEFFECT carries *one* preferred effect, not the set
-            // of allowed ones: the whole mask (COPY|MOVE|LINK) is an invalid value
-            // that a target may interpret any way it likes.
-            *static_cast<DWORD*>(GlobalLock(medium.hGlobal)) = DROPEFFECT_COPY;
-            GlobalUnlock(medium.hGlobal);
-            if (FAILED(data->SetData(&fmt, &medium, TRUE))) ReleaseStgMedium(&medium);
+        // CFSTR_PREFERREDDROPEFFECT holds the effect the pressed modifier asks for,
+        // not the allowed set. Writing COPY unconditionally made every
+        // Luling-to-Luling drag a copy: our own drop target reads this value and
+        // skips the same-volume rule. With no modifier there is nothing to prefer,
+        // so the format is left out entirely and the target applies Explorer's rule
+        // (move within a volume, copy across).
+        const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+        const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+        const DWORD preferred = ctrl != shift ? (ctrl ? DROPEFFECT_COPY : DROPEFFECT_MOVE) : 0;
+        if (preferred != 0) {
+            FORMATETC fmt{ (CLIPFORMAT)PreferredEffectFormat(), nullptr, DVASPECT_CONTENT, -1,
+                           TYMED_HGLOBAL };
+            STGMEDIUM medium{};
+            medium.tymed = TYMED_HGLOBAL;
+            medium.hGlobal = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(DWORD));
+            if (medium.hGlobal) {
+                *static_cast<DWORD*>(GlobalLock(medium.hGlobal)) = preferred;
+                GlobalUnlock(medium.hGlobal);
+                if (FAILED(data->SetData(&fmt, &medium, TRUE))) ReleaseStgMedium(&medium);
+            }
         }
     }
 

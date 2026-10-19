@@ -39,6 +39,10 @@ struct FluentMenuItem {
     int command = 0;              // app-defined verb id; 0 is never returned
     std::wstring text;
     std::wstring glyph;           // Segoe Fluent Icons codepoint string
+    // External icon drawn in the glyph slot instead, from a program or DLL and an
+    // icon index. Empty path = draw `glyph` as before.
+    std::wstring icon_path;
+    int icon_index = 0;
     std::wstring shortcut;        // right-aligned caption, e.g. L"Ctrl+Shift+C"
     std::wstring badge_text;      // right-aligned Fluent badge (takes priority over shortcut)
     bool enabled = true;

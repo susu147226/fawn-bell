@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <shlobj.h>
+#include <wincodec.h>
 
 namespace luling::ui::fluent {
 
@@ -1303,6 +1305,48 @@ void Painter::DrawMenuSurface(const D2D1_RECT_F& bounds) {
     StrokeRoundedRect(bounds, radius, border);
 }
 
+namespace {
+// Menu icons extracted from a program or DLL, cached per device. Rows repaint on
+// every hover move, and pulling an icon out of a large executable is not free.
+struct MenuIconSlot {
+    ComPtr<ID2D1Device> device;
+    ComPtr<ID2D1Bitmap> bitmap;
+};
+std::unordered_map<std::wstring, MenuIconSlot> g_menu_icons;
+
+ID2D1Bitmap* MenuIconBitmap(ID2D1DeviceContext* dc, const std::wstring& path, int index) {
+    if (!dc || path.empty()) return nullptr;
+    ComPtr<ID2D1Device> device;
+    dc->GetDevice(&device);
+    const std::wstring key = path + L"|" + std::to_wstring(index);
+    MenuIconSlot& slot = g_menu_icons[key];
+    if (slot.bitmap.get() && slot.device.get() == device.get()) return slot.bitmap.get();
+
+    HICON icon = nullptr;
+    if (FAILED(SHDefExtractIconW(path.c_str(), index, 0, nullptr, &icon, MAKELONG(20, 20))) || !icon)
+        return nullptr;
+    ComPtr<ID2D1Bitmap> bitmap;
+    ICONINFO info{};
+    if (GetIconInfo(icon, &info)) {
+        ComPtr<IWICImagingFactory> wic;
+        if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
+                                       IID_PPV_ARGS(&wic))) && wic.get()) {
+            ComPtr<IWICBitmap> source;
+            if (SUCCEEDED(wic->CreateBitmapFromHBITMAP(info.hbmColor, nullptr,
+                                                       WICBitmapUseAlpha, &source)) && source.get())
+                dc->CreateBitmapFromWicBitmap(source.get(), nullptr, &bitmap);
+        }
+        if (info.hbmColor) DeleteObject(info.hbmColor);
+        if (info.hbmMask) DeleteObject(info.hbmMask);
+    }
+    DestroyIcon(icon);
+    if (!bitmap.get()) return nullptr;
+    slot.device = std::move(device);
+    slot.bitmap = std::move(bitmap);
+    return slot.bitmap.get();
+}
+} // namespace
+
 void Painter::DrawMenuItem(const MenuItemSpec& spec) {
     if (!theme_ || !compositor_) {
         return;
@@ -1379,7 +1423,21 @@ void Painter::DrawMenuItem(const MenuItemSpec& spec) {
             DrawGlyph(spec.glyph, icon_bounds, foreground);
         }
     };
-    if (spec.has_swatch) {
+    if (!spec.icon_path.empty()) {
+        // The verb's own icon, the one Explorer shows. Falls back to the glyph when
+        // the program moved away or the index no longer exists.
+        if (ID2D1Bitmap* bitmap = MenuIconBitmap(dc_, std::wstring(spec.icon_path), spec.icon_index)) {
+            const float side = (std::min)(icon_bounds.right - icon_bounds.left,
+                                          icon_bounds.bottom - icon_bounds.top);
+            const float cx = (icon_bounds.left + icon_bounds.right) * 0.5f;
+            const float cy = (icon_bounds.top + icon_bounds.bottom) * 0.5f;
+            dc_->DrawBitmap(bitmap, D2D1::RectF(cx - side * 0.5f, cy - side * 0.5f,
+                                                cx + side * 0.5f, cy + side * 0.5f),
+                            1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+        } else {
+            draw_glyph();
+        }
+    } else if (spec.has_swatch) {
         const auto center = D2D1::Point2F((icon_bounds.left + icon_bounds.right) * 0.5f,
                                          (icon_bounds.top + icon_bounds.bottom) * 0.5f);
         DrawTagDotState(center, 5.0f, spec.swatch_color, spec.checked, spec.mixed);

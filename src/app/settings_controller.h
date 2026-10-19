@@ -244,6 +244,16 @@ public:
     void EndMenuDrag() noexcept { menu_drag_item_ = -1; menu_drag_live_ = false; }
     int menu_drag_item() const noexcept { return menu_drag_item_; }
     bool menu_drag_live() const noexcept { return menu_drag_item_ >= 0 && menu_drag_live_; }
+    // Third-party rows in the 右键菜单 page: same drag idea, separate state because
+    // those rows live in the Explorer-group list, not the Luling preview box.
+    void BeginContextDrag(int row, float pos, float grab) noexcept;
+    bool ContextDragMove(float pos) noexcept;
+    void EndContextDrag() noexcept { context_drag_row_ = -1; context_drag_live_ = false; }
+    int context_drag_row() const noexcept { return context_drag_row_; }
+    bool context_drag_live() const noexcept { return context_drag_row_ >= 0 && context_drag_live_; }
+    float context_drag_pos() const noexcept { return context_drag_pos_; }
+    float context_drag_grab() const noexcept { return context_drag_grab_; }
+    void SetContextOrder(const std::vector<std::wstring>& keys);
     float menu_drag_pos() const noexcept { return menu_drag_pos_; }
     float menu_drag_grab() const noexcept { return menu_drag_grab_; }
     void SetMenuOrder(const BuiltinMenuOrder& order);
@@ -291,6 +301,9 @@ private:
     int menu_drag_item_ = -1;
     bool menu_drag_live_ = false;
     float menu_drag_start_ = 0.0f, menu_drag_pos_ = 0.0f, menu_drag_grab_ = 0.0f;
+    int context_drag_row_ = -1;
+    bool context_drag_live_ = false;
+    float context_drag_start_ = 0.0f, context_drag_pos_ = 0.0f, context_drag_grab_ = 0.0f;
     std::wstring global_search_error_;
     int page_ = 0;
     float scroll_ = 0.0f;

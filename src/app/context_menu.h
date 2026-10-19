@@ -160,6 +160,10 @@ struct ShellMenuEntry {
     bool from_com = false;  // luling_shell IContextMenu row (vs registry static)
     std::wstring clsid;     // handler CLSID when known ("{guid}")
     std::wstring handler;   // handler display name for the settings catalog
+    // Icon the verb registered for itself, "path,index" already split apart. Empty
+    // when the verb has no Icon value; the row then draws no icon rather than a guess.
+    std::wstring icon_path;
+    int icon_index = 0;
 };
 
 // Context menu for a selected entry: 打开 + icon strip (cut/copy/delete/
