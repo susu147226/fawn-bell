@@ -5,6 +5,7 @@
 #include <shellapi.h>
 #include <sherrors.h>
 #include <wrl/client.h>
+#include <algorithm>
 #include <new>
 
 namespace luling::ops {
@@ -207,6 +208,9 @@ ShellTransferResult DeleteWithCurrentToken(const std::vector<std::wstring>& sour
     ComPtr<ITransferSource> cached_transfer;
     std::wstring cached_parent;
     DWORD cached_cookie = 0;
+    // Files the strict recycle path refused; retried through the shell's own delete
+    // once the loop is done (see below).
+    std::vector<std::wstring> deferred;
     if (!permanent) {
         result.hr = SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr,
                                          IID_PPV_ARGS(&recycle_bin));
@@ -269,11 +273,22 @@ ShellTransferResult DeleteWithCurrentToken(const std::vector<std::wstring>& sour
                     break;
                 }
             }
-            result.hr = RecycleOnly(source, cached_transfer.Get(), recycle_bin.Get(), *recycle_sink.Get(),
-                                    cancel, result, progress);
-            result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT || result.hr == COPYENGINE_E_USER_CANCELLED;
-            if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
-            if (FAILED(result.hr) || result.cancelled) break;
+            const HRESULT direct = RecycleOnly(source, cached_transfer.Get(), recycle_bin.Get(),
+                                               *recycle_sink.Get(), cancel, result, progress);
+            if (SUCCEEDED(direct)) {
+                result.hr = direct;
+                continue;
+            }
+            if (cancel.load()) {
+                result.hr = kCancelled;
+                result.cancelled = true;
+                break;
+            }
+            // The transfer source refused this one. Keep it for the shell-delete
+            // fallback instead of failing the whole batch: RecycleItem is stricter
+            // than Explorer's own path and rejects some folders the shell handles
+            // fine (OneDrive-backed ones report "recycling not available").
+            deferred.push_back(source);
             continue;
         }
         // Only stage the item here; the batch runs once, after the loop.
@@ -289,6 +304,44 @@ ShellTransferResult DeleteWithCurrentToken(const std::vector<std::wstring>& sour
         if (FAILED(result.hr)) break;
         entry.source = source;
         pending.push_back(std::move(entry));
+    }
+
+    // Fallback for whatever the strict path refused: the shell's own delete — the
+    // same call Explorer makes. FOF_ALLOWUNDO keeps it a recycle, and
+    // FOFX_RECYCLEONDELETE additionally forces oversized items into the bin rather
+    // than dropping them. The strict path stays the default precisely because it
+    // cannot fall back to a permanent delete on its own; this one can, so it only
+    // ever sees the leftovers.
+    if (!deferred.empty() && !cancel.load()) {
+        ComPtr<IFileOperation> shell_batch;
+        HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER,
+                                      IID_PPV_ARGS(&shell_batch));
+        if (SUCCEEDED(hr)) hr = shell_batch->SetOwnerWindow(owner);
+        if (SUCCEEDED(hr))
+            hr = shell_batch->SetOperationFlags(FOF_NO_UI | FOF_NO_CONNECTED_ELEMENTS |
+                                                FOFX_EARLYFAILURE | FOFX_NOCOPYHOOKS |
+                                                FOF_ALLOWUNDO | FOFX_RECYCLEONDELETE);
+        if (SUCCEEDED(hr)) {
+            std::vector<std::wstring> queued;
+            for (const auto& source : deferred) {
+                if (cancel.load()) break;
+                ComPtr<IShellItem> item;
+                if (FAILED(SHCreateItemFromParsingName(path::StripExtendedPathPrefix(source).c_str(),
+                                                       nullptr, IID_PPV_ARGS(&item)))) continue;
+                if (FAILED(shell_batch->DeleteItem(item.Get(), nullptr))) continue;
+                queued.push_back(source);
+            }
+            if (!queued.empty()) {
+                const HRESULT performed = shell_batch->PerformOperations();
+                if (FAILED(performed) && SUCCEEDED(result.hr)) result.hr = performed;
+                for (const auto& source : queued) {
+                    if (!Missing(source)) continue;
+                    result.mutated = true;
+                    if (std::find(result.sources.begin(), result.sources.end(), source) == result.sources.end())
+                        result.sources.push_back(source);
+                }
+            }
+        }
     }
 
     // Run the batch, then let each sink report on its own file.

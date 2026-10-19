@@ -5,6 +5,7 @@
 // bench_data/opstest (created/cleaned by this test). Prints one PASS/FAIL
 // line per check; exit code 0 iff all checks pass.
 #include "../ops/ops_manager.h"
+#include "../ops/elevated_delete.h"
 #include "../app/update_shutdown.h"
 #include "../ops/clipboard.h"
 #include "../ipc/shell_client.h"
@@ -639,6 +640,24 @@ int wmain(int argc, wchar_t** argv) {
         g_ops.Stop();
         wprintf(L"\n== update shutdown tests: %d passed, %d failed ==\n", g_pass, g_fail);
         return g_fail == 0 ? 0 : 1;
+    }
+
+    if (argc > 2 && std::wstring_view(argv[1]) == L"--recycle-direct") {
+        // Calls the recycle path as-is: no elevation, no authorization prompt, no
+        // shell UI. Prints the HRESULT so a machine that cannot recycle can be told
+        // apart from a machine where the wrapper gets in the way.
+        std::vector<std::wstring> paths;
+        for (int i = 2; i < argc; ++i) paths.emplace_back(argv[i]);
+        const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        std::atomic<bool> cancel{false};
+        const auto result = ops::DeleteWithCurrentToken(paths, false, nullptr, cancel);
+        if (SUCCEEDED(com)) CoUninitialize();
+        wprintf(L"hr=0x%08X mutated=%d cancelled=%d completed=%zu\n",
+                static_cast<unsigned>(result.hr), result.mutated ? 1 : 0,
+                result.cancelled ? 1 : 0, result.sources.size());
+        if (!result.error.empty()) wprintf(L"error=%ls\n", result.error.c_str());
+        g_ops.Stop();
+        return FAILED(result.hr) ? 1 : 0;
     }
 
     if (argc > 1 && (std::wstring(argv[1]) == L"--audit" || std::wstring(argv[1]) == L"--recycle-audit")) {

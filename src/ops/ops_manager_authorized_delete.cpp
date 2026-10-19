@@ -31,6 +31,23 @@ std::wstring KnownDeleteError(HRESULT hr) {
     case static_cast<uint32_t>(COPYENGINE_E_RECYCLE_BIN_NOT_FOUND):
         return l10n::Pick(L"此位置无法安全地移到回收站，项目未被删除。",
                           L"This location cannot be safely sent to the Recycle Bin. The item was not deleted.");
+    // The Recycle Bin is turned off for the volume (a drive-level setting or a
+    // policy), or the item cannot fit in it. Explorer reacts by offering a
+    // permanent delete; turning a failed recycle into a silent permanent delete is
+    // exactly what this path refuses to do, so point the user at Shift+Delete
+    // instead — one keystroke, and their decision.
+    case static_cast<uint32_t>(COPYENGINE_E_RECYCLE_FORCE_NUKE):
+        return l10n::Pick(
+            L"此磁盘的回收站已被关闭，项目没有放进回收站。可选中后按 Shift+Delete 永久删除。",
+            L"The Recycle Bin is turned off for this drive, so nothing was recycled. Select the item and press Shift+Delete to delete it permanently.");
+    case static_cast<uint32_t>(COPYENGINE_E_RECYCLE_SIZE_TOO_BIG):
+        return l10n::Pick(
+            L"项目超过了回收站的容量上限，没有放进回收站。可选中后按 Shift+Delete 永久删除。",
+            L"The item is larger than the Recycle Bin allows, so nothing was recycled. Select it and press Shift+Delete to delete it permanently.");
+    case static_cast<uint32_t>(COPYENGINE_E_RECYCLE_PATH_TOO_LONG):
+        return l10n::Pick(
+            L"文件夹层级太深，无法放进回收站。可选中后按 Shift+Delete 永久删除。",
+            L"The folder is too deep to fit in the Recycle Bin. Select it and press Shift+Delete to delete it permanently.");
     default:
         return {};
     }
