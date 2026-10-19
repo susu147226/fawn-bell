@@ -104,6 +104,11 @@ struct ContextMenuPrefs {
     // Position of a third-party row in com_order, or -1 when the user never moved
     // it. Callers sort rows with it and keep -1 (discovery order) at the end.
     int ComOrderIndex(const std::wstring& key) const;
+    // The seen catalog in the order the settings page lists it: the user's
+    // arrangement first, rows never moved follow in discovery order. Both the
+    // settings page and its toggle handler must use this, or a moved row's switch
+    // acts on a different item.
+    std::vector<const SeenMenuItem*> OrderedSeen() const;
     // Stores the third-party order. Keys missing from `keys` fall back to discovery
     // order, so a partial list is not a loss.
     void SetComOrder(const std::vector<std::wstring>& keys);

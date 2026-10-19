@@ -70,6 +70,21 @@ int wmain() {
     com.MigrateSeenKeys();
     check(com.seen[0].key == L"v:pintoquickaccess", "COM command with similar text is not reassigned to Luling");
     {
+        // Moved rows: the settings page and its toggle must resolve the same row.
+        app::ContextMenuPrefs order;
+        order.RecordSeen(L"a", L"Alpha", false, category);
+        order.RecordSeen(L"b", L"Bravo", false, category);
+        order.RecordSeen(L"c", L"Charlie", false, category);
+        order.SetComOrder({L"c", L"a"});
+        const auto shown = order.OrderedSeen();
+        check(shown.size() == 3 && shown[0]->key == L"c" && shown[1]->key == L"a" && shown[2]->key == L"b",
+            "settings rows follow the arranged order; unarranged rows keep discovery order");
+        order.SetItemEnabled(shown[0]->key, false);
+        check(!order.ItemEnabled(L"c", category, false) && order.ItemEnabled(L"a", category, false) &&
+              order.ItemEnabled(L"b", category, false),
+            "toggling the first shown row disables that row, not catalog position zero");
+    }
+    {
         // Luling menu card: new switchable rows, presets and preview rows.
         using app::BuiltinMenuItem;
         using app::BuiltinMenuPreset;

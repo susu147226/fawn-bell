@@ -127,6 +127,18 @@ int ContextMenuPrefs::ComOrderIndex(const std::wstring& key) const {
     return it == com_order.end() ? -1 : static_cast<int>(it - com_order.begin());
 }
 
+std::vector<const SeenMenuItem*> ContextMenuPrefs::OrderedSeen() const {
+    std::vector<const SeenMenuItem*> ordered;
+    ordered.reserve(seen.size());
+    for (const auto& item : seen) ordered.push_back(&item);
+    std::stable_sort(ordered.begin(), ordered.end(), [this](const SeenMenuItem* a, const SeenMenuItem* b) {
+        const int ra = ComOrderIndex(a->key);
+        const int rb = ComOrderIndex(b->key);
+        return (ra < 0 ? 1000000 : ra) < (rb < 0 ? 1000000 : rb);
+    });
+    return ordered;
+}
+
 void ContextMenuPrefs::SetComOrder(const std::vector<std::wstring>& keys) {
     com_order.clear();
     com_order.reserve(keys.size());

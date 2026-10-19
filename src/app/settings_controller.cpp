@@ -1081,10 +1081,14 @@ void SettingsController::ToggleUi(int index) {
         context_->Save();
     } else if (index >= 100) {
         const size_t item = static_cast<size_t>(index - 100);
-        if (item >= context_->seen.size()) {
+        // Display index, not catalog storage index: the settings page shows the
+        // rows in the user's arranged order (ContextMenuPrefs::OrderedSeen), so a
+        // moved row's switch must resolve through the same order.
+        const auto ordered = context_->OrderedSeen();
+        if (item >= ordered.size()) {
             // Rows after the seen catalog are Luling's own commands, in
             // BuiltinMenuItem order (app_runtime builds them the same way).
-            const size_t builtin = item - context_->seen.size();
+            const size_t builtin = item - ordered.size();
             if (builtin >= static_cast<size_t>(kBuiltinMenuItemCount)) return;
             const auto which = static_cast<BuiltinMenuItem>(builtin);
             context_->SetBuiltinVisible(which, !context_->BuiltinVisible(which));
@@ -1094,7 +1098,7 @@ void SettingsController::ToggleUi(int index) {
                 Apply(SettingsEffect::ListStyle);
             return;
         }
-        const auto& seen = context_->seen[item];
+        const auto& seen = *ordered[item];
         // RowEnabled (#77): a slow-disabled handler shows as off, so one
         // toggle re-enables it and clears the timeout skip via SetItemEnabled.
         const bool enabled = context_->RowEnabled(seen.key, seen.category, seen.from_com);

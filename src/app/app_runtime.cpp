@@ -722,14 +722,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             vm.settings_items.reserve(s.ctxMenuPrefs.seen.size() + app::kBuiltinMenuItemCount);
             // The user's arrangement first; rows never moved keep discovery order and
             // follow, so a package installed later still turns up without placement.
-            std::vector<const app::SeenMenuItem*> ordered;
-            ordered.reserve(s.ctxMenuPrefs.seen.size());
-            for (const auto& seen : s.ctxMenuPrefs.seen) ordered.push_back(&seen);
-            std::stable_sort(ordered.begin(), ordered.end(), [&](const auto* a, const auto* b) {
-                const int ra = s.ctxMenuPrefs.ComOrderIndex(a->key);
-                const int rb = s.ctxMenuPrefs.ComOrderIndex(b->key);
-                return (ra < 0 ? 1000000 : ra) < (rb < 0 ? 1000000 : rb);
-            });
+            const auto ordered = s.ctxMenuPrefs.OrderedSeen();
             for (const auto* seen : ordered) {
                 ui::SettingsRowView row;
                 row.key = seen->key;
