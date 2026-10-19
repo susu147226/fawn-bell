@@ -12,6 +12,9 @@
 namespace luling {
 namespace {
 constexpr ULONGLONG kCheckInterval = 6ull * 60 * 60 * 1000;
+// A check that never got an answer retries soon. Six hours is right for "asked and
+// nothing newer", wrong for "could not ask".
+constexpr ULONGLONG kCheckRetryInterval = 15ull * 60 * 1000;
 void ShowInstallError(AppState& state) {
     using l10n::StringId;
     const auto message = state.update_install_error == ERROR_CANCELLED ? StringId::UpdateCancelled :
@@ -145,6 +148,14 @@ void CompleteUpdateCheck(AppState& state) {
     if (!state.update_checker.TakeResult(result)) return;
     state.update_result = std::move(result);
     state.update_result_ready = true;
+    // Only a check that actually completed earns the six-hour wait. A failure —
+    // the network still coming up at boot, a proxy that was not listening yet, a
+    // transient GitHub error — used to park the next attempt six hours out all the
+    // same, so a machine whose one early attempt failed saw no update for the rest
+    // of that session. That is why some users only ever met the prompt after
+    // opening Settings, whose check is on demand.
+    state.next_update_check = GetTickCount64() +
+        (state.update_result.error == app::UpdateError::None ? kCheckInterval : kCheckRetryInterval);
     if (state.update_result.update_available && state.notified_update_version != state.update_result.version) {
         state.notified_update_version = state.update_result.version;
         wchar_t title[160]{};
