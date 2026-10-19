@@ -11,9 +11,11 @@
 
 namespace luling {
 namespace {
-constexpr ULONGLONG kCheckInterval = 6ull * 60 * 60 * 1000;
-// A check that never got an answer retries soon. Six hours is right for "asked and
-// nothing newer", wrong for "could not ask".
+// A completed check repeats at this interval. Six hours meant a release published
+// just after a check stayed invisible for the rest of the session, and the manifest
+// proxies tried first can still answer with the previous release for minutes after a
+// new one is out. Fifteen minutes bounds both without meaningful traffic.
+constexpr ULONGLONG kCheckInterval = 15ull * 60 * 1000;
 constexpr ULONGLONG kCheckRetryInterval = 15ull * 60 * 1000;
 void ShowInstallError(AppState& state) {
     using l10n::StringId;
