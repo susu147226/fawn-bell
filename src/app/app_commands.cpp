@@ -1469,7 +1469,7 @@ void WaitForShellMenuReady(AppState& s) {
     // The hover prefetch usually finishes first; when it has not, wait briefly
     // (a partial answer ends the wait) instead of opening a menu with only
     // Luling's own rows and no Explorer extensions.
-    s.context_menu.WaitUntilReady(s.hwnd, [&s] { PumpShellMenuMessages(s); }, 1500);
+    s.context_menu.WaitUntilReady(s.hwnd, [&s] { PumpShellMenuMessages(s); }, 1200);
 }
 
 void ScheduleFolderRefresh(AppState& s) {

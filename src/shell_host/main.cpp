@@ -1142,7 +1142,7 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
     // answer inside a second, while a hung one (SendTo, some packaged handlers)
     // never returns and used to burn the whole previous 5s budget on every
     // right-click. §8.14's timeout is meant to cost one menu, not five seconds.
-    constexpr DWORD kHandlerStuckMs = 1500;
+    constexpr DWORD kHandlerStuckMs = 900;
     const ULONGLONG started = GetTickCount64();
     UINT qcm_flags = QueryContextMenuFlags(*data);
 
