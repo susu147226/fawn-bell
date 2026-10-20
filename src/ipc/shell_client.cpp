@@ -1,6 +1,7 @@
 // shell_client.cpp — See shell_client.h for the contract.
 #include "shell_client.h"
 #include "deadline_pipe.h"
+#include "../common/debug_log.h"
 #include "../common/localization.h"
 
 namespace luling::ipc {
@@ -93,6 +94,11 @@ bool ShellClient::SpawnChild() {
                         CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
         const DWORD gle = GetLastError();
         fprintf(stderr, "[shell_client] CreateProcess failed gle=%lu cmd=%ls\n", gle, cmd.c_str());
+        {
+            wchar_t line[512]{};
+            swprintf_s(line, L"spawn failed gle=%lu cmd=%ls", gle, cmd.c_str());
+            diagnostics::DebugLog("shell", line);
+        }
         if (gle == ERROR_FILE_NOT_FOUND) {
             last_error_ = l10n::Pick(L"\u627E\u4E0D\u5230 luling_shell.exe\uFF08\u9700\u4E0E Luling \u653E\u5728\u540C\u4E00\u76EE\u5F55\uFF09",
                                      L"luling_shell.exe not found (it must be in the same folder as Luling)");
@@ -106,6 +112,11 @@ bool ShellClient::SpawnChild() {
     child_ = pi;
     child_started_ = true;
     last_error_.clear();
+    {
+        wchar_t line[160]{};
+        swprintf_s(line, L"spawned pid=%lu", pi.dwProcessId);
+        diagnostics::DebugLog("shell", line);
+    }
     return true;
 }
 

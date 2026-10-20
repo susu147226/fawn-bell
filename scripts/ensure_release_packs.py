@@ -12,8 +12,8 @@ def catalog(path, repository, tag):
     text = path.read_text(encoding='utf-8-sig')
     arrays = dict(re.findall(r'inline constexpr PackFile (\w+)\[\] = \{(.*?)\n\};', text, re.S))
     releases = re.findall(r'inline constexpr PackRelease \w+\{L"([^"]+)", L"([^"]+)", L"([^"]+)", (\w+), std::size\(\4\)\};', text)
-    if len(releases) != 4 or {r[0] for r in releases} != {'ffmpeg', 'images', 'raw', 'archive'}:
-        raise ValueError('Expected exactly four catalog releases')
+    if len(releases) != 5 or {r[0] for r in releases} != {'ffmpeg', 'images', 'raw', 'archive', 'transcode'}:
+        raise ValueError('Expected exactly five catalog releases')
     packs = []
     names = set()
     for key, version, url, array in releases:
@@ -94,7 +94,7 @@ def main():
     args = parser.parse_args()
     packs = catalog(args.catalog, args.repository, args.tag)
     ensure(packs, args.repository, args.tag, args.source_tag, args.asset_directory)
-    print(f"Verified {sum(len(p['files']) for p in packs)} remote pack files and four manifests for {args.tag}")
+    print(f"Verified {sum(len(p['files']) for p in packs)} remote pack files and five manifests for {args.tag}")
 
 
 if __name__ == '__main__':

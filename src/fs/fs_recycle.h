@@ -36,6 +36,10 @@ void EnumerateRecycleBin(std::vector<DirEntry>& out, RecycleBinInfo* info = null
 // Explorer deletes there permanently instead of recycling — callers must do the
 // same rather than refuse the delete.
 bool CanRecyclePath(const std::wstring& path);
+// Same verdict, but a volume lookup failure is reported through volume_error
+// instead of being treated as "no Recycle Bin": a transient error must not
+// silently turn a delete permanent.
+bool RecycleBinAvailable(const std::wstring& path, DWORD* volume_error = nullptr);
 
 inline bool IsRecycleViewPath(const std::wstring& path) {
     return path == L"luling:recycle";

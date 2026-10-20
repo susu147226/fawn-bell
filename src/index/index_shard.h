@@ -7,7 +7,9 @@ namespace luling::index {
 
 // The V9 layout is unchanged. V11 rebuilds parent links damaged by old WAL replay.
 // 12: MFT builds read file sizes from extension records (fragmented large files).
-inline constexpr uint32_t kIndexSnapshotVersion = 12;
+// 13: directory Win32 names from attribute-list extension records (no 8.3
+//     aliases), $RECYCLE.BIN hidden in any case, NTFS metadata files hidden.
+inline constexpr uint32_t kIndexSnapshotVersion = 13;
 
 struct ShardPaths {
     std::wstring directory;

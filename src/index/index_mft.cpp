@@ -269,7 +269,7 @@ bool ParseRecord(BYTE* rec, uint32_t rec_size, uint32_t sector, uint64_t index,
     }
     if (have_data) best.size = data_size;
     if (best.name.empty()) return true;
-    if (extensions && have_list && !have_data && !best.is_dir) {
+    if (extensions && have_list && !have_data) {
         extensions->held.push_back(std::move(best));
         return true;
     }

@@ -10,10 +10,51 @@ bool SubmitWithConflictResolution(AppState& s, ops::OpRequest request, uint64_t*
 void ReleaseTrayBatch(AppState& s, size_t idx);
 void PasteIntoCurrent(AppState& s);
 // Device copies cannot rely on IFileOperation's conflict UI: a same-name item
-// makes Shell abort the process. Detect it first and ask "copy and replace" or
-// "don't copy"; false means nothing is left to copy.
+// makes Shell abort the process. Detect it first and show the shared replace /
+// skip / keep-both dialog; false means the operation was cancelled.
+struct ShellCopyKeepBoth {
+    std::wstring source;
+    std::wstring name;
+};
+// Decisions that must run after the dialog closes. MTP transfers take seconds,
+// so the caller hands this to StartShellCopy instead of blocking the UI thread.
+struct ShellCopyExtras {
+    std::vector<std::wstring> replace_targets;
+    std::vector<ShellCopyKeepBoth> keep_both;
+};
 bool ResolveShellCopyConflicts(AppState& s, std::vector<std::wstring>& sources,
-                               const std::wstring& dest, bool dest_shell);
+                               const std::wstring& dest, bool dest_shell,
+                               ShellCopyExtras* extras = nullptr);
+struct ShellCopyPlan {
+    std::wstring dest;
+    bool dest_shell = false;
+    bool move = false;
+    bool from_drop = false;
+    std::vector<std::wstring> shell_sources;
+    std::vector<std::wstring> local_sources;
+    std::vector<std::wstring> replace_targets;
+    std::vector<ShellCopyKeepBoth> keep_both;
+    // A paste that cuts: the clipboard is marked moved only once the transfer
+    // lands, so a failure leaves the source usable.
+    bool track_cut = false;
+    uint32_t cut_sequence = 0;
+    std::vector<std::wstring> cut_paths;
+};
+// Posted as WM_SHELL_COPY_DONE; the window procedure owns the pointer.
+struct ShellCopyResult {
+    bool ok = false;
+    bool from_drop = false;
+    bool move = false;
+    bool replace_failed = false;
+    bool keep_both_failed = false;
+    bool track_cut = false;
+    uint32_t cut_sequence = 0;
+    std::vector<std::wstring> cut_paths;
+    std::wstring dest;
+    std::vector<std::wstring> refresh;
+};
+// Runs the transfer on a worker thread and posts WM_SHELL_COPY_DONE back.
+void StartShellCopy(AppState& s, ShellCopyPlan plan);
 void DeleteSelected(AppState& s, bool permanent);
 void DeletePaths(AppState& s, std::vector<std::wstring> paths, bool permanent);
 // Confirmation shown before Delete moves items to the Recycle Bin (opt-in setting).

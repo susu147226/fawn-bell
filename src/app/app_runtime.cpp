@@ -540,6 +540,8 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_pack_installed = packs.installed;
                 vm.settings_pack_bytes = packs.bytes;
                 vm.settings_pack_version = packs.version;
+                vm.settings_pack_update_version = packs.update_version;
+                vm.settings_pack_auto_update = packs.auto_update;
                 vm.settings_pack_custom_path = packs.custom_path;
                 vm.settings_pack_detected_path = packs.detected_path;
                 vm.settings_pack_root = packs.root;
@@ -549,6 +551,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_pack_images_installed = packs.images_installed;
                 vm.settings_pack_images_enabled = packs.images_enabled;
                 vm.settings_pack_images_version = packs.images_version;
+                vm.settings_pack_images_update_version = packs.images_update_version;
                 vm.settings_pack_images_notice = packs.images_notice;
                 vm.settings_pack_images_installing = packs.images_installing;
                 vm.settings_pack_images_progress = packs.images_progress;
@@ -556,6 +559,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_pack_raw_installed = packs.raw_installed;
                 vm.settings_pack_raw_enabled = packs.raw_enabled;
                 vm.settings_pack_raw_version = packs.raw_version;
+                vm.settings_pack_raw_update_version = packs.raw_update_version;
                 vm.settings_pack_raw_notice = packs.raw_notice;
                 vm.settings_pack_raw_installing = packs.raw_installing;
                 vm.settings_pack_raw_progress = packs.raw_progress;
@@ -563,6 +567,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_pack_archive_installed = packs.archive_installed;
                 vm.settings_pack_archive_enabled = packs.archive_enabled;
                 vm.settings_pack_archive_version = packs.archive_version;
+                vm.settings_pack_archive_update_version = packs.archive_update_version;
                 vm.settings_pack_archive_notice = packs.archive_notice;
                 vm.settings_pack_archive_installing = packs.archive_installing;
                 vm.settings_pack_archive_progress = packs.archive_progress;
@@ -570,6 +575,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_pack_transcode_installed = packs.transcode_installed;
                 vm.settings_pack_transcode_enabled = packs.transcode_enabled;
                 vm.settings_pack_transcode_version = packs.transcode_version;
+                vm.settings_pack_transcode_update_version = packs.transcode_update_version;
                 vm.settings_pack_transcode_notice = packs.transcode_notice;
                 vm.settings_pack_transcode_installing = packs.transcode_installing;
                 vm.settings_pack_transcode_progress = packs.transcode_progress;
@@ -1071,7 +1077,9 @@ int TrayDeckCap(const AppState& s) {
 
 // Cyclic window into the newest-first item list: the card at `offset` is on
 // top, the following ones sit underneath, wrapping around the end so the
-// stack can be flipped through endlessly.
+// stack can be flipped through endlessly. A path staged more than once shows
+// once per window: its cards would share the path's animation entry and pull
+// it toward two depths on every tick, so the stack never settled.
 std::vector<TrayDeckEntry> TrayDeckEntries(const app::StagingTray& tray, size_t offset,
                                                   size_t cap) {
     std::vector<TrayDeckEntry> all;
@@ -1085,7 +1093,12 @@ std::vector<TrayDeckEntry> TrayDeckEntries(const app::StagingTray& tray, size_t 
     if (all.empty()) return out;
     const size_t n = all.size();
     const size_t start = offset % n;
-    for (size_t i = 0; i < std::min(cap, n); ++i) out.push_back(all[(start + i) % n]);
+    for (size_t i = 0; i < n && out.size() < cap; ++i) {
+        const TrayDeckEntry& entry = all[(start + i) % n];
+        const bool shown = std::any_of(out.begin(), out.end(),
+            [&entry](const TrayDeckEntry& e) { return e.item->path == entry.item->path; });
+        if (!shown) out.push_back(entry);
+    }
     return out;
 }
 
@@ -2713,6 +2726,7 @@ std::wstring TooltipForHover(AppState& s) {
     case R::ContentIndexManage:
     case R::SettingsContentIndex: return text(I::ContentIndexManage);
     case R::NetworkIndexAdd: return text(I::NetworkLiveAdd);
+    case R::NetworkDiscoverySettings: return text(I::Settings);
     case R::AddressSearchClear: return text(I::Clear);
     case R::AddressSearchClose: return text(I::Back);
     case R::TabClose: return text(I::TooltipCloseTab);

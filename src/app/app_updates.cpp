@@ -17,6 +17,20 @@ namespace {
 // new one is out. Fifteen minutes bounds both without meaningful traffic.
 constexpr ULONGLONG kCheckInterval = 15ull * 60 * 1000;
 constexpr ULONGLONG kCheckRetryInterval = 15ull * 60 * 1000;
+// Preview packs change far less often than the app; six hours is plenty.
+constexpr ULONGLONG kPackCheckInterval = 6ull * 60 * 60 * 1000;
+
+// Preview packs follow the update check (自动检查更新 and packs.json
+// auto_update): when this build's catalog has a newer release of an installed
+// pack, it is downloaded in the background. Screenshot runs and test
+// instances keep their packs unless LULING_TEST_PACK_AUTO_UPDATE is set.
+void TickPackUpdates(AppState& state, unsigned long long now) {
+    if (now < state.next_pack_update_check || state.shot.active || !app::UpdateChecker::Enabled() ||
+        !state.appPrefs.auto_check_updates || state.update_installer.Progress().active()) return;
+    if (state.isolatedTest && !GetEnvironmentVariableW(L"LULING_TEST_PACK_AUTO_UPDATE", nullptr, 0)) return;
+    state.next_pack_update_check = now + kPackCheckInterval;
+    state.settings.AutoUpdatePacks(state.hwnd);
+}
 void ShowInstallError(AppState& state) {
     using l10n::StringId;
     const auto message = state.update_install_error == ERROR_CANCELLED ? StringId::UpdateCancelled :
@@ -100,6 +114,7 @@ void TickUpdates(AppState& state, unsigned long long now) {
                                       false, WM_SHOW_RELEASE_NOTES);
         state.whatsNewVersion.clear();
     }
+    TickPackUpdates(state, now);
     if (state.shot.active || !app::UpdateChecker::Enabled() || !state.appPrefs.auto_check_updates ||
         now < state.next_update_check) return;
     if (state.update_installer.Progress().active() || state.update_checker.checking()) return;

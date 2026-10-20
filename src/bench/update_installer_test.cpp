@@ -13,8 +13,8 @@ int wmain(int argc, wchar_t** argv) {
         if (!ok) ++failures;
     };
     const auto parameters = UpdateInstallParameters(L"C:\\Program Files\\Luling\\luling.exe");
-    check(parameters == L"/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /PULSEUPDATE=1 /LOG /DIR=\"C:\\Program Files\\Luling\"",
-        "update uses silent restart mode and quotes the existing installation directory");
+    check(parameters == L"/S /D=C:\\Program Files\\Luling",
+        "update uses the NSIS silent switch and passes the existing installation directory");
     check(UpdateInstallParameters(L"luling.exe").empty() && UpdateInstallParameters(L"C:\\bad\"path\\luling.exe").empty(),
         "invalid installer target cannot inject command switches");
     HWND window = CreateWindowExW(0, L"STATIC", L"Update test", 0, 0, 0, 0, 0, HWND_MESSAGE,

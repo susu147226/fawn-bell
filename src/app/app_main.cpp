@@ -25,6 +25,7 @@
 #include "../ui/preview_format_catalog.h"
 #include "../common/crash_reporter.h"
 #include "../common/diagnostics_exporter.h"
+#include "../common/debug_log.h"
 #include "../common/localization.h"
 #include "luling_version.h"
 #include "../fs/fs_enum.h"
@@ -700,6 +701,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
         // Ops layer: queue worker + shell host IPC; notify repaints the status bar.
         const std::wstring data_dir = app::GetLulingDataDir();
+        diagnostics::InitializeDebugLog(data_dir);
+        diagnostics::DebugLog("app", L"start data=" + data_dir);
         if (!s->isolatedTest && !data_dir.empty())
             s->ops.SetJournalPath(data_dir + L"\\operations.json");
         s->ops.SetVerifyCopies(s->appPrefs.verify_copies);
@@ -1597,10 +1600,73 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_SHARE_CREDENTIALS: {
         std::unique_ptr<std::wstring> target(reinterpret_cast<std::wstring*>(lParam));
+        // The probe talks to the network and may wait on an unreachable host, so
+        // it runs off the UI thread; the dialog itself is posted back here.
+        if (s && target && !target->empty()) {
+            const std::wstring path = *target;
+            std::thread([hwnd, path] {
+                if (app::ShareSignInNeeded(path))
+                    PostMessageW(hwnd, WM_SHARE_CREDENTIALS_PROMPT, 0,
+                                 reinterpret_cast<LPARAM>(new std::wstring(path)));
+            }).detach();
+        }
+        return 0;
+    }
+
+    case WM_SHARE_CREDENTIALS_PROMPT: {
+        std::unique_ptr<std::wstring> target(reinterpret_cast<std::wstring*>(lParam));
         // The dialog runs here rather than inside the worker-result handler that
         // posted it, so its own message pump cannot re-enter folder listing (B34).
-        if (s && target && !target->empty() && app::PromptForShareCredentials(hwnd, *target))
-            ScheduleFolderRefresh(*s);
+        if (s && target && !target->empty()) {
+            std::wstring failure;
+            if (app::PromptForShareCredentials(hwnd, *target, &failure)) {
+                ScheduleFolderRefresh(*s);
+            } else if (!failure.empty()) {
+                s->notification_toast.ShowError(hwnd, l10n::Pick(L"无法登录共享", L"Could not sign in to the share"),
+                                                failure);
+            }
+        }
+        return 0;
+    }
+
+    case WM_SHELL_COPY_DONE: {
+        std::unique_ptr<ShellCopyResult> result(
+            reinterpret_cast<ShellCopyResult*>(lParam));
+        if (!s || !result) return 0;
+        s->shell_copy_busy = false;
+        if (result->ok) {
+            for (const auto& path : result->refresh) {
+                if (!path.empty())
+                    RefreshPath(*s, path, RefreshReason::OperationCompleted);
+            }
+            if (result->track_cut) {
+                s->cutPaths.clear();
+                s->pendingCutClipboardSequence = result->cut_sequence;
+                s->pendingCutClipboardPaths = result->cut_paths;
+                s->completedCutClipboardPaths.clear();
+            }
+        } else if (result->replace_failed) {
+            s->notification_toast.Show(hwnd,
+                l10n::Pick(L"无法替换", L"Could not replace"),
+                l10n::Pick(L"目标文件仍然存在，已取消复制。",
+                           L"The destination file still exists; the copy was cancelled."));
+        } else {
+            s->notification_toast.Show(hwnd,
+                result->from_drop ? l10n::Pick(L"拖动失败", L"Drop failed")
+                                  : l10n::Pick(L"复制失败", L"Copy failed"),
+                result->from_drop
+                    ? l10n::Pick(L"无法完成设备与本地文件夹之间的操作。",
+                                 L"Could not complete the device operation.")
+                    : l10n::Pick(L"无法在设备与本地文件夹之间完成复制。",
+                                 L"Could not copy between the device and this folder."));
+        }
+        if (result->keep_both_failed) {
+            s->notification_toast.Show(hwnd,
+                l10n::Pick(L"无法保留两者", L"Could not keep both"),
+                l10n::Pick(L"无法复制为新名称，已跳过该项目。",
+                           L"The item could not be copied under a new name and was skipped."));
+        }
+        InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
     }
 
@@ -2527,6 +2593,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     if (__argc >= 3 && wcscmp(__wargv[1], L"--picker-dialog-test") == 0)
         return RunFilePickerDialogTest(__argc - 1, __wargv + 1);
     luling::crash::Initialize({luling::crash::ProcessRole::App, false, {}});
+    diagnostics::InitializeDebugLog(app::GetLulingDataDir());
+    diagnostics::DebugLog("app", L"wWinMain");
+    std::set_terminate([] {
+        diagnostics::DebugLog("app", L"std::terminate");
+        ExitProcess(3);
+    });
     luling::compat::EnableDpiAwareness();
     // OLE init (drag & drop + clipboard); implies STA COM init.
     OleInitialize(nullptr);
@@ -2757,6 +2829,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     if (!SkipSingletonFromArgv()) {
         if (state.restart_launch) app::SingleInstanceCoordinator::WaitForPreviousInstance(10000);
         const auto result = state.single_instance.Acquire();
+        diagnostics::DebugLog("app", result == app::SingleInstanceCoordinator::AcquireResult::Existing
+            ? L"singleton existing" : result == app::SingleInstanceCoordinator::AcquireResult::Primary
+            ? L"singleton primary" : L"singleton failed");
         if (result == app::SingleInstanceCoordinator::AcquireResult::Failed) {
             MessageBoxW(nullptr, L"Could not establish the Luling instance endpoint.", L"Luling", MB_OK | MB_ICONERROR);
             return 1;

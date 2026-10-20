@@ -22,6 +22,7 @@
 #include "../common/text_format.h"
 #include "../common/path_utils.h"
 #include "../common/diagnostics_exporter.h"
+#include "../common/debug_log.h"
 #include "snapshot_patch.h"
 #include "session.h"
 #include "context_menu.h"
@@ -482,8 +483,16 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
         if (dest.empty() || (!shell_dest && fs::IsVirtualPath(dest)) ||
             (effect != DROPEFFECT_COPY && effect != DROPEFFECT_MOVE))
             return DROPEFFECT_NONE;
+        {
+            diagnostics::DebugLog("drop", L"drop sources=" + std::to_wstring(sources.size()) +
+                L" shell_source=" + std::to_wstring(shell_source ? 1 : 0) +
+                L" shell_dest=" + std::to_wstring(shell_dest ? 1 : 0) +
+                L" effect=" + std::to_wstring(static_cast<unsigned long>(effect)) +
+                L" dest=" + diagnostics::LogText(dest));
+        }
         std::vector<std::wstring> drop_sources = sources;
-        if (!ResolveShellCopyConflicts(s, drop_sources, dest, shell_dest))
+        ShellCopyExtras extras;
+        if (!ResolveShellCopyConflicts(s, drop_sources, dest, shell_dest, &extras))
             return DROPEFFECT_NONE;
         std::vector<std::wstring> shell_sources;
         std::vector<std::wstring> local_sources;
@@ -492,37 +501,42 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
             else local_sources.push_back(fs::NormalizePath(source));
         }
         const bool move = effect == DROPEFFECT_MOVE;
-        bool ok = false;
-        if (shell_dest) {
-            const bool from_local = local_sources.empty() ||
-                fs::ShellCopyFromLocal(local_sources, dest, move);
-            const bool within = shell_sources.empty() ||
-                fs::ShellCopyWithin(shell_sources, dest, move);
-            ok = from_local && within;
-        } else {
-            ok = shell_sources.empty() || fs::ShellCopyToLocal(shell_sources, dest, move);
-            if (ok && !local_sources.empty()) {
+        try {
+            ShellCopyPlan plan;
+            plan.dest = dest;
+            plan.dest_shell = shell_dest;
+            plan.move = move;
+            plan.from_drop = true;
+            plan.replace_targets = std::move(extras.replace_targets);
+            plan.keep_both = std::move(extras.keep_both);
+            if (shell_dest) {
+                plan.shell_sources = std::move(shell_sources);
+                plan.local_sources = std::move(local_sources);
+            } else {
+                plan.shell_sources = std::move(shell_sources);
+            }
+            // The device side runs on a worker thread; the drop returns now so
+            // the window never freezes for the length of an MTP transfer.
+            StartShellCopy(s, std::move(plan));
+            if (!shell_dest && !local_sources.empty()) {
                 ops::OpRequest req;
                 req.type = move ? ops::OpType::Move : ops::OpType::Copy;
                 req.dest_dir = fs::NormalizePath(dest);
                 for (auto& path : local_sources) req.sources.push_back(path);
-                ok = SubmitWithConflictResolution(s, std::move(req));
+                SubmitWithConflictResolution(s, std::move(req));
             }
-        }
-        if (!ok) {
+        } catch (...) {
+            diagnostics::DebugLog("drop", L"exception during shell drop");
             s.notification_toast.Show(s.hwnd,
                 l10n::Pick(L"拖动失败", L"Drop failed"),
                 l10n::Pick(L"无法完成设备与本地文件夹之间的操作。",
                            L"Could not complete the device operation."));
             return DROPEFFECT_NONE;
         }
-        RefreshPath(s, dest, RefreshReason::OperationCompleted);
-        if (move) {
-            for (const auto& source : sources) {
-                const std::wstring parent = fs::ParentPath(source);
-                if (!parent.empty())
-                    RefreshPath(s, parent, RefreshReason::OperationCompleted);
-            }
+        {
+            diagnostics::DebugLog("drop", L"queued local=" +
+                std::to_wstring(local_sources.size()) +
+                L" shell=" + std::to_wstring(shell_sources.size()));
         }
         return effect;
     }
@@ -2215,6 +2229,20 @@ static void ClickGroupHeader(AppState& s, int pane_slot, int group, bool select)
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
+// Opens the Windows page that controls Network Discovery, falling back through
+// the pages older builds still have.
+void OpenNetworkDiscoverySettings(HWND owner) {
+    HINSTANCE opened = ShellExecuteW(owner, L"open", L"ms-settings:network-advancedsettings",
+        nullptr, nullptr, SW_SHOWNORMAL);
+    if (reinterpret_cast<INT_PTR>(opened) <= 32) {
+        opened = ShellExecuteW(owner, L"open", L"control.exe",
+            L"/name Microsoft.NetworkAndSharingCenter", nullptr, SW_SHOWNORMAL);
+        if (reinterpret_cast<INT_PTR>(opened) <= 32)
+            ShellExecuteW(owner, L"open", L"ms-settings:network-status",
+                nullptr, nullptr, SW_SHOWNORMAL);
+    }
+}
+
 LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (!s) return DefWindowProcW(hwnd, msg, wParam, lParam);
         s->blankDoubleTab = nullptr;
@@ -2230,6 +2258,14 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         ui::WindowViewModel vm = BuildVm(*s, false);
         D2D1_RECT_F rect = D2D1::RectF(0, 0, (float)s->compositor.Width(), (float)s->compositor.Height());
         ui::HitTestResult hit = s->renderer.HitTest(vm, rect, (float)mx, (float)my);
+        if (hit.region == ui::HitTestResult::NetworkDiscoverySettings) {
+            // Kept out of the long click chain below: that chain is already at
+            // the compiler's nesting limit.
+            if (s->addressSearching) HideAddressEditor(*s, false);
+            if (s->filterEditing) HideFilterEditor(*s, true);
+            OpenNetworkDiscoverySettings(s->hwnd);
+            return 0;
+        }
         if (s->addressSearching && hit.region != ui::HitTestResult::AddressSearchInput &&
             hit.region != ui::HitTestResult::AddressSearchScope &&
             hit.region != ui::HitTestResult::AddressSearchMode &&
@@ -2237,6 +2273,7 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             hit.region != ui::HitTestResult::AddressSearchOptions &&
             hit.region != ui::HitTestResult::ContentIndexManage &&
             hit.region != ui::HitTestResult::NetworkIndexAdd &&
+            hit.region != ui::HitTestResult::NetworkDiscoverySettings &&
             hit.region != ui::HitTestResult::AddressSearchClear &&
             hit.region != ui::HitTestResult::AddressSearchClose) {
             HideAddressEditor(*s, false);
@@ -3779,6 +3816,12 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             ShowWorkspaceMenu(*s, _wtoi(rest.c_str()), sp);
             shown = true;
         } else if (HandleVerticalTabContextMenu(*s, hit, sp)) {
+            shown = true;
+        } else if (hit.region == ui::HitTestResult::SidebarItem &&
+                   hit.sidebar_section == static_cast<int>(app::SidebarSectionId::Networks) &&
+                   s->places.FindNetwork(hit.path) >= 0) {
+            // Pinned network locations had no menu, so they could not be unpinned.
+            ShowNetworkPlaceMenu(*s, hit.path, sp);
             shown = true;
         } else if (hit.region == ui::HitTestResult::SidebarItem &&
                    hit.sidebar_section == static_cast<int>(app::SidebarSectionId::Cloud)) {

@@ -1,7 +1,11 @@
 #include "../app/context_menu_prefs.h"
+#include "../app/context_menu.h"
+#include "../common/debug_log.h"
 #include <windows.h>
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <cstdio>
 
 namespace { std::wstring fixture; }
@@ -171,7 +175,7 @@ int wmain() {
             slots = moved_rows[i].separator_after == table_rows.rows[i].separator_after &&
                 moved_rows[i].fixed == table_rows.rows[i].fixed;
         check(slots && moved_rows[2].item == BuiltinMenuItem::Undo && moved_rows[2].shortcut != nullptr &&
-            moved_rows.back().item == BuiltinMenuItem::Tags,
+            moved_rows.back().item == BuiltinMenuItem::Convert,
             "CMI-O05 moved rows keep their look; separators stay with the slot");
         const auto visible = app::BuiltinMenuVisibleRows(BuiltinMenuSurface::Item, 0, undo_first);
         check(visible.size() == table_rows.count && visible[2].row.item == BuiltinMenuItem::Undo &&
@@ -185,6 +189,21 @@ int wmain() {
         ordered.ResetToDefaults();
         check(!ordered.BuiltinOrderCustom(BuiltinMenuSurface::Item) && !ordered.BuiltinOrderCustom(BuiltinMenuSurface::RowButtons),
             "CMI-O08 restore defaults also restores the order");
+    }
+    const auto item_order = app::BuiltinMenuDefaultOrder(app::BuiltinMenuSurface::Item);
+    check(std::find(item_order.begin(), item_order.end(), app::BuiltinMenuItem::CompressZip) != item_order.end(),
+          "CMI-O09 the built-in compress row belongs to the item menu");
+    {
+        const auto log_dir = base / L"debug-log";
+        fs::create_directories(log_dir);
+        diagnostics::InitializeDebugLog(log_dir.wstring());
+        diagnostics::DebugLog("menu", L"probe line");
+        std::ifstream log_file(log_dir / L"luling_debug.log", std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(log_file)),
+                               std::istreambuf_iterator<char>());
+        check(text.find("probe line") != std::string::npos &&
+              text.find("[menu]") != std::string::npos,
+              "CMI-O11 the debug log records a line");
     }
     if (base.parent_path() != parent || !base.filename().wstring().starts_with(L"context-menu-identity-")) return 1;
     std::error_code error; fs::remove_all(base, error);

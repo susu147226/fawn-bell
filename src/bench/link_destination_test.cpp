@@ -168,8 +168,10 @@ int main() {
     Check(find(L"bad.url").link_destination.empty() && find(L"bad.lnk").link_destination.empty(),
         "invalid shortcut data produces no destination");
     Check(find(L"plain.txt").link_destination.empty(), "ordinary file has no destination");
-    if (junction) Check(find(L"junction").link_destination == (root / L"target").wstring() &&
-        find(L"junction").link_target.empty(), "junction reads substitute target without changing identity");
+    if (junction) {
+        Check(find(L"junction").link_destination == (root / L"target").wstring() &&
+            find(L"junction").link_target.empty(), "junction reads substitute target without changing identity");
+    }
     if (symlink) Check(find(L"relative-link").link_destination == L"missing.txt" &&
         find(L"relative-link").link_target.empty(), "broken relative symlink reads one immediate hop");
     if (cycle) Check(find(L"cycle").link_destination == L"cycle", "cyclic symlink is not followed");

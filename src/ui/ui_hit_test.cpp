@@ -597,10 +597,17 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     {&lay.pack_transcode_primary, vm.settings_pack_transcode_installed && !vm.settings_pack_transcode_installing
                         ? PackAction::TranscodeRemove : PackAction::TranscodeInstall},
                     {&lay.pack_transcode_enable, PackAction::TranscodeEnable},
+                    // 更新到: empty rects (nothing to update) never match.
+                    {&lay.pack_update, PackAction::Update},
+                    {&lay.pack_images_update, PackAction::ImagesUpdate},
+                    {&lay.pack_raw_update, PackAction::RawUpdate},
+                    {&lay.pack_archive_update, PackAction::ArchiveUpdate},
+                    {&lay.pack_transcode_update, PackAction::TranscodeUpdate},
                     {&lay.pack_install_all, PackAction::InstallAll},
                     {&lay.pack_detect, PackAction::UseDetected},
                     {&lay.pack_browse, PackAction::Browse},
                     {&lay.pack_custom_row, PackAction::UseCustom},
+                    {&lay.pack_auto_update_row, PackAction::AutoUpdate},
                     {&lay.pack_remove_row, PackAction::RemoveOnUninstall},
                 };
                 for (const auto& [bounds, action] : pack_targets) {
@@ -1057,12 +1064,13 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             paneRc = PaneBodyBounds(paneVm, paneRect);
         }
         const float banner = PaneBannerHeight(paneVm, paneRc.right - paneRc.left, scale_, compositor_);
-        if ((paneVm.is_content_search || paneVm.network_live_action) && banner > 0) {
+        if ((paneVm.is_content_search || paneVm.network_live_action || paneVm.network_discovery_action) && banner > 0) {
             const float action_width = std::min(144.0f * scale_, (paneRc.right - paneRc.left - 16 * scale_) * 0.4f);
             if (x >= paneRc.right - 8 * scale_ - action_width && x < paneRc.right - 8 * scale_ &&
                 y >= paneRc.top + pane_header_height_ && y < paneRc.top + pane_header_height_ + banner - 4 * scale_) {
                 out.region = paneVm.is_content_search ? HitTestResult::ContentIndexManage
-                                                      : HitTestResult::NetworkIndexAdd;
+                    : paneVm.network_live_action ? HitTestResult::NetworkIndexAdd
+                                                 : HitTestResult::NetworkDiscoverySettings;
                 out.index = paneIndex;
                 return out;
             }

@@ -161,6 +161,14 @@ bool HandleChildEditMessage(Compositor& compositor, IDWriteTextFormat* format,
 }
 
 LRESULT DefPresentedChildEditProc(Compositor& compositor, IDWriteTextFormat* format, D2D1_COLOR_F foreground, D2D1_COLOR_F background, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_IME_STARTCOMPOSITION) {
+        // Start every composition from a caret, not a selection: Microsoft
+        // Pinyin commits a word replacing the selected stem and then moves the
+        // caret to the start of the field, so the next word lands in front.
+        DWORD from = 0, to = 0;
+        SendMessageW(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&from), reinterpret_cast<LPARAM>(&to));
+        if (from != to) SendMessageW(hwnd, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L""));
+    }
     const bool changes_visual = msg == WM_SETTEXT || msg == EM_SETSEL || msg == EM_REPLACESEL ||
         msg == WM_KEYDOWN || msg == WM_CHAR || msg == WM_CUT || msg == WM_PASTE ||
         msg == WM_CLEAR || msg == WM_UNDO || msg == EM_UNDO || msg == WM_IME_COMPOSITION ||

@@ -1103,7 +1103,7 @@ add_executable(luling_link_pill_test src/bench/link_pill_test.cpp)
 target_link_libraries(luling_link_pill_test PRIVATE user32)
 
 add_executable(luling_network_locations_test src/bench/network_locations_test.cpp src/app/network_locations.cpp)
-target_link_libraries(luling_network_locations_test PRIVATE shell32 ole32 uuid)
+target_link_libraries(luling_network_locations_test PRIVATE shell32 ole32 oleaut32 uuid)
 
 add_executable(luling_archive_integrity_test src/bench/archive_integrity_test.cpp
     src/preview_host/archive_listing.cpp src/preview_host/udf_listing.cpp)
@@ -1203,7 +1203,8 @@ target_sources(luling_preview PRIVATE src/preview_host/gif_frames.cpp)
 add_executable(luling_preview_pipeline_audit_test src/bench/preview_pipeline_audit_test.cpp
     src/preview_host/gif_frames.cpp src/preview_host/folder_listing.cpp src/preview_host/preview_file_utils.cpp)
 target_link_libraries(luling_preview_pipeline_audit_test PRIVATE ole32 windowscodecs uuid shlwapi)
-add_executable(luling_tray_metadata_audit_test src/bench/tray_metadata_audit_test.cpp)
+add_executable(luling_tray_metadata_audit_test src/bench/tray_metadata_audit_test.cpp
+    src/app/tray_compare_metadata.cpp)
 add_executable(luling_network_worker_audit_test src/bench/network_worker_audit_test.cpp
     src/index/index_config.cpp src/index/index_query.cpp src/index/search_kinds.cpp
     src/index/index_shard.cpp src/index/change_tracking.cpp src/index/filename_pinyin.cpp)
@@ -1231,7 +1232,7 @@ get_target_property(audit_content_sources luling_content_index_test SOURCES)
 list(REMOVE_ITEM audit_content_sources src/bench/content_index_test.cpp src/bench/content_instant_test.cpp)
 get_target_property(audit_content_libraries luling_content_index_test LINK_LIBRARIES)
 add_executable(luling_search_audit_test ${audit_content_sources} src/bench/search_audit_test.cpp
-    src/app/search_query.cpp src/app/global_search_handoff_query.cpp src/index/network_index.cpp
+    src/app/search_query.cpp src/app/search_query_rewrite.cpp src/app/global_search_handoff_query.cpp src/index/network_index.cpp
     src/index/index_config.cpp src/index/index_shard.cpp src/index/change_tracking.cpp)
 target_link_libraries(luling_search_audit_test PRIVATE ${audit_content_libraries} shell32 mpr advapi32)
 target_sources(luling PRIVATE src/app/global_search_handoff_query.cpp)
@@ -1285,7 +1286,8 @@ add_executable(luling_shell_tag_com_test
     src/fs/fs_enum.cpp src/ui/view_layout.cpp)
 target_link_libraries(luling_shell_tag_com_test PRIVATE luling_localization luling_runtime_log
     user32 shell32 ole32 uuid advapi32 shlwapi netapi32 psapi)
-add_executable(luling_single_instance_audit_test src/bench/single_instance_audit_test.cpp src/app/single_instance_coordinator.cpp)
+add_executable(luling_single_instance_audit_test src/bench/single_instance_audit_test.cpp
+    src/app/single_instance_coordinator.cpp src/app/this_pc_argument.cpp)
 target_link_libraries(luling_single_instance_audit_test PRIVATE ole32 user32)
 add_executable(luling_preview_pan_lifetime_audit_test src/bench/preview_pan_lifetime_audit_test.cpp)
 target_link_libraries(luling_preview_pan_lifetime_audit_test PRIVATE gdi32 user32)
@@ -1605,7 +1607,7 @@ target_link_libraries(luling_update_download_cleanup_test PRIVATE bcrypt crypt32
 
 add_executable(luling_places_json_roundtrip_test src/bench/places_json_roundtrip_test.cpp
     src/app/places.cpp src/app/tag_ads_sync.cpp src/fs/fs_enum.cpp src/ui/view_layout.cpp)
-target_link_libraries(luling_places_json_roundtrip_test PRIVATE user32 shell32 ole32 uuid advapi32 shlwapi netapi32 luling_localization)
+target_link_libraries(luling_places_json_roundtrip_test PRIVATE user32 shell32 ole32 uuid advapi32 shlwapi netapi32 luling_localization luling_runtime_log)
 
 add_executable(luling_index_exclusion_concurrency_test src/bench/index_exclusion_concurrency_test.cpp ${query_narrow_sources})
 target_include_directories(luling_index_exclusion_concurrency_test PRIVATE "${CMAKE_BINARY_DIR}/generated")
@@ -1683,6 +1685,18 @@ if(LULING_BUILD_PROGRESS_UI_TESTS)
         endif()
     endforeach()
 endif()
+
+# thumbnail_cache.cpp calls fs::IsShellPath, which lives in fs_enum.cpp. Every
+# target compiling the cache needs that translation unit and its Win32 links.
+get_property(_luling_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_target IN LISTS _luling_targets)
+    get_target_property(_target_sources ${_target} SOURCES)
+    if(_target_sources AND _target_sources MATCHES "src/ui/thumbnail_cache\\.cpp" AND
+       NOT _target_sources MATCHES "src/fs/fs_enum\\.cpp")
+        target_sources(${_target} PRIVATE src/fs/fs_enum.cpp)
+        target_link_libraries(${_target} PRIVATE luling_localization netapi32 mpr advapi32 shlwapi shell32 ole32 uuid)
+    endif()
+endforeach()
 
 include(cmake/setup.cmake)
 

@@ -58,6 +58,9 @@ std::wstring ReparseDestination(const std::wstring& path) {
     memcpy(target.data(), data.data() + path_offset + offset, target_length);
     if (target.find(L'\0') != std::wstring::npos) return {};
     if (target.starts_with(L"\\??\\UNC\\")) return L"\\\\" + target.substr(8);
+    // Junctions made through the global namespace carry "\??\Global\", which is
+    // still the same local path once the namespace prefix is gone.
+    if (target.starts_with(L"\\??\\Global\\")) return target.substr(11);
     if (target.starts_with(L"\\??\\")) return target.substr(4);
     return target;
 }

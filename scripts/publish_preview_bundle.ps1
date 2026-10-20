@@ -12,7 +12,7 @@ $installerPath = (Resolve-Path -LiteralPath $Installer).Path
 $notesPath = (Resolve-Path -LiteralPath $Notes).Path
 $manifest = Get-Content -LiteralPath (Join-Path $directory 'preview-packs-assets.json') -Raw | ConvertFrom-Json
 $tag = $manifest.release_tag
-if ($tag -notmatch '^preview-packs-[A-Za-z0-9_.-]+$') { throw 'Expected a preview-packs release tag' }
+if ($tag -notmatch '^(preview-packs|packs)-[A-Za-z0-9_.-]+$') { throw 'Expected a packs-<version> release tag' }
 if ($Commit -notmatch '^[a-fA-F0-9]{40}$') { throw 'Provide the exact source commit' }
 if ([IO.Path]::GetExtension($installerPath) -ne '.exe') { throw 'Expected an installer executable' }
 $assets = @($installerPath)

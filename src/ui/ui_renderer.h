@@ -229,6 +229,7 @@ struct PaneViewModel {
     bool is_query_search = false;
     bool is_content_search = false;
     bool network_live_action = false;  // #74: banner offers "Add to network index"
+    bool network_discovery_action = false;  // banner offers Settings for a disabled discovery group
     std::wstring search_query;
     // Query search breadcrumb: origin segments followed by one search segment.
     bool has_search_origin = false;
@@ -601,6 +602,9 @@ enum class PackAction : int {
     TranscodeInstall, TranscodeRemove, TranscodeEnable,
     // Settings > 预览增强包: one pass over every pack still missing.
     InstallAll,
+    // 更新到: the catalog's newer release of an installed pack.
+    Update, ImagesUpdate, RawUpdate, ArchiveUpdate, TranscodeUpdate,
+    AutoUpdate,         // 自动更新预览增强包: on / off
 };
 
 struct WindowViewModel {
@@ -717,6 +721,8 @@ struct WindowViewModel {
     std::wstring settings_pack_detected_path;   // ffmpeg.exe found on PATH
     std::wstring settings_pack_root;            // %LOCALAPPDATA%\Luling\packs
     std::wstring settings_pack_notice;          // last action's message, empty when none
+    std::wstring settings_pack_update_version;  // newer catalog release of the installed pack, or empty
+    bool settings_pack_auto_update = true;      // 自动更新预览增强包
     bool settings_pack_installing = false;      // the FFmpeg pack is downloading
     float settings_pack_progress = 0.0f;        // 0..1 while downloading
     bool settings_pack_images_installed = false; // the image pack (现代图像格式) is on disk
@@ -725,19 +731,20 @@ struct WindowViewModel {
     float settings_pack_images_progress = 0.0f;
     std::wstring settings_pack_images_version;
     std::wstring settings_pack_images_notice;
+    std::wstring settings_pack_images_update_version;
     bool settings_pack_raw_installed = false, settings_pack_raw_enabled = true, settings_pack_raw_installing = false;
     bool settings_pack_raw_available = false;
     float settings_pack_raw_progress = 0.0f;
-    std::wstring settings_pack_raw_version, settings_pack_raw_notice;
+    std::wstring settings_pack_raw_version, settings_pack_raw_notice, settings_pack_raw_update_version;
     bool settings_pack_archive_installed = false, settings_pack_archive_enabled = true, settings_pack_archive_installing = false;
     bool settings_pack_archive_available = false;
     float settings_pack_archive_progress = 0.0f;
-    std::wstring settings_pack_archive_version, settings_pack_archive_notice;
+    std::wstring settings_pack_archive_version, settings_pack_archive_notice, settings_pack_archive_update_version;
     // 转换 pack (0.2.0).
     bool settings_pack_transcode_installed = false, settings_pack_transcode_enabled = true, settings_pack_transcode_installing = false;
     bool settings_pack_transcode_available = false;
     float settings_pack_transcode_progress = 0.0f;
-    std::wstring settings_pack_transcode_version, settings_pack_transcode_notice;
+    std::wstring settings_pack_transcode_version, settings_pack_transcode_notice, settings_pack_transcode_update_version;
     int settings_theme = 0; // system, light, dark
     bool settings_open = false;
     int settings_page = 0; // 0 general, 1 search/index, 2 context menu, 3 about, 4 duplicates
@@ -898,6 +905,7 @@ struct HitTestResult {
         AddressSearchOptions,
         ContentIndexManage,
         NetworkIndexAdd,
+        NetworkDiscoverySettings,
         SettingsContentIndex,
         SettingsFind, SettingsDisclosure, SettingsTheme, SettingsDropdown,
         SettingsContentAction,

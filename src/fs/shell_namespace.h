@@ -37,6 +37,15 @@ bool ShellCopyFromLocal(const std::vector<std::wstring>& local_sources,
                         const std::wstring& shell_dest, bool move);
 bool ShellCopyWithin(const std::vector<std::wstring>& shell_sources,
                      const std::wstring& shell_dest, bool move);
+// Copy one item under a caller-chosen name. Used for "keep both": staging the
+// item and uploading it as a fresh name keeps the device out of its conflict
+// path, which is where MTP copies used to end the process.
+bool ShellCopyToLocalAs(const std::wstring& shell_source, const std::wstring& local_dir,
+                        const std::wstring& name, bool move);
+bool ShellCopyFromLocalAs(const std::wstring& local_source, const std::wstring& shell_dir,
+                          const std::wstring& name, bool move);
+bool ShellCopyWithinAs(const std::wstring& shell_source, const std::wstring& shell_dir,
+                       const std::wstring& name, bool move);
 
 // True when `name` already exists directly under the device folder `directory`.
 bool ShellChildExists(const std::wstring& directory, const std::wstring& name);

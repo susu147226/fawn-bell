@@ -1451,3 +1451,6 @@
 #define IDS_TRAY_STILL_RUNNING_TITLE 2601
 #define IDS_TRAY_STILL_RUNNING_TEXT 2602
 #define IDS_ABOUT_RESTART 2603
+// Network view warning when Windows Firewall's Network Discovery group is off.
+#define IDS_NETWORK_DISCOVERY_OFF_TITLE 2604
+#define IDS_NETWORK_DISCOVERY_OFF_DESC 2605

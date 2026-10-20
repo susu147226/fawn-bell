@@ -140,6 +140,8 @@ enum MenuCmd : int {
     CmdConvertFormat = 100107,
     CmdConvertResize = 100108,
     CmdConvertCompress = 100109,
+    // Built-in "send to compressed folder" row (Explorer's zipped folder).
+    CmdCompressZip = 100110,
 };
 
 // These sit above the session-local COM id window, so ExecuteShellCommand's

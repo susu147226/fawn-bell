@@ -11,6 +11,7 @@
 #include "../common/display_path.h"
 #include "../common/text_format.h"
 #include "../fs/shell_namespace.h"
+#include "../fs/drive_label.h"
 #include <commctrl.h>
 #include <prsht.h>
 #include <shlobj.h>
@@ -1328,7 +1329,8 @@ SidebarModel BuildSidebarModel(const fs::RecycleBinInfo* recycle) {
         DWORD sn = 0;
         GetVolumeInformationW(root, volName, MAX_PATH, &sn, nullptr, nullptr, nullptr, 0);
         SidebarEntry e;
-        e.label = std::wstring(volName[0] ? volName : l10n::Get(l10n::StringId::LocalDisk).c_str()) +
+        e.label = fs::DriveLabel(root[0], volName,
+                                 l10n::Get(l10n::StringId::LocalDisk)) +
                   L" (" + root[0] + L":)";
         e.glyph = L"\xE7F1"; // HardDrive (Segoe Fluent Icons)
         e.fallback = L"Drive";
@@ -1583,6 +1585,8 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     out.is_starred = virtual_kind == L"starred";
     out.is_recent = virtual_kind == L"recent";
     out.is_recycle = virtual_kind == L"recycle";
+    out.network_discovery_action = tab->current_path == L"luling:networks" &&
+        tab->banner_title == l10n::Get(l10n::StringId::NetworkDiscoveryOffTitle);
     out.is_search = virtual_kind == L"search" || virtual_kind == L"saved-search"
         || virtual_kind == L"recycle" || virtual_kind == L"changes";
     out.is_query_search = virtual_kind == L"search";

@@ -1,6 +1,7 @@
 // context_menu_prefs.cpp — JSON load/save for the Explorer fusion-zone prefs.
 #include "context_menu_prefs.h"
 #include "../common/config_json.h"
+#include "../common/debug_log.h"
 #include "session.h"
 #include "../common/json_utils.h"
 #include "../common/utf8_file.h"
@@ -553,9 +554,18 @@ bool ContextMenuPrefs::Load() {
     std::wstring json;
     if (!missing && (!ReadUtf8File(file, json) || !FromJson(json))) {
         load_failed = true;
+        diagnostics::DebugLog("prefs", L"load failed file=" + file);
         return false;
     }
     load_failed = false;
+    {
+        const size_t com = static_cast<size_t>(std::count_if(seen.begin(), seen.end(),
+            [](const SeenMenuItem& item) { return item.from_com; }));
+        wchar_t line[256]{};
+        swprintf_s(line, L"load missing=%d seen=%zu com=%zu order=%zu file=%ls",
+                   missing ? 1 : 0, seen.size(), com, com_order.size(), file.c_str());
+        diagnostics::DebugLog("prefs", line);
+    }
     return true;
 }
 
@@ -564,7 +574,16 @@ bool ContextMenuPrefs::Save() const {
     if (load_failed) return false;
     const std::wstring dir = GetLulingDataDir();
     if (dir.empty()) return false;
-    return WriteUtf8FileAtomic(dir + L"\\context_menu.json", ToJson());
+    const bool ok = WriteUtf8FileAtomic(dir + L"\\context_menu.json", ToJson());
+    {
+        const size_t com = static_cast<size_t>(std::count_if(seen.begin(), seen.end(),
+            [](const SeenMenuItem& item) { return item.from_com; }));
+        wchar_t line[256]{};
+        swprintf_s(line, L"save ok=%d seen=%zu com=%zu order=%zu", ok ? 1 : 0, seen.size(), com,
+                   com_order.size());
+        diagnostics::DebugLog("prefs", line);
+    }
+    return ok;
 }
 
 } // namespace luling::app

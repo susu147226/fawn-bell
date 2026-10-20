@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -159,10 +160,13 @@ int wmain(int argc, wchar_t** argv) {
         return failures ? 1 : 0;
     }
     if (argc > 1 && std::wstring_view(argv[1]) == L"--live-dedup-only") {
-        wchar_t temp[MAX_PATH]{};
-        GetTempPathW(ARRAYSIZE(temp), temp);
+        wchar_t cwd[MAX_PATH]{};
+        GetCurrentDirectoryW(ARRAYSIZE(cwd), cwd);
+        const std::wstring root = std::wstring(cwd) + L"\\bench_data";
+        CreateDirectoryW(root.c_str(), nullptr);
         const std::wstring tag = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
-        const std::wstring base = std::wstring(temp) + L"luling-live-dedup-" + tag;
+        // Not %TEMP%: the index excludes system temporary folders by default.
+        const std::wstring base = root + L"\\luling-live-dedup-" + tag;
         const std::wstring files = base + L"\\files", cache = base + L"\\cache";
         CreateDirectoryW(base.c_str(), nullptr);
         CreateDirectoryW(files.c_str(), nullptr);
@@ -234,6 +238,8 @@ int wmain(int argc, wchar_t** argv) {
         CloseHandle(host.hProcess);
         for (const wchar_t* name : {L"lulingsedup-a.txt", L"lulingsedup-b.txt", L"lulingsedup-c.txt"})
             DeleteFileW((files + L"\\" + name).c_str());
+        std::error_code cleanup;
+        std::filesystem::remove_all(base, cleanup);
         return failures ? 1 : 0;
     }
     const std::wstring token = std::to_wstring(GetCurrentProcessId()) + L"-" +

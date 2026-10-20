@@ -42,6 +42,7 @@ constexpr BuiltinMenuInfo kItems[] = {
     { BuiltinMenuItem::RenameSeqZero,  L"rename_seq_zero", l10n::StringId::MenuRenameSeqZero },
     { BuiltinMenuItem::RenameSeqOne,   L"rename_seq_one",  l10n::StringId::MenuRenameSeqOne },
     { BuiltinMenuItem::AppendSuffix,   L"append_suffix",   l10n::StringId::MenuAppendSuffix },
+    { BuiltinMenuItem::CompressZip,    L"compress_zip",    l10n::StringId::TrayMenuZip },
     { BuiltinMenuItem::Convert,        L"convert",         l10n::StringId::MenuConvert },
 };
 static_assert(sizeof(kItems) / sizeof(kItems[0]) == kBuiltinMenuItemCount,
@@ -76,6 +77,7 @@ constexpr BuiltinMenuRow kItemRows[] = {
     { B::RenameSeqZero, F::None, L"\xE8AC", nullptr, false, false },
     { B::RenameSeqOne, F::None, L"\xE8AC", nullptr, false, false },
     { B::AppendSuffix, F::None, L"\xE8AC", nullptr, false, false },
+    { B::CompressZip, F::None, L"\xE7B8", nullptr, false, false },
     { B::Convert, F::None, L"\xE8B5", nullptr, false, true },
 };
 constexpr BuiltinMenuRow kBackgroundRows[] = {

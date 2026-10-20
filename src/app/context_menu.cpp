@@ -105,6 +105,8 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
         l10n::Get(l10n::StringId::MenuRenameSeqOne).c_str(), kGlyphRename));
     items.push_back(Item(CmdAppendNameSuffix,
         l10n::Get(l10n::StringId::MenuAppendSuffix).c_str(), kGlyphRename));
+    items.push_back(Item(CmdCompressZip,
+        l10n::Get(l10n::StringId::TrayMenuZip).c_str(), L"\xE7B8"));
     items.back().separator_after = true;
     // 转换 submenu (0.2.0). Hidden from the settings page's 右键菜单 card via
     // BuiltinMenuItem::Convert, which is why the header carries a known glyph.
@@ -140,6 +142,7 @@ BuiltinMenuItem BuiltinItemForCommand(int command) {
     case CmdRenameSequenceZero: return BuiltinMenuItem::RenameSeqZero;
     case CmdRenameSequenceOne: return BuiltinMenuItem::RenameSeqOne;
     case CmdAppendNameSuffix: return BuiltinMenuItem::AppendSuffix;
+    case CmdCompressZip: return BuiltinMenuItem::CompressZip;
     default: return BuiltinMenuItem::Count;
     }
 }

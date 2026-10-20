@@ -115,6 +115,12 @@ constexpr UINT WM_ASSOC_CHANGED = WM_APP + 74;  // SHCNE_ASSOCCHANGED: default p
 // path. Posted rather than shown inline so the credential dialog runs outside
 // the worker-result handler (B34).
 constexpr UINT WM_SHARE_CREDENTIALS = WM_APP + 75;
+// The background probe found that the share needs a sign-in: the dialog runs
+// here, on the UI thread. lParam is an owned std::wstring of the path.
+constexpr UINT WM_SHARE_CREDENTIALS_PROMPT = WM_APP + 76;
+// A device transfer finished on its worker thread. lParam owns a
+// ShellCopyResult (app_ops_ui.h).
+constexpr UINT WM_SHELL_COPY_DONE = WM_APP + 77;
 
 enum class OmnibarMode { Path, Mixed, Command, Project };
 
@@ -188,6 +194,9 @@ struct AppState {
     // The share the sign-in dialog was already offered for, so a folder that
     // keeps failing does not re-ask on every refresh (B34).
     std::wstring shareCredentialOffered;
+    // A device transfer is running on a worker thread; a second drop or paste
+    // waits instead of starting a competing MTP session.
+    std::atomic<bool> shell_copy_busy{false};
     app::ListTypeAhead listTypeAhead;
     const app::Tab* listTypeAheadTab = nullptr;
     std::wstring listTypeAheadFolder;
@@ -253,6 +262,9 @@ struct AppState {
     DWORD update_install_error = ERROR_SUCCESS;
     ULONGLONG next_update_progress_paint = 0;
     ULONGLONG next_update_check = GetTickCount64() + 15000;
+    // Background preview pack updates (TickUpdates): half a minute after
+    // start, then every pack update interval.
+    ULONGLONG next_pack_update_check = GetTickCount64() + 30000;
     std::wstring notified_update_version;
     int settingsReleaseExpanded = 0;   // Settings > About release-note row that is open, -1 none
     std::wstring whatsNewVersion;      // set once after an upgrade; toast shown at whatsNewAt

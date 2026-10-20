@@ -12,6 +12,9 @@ namespace {
 
 constexpr wchar_t kBackupRoot[] = L"Software\\Luling\\ShellIntegration\\Backups\\v1\\";
 constexpr DWORD kSnapshotMagic = 0x31534950; // PIS1; one atomic REG_BINARY value per group.
+#ifdef LULING_INTEGRATION_TEST
+IntegrationWriteHook integration_write_hook = nullptr;
+#endif
 
 struct Value {
     bool known = true;
@@ -66,6 +69,11 @@ bool Read(const std::wstring& key, const std::wstring& name, Value& value) {
 }
 
 bool Write(const std::wstring& key, const std::wstring& name, const Value& value) {
+#ifdef LULING_INTEGRATION_TEST
+    // Test-only injection: returns false to simulate a denied write, or throws
+    // to simulate interruption between the snapshot and the bindings.
+    if (integration_write_hook && !integration_write_hook(key, name)) return false;
+#endif
     HKEY handle = nullptr;
     LONG status = value.exists
         ? RegCreateKeyExW(HKEY_CURRENT_USER, key.c_str(), 0, nullptr, 0, KEY_SET_VALUE, nullptr, &handle, nullptr)
@@ -188,6 +196,43 @@ bool Flush(const std::wstring& key, bool missing_ok = false) {
     const LONG result = RegFlushKey(handle);
     RegCloseKey(handle);
     return result == ERROR_SUCCESS;
+}
+
+// Menu cleanup tools hide a verb with these values. On the open verb that
+// Luling makes the Directory/Drive default they hide Luling itself, and
+// Explorer runs the first other verb instead. Stock Windows has no
+// Directory\shell\open or Drive\shell\open, so there they only ever hide our
+// command: taking over removes them, and while one is present the takeover
+// reads as not in effect.
+constexpr const wchar_t* kHideMarkers[] = {L"HideBasedOnVelocityId", L"LegacyDisable", L"ProgrammaticAccessOnly"};
+
+bool HasDefaultOpenVerb(const std::wstring& group) { return group == L"Directory" || group == L"Drive"; }
+
+std::wstring DefaultOpenVerbKey(const std::wstring& group) {
+    return L"Software\\Classes\\" + group + L"\\shell\\open";
+}
+
+bool DefaultOpenVerbHidden(const std::wstring& group) {
+    if (!HasDefaultOpenVerb(group)) return false;
+    for (const auto* name : kHideMarkers) {
+        Value value;
+        if (!Read(DefaultOpenVerbKey(group), name, value) || value.exists) return true;
+    }
+    return false;
+}
+
+bool UnhideDefaultOpenVerb(const std::wstring& group) {
+    if (!HasDefaultOpenVerb(group)) return true;
+    const std::wstring key = DefaultOpenVerbKey(group);
+    bool changed = false;
+    for (const auto* name : kHideMarkers) {
+        Value value;
+        if (!Read(key, name, value)) return false;
+        if (!value.exists) continue;
+        if (!Write(key, name, Value{})) return false;
+        changed = true;
+    }
+    return !changed || Flush(key, true);
 }
 
 bool WriteDurable(const std::wstring& key, const std::wstring& name, const Value& value) {
@@ -464,6 +509,10 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
 
 } // namespace
 
+#ifdef LULING_INTEGRATION_TEST
+void SetIntegrationWriteHookForTesting(IntegrationWriteHook hook) { integration_write_hook = hook; }
+#endif
+
 bool ShellCommandTargetsExecutable(const std::wstring& command, const std::wstring& exe) {
     size_t start = 0;
     while (start < command.size() && iswspace(command[start])) ++start;
@@ -485,13 +534,15 @@ bool ApplyShellIntegration(ShellIntegrationKind kind, const std::wstring& exe, b
     // The explicit repair action must release them before enabling again.
     if (on && HasLegacyShellIntegrationResidue()) return false;
     bool ok = true;
-    for (const auto& group : Groups(kind)) ok = ApplyGroup(group, exe, on) && ok;
+    for (const auto& group : Groups(kind))
+        ok = ApplyGroup(group, exe, on) && (!on || UnhideDefaultOpenVerb(group)) && ok;
     return ok;
 }
 
 bool ReadShellIntegration(ShellIntegrationKind kind, const std::wstring& exe) {
     if (exe.empty()) return false;
     for (const auto& group : Groups(kind)) {
+        if (DefaultOpenVerbHidden(group)) return false;
         for (const auto& binding : Bindings(group, exe)) {
             Value actual;
             if (!Read(binding.key, binding.name, actual) || !SameValue(actual, binding.desired)) return false;

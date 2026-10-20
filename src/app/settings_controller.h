@@ -131,26 +131,29 @@ public:
         uint32_t installed = 0;
         uint64_t bytes = 0;
         std::wstring version, custom_path, detected_path, root, notice;
+        // The catalog's newer release of an installed pack; empty when current.
+        std::wstring update_version;
+        bool auto_update = true;
         bool installing = false;          // a download is running
         float progress = 0.0f;            // 0..1 while installing
         // The image pack (现代图像格式): its own card, download and message.
         bool images_installed = false, images_enabled = true;
         bool images_installing = false;
         float images_progress = 0.0f;
-        std::wstring images_version, images_notice;
+        std::wstring images_version, images_notice, images_update_version;
         bool raw_installed = false, raw_enabled = true, raw_installing = false;
         bool raw_available = false;
         float raw_progress = 0.0f;
-        std::wstring raw_version, raw_notice;
+        std::wstring raw_version, raw_notice, raw_update_version;
         bool archive_installed = false, archive_enabled = true, archive_installing = false;
         bool archive_available = false;
         float archive_progress = 0.0f;
-        std::wstring archive_version, archive_notice;
+        std::wstring archive_version, archive_notice, archive_update_version;
         // The transcode pack (转换, 0.2.0): FFmpeg *with* encoders, GPL.
         bool transcode_installed = false, transcode_enabled = true, transcode_installing = false;
         bool transcode_available = false;
         float transcode_progress = 0.0f;
-        std::wstring transcode_version, transcode_notice;
+        std::wstring transcode_version, transcode_notice, transcode_update_version;
     };
     const PackState& Packs();
     // Each returns true when thumbnails have to be decoded again.
@@ -186,6 +189,13 @@ public:
     // caller shows the "quit and restart to use it" prompt. Cleared on read, so an
     // ignored prompt does not come back on every frame.
     bool TakePackRestartPrompt();
+    // Installs the catalog's newer release over an installed pack, copying
+    // unchanged files; the pack's switches stay as they are.
+    bool UpdatePack(packs::PackId id, HWND notify);
+    // Starts background updates for every installed pack that is older than
+    // this build's catalog and switched on. Returns how many started.
+    int AutoUpdatePacks(HWND notify);
+    void ToggleAutoUpdatePacks();
     bool ToggleCustomFfmpeg();
     bool SetCustomFfmpeg(const std::wstring& path);
     bool UseDetectedFfmpeg();
@@ -321,8 +331,11 @@ private:
     PackInstaller raw_installer_, archive_installer_, transcode_installer_;
     PackInstaller& InstallerFor(packs::PackId id);
     std::wstring& NoticeFor(packs::PackId id);
-    bool InstallPack(packs::PackId id, HWND notify);
+    bool InstallPack(packs::PackId id, HWND notify, bool automatic = false);
     bool TakePackResult(packs::PackId id);
+    bool updating_[5] = {};    // per packs::PackId: the running job replaces an installed pack
+    bool automatic_[5] = {};   // ... and was started in the background
+    bool update_declined_[5] = {}; // the user cancelled an automatic update: none again this run
     bool RemovePack(packs::PackId id);
     std::shared_ptr<TaskState> task_state_ = std::make_shared<TaskState>();
     std::mutex workers_mutex_;

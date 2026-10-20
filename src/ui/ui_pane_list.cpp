@@ -302,10 +302,18 @@ D2D1_RECT_F MainRenderer::FilterClearRect(const D2D1_RECT_F& pane_bounds, float 
 }
 
 D2D1_RECT_F MainRenderer::FilterEditRect(const D2D1_RECT_F& pane_bounds, float expand, bool has_text) const {
-    D2D1_RECT_F rc = FilterBoxRect(pane_bounds, expand);
+    const D2D1_RECT_F box = FilterBoxRect(pane_bounds, expand);
+    D2D1_RECT_F rc = box;
     rc.left += 34.0f * scale_;
     rc.right -= (has_text ? 34.0f : 10.0f) * scale_;
-    if (rc.right < rc.left + 24.0f * scale_) rc.right = rc.left + 24.0f * scale_;
+    if (rc.right < rc.left + 24.0f * scale_) {
+        // A crowded toolbar can leave the expanded field narrower than its
+        // icon, 24 DIP of text and the clear button. The text gives up icon
+        // padding first; with text it never grows into the clear button.
+        rc.left = (std::max)(box.left + 26.0f * scale_, rc.right - 24.0f * scale_);
+        if (!has_text) rc.right = (std::max)(rc.right, rc.left + 24.0f * scale_);
+        rc.left = (std::min)(rc.left, rc.right);
+    }
     return rc;
 }
 
@@ -1526,7 +1534,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             bar.message = pane.banner_message;
             bar.kind = static_cast<fluent::InfoBarKind>(std::clamp(pane.banner_kind, 0, 3));
             bar.show_close = false;
-            if (pane.is_content_search || pane.network_live_action) {
+            if (pane.is_content_search || pane.network_live_action || pane.network_discovery_action) {
                 const auto action_bounds = bar.bounds;
                 const float action_width = std::min(144.0f * scale_, (action_bounds.right - action_bounds.left) * 0.4f);
                 bar.trailing_width = action_width / scale_;
@@ -1534,10 +1542,13 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
                 fluent::ButtonSpec action;
                 action.bounds = D2D1::RectF(action_bounds.right - action_width, action_bounds.top, action_bounds.right, action_bounds.bottom);
                 action.text = l10n::Get(pane.is_content_search ? l10n::StringId::ContentManageShort
-                                                               : l10n::StringId::NetworkLiveAdd);
+                    : pane.network_live_action ? l10n::StringId::NetworkLiveAdd
+                                               : l10n::StringId::Settings);
                 action.kind = fluent::ButtonKind::Transparent;
                 action.state.hovered = IsHovered(vm, pane.is_content_search
-                    ? HitTestResult::ContentIndexManage : HitTestResult::NetworkIndexAdd);
+                    ? HitTestResult::ContentIndexManage
+                    : pane.network_live_action ? HitTestResult::NetworkIndexAdd
+                                               : HitTestResult::NetworkDiscoverySettings);
                 painter_.DrawButton(action);
             } else if (pane.compare_active) {
                 D2D1_RECT_F diffRc{}, exitRc{};

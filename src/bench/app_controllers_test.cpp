@@ -200,9 +200,12 @@ bool TestDefaultFileManager() {
     const std::wstring scratch_path =
         L"Software\\LulingTest\\DefaultFileManager-" + std::to_wstring(GetCurrentProcessId());
     HKEY scratch = nullptr;
-    if (RegCreateKeyExW(HKEY_CURRENT_USER, scratch_path.c_str(), 0, nullptr, 0, KEY_ALL_ACCESS,
-                        nullptr, &scratch, nullptr) != ERROR_SUCCESS ||
-        RegOverridePredefKey(HKEY_CURRENT_USER, scratch) != ERROR_SUCCESS) {
+    const LONG scratch_created = RegCreateKeyExW(HKEY_CURRENT_USER, scratch_path.c_str(), 0, nullptr, 0,
+                                                  KEY_ALL_ACCESS, nullptr, &scratch, nullptr);
+    const LONG scratch_overridden = scratch_created == ERROR_SUCCESS
+        ? RegOverridePredefKey(HKEY_CURRENT_USER, scratch) : scratch_created;
+    if (scratch_created != ERROR_SUCCESS || scratch_overridden != ERROR_SUCCESS) {
+        std::printf("scratch_create=%ld override=%ld\n", scratch_created, scratch_overridden);
         if (scratch) RegCloseKey(scratch);
         return Report("default file manager: scratch registry is available", false);
     }
@@ -972,6 +975,34 @@ int wmain(int argc, wchar_t** argv) {
     }
 
     if (argc == 2 && std::wstring(argv[1]) == L"--view-hit-bounds") return TestViewHitBounds() ? 0 : 1;
+    if (argc == 2 && std::wstring(argv[1]) == L"--explorer-order") {
+        using namespace luling::app;
+        ContextMenuPrefs prefs;
+        prefs.persist = false;
+        ShellMenuEntry alpha;
+        alpha.text = L"Alpha";
+        alpha.verb = L"alpha";
+        alpha.command = 1;
+        ShellMenuEntry beta;
+        beta.text = L"Beta";
+        beta.verb = L"beta";
+        beta.command = 2;
+        ShellMenuEntry child;
+        child.text = L"Beta child";
+        child.command = 3;
+        beta.children.push_back(child);
+        prefs.SetComOrder({luling::ipc::CatalogKey(beta.text, true),
+                           luling::ipc::CatalogKey(alpha.text, false)});
+        const auto ordered = ApplyExplorerPrefs(prefs, {alpha, beta});
+        bool ok = Report("third-party order crosses a flyout boundary",
+            ordered.size() == 2 && ordered[0].text == L"Beta" && ordered[1].text == L"Alpha");
+        ContextMenuPrefs natural_prefs;
+        natural_prefs.persist = false;
+        const auto natural = ApplyExplorerPrefs(natural_prefs, {alpha, beta});
+        ok &= Report("unarranged software keeps discovery order",
+            natural.size() == 2 && natural[0].text == L"Alpha" && natural[1].text == L"Beta");
+        return ok ? 0 : 1;
+    }
     if (argc == 2 && std::wstring(argv[1]) == L"--com-menu-identity") return TestComMenuIdentity() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--menu-query-identity") return TestMenuQueryIdentity() ? 0 : 1;
     if (argc == 2 && std::wstring(argv[1]) == L"--network-locations-view")

@@ -1,4 +1,5 @@
 #include "context_menu_controller.h"
+#include "../common/debug_log.h"
 #include "../common/localization.h"
 
 #include "../ipc/ctx_menu_util.h"
@@ -233,10 +234,10 @@ std::vector<ShellMenuEntry> ApplyExplorerPrefs(const ContextMenuPrefs& prefs,
         int rank = 4;
         int sub = 0;
         if (cat == ipc::CtxMenuCategory::Software) {
-            rank = flyout ? 0 : 1;
-            // A row the user moved takes that position; rows never arranged keep
-            // their discovery order and sort after the arranged ones, so a package
-            // installed later still turns up without being placed by hand.
+            // Software rows keep one rank so a row the user moved can cross a
+            // vendor flyout boundary. Rows never arranged stay in discovery
+            // order after the arranged ones.
+            rank = 1;
             const int custom = prefs.ComOrderIndex(key);
             sub = custom >= 0 ? custom : 1000000;
         }
@@ -329,6 +330,13 @@ void ContextMenuController::StartQuery(
     if (const auto found = static_cache_.find(extension_); found != static_cache_.end())
         static_verbs_ = found->second;
     if (prefetch_static) prefetch_static(extension_);
+    {
+        wchar_t line[320]{};
+        swprintf_s(line, L"query background=%d ext=%ls paths=%zu token=%u disabled=%zu",
+                   background ? 1 : 0, extension_.c_str(), paths_.size(), token_,
+                   disabled_handlers_.size());
+        diagnostics::DebugLog("menu", line);
+    }
 }
 
 void ContextMenuController::Close() {
@@ -355,12 +363,19 @@ void ContextMenuController::WaitUntilReady(
     if (pump_messages) pump_messages();
     if (com_ready_) return;
     const ULONGLONG deadline = GetTickCount64() + timeout_ms;
-    while (!com_ready_) {
+    // A partial snapshot (handlers that missed the host's fast budget) is still
+    // useful: show those rows instead of an empty Explorer section.
+    while (!com_ready_ && com_items_.empty()) {
         const ULONGLONG now = GetTickCount64();
         if (now >= deadline) break;
         MsgWaitForMultipleObjects(0, nullptr, FALSE,
                                   static_cast<DWORD>(deadline - now), QS_ALLINPUT);
         if (pump_messages) pump_messages();
+    }
+    if (!com_ready_) {
+        wchar_t line[160]{};
+        swprintf_s(line, L"wait incomplete token=%u items=%zu", token_, com_items_.size());
+        diagnostics::DebugLog("menu", line);
     }
 }
 
@@ -368,8 +383,23 @@ std::vector<ui::FluentMenuItem> ContextMenuController::BuildDisplay(
     ContextMenuPrefs& prefs, const std::vector<ui::FluentMenuItem>& base_items,
     bool& prefs_changed) const {
     std::vector<ui::FluentMenuItem> display = base_items;
-    AppendShellSection(display, ApplyExplorerPrefs(
-        prefs, ComposeEntries(prefs, prefs_changed)));
+    try {
+        diagnostics::DebugLog("menu", L"build begin");
+        const auto entries = ComposeEntries(prefs, prefs_changed);
+        diagnostics::DebugLog("menu", L"build compose done");
+        const auto filtered = ApplyExplorerPrefs(prefs, entries);
+        diagnostics::DebugLog("menu", L"build filter done");
+        {
+            wchar_t line[200]{};
+            swprintf_s(line, L"display base=%zu entries=%zu rows=%zu changed=%d",
+                       base_items.size(), entries.size(), filtered.size(), prefs_changed ? 1 : 0);
+            diagnostics::DebugLog("menu", line);
+        }
+        AppendShellSection(display, filtered);
+        diagnostics::DebugLog("menu", L"build append done");
+    } catch (...) {
+        diagnostics::DebugLog("menu", L"build exception");
+    }
     ui::FluentMenuItem manage;
     manage.command = CmdSettingsContextMenu;
     manage.text = luling::l10n::Get(luling::l10n::StringId::ManageContext);
@@ -514,10 +544,21 @@ ContextMenuController::QueryCompletion ContextMenuController::CompleteComQuery(
     uint32_t token, std::vector<ops::ShellMenuItem> items, uint64_t completed_at,
     bool partial) {
     QueryCompletion result;
-    if (token == 0 || token != token_) return result;
+    if (token == 0 || token != token_) {
+        wchar_t line[160]{};
+        swprintf_s(line, L"result dropped token=%u current=%u", token, token_);
+        diagnostics::DebugLog("menu", line);
+        return result;
+    }
     com_items_ = std::move(items);
     result.accepted = true;
     result.partial = partial;
+    {
+        wchar_t line[160]{};
+        swprintf_s(line, L"result token=%u items=%zu partial=%d", token, com_items_.size(),
+                   partial ? 1 : 0);
+        diagnostics::DebugLog("menu", line);
+    }
     result.cache_key = CacheKey(background_, extension_);
     // A partial snapshot only holds the handlers that finished inside the
     // host's fast budget, so it must feed this session and nothing else: the

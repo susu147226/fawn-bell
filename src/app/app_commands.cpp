@@ -26,6 +26,7 @@
 #include "../ui/typography.h"
 #include "../ui/color_picker.h"
 #include "../common/localization.h"
+#include "../common/debug_log.h"
 #include "../common/text_format.h"
 #include "../common/path_utils.h"
 #include "../common/diagnostics_exporter.h"
@@ -331,6 +332,7 @@ void ShowTagPicker(AppState& s, POINT screen_pt, const std::vector<std::wstring>
 // target; Windows names the archive after the first item and writes it next
 // to it, with its own progress UI.
 static bool ZipViaShell(const std::vector<std::wstring>& paths) {
+    diagnostics::DebugLog("zip", L"start count=" + std::to_wstring(paths.size()));
     PWSTR sendto = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_SendTo, 0, nullptr, &sendto)) || !sendto) return false;
     const std::wstring dir = sendto;
@@ -360,6 +362,7 @@ static bool ZipViaShell(const std::vector<std::wstring>& paths) {
         data->Release();
     }
     drop->Release();
+    diagnostics::DebugLog("zip", ok ? L"done" : L"failed");
     return ok;
 }
 
@@ -761,6 +764,7 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
 }
 
 void DispatchMenuCommand(AppState& s, int cmd) {
+    diagnostics::DebugLog("cmd", L"id=" + std::to_wstring(cmd));
     // TEMP tracing: log every menu command so a click that never arrives here is
     // distinguishable from one that arrives and does nothing.
     {
@@ -995,6 +999,19 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         app::BatchRenameRule rule;
         rule.pattern = L"{name}" + text + L"{ext}";
         ShowBatchRename(s, rule);
+        break;
+    }
+    case app::CmdCompressZip: {
+        app::Tab* tab = ActiveTab(s);
+        const auto paths = tab ? SelectedFullPaths(*tab) : std::vector<std::wstring>{};
+        if (paths.empty()) break;
+        if (!ZipViaShell(paths)) {
+            s.notification_toast.Show(s.hwnd,
+                l10n::Pick(L"压缩失败", L"Could not compress"),
+                l10n::Pick(L"系统没有提供“压缩(zipped)文件夹”。",
+                           L"Windows does not offer the compressed (zipped) folder target."));
+        }
+        ScheduleFolderRefresh(s);
         break;
     }
     case app::CmdDeployToSystem: {
@@ -1428,7 +1445,10 @@ void PumpShellMenuMessages(AppState& s) {
 }
 
 void WaitForShellMenuReady(AppState& s) {
-    s.context_menu.WaitUntilReady(s.hwnd, [&s] { PumpShellMenuMessages(s); });
+    // The hover prefetch usually finishes first; when it has not, wait briefly
+    // (a partial answer ends the wait) instead of opening a menu with only
+    // Luling's own rows and no Explorer extensions.
+    s.context_menu.WaitUntilReady(s.hwnd, [&s] { PumpShellMenuMessages(s); }, 1500);
 }
 
 void ScheduleFolderRefresh(AppState& s) {
@@ -1456,8 +1476,11 @@ std::vector<ui::FluentMenuItem> ExplorerMenu(
 
 void RefreshOpenCtxMenu(AppState& s) {
     if (!s.context_menu.menu_open() || !s.menu || !s.menu->IsOpen()) return;
-    if (s.menu->ReplaceItems(ExplorerMenu(s, s.context_menu.base_items())))
-        s.context_menu.NotePatchedDisplay();
+    // A late Explorer answer must not rebuild the rows under an open menu: the
+    // hovered/pressed row and the command attached to it become stale, and the
+    // click that follows can end the process. The complete answer is cached and
+    // used by the next open.
+    diagnostics::DebugLog("menu", L"refresh deferred while menu open");
 }
 
 // Dispatch for the merged Explorer rows. Returns true when cmd was a shell
@@ -1476,6 +1499,7 @@ void ShowItemContextMenu(AppState& s, POINT screen_pt) {
     if (tab && !paths.empty() && !IsRecycleTab(tab))
         StartCtxQuery(s, paths, false, StaticVerbKey(*tab, tab->SelectedIndices()));
     s.context_menu.SeedComItemsFromCache();
+    if (!paths.empty() && !IsRecycleTab(tab)) WaitForShellMenuReady(s);
 
     std::wstring undoLabel = s.ops.UndoLabel();
     const auto quick_paths = QuickAccessTargets(tab, false);
@@ -1920,7 +1944,8 @@ void ShowSortDropdown(AppState& s) {
     }
     const float width = static_cast<float>(s.compositor.Width());
     const float left = s.renderer.EffectiveSidebarWidth(width);
-    const auto layout = s.renderer.ToolbarLayoutAt(width,s.renderer.NewButtonWidthPx(width-left < 600*s.scale));
+    const auto layout = s.renderer.ToolbarLayoutAt(width,s.renderer.NewButtonWidthPx(width-left < 600*s.scale),
+        s.pane ? s.pane->filter_expand : 0.0f);
     POINT anchor{static_cast<LONG>(layout.sort.left),static_cast<LONG>(layout.sort.bottom)};
     ClientToScreen(s.hwnd,&anchor);
     // Grouping has its own toolbar button, so the Sort dropdown is sort-only.
@@ -1996,7 +2021,8 @@ void ShowToolbarMore(AppState& s) {
     items.push_back(app::BuildShortcutHints());
     const float width=static_cast<float>(s.compositor.Width());
     const float left=s.renderer.EffectiveSidebarWidth(width);
-    const auto layout=s.renderer.ToolbarLayoutAt(width,s.renderer.NewButtonWidthPx(true));
+    const auto layout=s.renderer.ToolbarLayoutAt(width,s.renderer.NewButtonWidthPx(true),
+        s.pane ? s.pane->filter_expand : 0.0f);
     (void)left;
     POINT anchor{static_cast<LONG>(layout.overflow.left),static_cast<LONG>(layout.overflow.bottom)};
     ClientToScreen(s.hwnd,&anchor);

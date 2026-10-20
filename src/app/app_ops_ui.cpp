@@ -14,6 +14,7 @@
 #include "../common/text_format.h"
 #include "../common/path_utils.h"
 #include "../common/diagnostics_exporter.h"
+#include "../common/debug_log.h"
 #include "snapshot_patch.h"
 #include "session.h"
 #include "context_menu.h"
@@ -194,8 +195,15 @@ void SendTrayToDest(AppState& s, const std::wstring& dir, bool move) {
 
 // Ctrl+V: release newest tray batch, else paste from the system clipboard.
 bool ResolveShellCopyConflicts(AppState& s, std::vector<std::wstring>& sources,
-                               const std::wstring& dest, bool dest_shell) {
+                               const std::wstring& dest, bool dest_shell,
+                               ShellCopyExtras* extras) {
+    try {
     if (sources.empty() || dest.empty()) return false;
+    {
+        diagnostics::DebugLog("copy", L"resolve sources=" + std::to_wstring(sources.size()) +
+            L" dest_shell=" + std::to_wstring(dest_shell ? 1 : 0) +
+            L" dest=" + diagnostics::LogText(dest));
+    }
     const app::Tab* destination_tab = nullptr;
     if (dest_shell) {
         // Snapshot lookup is fastest when the folder is open; otherwise ask the
@@ -246,50 +254,238 @@ bool ResolveShellCopyConflicts(AppState& s, std::vector<std::wstring>& sources,
         }
     }
     if (conflicting.empty()) return true;
-    ui::ConfirmDialogSpec confirm;
-    confirm.title = l10n::Pick(L"同名文件已存在", L"Files already exist");
-    confirm.message = l10n::Pick(
-        L"目标文件夹中已有同名文件。是否复制并替换？",
-        L"Files with the same names already exist. Replace them?");
-    confirm.confirm_text = l10n::Pick(L"复制并替换", L"Copy and replace");
-    confirm.cancel_text = l10n::Pick(L"不要复制", L"Don't copy");
-    confirm.danger = true;
-    if (!ui::ShowConfirmDialog(s.hwnd, confirm, s.darkMode, s.accentColor)) {
-        for (const auto& source : conflicting) std::erase(sources, source);
-        return !sources.empty();
-    }
-    bool replaced = true;
-    if (dest_shell) {
-        replaced = fs::ShellDelete(targets);
-        // MTP deletion is asynchronous. Copying while the old item still exists
-        // drives Shell into its conflict path, which made the process exit.
-        for (size_t i = 0; replaced && i < conflicting.size(); ++i) {
-            const std::wstring name = fs::ShellDisplayName(conflicting[i]);
-            bool gone = false;
-            for (int attempt = 0; attempt < 25 && !gone; ++attempt) {
-                gone = !fs::ShellChildExists(dest, name);
-                if (!gone) Sleep(100);
+    auto file_size = [](const WIN32_FILE_ATTRIBUTE_DATA& data) {
+        return (static_cast<uint64_t>(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
+    };
+    auto info_for = [&](size_t index, size_t remaining) {
+        ops::ConflictItemInfo info;
+        const std::wstring& source = conflicting[index];
+        const std::wstring& target = targets[index];
+        info.source = fs::IsShellPath(source) ? fs::ShellDisplayName(source) : source;
+        info.destination = fs::IsShellPath(target) ? fs::ShellDisplayName(target) : target;
+        WIN32_FILE_ATTRIBUTE_DATA data{};
+        if (!fs::IsShellPath(source) &&
+            GetFileAttributesExW(source.c_str(), GetFileExInfoStandard, &data)) {
+            info.source_size = file_size(data);
+            info.source_modified = data.ftLastWriteTime;
+            info.source_is_directory = (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        }
+        if (!fs::IsShellPath(target) &&
+            GetFileAttributesExW(target.c_str(), GetFileExInfoStandard, &data)) {
+            info.destination_size = file_size(data);
+            info.destination_modified = data.ftLastWriteTime;
+            info.destination_is_directory = (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        }
+        info.remaining = remaining;
+        return info;
+    };
+    auto remove_target = [&](size_t index) {
+        if (extras) extras->replace_targets.push_back(targets[index]);
+        return true;
+    };
+    auto source_name = [&](size_t index) {
+        if (fs::IsShellPath(conflicting[index])) {
+            const auto name = fs::ShellDisplayName(conflicting[index]);
+            if (!name.empty()) return name;
+        }
+        const auto slash = conflicting[index].find_last_of(L"\\/");
+        return slash == std::wstring::npos ? conflicting[index]
+                                          : conflicting[index].substr(slash + 1);
+    };
+    auto local_child = [&](const std::wstring& name) {
+        if (dest.empty()) return name;
+        const wchar_t last = dest.back();
+        return dest + (last == L'\\' || last == L'/' ? L"" : L"\\") + name;
+    };
+    auto unique_name = [&](const std::wstring& leaf) -> std::wstring {
+        auto exists = [&](const std::wstring& candidate) {
+            if (candidate.empty()) return true;
+            if (dest_shell) return fs::ShellChildExists(dest, candidate);
+            return GetFileAttributesW(local_child(candidate).c_str()) != INVALID_FILE_ATTRIBUTES;
+        };
+        if (!exists(leaf)) return leaf;
+        const size_t dot = leaf.find_last_of(L'.');
+        const std::wstring stem = dot == std::wstring::npos || dot == 0 ? leaf : leaf.substr(0, dot);
+        const std::wstring extension = dot == std::wstring::npos || dot == 0 ? L"" : leaf.substr(dot);
+        for (int n = 2; n < 1000; ++n) {
+            const std::wstring candidate = stem + L" (" + std::to_wstring(n) + L")" + extension;
+            if (!exists(candidate)) return candidate;
+        }
+        return {};
+    };
+    bool repeated = false;
+    ops::ConflictChoice repeated_choice = ops::ConflictChoice::Cancel;
+    for (size_t i = 0; i < conflicting.size(); ++i) {
+        if (std::find(sources.begin(), sources.end(), conflicting[i]) == sources.end()) continue;
+        ops::ConflictChoice choice = repeated_choice;
+        if (!repeated) {
+            const ui::ConflictDialogResult result = ui::ShowFileConflictDialog(
+                s.hwnd, info_for(i, conflicting.size() - i - 1), s.darkMode, s.accentColor);
+            choice = result.choice;
+            if (result.apply_to_all) {
+                repeated = true;
+                repeated_choice = choice;
             }
-            replaced = gone;
         }
-    } else {
-        for (const auto& target : targets) {
-            const DWORD attrs = GetFileAttributesW(target.c_str());
-            const BOOL removed =
-                attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)
-                    ? RemoveDirectoryW(target.c_str())
-                    : DeleteFileW(target.c_str());
-            if (!removed) replaced = false;
+        {
+            diagnostics::DebugLog("copy", L"choice target=" + diagnostics::LogText(targets[i]) +
+                L" choice=" + std::to_wstring(static_cast<int>(choice)) +
+                L" remaining=" + std::to_wstring(conflicting.size() - i - 1));
         }
-    }
-    if (!replaced) {
-        s.notification_toast.Show(s.hwnd,
-            l10n::Pick(L"无法替换", L"Could not replace"),
-            l10n::Pick(L"目标文件仍然存在，已取消复制。",
-                       L"The destination file still exists; the copy was cancelled."));
-        return false;
+        switch (choice) {
+        case ops::ConflictChoice::Cancel:
+            sources.clear();
+            return false;
+        case ops::ConflictChoice::Skip:
+            std::erase(sources, conflicting[i]);
+            break;
+        case ops::ConflictChoice::KeepBoth: {
+            // Never ask the Shell/device to resolve the name: copy under a
+            // fresh name, which MTP handles without entering the conflict path
+            // that ended the process. The copy itself runs on the worker.
+            const std::wstring leaf = source_name(i);
+            const std::wstring unique = unique_name(leaf);
+            if (unique.empty()) {
+                diagnostics::DebugLog("copy", L"keep both no unique name source=" +
+                    diagnostics::LogText(leaf));
+                s.notification_toast.Show(s.hwnd,
+                    l10n::Pick(L"无法保留两者", L"Could not keep both"),
+                    l10n::Pick(L"无法生成新的名称，已跳过该项目。",
+                               L"Could not build a new name; the item was skipped."));
+            } else if (extras) {
+                extras->keep_both.push_back({conflicting[i], unique});
+            }
+            std::erase(sources, conflicting[i]);
+            break;
+        }
+        case ops::ConflictChoice::Replace:
+            remove_target(i);
+            break;
+        }
     }
     return true;
+    } catch (...) {
+        diagnostics::DebugLog("copy", L"exception in conflict resolution");
+        sources.clear();
+        return false;
+    }
+}
+
+namespace {
+
+bool RemoveShellCopyTarget(const std::wstring& target, bool dest_shell,
+                           const std::wstring& dest) {
+    if (dest_shell) {
+        if (!fs::ShellDelete({target})) return false;
+        // MTP deletion is asynchronous. Copying while the old item still
+        // exists drives Shell into its conflict path, which ended the process.
+        const std::wstring name = fs::ShellDisplayName(target);
+        for (int attempt = 0; attempt < 25; ++attempt) {
+            if (!name.empty() && !fs::ShellChildExists(dest, name)) return true;
+            Sleep(100);
+        }
+        return false;
+    }
+    const DWORD attrs = GetFileAttributesW(target.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES) return true;
+    return (attrs & FILE_ATTRIBUTE_DIRECTORY) ? RemoveDirectoryW(target.c_str()) != 0
+                                              : DeleteFileW(target.c_str()) != 0;
+}
+
+bool RunShellCopyPlan(const ShellCopyPlan& plan, ShellCopyResult& result) {
+    for (const auto& target : plan.replace_targets) {
+        if (!RemoveShellCopyTarget(target, plan.dest_shell, plan.dest)) {
+            diagnostics::DebugLog("copy", L"replace failed target=" +
+                diagnostics::LogText(target));
+            result.replace_failed = true;
+            return false;
+        }
+    }
+    bool ok = true;
+    if (!plan.shell_sources.empty()) {
+        ok = plan.dest_shell
+            ? fs::ShellCopyWithin(plan.shell_sources, plan.dest, plan.move)
+            : fs::ShellCopyToLocal(plan.shell_sources, plan.dest, plan.move);
+    }
+    if (ok && !plan.local_sources.empty()) {
+        ok = plan.dest_shell
+            ? fs::ShellCopyFromLocal(plan.local_sources, plan.dest, plan.move)
+            : false;
+    }
+    for (const auto& item : plan.keep_both) {
+        if (!ok) break;
+        const bool copied = plan.dest_shell
+            ? (fs::IsShellPath(item.source)
+                ? fs::ShellCopyWithinAs(item.source, plan.dest, item.name, plan.move)
+                : fs::ShellCopyFromLocalAs(item.source, plan.dest, item.name, plan.move))
+            : fs::ShellCopyToLocalAs(item.source, plan.dest, item.name, plan.move);
+        diagnostics::DebugLog("copy", L"keep both name=" + diagnostics::LogText(item.name) +
+            L" ok=" + std::to_wstring(copied ? 1 : 0));
+        if (!copied) result.keep_both_failed = true;
+    }
+    return ok;
+}
+
+void CollectShellCopyRefresh(const ShellCopyPlan& plan, ShellCopyResult& result) {
+    result.refresh.push_back(plan.dest);
+    if (!plan.move) return;
+    for (const auto& source : plan.shell_sources) {
+        const std::wstring parent = fs::ShellParentPath(source);
+        if (!parent.empty()) result.refresh.push_back(parent);
+    }
+    for (const auto& source : plan.local_sources) {
+        const std::wstring parent = fs::ParentPath(source);
+        if (!parent.empty()) result.refresh.push_back(parent);
+    }
+    for (const auto& item : plan.keep_both) {
+        const std::wstring parent = fs::IsShellPath(item.source)
+            ? fs::ShellParentPath(item.source) : fs::ParentPath(item.source);
+        if (!parent.empty()) result.refresh.push_back(parent);
+    }
+}
+
+} // namespace
+
+void StartShellCopy(AppState& s, ShellCopyPlan plan) {
+    const bool has_work = !plan.shell_sources.empty() || !plan.local_sources.empty() ||
+        !plan.keep_both.empty() || !plan.replace_targets.empty();
+    if (!has_work) return;
+    if (s.shell_copy_busy.exchange(true)) {
+        s.notification_toast.Show(s.hwnd,
+            l10n::Pick(L"正在传输", L"Transfer in progress"),
+            l10n::Pick(L"请等待当前设备操作完成后再试。",
+                       L"Wait for the current device transfer to finish."));
+        return;
+    }
+    const HWND hwnd = s.hwnd;
+    std::thread([hwnd, plan = std::move(plan)]() mutable {
+        // A worker has no message pump, so it cannot serve an STA proxy. MTA
+        // lets the Shell and the MTP provider marshal without one.
+        const HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        auto* result = new ShellCopyResult;
+        result->from_drop = plan.from_drop;
+        result->move = plan.move;
+        result->dest = plan.dest;
+        result->track_cut = plan.track_cut;
+        result->cut_sequence = plan.cut_sequence;
+        result->cut_paths = plan.cut_paths;
+        try {
+            result->ok = RunShellCopyPlan(plan, *result);
+        } catch (...) {
+            diagnostics::DebugLog("copy", L"exception in device transfer");
+            result->ok = false;
+        }
+        if (result->ok) CollectShellCopyRefresh(plan, *result);
+        diagnostics::DebugLog("copy", L"transfer done ok=" +
+            std::to_wstring(result->ok ? 1 : 0) +
+            L" replace_failed=" + std::to_wstring(result->replace_failed ? 1 : 0) +
+            L" keep_both_failed=" + std::to_wstring(result->keep_both_failed ? 1 : 0));
+        if (!PostMessageW(hwnd, WM_SHELL_COPY_DONE, 0,
+                          reinterpret_cast<LPARAM>(result))) {
+            delete result;
+        }
+        if (SUCCEEDED(com)) CoUninitialize();
+    }).detach();
 }
 
 void PasteIntoCurrent(AppState& s) {
@@ -304,27 +500,27 @@ void PasteIntoCurrent(AppState& s) {
         s.shellClipboardPaths.clear();
         s.shellClipboardCut = false;
         s.cutPaths.clear();
-        if (!ResolveShellCopyConflicts(s, sources, tab->current_path, shell_target)) {
+        ShellCopyExtras extras;
+        if (!ResolveShellCopyConflicts(s, sources, tab->current_path, shell_target, &extras)) {
             InvalidateRect(s.hwnd, nullptr, FALSE);
             return;
         }
-        const bool copied = shell_target
-            ? fs::ShellCopyWithin(sources, tab->current_path, move)
-            : fs::ShellCopyToLocal(sources, tab->current_path, move);
-        if (copied) {
-            RefreshPath(s, tab->current_path, RefreshReason::Explicit);
-            if (move) {
-                // A cut also changed the source folders; refresh them so their
-                // tabs do not keep showing rows that are already gone.
-                for (const auto& source : sources)
-                    RefreshPath(s, fs::ParentPath(source), RefreshReason::OperationCompleted);
-            }
-        } else {
-            s.notification_toast.Show(s.hwnd,
-                l10n::Pick(L"复制失败", L"Copy failed"),
-                l10n::Pick(L"无法在设备与本地文件夹之间完成复制。",
-                           L"Could not copy between the device and this folder."));
+        ShellCopyPlan plan;
+        plan.dest = tab->current_path;
+        plan.dest_shell = shell_target;
+        plan.move = move;
+        plan.shell_sources = std::move(sources);
+        plan.replace_targets = std::move(extras.replace_targets);
+        plan.keep_both = std::move(extras.keep_both);
+        {
+            diagnostics::DebugLog("copy", L"paste queued dest_shell=" +
+                std::to_wstring(shell_target ? 1 : 0) +
+                L" count=" + std::to_wstring(plan.shell_sources.size()) +
+                L" keep_both=" + std::to_wstring(plan.keep_both.size()) +
+                L" move=" + std::to_wstring(move ? 1 : 0) +
+                L" dest=" + diagnostics::LogText(tab->current_path));
         }
+        StartShellCopy(s, std::move(plan));
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return;
     }
@@ -335,23 +531,28 @@ void PasteIntoCurrent(AppState& s) {
             std::vector<std::wstring> sources;
             sources.reserve(cb.paths.size());
             for (auto& path : cb.paths) sources.push_back(fs::NormalizePath(path));
-            if (!ResolveShellCopyConflicts(s, sources, tab->current_path, true)) {
+            ShellCopyExtras extras;
+            if (!ResolveShellCopyConflicts(s, sources, tab->current_path, true, &extras)) {
                 InvalidateRect(s.hwnd, nullptr, FALSE);
                 return;
             }
-            if (fs::ShellCopyFromLocal(sources, tab->current_path, cb.cut)) {
-                if (cb.cut) TrackCutClipboard(s, cb);
-                RefreshPath(s, tab->current_path, RefreshReason::Explicit);
-                if (cb.cut) {
-                    for (const auto& source : sources)
-                        RefreshPath(s, fs::ParentPath(source), RefreshReason::OperationCompleted);
-                }
-            } else {
-                s.notification_toast.Show(s.hwnd,
-                    l10n::Pick(L"复制失败", L"Copy failed"),
-                    l10n::Pick(L"无法把文件复制到该设备。",
-                               L"Could not copy the files to this device."));
+            ShellCopyPlan plan;
+            plan.dest = tab->current_path;
+            plan.dest_shell = true;
+            plan.move = cb.cut;
+            plan.local_sources = std::move(sources);
+            plan.replace_targets = std::move(extras.replace_targets);
+            plan.keep_both = std::move(extras.keep_both);
+            plan.track_cut = cb.cut;
+            plan.cut_sequence = cb.sequence;
+            plan.cut_paths = cb.paths;
+            {
+                diagnostics::DebugLog("copy", L"paste local-to-device queued count=" +
+                    std::to_wstring(plan.local_sources.size()) +
+                    L" cut=" + std::to_wstring(cb.cut ? 1 : 0) +
+                    L" dest=" + diagnostics::LogText(tab->current_path));
             }
+            StartShellCopy(s, std::move(plan));
         }
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return;
@@ -462,16 +663,39 @@ void DeletePaths(AppState& s, std::vector<std::wstring> paths, bool permanent) {
         }
         return;
     }
-    // A share has no Recycle Bin to restore from, and the Shell refuses to
-    // recycle there — which used to make Delete fail outright on a network
-    // path. Explorer deletes permanently instead; the confirmation below is
-    // what keeps that destructive step visible (§8.5.5).
+    // A share or removable drive has no Recycle Bin to restore from, and the
+    // Shell refuses to recycle there. Explorer deletes those permanently
+    // instead; the confirmation below is what keeps that step visible (§8.5.5).
     if (!permanent) {
-        for (const std::wstring& path : paths) {
-            if (!fs::CanRecyclePath(path)) {
-                permanent = true;
-                break;
+        std::vector<std::wstring> direct;
+        std::erase_if(paths, [&](const std::wstring& path) {
+            DWORD volume_error = 0;
+            if (fs::RecycleBinAvailable(path, &volume_error) || volume_error) return false;
+            direct.push_back(path);
+            return true;
+        });
+        if (!direct.empty()) {
+            ui::ConfirmDialogSpec confirm;
+            confirm.title = l10n::Get(l10n::StringId::PermanentDelete);
+            confirm.message = l10n::Pick(L"网络位置和移动设备上没有回收站。",
+                                         L"Network locations and removable drives have no Recycle Bin. ");
+            if (direct.size() == 1) {
+                confirm.message += l10n::Get(l10n::StringId::PermanentDeleteOne);
+            } else {
+                wchar_t buf[256]{};
+                swprintf_s(buf, l10n::Get(l10n::StringId::PermanentDeleteManyFormat).c_str(),
+                           direct.size());
+                confirm.message += buf;
             }
+            for (const std::wstring& path : direct) confirm.items.push_back(ClipboardPath(path));
+            confirm.confirm_text = l10n::Get(l10n::StringId::PermanentDelete);
+            confirm.danger = true;
+            if (!ui::ShowConfirmDialog(s.hwnd, confirm, s.darkMode, s.accentColor)) return;
+            ops::OpRequest req;
+            req.type = ops::OpType::RealDelete;
+            req.sources = std::move(direct);
+            s.ops.Submit(std::move(req));
+            if (paths.empty()) return;
         }
     }
     if (permanent) {

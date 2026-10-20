@@ -70,6 +70,13 @@ std::vector<unsigned char> Iso(bool udf) {
 }
 
 int wmain() {
+    // Isolate preview packs: a host with the 7-Zip pack installed answers the
+    // UDF-only and damaged-stream fixtures differently from the release gate.
+    wchar_t cwd[MAX_PATH]{};
+    GetCurrentDirectoryW(ARRAYSIZE(cwd), cwd);
+    const std::wstring isolated_appdata = std::wstring(cwd) + L"\\bench_data\\archive-integrity-appdata";
+    std::filesystem::create_directories(isolated_appdata);
+    SetEnvironmentVariableW(L"LOCALAPPDATA", isolated_appdata.c_str());
     const std::wstring root = L"bench_data\\archive_integrity_" + std::to_wstring(GetCurrentProcessId());
     std::filesystem::create_directories(root);
     auto test = [&](const wchar_t* name, const unsigned char* data, size_t size, const wchar_t* format, const wchar_t* entry) {

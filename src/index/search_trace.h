@@ -6,6 +6,10 @@
 namespace luling::index {
 // Opt-in, cross-process monotonic timestamps. No file IO in normal operation.
 inline void TraceSearch(const char* stage, uint64_t revision = 0, std::wstring_view path = {}) {
+    // Tracing is diagnostics only: never let it change the caller's GetLastError
+    // (the first call reads an environment variable, which sets 203 on absence).
+    const DWORD saved_error = GetLastError();
+    struct RestoreError { DWORD error; ~RestoreError() { SetLastError(error); } } restore{saved_error};
     static const std::wstring destination = [] {
         std::wstring value(32768, L'\0');
         const DWORD n = GetEnvironmentVariableW(L"LULING_SEARCH_TRACE", value.data(), static_cast<DWORD>(value.size()));

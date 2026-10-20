@@ -56,14 +56,59 @@ bool LooksLikeSignIn(DWORD error) {
 
 } // namespace
 
-bool PromptForShareCredentials(HWND owner, const std::wstring& unc) {
+bool ShareSignInNeeded(const std::wstring& unc) {
+    const std::wstring share = ShareRoot(unc);
+    if (share.size() < 3) return false;
+    DWORD error = 0;
+    return !Connect(share, nullptr, nullptr, error) && LooksLikeSignIn(error);
+}
+
+std::wstring ShareSignInFailureText(DWORD error) {
+    switch (error) {
+    case ERROR_ACCESS_DENIED:
+    case ERROR_LOGON_FAILURE:
+    case ERROR_INVALID_PASSWORD:
+        return l10n::Pick(L"用户名或密码不正确，或此账户没有访问权限。",
+                          L"The user name or password is incorrect, or the account cannot access this share.");
+    case ERROR_SESSION_CREDENTIAL_CONFLICT:
+        return l10n::Pick(L"已用其他凭据连接到此服务器；请断开后重试。",
+                          L"This server is already connected with different credentials. Disconnect it and try again.");
+    case ERROR_LOGON_TYPE_NOT_GRANTED:
+        return l10n::Pick(L"此账户不允许从此计算机登录。",
+                          L"This account is not allowed to sign in from this computer.");
+    case ERROR_ACCOUNT_DISABLED:
+    case ERROR_ACCOUNT_EXPIRED:
+    case ERROR_PASSWORD_EXPIRED:
+    case ERROR_PASSWORD_MUST_CHANGE:
+        return l10n::Pick(L"此账户已被禁用、已过期，或需要更改密码。",
+                          L"The account is disabled, expired, or must change its password.");
+    case ERROR_NO_SUCH_USER:
+        return l10n::Pick(L"没有此用户。", L"No such user.");
+    case ERROR_NO_LOGON_SERVERS:
+        return l10n::Pick(L"找不到可用的登录服务器。", L"No logon server is available.");
+    case ERROR_BAD_NETPATH:
+    case ERROR_BAD_NET_NAME:
+        return l10n::Pick(L"找不到此共享。", L"This share could not be found.");
+    case ERROR_HOST_UNREACHABLE:
+    case ERROR_NETWORK_UNREACHABLE:
+    case ERROR_NETNAME_DELETED:
+        return l10n::Pick(L"无法连接到这台计算机。", L"This computer could not be reached.");
+    default:
+        return {};
+    }
+}
+
+bool PromptForShareCredentials(HWND owner, const std::wstring& unc, std::wstring* failure) {
     const std::wstring server = ServerRoot(unc);
     const std::wstring share = ShareRoot(unc);
     if (share.size() < 3) return false;
     // Ask without a password first, so an unreachable host never opens a dialog.
     DWORD error = 0;
     if (Connect(share, nullptr, nullptr, error)) return true;
-    if (!LooksLikeSignIn(error)) return false;
+    if (!LooksLikeSignIn(error)) {
+        if (failure) *failure = ShareSignInFailureText(error);
+        return false;
+    }
 
     const std::wstring caption = l10n::Get(l10n::StringId::ShareCredentialCaption);
     const std::wstring message = l10n::Get(l10n::StringId::ShareCredentialMessage);
@@ -84,6 +129,7 @@ bool PromptForShareCredentials(HWND owner, const std::wstring& unc) {
     bool connected = false;
     if (asked == NO_ERROR)
         connected = Connect(share, user.data(), password.data(), error);
+    if (!connected && asked == NO_ERROR && failure) *failure = ShareSignInFailureText(error);
     // The password only ever lives in this buffer.
     SecureZeroMemory(password.data(), password.size() * sizeof(wchar_t));
     SecureZeroMemory(user.data(), user.size() * sizeof(wchar_t));

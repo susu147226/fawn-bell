@@ -245,7 +245,9 @@ struct EngineTestAccess {
         nodes[0].parent = 2; nodes[2].flags = 5; check(!valid(), "alive child cannot have deleted parent");
         nodes[2].flags = 1; check(valid(), "repaired hierarchy is accepted");
         Engine engine; check(Build(engine), "build valid mapped hierarchy fixture");
-        const auto file = std::filesystem::temp_directory_path() / (L"luling-hierarchy-" + std::to_wstring(GetCurrentProcessId()) + L".bin");
+        const auto file = std::filesystem::current_path() / L"bench_data" /
+            (L"luling-hierarchy-" + std::to_wstring(GetCurrentProcessId()) + L".bin");
+        std::filesystem::create_directories(file.parent_path());
         check(Save(engine, file.wstring()), "save valid hierarchy");
         check(ValidateCache(file.wstring()), "production loader accepts valid hierarchy");
         {
@@ -806,8 +808,19 @@ struct EngineTestAccess {
     static bool Save(Engine& e, const std::wstring& path) {
         Engine::Store store;
         std::vector<Engine::VolState> volumes;
-        return e.FlattenLocked(store, volumes) && e.WriteIndexFile(path, store, volumes, 123456) &&
-            MoveFileExW((path + L".tmp").c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING);
+        if (!e.FlattenLocked(store, volumes)) {
+            std::cout << "save_failed=flatten\n";
+            return false;
+        }
+        if (!e.WriteIndexFile(path, store, volumes, 123456)) {
+            std::cout << "save_failed=write err=" << GetLastError() << "\n";
+            return false;
+        }
+        if (!MoveFileExW((path + L".tmp").c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+            std::cout << "save_failed=move err=" << GetLastError() << "\n";
+            return false;
+        }
+        return true;
     }
 
     static bool Load(Engine& e, const std::wstring& path) {

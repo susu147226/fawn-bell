@@ -170,6 +170,12 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
         case ui::PackAction::TranscodeInstall: refresh=s.settings.InstallTranscodePack(s.hwnd);break;
         case ui::PackAction::TranscodeRemove: refresh=s.settings.RemoveTranscodePack();break;
         case ui::PackAction::TranscodeEnable: refresh=s.settings.ToggleTranscodePack();break;
+        case ui::PackAction::Update: refresh=s.settings.UpdatePack(packs::PackId::Media,s.hwnd);break;
+        case ui::PackAction::ImagesUpdate: refresh=s.settings.UpdatePack(packs::PackId::Images,s.hwnd);break;
+        case ui::PackAction::RawUpdate: refresh=s.settings.UpdatePack(packs::PackId::Raw,s.hwnd);break;
+        case ui::PackAction::ArchiveUpdate: refresh=s.settings.UpdatePack(packs::PackId::Archives,s.hwnd);break;
+        case ui::PackAction::TranscodeUpdate: refresh=s.settings.UpdatePack(packs::PackId::Transcode,s.hwnd);break;
+        case ui::PackAction::AutoUpdate: s.settings.ToggleAutoUpdatePacks();break;
         case ui::PackAction::InstallAll: {
             // One pass over what is missing; packs already on disk are left alone
             // rather than downloaded again. Each download reports its own result

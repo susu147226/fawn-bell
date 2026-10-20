@@ -39,6 +39,9 @@ bool WriteString(HANDLE pipe, const std::wstring& value) {
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     crash::Initialize({crash::ProcessRole::Preview, false, {}});
+    // No system error boxes from this background process or the decoders it
+    // starts (they inherit the mode): failures are reported in the preview.
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     if (__argc < 2) return 2;
     const DWORD owner = wcstoul(__wargv[1], nullptr, 10);
     const std::wstring pipeName = ipc::PreviewPipeName(owner);

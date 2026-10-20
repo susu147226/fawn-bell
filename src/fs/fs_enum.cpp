@@ -10,12 +10,14 @@
 #include "shell_namespace.h"
 #include "bounded_enumeration.h"
 #include "../common/localization.h"
+#include "../common/debug_log.h"
 #include "../common/path_utils.h"
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
 #include <shlwapi.h>
+#include <winnetwk.h>
 #include <propkey.h>
 #include <wrl/client.h>
 #include <lm.h>
@@ -26,6 +28,10 @@
 #include <unordered_map>
 
 #pragma comment(lib, "shlwapi.lib")
+// DriveLabel reads mapped-drive labels and the volume path from Win32; both are
+// used by many small test executables that only compile this file.
+#pragma comment(lib, "mpr.lib")
+#pragma comment(lib, "advapi32.lib")
 
 namespace luling::fs {
 
@@ -376,6 +382,32 @@ static void EnumerateNtQuery(const std::wstring& path, std::vector<DirEntry>& ou
 // "This PC" view (empty path): one entry per logical drive, label matches
 // the sidebar ("Label (C:)" or a localized fallback). full_path is set so
 // the app layer can navigate/open without joining parent+name.
+std::wstring DriveLabel(wchar_t letter, const std::wstring& volume_label, const std::wstring& fallback) {
+    const wchar_t root[] = { letter, L':', L'\\', L'\0' };
+    if (GetDriveTypeW(root) == DRIVE_REMOTE) {
+        const wchar_t local[] = { letter, L':', L'\0' };
+        wchar_t remote[MAX_PATH * 2] = {};
+        DWORD size = ARRAYSIZE(remote);
+        // A remembered but disconnected drive still names its share.
+        const DWORD result = WNetGetConnectionW(local, remote, &size);
+        std::wstring unc = (result == NO_ERROR || result == ERROR_CONNECTION_UNAVAIL) ? remote : L"";
+        while (unc.size() > 2 && unc.back() == L'\\') unc.pop_back();
+        const size_t slash = unc.find_last_of(L'\\');
+        if (unc.starts_with(L"\\\\") && slash != std::wstring::npos && slash > 2 && slash + 1 < unc.size()) {
+            std::wstring key = unc;
+            std::replace(key.begin(), key.end(), L'\\', L'#');
+            key = L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MountPoints2\\" + key;
+            wchar_t label[MAX_PATH] = {};
+            DWORD bytes = sizeof(label);
+            if (RegGetValueW(HKEY_CURRENT_USER, key.c_str(), L"_LabelFromReg", RRF_RT_REG_SZ, nullptr,
+                             label, &bytes) == ERROR_SUCCESS && label[0])
+                return label;
+            return unc.substr(slash + 1) + L" (" + unc.substr(0, slash) + L")";
+        }
+    }
+    return volume_label.empty() ? fallback : volume_label;
+}
+
 static void EnumerateThisPc(std::vector<DirEntry>& out) {
     DWORD drives = GetLogicalDrives();
     for (int i = 0; i < 26; ++i) {
@@ -384,7 +416,7 @@ static void EnumerateThisPc(std::vector<DirEntry>& out) {
         wchar_t volName[MAX_PATH + 1] = {};
         GetVolumeInformationW(root, volName, MAX_PATH, nullptr, nullptr, nullptr, nullptr, 0);
         DirEntry e;
-        e.name = std::wstring(volName[0] ? volName : l10n::Pick(L"本地磁盘", L"Local Disk")) +
+        e.name = DriveLabel(root[0], volName, l10n::Pick(L"本地磁盘", L"Local Disk")) +
                  L" (" + root[0] + L":)";
         e.full_path = NormalizePath(root);
         e.is_dir = true;
@@ -654,30 +686,92 @@ bool IsPortableDevice(IShellItem* item) {    if (!item) return false;
     return portable;
 }
 
+static std::wstring HrText(HRESULT hr) {
+    wchar_t buffer[16]{};
+    swprintf_s(buffer, L"0x%08x", static_cast<unsigned>(hr));
+    return buffer;
+}
+
 bool RunShellFileOperation(const std::vector<ComPtr<IShellItem>>& sources,
-                           IShellItem* destination, bool move) {    if (!destination || sources.empty()) return false;
+                           IShellItem* destination, bool move,
+                           const std::wstring& new_name = {}) {
+    if (!destination || sources.empty()) return false;
+    const ULONGLONG started = GetTickCount64();
     ComPtr<IFileOperation> operation;
-    if (FAILED(CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL,
-                                IID_PPV_ARGS(&operation))))
-        return false;
-    if (FAILED(operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI |
-                                            FOF_ALLOWUNDO | FOF_RENAMEONCOLLISION))) {
+    const HRESULT created = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL,
+                                             IID_PPV_ARGS(&operation));
+    if (FAILED(created)) {
+        diagnostics::DebugLog("copy", L"fileop create failed hr=" + HrText(created));
         return false;
     }
+    const HRESULT flags = operation->SetOperationFlags(FOF_NOCONFIRMATION | FOF_NOERRORUI |
+                                                       FOF_ALLOWUNDO | FOF_RENAMEONCOLLISION);
+    if (FAILED(flags)) {
+        diagnostics::DebugLog("copy", L"fileop flags failed hr=" + HrText(flags));
+        return false;
+    }
+    // A fresh name keeps the Shell out of its conflict path entirely, which is
+    // the only reliable way to copy onto MTP under a different name.
+    PCWSTR requested_name = new_name.empty() || sources.size() != 1 ? nullptr : new_name.c_str();
     for (const auto& source : sources) {
         if (!source) continue;
         const HRESULT queued = move
-            ? operation->MoveItem(source.Get(), destination, nullptr, nullptr)
-            : operation->CopyItem(source.Get(), destination, nullptr, nullptr);
-        if (FAILED(queued)) return false;
+            ? operation->MoveItem(source.Get(), destination, requested_name, nullptr)
+            : operation->CopyItem(source.Get(), destination, requested_name, nullptr);
+        if (FAILED(queued)) {
+            diagnostics::DebugLog("copy", L"fileop queue failed hr=" + HrText(queued) +
+                L" move=" + (move ? L"1" : L"0"));
+            return false;
+        }
     }
     const HRESULT performed = operation->PerformOperations();
-    {
-    }
-    if (FAILED(performed)) return false;
     BOOL aborted = FALSE;
     operation->GetAnyOperationsAborted(&aborted);
-    return aborted == FALSE;
+    diagnostics::DebugLog("copy", L"fileop performed hr=" + HrText(performed) +
+        L" aborted=" + (aborted ? L"1" : L"0") +
+        L" move=" + (move ? L"1" : L"0") +
+        L" sources=" + std::to_wstring(sources.size()) +
+        L" named=" + (requested_name ? L"1" : L"0") +
+        L" ms=" + std::to_wstring(GetTickCount64() - started));
+    if (FAILED(performed)) return false;
+    if (aborted) return false;
+    // FOF_NOCONFIRMATION | FOF_NOERRORUI silently drops an item the engine
+    // could not copy (a busy or locked device returns S_OK overall). This is a
+    // diagnostic only: a Shell-side check can disagree with a copy that landed
+    // (MTP names and local paths do not always line up), and failing the whole
+    // copy on it turned working operations into false errors.
+    PWSTR local_path = nullptr;
+    std::wstring local_dir;
+    if (SUCCEEDED(destination->GetDisplayName(SIGDN_FILESYSPATH, &local_path)) && local_path) {
+        local_dir = luling::path::StripExtendedPathPrefix(local_path);
+    }
+    if (local_path) CoTaskMemFree(local_path);
+    PIDLIST_ABSOLUTE destination_pidl = nullptr;
+    std::wstring destination_path;
+    if (SUCCEEDED(SHGetIDListFromObject(destination, &destination_pidl)) && destination_pidl) {
+        destination_path = MakeShellPath(destination_pidl);
+        CoTaskMemFree(destination_pidl);
+    }
+    for (const auto& source : sources) {
+        if (!source) continue;
+        PWSTR name = nullptr;
+        if (FAILED(source->GetDisplayName(SIGDN_PARENTRELATIVEPARSING, &name)) || !name) continue;
+        bool found = false;
+        if (!local_dir.empty()) {
+            const std::wstring candidate = local_dir + L"\\" + name;
+            found = GetFileAttributesW(candidate.c_str()) != INVALID_FILE_ATTRIBUTES;
+        } else if (!destination_path.empty()) {
+            found = ShellChildExists(destination_path, name);
+        } else {
+            found = true;
+        }
+        if (!found) {
+            diagnostics::DebugLog("copy", L"verify missing name=" +
+                diagnostics::LogText(name) + L" dest=" + diagnostics::LogText(local_dir));
+        }
+        CoTaskMemFree(name);
+    }
+    return true;
 }
 
 std::mutex g_portable_mutex;
@@ -908,19 +1002,36 @@ bool ShellOpen(const std::wstring& path) {
 bool ShellCopyToLocal(const std::vector<std::wstring>& shell_sources,
                       const std::wstring& local_dir, bool move) {
     ShellComInit com;
-    if (!com.ok()) return false;
+    if (!com.ok()) {
+        diagnostics::DebugLog("copy", L"copy-as com init failed");
+        return false;
+    }
     ComPtr<IShellItem> destination;
     const std::wstring plain_destination = luling::path::StripExtendedPathPrefix(local_dir);
-    if (FAILED(SHCreateItemFromParsingName(plain_destination.c_str(), nullptr,
-                                           IID_PPV_ARGS(&destination))))
+    const HRESULT target_hr = SHCreateItemFromParsingName(plain_destination.c_str(), nullptr,
+                                                          IID_PPV_ARGS(&destination));
+    if (FAILED(target_hr)) {
+        diagnostics::DebugLog("copy", L"copy-as target failed hr=" + HrText(target_hr) +
+            L" dir=" + diagnostics::LogText(plain_destination));
         return false;
+    }
     std::vector<ComPtr<IShellItem>> sources;
     for (const auto& path : shell_sources) {
         PIDLIST_ABSOLUTE pidl = nullptr;
-        if (!ParseShellPidl(path, pidl)) continue;
+        if (!ParseShellPidl(path, pidl)) {
+            diagnostics::DebugLog("copy", L"copy-as source pidl failed " +
+                diagnostics::LogText(path));
+            continue;
+        }
         ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
         CoTaskMemFree(pidl);
         if (item) sources.push_back(std::move(item));
+        else diagnostics::DebugLog("copy", L"copy-as source item failed " +
+            diagnostics::LogText(path));
+    }
+    if (sources.empty()) {
+        diagnostics::DebugLog("copy", L"copy-as no sources parsed");
+        return false;
     }
     return RunShellFileOperation(sources, destination.Get(), move);
 }
@@ -1166,6 +1277,89 @@ bool ShellCopyWithin(const std::vector<std::wstring>& shell_sources,
     if (ok) items = ListStagingItems(staging);
     ok = ok && !items.empty() && ShellCopyFromLocal(items, shell_dest, false);
     if (ok && move) DeleteShellItems(shell_sources);
+    std::error_code ignored;
+    std::filesystem::remove_all(staging, ignored);
+    return ok;
+}
+
+namespace {
+bool ValidChildName(const std::wstring& name) {
+    return !name.empty() && name.find_first_of(L"\\/:") == std::wstring::npos &&
+        name != L"." && name != L"..";
+}
+} // namespace
+
+bool ShellCopyToLocalAs(const std::wstring& shell_source, const std::wstring& local_dir,
+                        const std::wstring& name, bool move) {
+    if (!ValidChildName(name) || local_dir.empty()) return false;
+    ShellComInit com;
+    if (!com.ok()) return false;
+    const std::wstring plain_destination = luling::path::StripExtendedPathPrefix(local_dir);
+    ComPtr<IShellItem> destination;
+    if (FAILED(SHCreateItemFromParsingName(plain_destination.c_str(), nullptr,
+                                           IID_PPV_ARGS(&destination)))) {
+        diagnostics::DebugLog("copy", L"copy-as local target failed " +
+            diagnostics::LogText(plain_destination));
+        return false;
+    }
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(shell_source, pidl)) return false;
+    ComPtr<IShellItem> item = ShellItemFromPidl(pidl);
+    CoTaskMemFree(pidl);
+    if (!item) return false;
+    const bool ok = RunShellFileOperation({item}, destination.Get(), move, name);
+    if (!ok) {
+        diagnostics::DebugLog("copy", L"copy-as to-local failed name=" +
+            diagnostics::LogText(name) + L" dir=" + diagnostics::LogText(plain_destination));
+    }
+    return ok;
+}
+
+bool ShellCopyFromLocalAs(const std::wstring& local_source, const std::wstring& shell_dir,
+                          const std::wstring& name, bool move) {
+    if (!ValidChildName(name) || shell_dir.empty()) return false;
+    ShellComInit com;
+    if (!com.ok()) return false;
+    const std::wstring source = luling::path::StripExtendedPathPrefix(local_source);
+    ComPtr<IShellItem> item;
+    if (FAILED(SHCreateItemFromParsingName(source.c_str(), nullptr, IID_PPV_ARGS(&item)))) {
+        diagnostics::DebugLog("copy", L"copy-as from-local missing " +
+            diagnostics::LogText(source));
+        return false;
+    }
+    PIDLIST_ABSOLUTE pidl = nullptr;
+    if (!ParseShellPidl(shell_dir, pidl)) return false;
+    ComPtr<IShellItem> destination = ShellItemFromPidl(pidl);
+    CoTaskMemFree(pidl);
+    if (!destination) return false;
+    const bool ok = RunShellFileOperation({item}, destination.Get(), move, name);
+    if (!ok) {
+        diagnostics::DebugLog("copy", L"copy-as from-local upload failed name=" +
+            diagnostics::LogText(name));
+    }
+    return ok;
+}
+
+bool ShellCopyWithinAs(const std::wstring& shell_source, const std::wstring& shell_dir,
+                       const std::wstring& name, bool move) {
+    if (!ValidChildName(name) || shell_dir.empty()) return false;
+    const std::wstring staging = MakeStagingDirectory();
+    if (staging.empty()) return false;
+    bool ok = ShellCopyToLocal({shell_source}, staging, false);
+    if (!ok) {
+        Sleep(300);
+        ok = ShellCopyToLocal({shell_source}, staging, false);
+    }
+    std::vector<std::wstring> items;
+    if (ok) items = ListStagingItems(staging);
+    // A device can finish writing the download just after PerformOperations
+    // returns; poll briefly instead of reporting a successful copy as failed.
+    for (int attempt = 0; ok && items.empty() && attempt < 10; ++attempt) {
+        Sleep(100);
+        items = ListStagingItems(staging);
+    }
+    if (ok && !items.empty()) ok = ShellCopyFromLocalAs(items.front(), shell_dir, name, false);
+    if (ok && move) DeleteShellItems({shell_source});
     std::error_code ignored;
     std::filesystem::remove_all(staging, ignored);
     return ok;

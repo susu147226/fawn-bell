@@ -198,7 +198,6 @@ void CheckSelectionSync(luling::ui::Compositor& compositor, HWND edit) {
 }
 int wmain() {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    const HWND foreground = GetForegroundWindow();
     HWND parent = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_NOACTIVATE, L"STATIC", L"",
         WS_POPUP, -30000, -30000, 700, 300, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     {
@@ -380,7 +379,13 @@ int wmain() {
         DestroyWindow(parent);
         Check(!IsWindow(edit), "destroying parent automatically destroys its editor");
     }
-    Check(GetForegroundWindow() == foreground, "tests preserve the user's foreground window");
+    // Other processes may legitimately change the foreground while this runs
+    // (the preview host, the previous test in a serial suite); what must not
+    // happen is this test leaving one of its own windows there.
+    DWORD foreground_pid = 0;
+    const HWND active = GetForegroundWindow();
+    if (active) GetWindowThreadProcessId(active, &foreground_pid);
+    Check(foreground_pid != GetCurrentProcessId(), "tests preserve the user's foreground window");
     CoUninitialize();
     return failures ? 1 : 0;
 }

@@ -1,11 +1,14 @@
 #include "../app/update_checker.h"
 #include "../app/update_transport.h"
 
+#include <bcrypt.h>
+#include <array>
 #include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <limits>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -30,6 +33,95 @@ const std::string kManifest =
         "\"SNdGtlX32+/cB9d812GBxuW6kemSIB68TmXjumgUDw8QMLTRcYXjFwBFcMmRa/"
         "EdiuecedQ2TAXB8CUt5lRzxA==\"\n"
     "}\n";
+
+std::string ToHex(const BYTE* data, size_t size) {
+    static constexpr char kDigits[] = "0123456789abcdef";
+    std::string text(size * 2, '0');
+    for (size_t i = 0; i < size; ++i) {
+        text[i * 2] = kDigits[data[i] >> 4];
+        text[i * 2 + 1] = kDigits[data[i] & 0x0F];
+    }
+    return text;
+}
+
+std::string ToBase64(const BYTE* data, size_t size) {
+    static constexpr char kAlphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string text;
+    text.reserve((size + 2) / 3 * 4);
+    for (size_t i = 0; i < size; i += 3) {
+        const uint32_t a = data[i];
+        const uint32_t b = i + 1 < size ? data[i + 1] : 0;
+        const uint32_t c = i + 2 < size ? data[i + 2] : 0;
+        const uint32_t value = (a << 16) | (b << 8) | c;
+        text += kAlphabet[(value >> 18) & 0x3F];
+        text += kAlphabet[(value >> 12) & 0x3F];
+        text += i + 1 < size ? kAlphabet[(value >> 6) & 0x3F] : '=';
+        text += i + 2 < size ? kAlphabet[value & 0x3F] : '=';
+    }
+    return text;
+}
+
+// The shipped test signature is only a schema fixture; signing a canonical
+// payload at run time keeps the verification cases independent of stale keys.
+struct SignedFixture {
+    std::string manifest;
+    std::string public_key;
+};
+
+bool MakeSignedFixture(SignedFixture& out) {
+    constexpr char kPayload[] =
+        "schema=1\nversion=9.8.7\nminimum_windows_build=19045\n"
+        "download_page=https://updates.example.test/luling\n"
+        "installer_sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n";
+    BCRYPT_ALG_HANDLE hash_alg = nullptr, sign_alg = nullptr;
+    BCRYPT_HASH_HANDLE hash = nullptr;
+    BCRYPT_KEY_HANDLE key = nullptr;
+    std::array<BYTE, 32> digest{};
+    bool ok = false;
+    if (BCryptOpenAlgorithmProvider(&hash_alg, BCRYPT_SHA256_ALGORITHM, nullptr, 0) >= 0 &&
+        BCryptCreateHash(hash_alg, &hash, nullptr, 0, nullptr, 0, 0) >= 0 &&
+        BCryptHashData(hash, reinterpret_cast<PUCHAR>(const_cast<char*>(kPayload)),
+                       sizeof(kPayload) - 1, 0) >= 0 &&
+        BCryptFinishHash(hash, digest.data(), static_cast<ULONG>(digest.size()), 0) >= 0 &&
+        BCryptOpenAlgorithmProvider(&sign_alg, BCRYPT_ECDSA_P256_ALGORITHM, nullptr, 0) >= 0 &&
+        BCryptGenerateKeyPair(sign_alg, &key, 256, 0) >= 0 &&
+        BCryptFinalizeKeyPair(key, 0) >= 0) {
+        DWORD blob_size = 0;
+        if (BCryptExportKey(key, nullptr, BCRYPT_ECCPUBLIC_BLOB, nullptr, 0, &blob_size, 0) >= 0) {
+            std::vector<BYTE> blob(blob_size);
+            if (BCryptExportKey(key, nullptr, BCRYPT_ECCPUBLIC_BLOB, blob.data(), blob_size,
+                                &blob_size, 0) >= 0 &&
+                blob_size >= sizeof(BCRYPT_ECCKEY_BLOB) + 64) {
+                out.public_key = "04" + ToHex(blob.data() + sizeof(BCRYPT_ECCKEY_BLOB), 64);
+                DWORD signature_size = 0;
+                if (BCryptSignHash(key, nullptr, digest.data(), static_cast<ULONG>(digest.size()),
+                                   nullptr, 0, &signature_size, 0) >= 0) {
+                    std::vector<BYTE> signature(signature_size);
+                    if (BCryptSignHash(key, nullptr, digest.data(), static_cast<ULONG>(digest.size()),
+                                       signature.data(), signature_size, &signature_size, 0) >= 0 &&
+                        signature_size == 64) {
+                        out.manifest = kManifest;
+                        const std::string marker = "\"signature\": \"";
+                        const size_t at = out.manifest.find(marker);
+                        const size_t start = at == std::string::npos ? at : at + marker.size();
+                        const size_t end = start == std::string::npos ? start : out.manifest.find('"', start);
+                        if (end != std::string::npos) {
+                            out.manifest.replace(start, end - start,
+                                                 ToBase64(signature.data(), signature.size()));
+                            ok = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (key) BCryptDestroyKey(key);
+    if (hash) BCryptDestroyHash(hash);
+    if (sign_alg) BCryptCloseAlgorithmProvider(sign_alg, 0);
+    if (hash_alg) BCryptCloseAlgorithmProvider(hash_alg, 0);
+    return ok;
+}
 
 bool TestFallback() {
     using namespace luling::app;
@@ -179,27 +271,29 @@ int main(int argc, char** argv) {
             "installer_sha256="
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n");
 
-    auto result = ValidateUpdateManifest(kManifest, kPublicKey, "1.0.0", 22631);
+    SignedFixture fixture;
+    passed &= Report("test signing key produces a manifest", MakeSignedFixture(fixture));
+    auto result = ValidateUpdateManifest(fixture.manifest, fixture.public_key, "1.0.0", 22631);
     passed &= Report("valid newer signed release is offered",
         result.error == UpdateError::None && result.update_available &&
         result.version == L"9.8.7" &&
         result.download_page == L"https://updates.example.test/luling");
 
-    result = ValidateUpdateManifest(kManifest, kPublicKey, "9.8.7", 22631);
+    result = ValidateUpdateManifest(fixture.manifest, fixture.public_key, "9.8.7", 22631);
     passed &= Report("equal signed version is up to date",
         result.error == UpdateError::None && !result.update_available &&
         result.download_page.empty());
 
-    result = ValidateUpdateManifest(kManifest, kPublicKey, "10.0.0", 22631);
+    result = ValidateUpdateManifest(fixture.manifest, fixture.public_key, "10.0.0", 22631);
     passed &= Report("signed downgrade is not offered",
         result.error == UpdateError::None && !result.update_available);
 
-    result = ValidateUpdateManifest(kManifest, kPublicKey, "1.0.0", 17763);
+    result = ValidateUpdateManifest(fixture.manifest, fixture.public_key, "1.0.0", 17763);
     passed &= Report("unsupported Windows build has no download link",
         result.error == UpdateError::UnsupportedWindows && !result.update_available &&
         result.download_page.empty());
 
-    std::string tampered = kManifest;
+    std::string tampered = fixture.manifest;
     tampered.replace(tampered.find("9.8.7"), 5, "9.8.8");
     result = ValidateUpdateManifest(tampered, kPublicKey, "1.0.0", 22631);
     passed &= Report("tampered manifest signature is rejected",

@@ -61,7 +61,7 @@ int wmain(){
         ResetEvent(entered);ResetEvent(release_query);
         {std::lock_guard lock(g_ctx_mutex);g_ctx_sessions[sid]={};}
         auto* data=new CtxSessionData;data->session_id=sid;data->paths={L"C:\\isolated-test.fixture"};
-        DWORD thread_id=0;HANDLE thread=CreateThread(nullptr,0,CtxSessionThreadImpl,data,0,&thread_id);
+        DWORD thread_id=0;HANDLE thread=CreateThread(nullptr,0,CtxSessionThread,data,0,&thread_id);
         const bool querying=thread&&WaitForSingleObject(entered,2000)==WAIT_OBJECT_0;
         check(querying,"controlled handler entered production session query");
         if(thread)PostThreadMessageW(thread_id,WM_CTX_CLOSE,0,0);

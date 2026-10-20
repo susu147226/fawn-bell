@@ -158,6 +158,12 @@ int wmain(int argc, wchar_t** argv) {
     std::error_code ec;
     fsys::remove_all(root, ec);
     fsys::create_directories(root / L"holder");
+    // Restart Manager writes its session log beside TEMP; point that at the
+    // fixture so the test does not depend on the user's temporary folder.
+    const fsys::path rm_temp = root / L"temp";
+    fsys::create_directories(rm_temp);
+    SetEnvironmentVariableW(L"TEMP", rm_temp.c_str());
+    SetEnvironmentVariableW(L"TMP", rm_temp.c_str());
     wchar_t self[MAX_PATH]{};
     GetModuleFileNameW(nullptr, self, MAX_PATH);
     g_holder_exe = root / L"holder" / L"lock_holder.exe";
