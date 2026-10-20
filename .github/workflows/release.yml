@@ -53,6 +53,8 @@ jobs:
 
   publish:
     needs: build
+    # Manual dispatches are for validating the build; only a tag publishes.
+    if: github.event_name == 'push'
     runs-on: windows-2022
     timeout-minutes: 10
     permissions:

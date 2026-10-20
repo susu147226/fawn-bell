@@ -302,6 +302,9 @@ bool TestDefaultFileManager() {
         const bool off = ApplyThisPcOpen(prefs, false);
         AppPrefs off_read;
         off_read.Load();
+        std::printf("drift thispc: on=%d off=%d cmd=[%ls] shell=[%ls] snap=%d take=%d\n",
+            on, off, Read(kThisPcCommand, nullptr).c_str(), Read(kThisPcShell, nullptr).c_str(),
+            SnapshotExists(L"ThisPc"), off_read.take_over_this_pc);
         passed &= Report("default file manager: turning off still restores after the command drifted",
             on && off && Read(kThisPcCommand, nullptr) == kForeign &&
             Read(kThisPcShell, nullptr) == L"openfm" && !SnapshotExists(L"ThisPc") &&
@@ -426,6 +429,8 @@ bool TestTakeoverCancelAfterDrift() {
     const bool drifted = Write(L"Software\\Classes\\Directory\\shell\\open\\command", nullptr, kForeign);
     const bool off = prefs.ApplyFolderOpen(false);
     const std::wstring after = Read(L"Software\\Classes\\Directory\\shell\\open\\command", nullptr);
+    std::printf("drift folder: drifted=%d off=%d ours=[%ls] after=[%ls] foreign=[%ls] flag=%d\n",
+        drifted, off, ours.c_str(), after.c_str(), kForeign, prefs.open_folders_in_luling);
     passed &= Report("takeover drift: cancelling still restores after the command drifted",
         drifted && off && !prefs.open_folders_in_luling && after != ours && after != kForeign);
 
