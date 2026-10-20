@@ -23,6 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate release tag
+        # Manual dispatches only validate the build; only a tag releases.
+        if: github.event_name == 'push'
         shell: pwsh
         env:
           RELEASE_REF: ${{ github.ref }}
