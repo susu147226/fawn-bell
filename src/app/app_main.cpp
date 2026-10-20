@@ -118,6 +118,9 @@
 #pragma comment(lib, "uxtheme.lib")
 #pragma comment(lib, "psapi.lib")
 #include "app_internal.h"
+#include "app_hover_preview.h"
+#include "drive_verbs.h"
+#include "bitlocker_unlock.h"
 
 namespace {
 // Default-program changes (thumbnail "opens with" badges): one shell-level
@@ -235,7 +238,12 @@ void Render(AppState& s) {
     vm.pane.hover_index = s.hoverRow;
 
     D2D1_RECT_F rect = D2D1::RectF(0, 0, (float)s.compositor.Width(), (float)s.compositor.Height());
+    ui::HoverPreviewView hover_card;
+    FillHoverPreviewView(s, vm, hover_card);
+    if (hover_card.visible) vm.tooltip_text.clear();  // the card already names the file
     s.renderer.Render(vm, rect, theme);
+    s.renderer.DrawHoverPreview(hover_card, rect, theme, hc);  // also the dwell line
+    AfterHoverPreviewDraw(s);
     s.notification_toast.Draw(s.compositor, theme, s.scale, hc);
 
     const HRESULT end_hr = dc->EndDraw();
@@ -397,6 +405,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return CloseForUpdate(*s);
     if (s && IsUiActivityMessage(msg)) NoteUiActivity(hwnd, IsWindowVisible(hwnd) && !IsIconic(hwnd));
     if (s && s->notification_toast.HandleMessage(hwnd, msg, wParam, lParam)) return 0;
+    if (s && HoverPreviewMessage(*s, hwnd, msg, wParam, lParam)) return 0;
     if (s && GroupWheelMessage(*s, hwnd, msg, wParam, lParam)) return 0;
     if (s && msg == app::TrayController::TaskbarCreatedMessage() && msg != 0) {
         s->tray_controller.HandleTaskbarCreated();   // Explorer restarted or came up late
@@ -1667,6 +1676,20 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                            L"The item could not be copied under a new name and was skipped."));
         }
         InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
+    }
+
+    case WM_DRIVE_VERB: {
+        std::unique_ptr<app::DriveVerbResult> result(
+            reinterpret_cast<app::DriveVerbResult*>(lParam));
+        if (s && result) ApplyDriveVerbResult(*s, *result);
+        return 0;
+    }
+
+    case WM_BITLOCKER_UNLOCK: {
+        std::unique_ptr<app::BitLockerUnlockResult> result(
+            reinterpret_cast<app::BitLockerUnlockResult*>(lParam));
+        if (s && result) ApplyBitLockerUnlock(*s, result->root, result->unlocked);
         return 0;
     }
 

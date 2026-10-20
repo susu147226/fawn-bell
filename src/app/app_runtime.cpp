@@ -1,5 +1,6 @@
 // app_runtime.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "system_ctx_model.h"
 #include "../fs/shell_namespace.h"
 #include "pane_layout.h"
 #include "vertical_tabs.h"
@@ -527,6 +528,14 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             vm.settings_content_status = ContentIndexStatusText(s);
             vm.settings_expanded = s.settingsExpanded;
             if (vm.settings_page == 5) vm.settings_preview_codecs = ui::DetectPreviewCodecs(false, s.hwnd);
+            if (vm.settings_page == 6) {
+                // 系统右键菜单: the first visit starts a background scan.
+                auto& sysctx = s.settings.SystemCtx();
+                sysctx.SetNotifyWindow(s.hwnd);
+                sysctx.EnsureLoaded();
+                sysctx.SetPulseHidden(s.ctxMenuPrefs.HiddenCatalogKeys());
+                vm.settings_sysctx = sysctx.View();
+            }
             if (vm.settings_page == 5) {
                 // Cached in the controller: the disk is read at most every 2 s.
                 const auto& packs = s.settings.Packs();
@@ -2673,6 +2682,36 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         }
         s.renderer.SetToolbarGroup(toolbar_group);
     }
+    // Toolbar follows the pointer: a file drag over the window swaps the
+    // selection chip and the pinned commands for the pinned apps.
+    const bool drop_mode = s.toolbarDropMode;
+    if (vm.pane.selected_count > 0 && !drop_mode) vm.selection_actions = SelectionChipActions(s);
+    s.renderer.SetToolbarSelection(drop_mode ? 0 : vm.pane.selected_count,
+                                   static_cast<int>(vm.selection_actions.size()));
+    if (!drop_mode) vm.toolbar_pins = ToolbarPinActions(s);
+    vm.toolbar_apps = ToolbarAppPins(s);
+    vm.toolbar_drop_mode = drop_mode;
+    if (drop_mode) {
+        vm.toolbar_drop_app = s.dropToolbarApp;
+        vm.toolbar_drop_force = s.dropToolbarForce;
+        vm.toolbar_drop_pin = s.dropToolbarPin;
+        if (!s.toolbarDropProgram.empty()) {
+            vm.toolbar_drop_label = l10n::Get(l10n::StringId::ToolbarPinApp);
+            const size_t at = vm.toolbar_drop_label.find(L"{app}");
+            const size_t slash = s.toolbarDropProgram.find_last_of(L"\\/");
+            if (at != std::wstring::npos)
+                vm.toolbar_drop_label.replace(at, 5, fs::StripLnkSuffix(
+                    slash == std::wstring::npos ? s.toolbarDropProgram : s.toolbarDropProgram.substr(slash + 1)));
+        } else if (!vm.toolbar_apps.empty()) {
+            vm.toolbar_drop_label = l10n::Get(l10n::StringId::ToolbarDropToOpen);
+        }
+    }
+    s.renderer.SetToolbarPrefs(s.appPrefs.toolbar_new_primary, s.appPrefs.toolbar_last_new == 1,
+                               static_cast<int>(vm.toolbar_pins.size() + vm.toolbar_apps.size()));
+    s.renderer.SetToolbarApps(static_cast<int>(vm.toolbar_pins.size()), drop_mode, vm.toolbar_drop_label);
+    vm.settings_preview_trigger = s.appPrefs.preview_trigger;
+    vm.settings_hover_delay_ms = s.appPrefs.hover_preview_delay_ms;
+    vm.settings_hover_card_size = s.appPrefs.hover_card_size;
     return vm;
 }
 

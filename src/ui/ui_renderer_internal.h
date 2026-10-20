@@ -1966,6 +1966,7 @@ inline LulingPreviewLayout LayoutLulingPreview(const WindowViewModel& vm, const 
 }
 
 struct SettingsLayout {
+    SysCtxLayout sysctx;  // page 6, see LayoutSettingsSysCtx
     // Cards 0-4: Explorer groups (with a master switch). Card 5: Luling's own
     // commands, rows only (context_toggle[5] stays empty).
     static constexpr int kContextCards = 6;
@@ -1985,6 +1986,8 @@ struct SettingsLayout {
     D2D1_RECT_F integration_section{}, integration_badge{}, integration_bar{}, integration_list_head{};
     D2D1_RECT_F integration_chip[4]{};
     float integration_text_right = 0.0f;
+    D2D1_RECT_F trigger_section{}, trigger_row{}, trigger_choice[2]{}, hover_delay_row{},
+        hover_delay_choice[3]{}, hover_size_row{}, hover_size_choice[3]{};
     // Quick Look page: formats, source legend and system extensions.
     D2D1_RECT_F preview_section{}, preview_group{}, preview_formats{}, preview_legend{}, preview_legend_note{};
     D2D1_RECT_F preview_header_title{}, preview_header_summary{};
@@ -2154,6 +2157,7 @@ float ReleaseLineHeight(const fluent::Painter* painter, const std::wstring& line
 }
 
 #include "settings_layout_sections.h"
+#include "settings_sysctx_layout.h"
 
 
 SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& rect,
@@ -2512,6 +2516,8 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         }
         l.release_card = D2D1::RectF(card_left, release_top, card_right, ry + 10.0f * scale);
         y = l.release_card.bottom + 24.0f * scale;
+    } else if (vm.settings_page == 6) {
+        y = LayoutSettingsSysCtx(l, vm, scale, y, painter);
     } else if (vm.settings_page == 5) {
         y = LayoutSettingsPacks(l, vm, scale, y, painter);
     } else if (vm.settings_page == 4) {

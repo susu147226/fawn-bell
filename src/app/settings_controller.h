@@ -19,6 +19,7 @@ namespace luling::packs { enum class PackId : uint32_t; }
 namespace luling::index { class IndexClient; class NetworkAgentClient; }
 
 namespace luling::app {
+class SystemCtxModel;
 
 enum class SettingsEffect : uint32_t {
     None = 0,
@@ -216,6 +217,7 @@ public:
     bool service_installed() const noexcept { return service_installed_; }
     void SetServiceInstalled(bool installed) noexcept { service_installed_ = installed; }
 
+    SystemCtxModel& SystemCtx();
     void BindUi(AppPrefs& prefs, ContextMenuPrefs& context, index::IndexClient& index,
                 index::NetworkAgentClient& network, UiCallbacks callbacks);
     void ResetUi() noexcept;
@@ -347,6 +349,7 @@ private:
     bool service_installed_ = false;
     AppPrefs* prefs_ = nullptr;
     ContextMenuPrefs* context_ = nullptr;
+    std::shared_ptr<SystemCtxModel> sysctx_;  // shared_ptr: fine with the forward declaration
     index::IndexClient* index_ = nullptr;
     index::NetworkAgentClient* network_ = nullptr;
     UiCallbacks ui_;

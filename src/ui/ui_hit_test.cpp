@@ -581,6 +581,14 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             } else if (vm.settings_page == 5) {
                 // Buttons first: they sit inside the clickable rows.
                 const std::pair<const D2D1_RECT_F*, PackAction> pack_targets[] = {
+                    {&lay.trigger_choice[0], PackAction::TriggerHover},
+                    {&lay.trigger_choice[1], PackAction::TriggerSpace},
+                    {&lay.hover_delay_choice[0], PackAction::HoverDelayShort},
+                    {&lay.hover_delay_choice[1], PackAction::HoverDelayMedium},
+                    {&lay.hover_delay_choice[2], PackAction::HoverDelayLong},
+                    {&lay.hover_size_choice[0], PackAction::HoverSizeSmall},
+                    {&lay.hover_size_choice[1], PackAction::HoverSizeMedium},
+                    {&lay.hover_size_choice[2], PackAction::HoverSizeLarge},
                     {&lay.pack_open, PackAction::OpenFolder},
                     {&lay.pack_primary, vm.settings_pack_media_installed && !vm.settings_pack_installing
                                             ? PackAction::Remove : PackAction::Install},
@@ -631,6 +639,13 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         r.index = static_cast<int>(action);
                         return r;
                     }
+                }
+            } else if (vm.settings_page == 6) {
+                const int target = HitTestSettingsSysCtx(lay, vm, x, y);
+                if (target >= 0) {
+                    r.region = HitTestResult::SettingsSysCtx;
+                    r.index = target;
+                    return r;
                 }
             } else if (vm.settings_page == 4) {
                 for (int i = 0; i < 3; ++i) {
@@ -761,7 +776,26 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 ? HitTestResult::FilterClear : HitTestResult::FilterBox;
             return r;
         }
-        if (ContainsPt(toolbar.create,x,y)) {r.region=HitTestResult::NewButton; return r;}
+        if (ContainsPt(toolbar.create,x,y)) {
+            const bool compactNew=rect.right-EffectiveSidebarWidth(rect.right) < 600 * scale_;
+            r.region=ContainsPt(NewArrowSegment(toolbar.create,compactNew),x,y)
+                ? HitTestResult::NewButtonArrow : HitTestResult::NewButton;
+            return r;
+        }
+        if (vm.pane.selected_count > 0 && !vm.toolbar_drop_mode) {
+            const ToolbarSelectionChip sel=SelectionChipAt(toolbar,rect.right,vm.pane.selected_count,
+                static_cast<int>(vm.selection_actions.size()));
+            if (ContainsPt(sel.chip,x,y)) {
+                // The chip body (-1) takes the right-click menu too.
+                r.region=HitTestResult::ToolbarSelAction; r.index=-1;
+                for (int i=0;i<kSelChipSlots;++i) if (ContainsPt(sel.buttons[static_cast<size_t>(i)],x,y)) r.index=i;
+                return r;
+            }
+        }
+        for (size_t i=0;i<toolbar.pins.size();++i) if (ContainsPt(toolbar.pins[i],x,y)) {
+            r.region=HitTestResult::ToolbarPin; r.index=static_cast<int>(i); return r;
+        }
+        if (ContainsPt(toolbar.pin_label,x,y)) { r.region=HitTestResult::ToolbarPinLabel; return r; }
         const HitTestResult::Region commands[]={HitTestResult::Cut,HitTestResult::Copy,HitTestResult::Paste,
             HitTestResult::Rename,HitTestResult::Delete,HitTestResult::SplitButton,HitTestResult::DetailsToggle,HitTestResult::PaneColumnLayout};
         for(int i=0;i<8;++i) if(ContainsPt(toolbar.commands[i],x,y)) {r.region=commands[i]; return r;}

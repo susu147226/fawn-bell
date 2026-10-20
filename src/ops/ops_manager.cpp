@@ -1300,6 +1300,8 @@ std::wstring OpsManager::UndoLabel() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (undo_.empty()) return L"";
     const UndoEntry& e = undo_.back();
+    if (e.supported && !e.label.empty())
+        return l10n::IsChinese() ? std::wstring(l10n::Cn(L"撤销")) + e.label : L"Undo " + LowerFirst(e.label);
     if (!e.supported) {
         if (l10n::IsChinese())
             return std::wstring(l10n::Cn(L"撤销")) + OpVerb(e.type) + l10n::Cn(L"（不支持）");
@@ -1349,6 +1351,8 @@ void OpsManager::PushUndo(const OpRequest& req, uint64_t task_id,
     if (actual_destinations) e.destinations = *actual_destinations;
     e.dest_dir = req.dest_dir;
     e.new_name = req.new_name;
+    e.group = req.undo_group;
+    e.label = req.undo_label;
     if (req.type == OpType::RealDelete) return;              // never undoable, not recorded
     if (req.type == OpType::RestoreRecycle) return;
     if (req.type == OpType::EmptyRecycle) return;
@@ -1378,24 +1382,42 @@ std::vector<FinishedTask> OpsManager::DrainFinishedTasks() {
     return out;
 }
 
+bool OpsManager::GroupPendingLocked(uint64_t group) const {
+    if (!group) return false;
+    if (active_item_ && active_item_->req.undo_group == group) return true;
+    return std::any_of(queue_.begin(), queue_.end(), [group](const QueueItem& item) {
+        return item.req.undo_group == group;
+    });
+}
+
 void OpsManager::Undo() {
-    UndoEntry e;
+    std::vector<UndoEntry> batch;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (update_preparing_ || undo_.empty()) return;
-        e = undo_.back();
-        if (!e.supported) {
+        if (GroupPendingLocked(undo_.back().group)) {
+            // Undoing half an action would strand the rest; wait for it.
+            deferred_undo_group_ = undo_.back().group;
+            return;
+        }
+        if (!undo_.back().supported) {
             // Leave the entry; report why it cannot be undone.
             status_.last_error = l10n::Pick(L"回收站删除暂不支持撤销（1B-2 恢复方案：枚举 $Recycle.Bin 还原）", L"Undo is not supported for items moved to the Recycle Bin");
         } else {
-            undo_.pop_back();
+            // One user action recorded as several operations undoes as one
+            // step, newest first; the queue runs the inverses in that order.
+            const uint64_t group = undo_.back().group;
+            do {
+                batch.push_back(std::move(undo_.back()));
+                undo_.pop_back();
+            } while (group && !undo_.empty() && undo_.back().group == group && undo_.back().supported);
         }
     }
-    if (!e.supported) {
+    if (batch.empty()) {
         if (notify_) notify_();
         return;
     }
-
+    for (const UndoEntry& e : batch) {
     switch (e.type) {
     case OpType::Move: {
         // Move each actual destination back to its exact original name and parent.
@@ -1468,6 +1490,7 @@ void OpsManager::Undo() {
     }
     default:
         break;
+    }
     }
 }
 
@@ -1773,8 +1796,16 @@ void OpsManager::WorkerThread() {
         // Opens/verbs run on OpenThread — never block transfers.
         if (!item.open_path.empty()) continue;
 
-        const bool run = (!item.req.lock_retry && item.req.close_first.empty()) ||
-                         PrepareLockRetry(item.req, item.seq);
+        if (item.req.type == OpType::RecycleDelete && item.req.only_if_empty) {
+            auto& sources = item.req.sources;
+            sources.erase(std::remove_if(sources.begin(), sources.end(), [](const std::wstring& path) {
+                std::error_code error;
+                return !std::filesystem::is_directory(path, error) || !std::filesystem::is_empty(path, error) || error;
+            }), sources.end());
+        }
+        const bool skip = item.req.only_if_empty && item.req.sources.empty();
+        const bool run = !skip && ((!item.req.lock_retry && item.req.close_first.empty()) ||
+                         PrepareLockRetry(item.req, item.seq));
         moved_sources_.clear();
         const auto diagnostic_started = GetTickCount64();
         diagnostics::runtime::Event("file_operation_begin", {{"task", item.seq},
@@ -1792,6 +1823,7 @@ void OpsManager::WorkerThread() {
             {"phase", static_cast<uint64_t>(diagnostic_status.phase)}, {"items", diagnostic_status.completed_items},
             {"bytes", diagnostic_status.transferred_bytes}, {"has_error", !diagnostic_status.last_error.empty()},
             {"elapsed_ms", GetTickCount64() - diagnostic_started}});
+        bool run_deferred_undo = false;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             FinishedTask finished;
@@ -1805,7 +1837,12 @@ void OpsManager::WorkerThread() {
                 })) finished.moved_sources.push_back(source);
             finished_tasks_.push_back(std::move(finished));
             active_item_.reset();
+            if (deferred_undo_group_ && !GroupPendingLocked(deferred_undo_group_)) {
+                deferred_undo_group_ = 0;
+                run_deferred_undo = true;
+            }
         }
+        if (run_deferred_undo) Undo();
         if (notify_) notify_();
         PersistJournal();
     }

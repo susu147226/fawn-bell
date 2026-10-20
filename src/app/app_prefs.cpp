@@ -231,6 +231,20 @@ std::wstring AppPrefs::ToJson() const {
     out += L",\n  \"auto_check_updates\":";
     out += auto_check_updates ? L"true" : L"false";
     out += L",\n  \"tips_seen\":" + std::to_wstring(tips_seen);
+    out += L",\n  \"preview_trigger\":" + std::to_wstring(preview_trigger);
+    out += L",\n  \"hover_preview_delay_ms\":" + std::to_wstring(hover_preview_delay_ms);
+    out += L",\n  \"hover_card_size\":" + std::to_wstring(hover_card_size);
+    out += L",\n  \"toolbar_new_primary\":" + std::to_wstring(toolbar_new_primary);
+    out += L",\n  \"toolbar_last_new\":" + std::to_wstring(toolbar_last_new);
+    out += L",\n  \"toolbar_pins\":" + std::to_wstring(toolbar_pins);
+    out += L",\n  \"toolbar_apps\":[";
+    for (size_t i = 0; i < toolbar_apps.size(); ++i) {
+        std::wstring escaped_app;
+        luling::json::Escape(toolbar_apps[i], escaped_app);
+        if (i > 0) out += L",";
+        out += L"\"" + escaped_app + L"\"";
+    }
+    out += L"]";
     // Legacy three-level keys stay for older builds reading the same app.json.
     out += L",\n  \"wallpaper_look\":";
     out += std::to_wstring(wallpaper_look < 38 ? 0 : (wallpaper_look < 63 ? 1 : 2));
@@ -369,6 +383,21 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     auto_check_updates = luling::json::ExtractBool(json, L"auto_check_updates", true);
     const int seen = luling::json::ExtractInt(json, L"tips_seen", 0);
     tips_seen = seen > 0 ? static_cast<uint32_t>(seen) : 0u;
+    preview_trigger = NormalizePreviewTrigger(luling::json::ExtractInt(json, L"preview_trigger", 0));
+    hover_preview_delay_ms = NormalizeHoverPreviewDelay(luling::json::ExtractInt(json, L"hover_preview_delay_ms", 500));
+    hover_card_size = NormalizeHoverCardSize(luling::json::ExtractInt(json, L"hover_card_size", 1));
+    const int tb_primary = luling::json::ExtractInt(json, L"toolbar_new_primary", 0);
+    toolbar_new_primary = tb_primary >= 0 && tb_primary <= 2 ? tb_primary : 0;
+    toolbar_last_new = luling::json::ExtractInt(json, L"toolbar_last_new", 0) == 1 ? 1 : 0;
+    const int tb_pins = luling::json::ExtractInt(json, L"toolbar_pins", 0);
+    toolbar_pins = tb_pins > 0 ? static_cast<uint32_t>(tb_pins) & 0x1Fu : 0u;
+    toolbar_apps.clear();
+    for (auto& app : luling::json::ExtractStringArray(json, L"toolbar_apps")) {
+        if (app.empty() || toolbar_apps.size() >= 8) continue;
+        bool pinned = false;
+        for (const auto& kept : toolbar_apps) pinned = pinned || _wcsicmp(kept.c_str(), app.c_str()) == 0;
+        if (!pinned) toolbar_apps.push_back(std::move(app));
+    }
     if (tray_icon_size < 32 || tray_icon_size > 64) tray_icon_size = 48;
     {
         // Continuous values; migrate the former 0/1/2 levels when absent.

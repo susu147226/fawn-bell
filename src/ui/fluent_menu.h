@@ -15,6 +15,7 @@
 // FluentMenuModel is the windowless layout/hit-test half; the console
 // self-test drives it directly with a standalone DWrite factory.
 #pragma once
+#include "../common/menu_icon.h"
 #include "fluent_components.h"
 
 #include <dwrite_3.h>
@@ -65,6 +66,9 @@ struct FluentMenuItem {
     bool shortcut_inline = false; // Search paths follow a shared, compact filename column.
     int trailing_command = 0;     // Optional hover-revealed close action at the right edge.
     std::wstring tooltip;
+    // App icon of an Explorer row (handler bitmap / registry verb icon), drawn
+    // in place of the glyph like Explorer does. Does not affect layout.
+    common::MenuIconRef icon;
 };
 
 // Windowless menu layout + hit-testing (theme.row_menu = 36 DIP rows by default).

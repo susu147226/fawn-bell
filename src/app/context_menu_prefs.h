@@ -89,6 +89,9 @@ struct ContextMenuPrefs {
     // key: ".dwg" / ":folder" / ":drive" / ":bg" / ":file". Returns true if prefs changed.
     bool RecordComTiming(const std::wstring& key, uint32_t elapsed_ms);
     bool ComDeferred(const std::wstring& key) const;
+    // Catalog keys the user hid: Settings > 系统右键菜单 marks these rows.
+    std::vector<std::wstring> HiddenCatalogKeys() const;
+
     bool ComDisabled(const std::wstring& key) const;
     void SetComDisabled(const std::wstring& key, bool on);
     bool BuiltinVisible(BuiltinMenuItem item) const {

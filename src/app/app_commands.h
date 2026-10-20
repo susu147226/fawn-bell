@@ -1,5 +1,7 @@
 // app_commands.h — Menus, omnibar, view/split, tags, settings chrome.
 #pragma once
+#include "drive_verbs.h"
+#include "../ui/toolbar_customize_dialog.h"
 #include "app_runtime.h"
 #include "../ui/quick_preview_command.h"
 
@@ -65,7 +67,7 @@ std::vector<ui::FluentMenuItem> ExplorerMenu(
     AppState& s, const std::vector<ui::FluentMenuItem>& base);
 void RefreshOpenCtxMenu(AppState& s);
 bool HandleShellMenuCommand(AppState& s, int cmd);
-void ShowItemContextMenu(AppState& s, POINT screen_pt);
+void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip = false);
 void ShowBackgroundContextMenu(AppState& s, POINT screen_pt);
 void ShowBreadcrumbMenu(AppState& s, std::wstring path, POINT screen_pt);
 void ShowNewDropdown(AppState& s);
@@ -87,10 +89,53 @@ void ShowSortDropdown(AppState& s);
 // Toolbar "Group" button: the group-by choices on their own.
 void ShowGroupDropdown(AppState& s);
 void ShowToolbarMore(AppState& s);
+// built-in commands of the item menu as the user configured it (order and
+// visibility from Settings > Pulse menu), cached per selection.
+std::vector<ui::SelectionChipAction> SelectionChipActions(AppState& s);
+// 0-2 quick action, ui::kSelChipMore the full item menu, ui::kSelChipClear clear.
+void RunToolbarSelectionAction(AppState& s, int action);
+// One entry for the click chain: a pinned command (pin) or a chip button.
+void RunToolbarAction(AppState& s, bool pin, int index);
+// Pinned toolbar commands (自定义工具栏) in toolbar order, enabled per state.
+std::vector<ui::SelectionChipAction> ToolbarPinActions(AppState& s);
+// The New button's main part makes a folder, unless "remember the last
+// type" last saw a text document.
+bool ToolbarNewCreatesFolder(const AppState& s);
+// The 自定义工具栏 sheet; Done saves app.json.
+void ShowToolbarCustomize(AppState& s);
+// Pinned apps (自定义工具栏 → 固定的软件), app_toolbar_apps.cpp.
+// Toolbar entries in pin order, with their fit against the selection (or the
+// dragged items in drop mode).
+std::vector<ui::WindowViewModel::ToolbarAppPin> ToolbarAppPins(AppState& s);
+// Click: opens the selected items the app takes, or just starts it.
+void RunToolbarApp(AppState& s, size_t app);
+// Opens `items` with pinned app `app`: only the types it opens unless `all`.
+void OpenWithToolbarApp(AppState& s, size_t app, const std::vector<std::wstring>& items, bool all);
+// Adds a program (.exe or a shortcut to one) to the pins and saves.
+bool PinToolbarApp(AppState& s, const std::wstring& path);
+std::wstring ToolbarAppTooltip(AppState& s, size_t app);
+// Drag over the window: drop mode on/off for these sources (before BuildVm),
+// then the drop on an app or on the label (after the hit test). Returns true
+// when the toolbar took the point; `effect` is the DROPEFFECT to report.
+void UpdateToolbarDropMode(AppState& s, const std::vector<std::wstring>& sources);
+bool ResolveToolbarAppDrop(AppState& s, const ui::WindowViewModel& vm, const ui::HitTestResult& hit,
+                           const std::vector<std::wstring>& sources, POINT pt, DWORD key_state,
+                           DWORD allowed, DWORD& effect);
+// Selection chip ⋯: 用 <pinned app> 打开 rows and a 固定到工具栏 ▸ flyout of
+// suggested apps; RunToolbarAppMenuCommand handles their ids.
+std::vector<ui::FluentMenuItem> ToolbarAppMenuItems(AppState& s);
+bool RunToolbarAppMenuCommand(AppState& s, int command);
+// The 自定义工具栏 sheet's 固定的软件 section: pinned apps, two suggestions
+// for this folder and 添加软件…; Apply returns true when the pins changed.
+void FillToolbarAppRows(AppState& s, ui::ToolbarCustomizeSpec& spec);
+bool ApplyToolbarAppRows(AppState& s, const ui::ToolbarCustomizeSpec& spec);
+// Pulse's file picker for a program (.exe or shortcut), opening in the Start menu.
+bool PickToolbarAppFile(AppState& s, HWND owner, std::wstring& path);
 void ShowOmnibar(AppState& s, OmnibarMode mode);
 void ShowAdvancedSearch(AppState& s, bool require_scope = false);
 void ShowSearchFilterMenu(AppState& s, int chip, RECT control_rect);
 void ShowRecyclePlaceMenu(AppState& s, POINT screen_pt);
+
 // Rebuilds the sidebar model (quick access, OneDrive accounts, drives, saved
 // searches). Used on startup, after a language switch, and when the volume set
 // changes (a plugged-in stick, a mounted image).
@@ -111,6 +156,7 @@ bool PickFolder(AppState& s, std::wstring& path, const wchar_t* title);
 D2D1_COLOR_F ResolveAccentColor(const app::AppPrefs& prefs, bool dark = false);
 void ApplyAccentFromPrefs(AppState& s, bool snap_picker);
 bool SelectedQuickPreviewItem(AppState& s, ui::QuickPreviewItem& item);
+bool QuickPreviewItemForRow(AppState& s, const app::Tab& tab, int index, ui::QuickPreviewItem& item);
 void ToggleQuickPreview(AppState& s);
 void NavigateQuickPreview(AppState& s, int direction);
 // File verb requested from inside the quick preview (WM_QUICK_PREVIEW_COMMAND).
@@ -124,4 +170,10 @@ app::SettingsTaskCompletion SettingsCompletion(HWND hwnd);
 void SetThemeMode(AppState& s, int mode);
 bool HandleSettingsControl(AppState& s, const ui::HitTestResult& hit);
 void ToggleTheme(AppState& s);
+void ApplyDriveVerbResult(AppState& s, const app::DriveVerbResult& result);
+
+bool SysCtxPreviewDragMove(AppState& s, int x, int y, WPARAM buttons);
+bool SysCtxPreviewDragEnd(AppState& s, int x, int y);
+bool SysCtxPreviewDragCancel(AppState& s);
+
 } // namespace luling

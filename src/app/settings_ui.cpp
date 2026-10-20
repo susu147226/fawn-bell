@@ -1,4 +1,7 @@
 #include "app_internal.h"
+#include <shlobj.h>
+#include "system_ctx_model.h"
+#include "app_hover_preview.h"
 #include "../common/windows_compat.h"
 #include "../common/localization.h"
 #include "about_info.h"
@@ -12,6 +15,7 @@
 #include <cmath>
 
 namespace luling {
+void SysCtxAction(AppState& s, int index);
 namespace {
 using I=l10n::StringId;
 using H=ui::HitTestResult;
@@ -152,6 +156,7 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
     }
     case H::SettingsIntegration: s.settings.IntegrationAction(hit.index);break;
     case H::SettingsPreviewStore: ui::OpenPreviewCodecStore(s.hwnd,hit.index);break;
+    case H::SettingsSysCtx: SysCtxAction(s,hit.index);break;
     case H::SettingsPackAction: {
         bool refresh=false;
         switch(static_cast<ui::PackAction>(hit.index)) {
@@ -176,6 +181,29 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
         case ui::PackAction::ArchiveUpdate: refresh=s.settings.UpdatePack(packs::PackId::Archives,s.hwnd);break;
         case ui::PackAction::TranscodeUpdate: refresh=s.settings.UpdatePack(packs::PackId::Transcode,s.hwnd);break;
         case ui::PackAction::AutoUpdate: s.settings.ToggleAutoUpdatePacks();break;
+        case ui::PackAction::TriggerHover:
+        case ui::PackAction::TriggerSpace:
+            s.appPrefs.preview_trigger = app::NormalizePreviewTrigger(
+                hit.index - static_cast<int>(ui::PackAction::TriggerHover));
+            if (!s.isolatedTest) s.appPrefs.Save();
+            if (s.appPrefs.preview_trigger != app::kPreviewTriggerHover) HideHoverPreview(s);
+            break;
+        case ui::PackAction::HoverDelayShort:
+        case ui::PackAction::HoverDelayMedium:
+        case ui::PackAction::HoverDelayLong: {
+            const int delays[] = {300, 500, 800};
+            s.appPrefs.hover_preview_delay_ms = delays[std::clamp(
+                hit.index - static_cast<int>(ui::PackAction::HoverDelayShort), 0, 2)];
+            if (!s.isolatedTest) s.appPrefs.Save();
+            break;
+        }
+        case ui::PackAction::HoverSizeSmall:
+        case ui::PackAction::HoverSizeMedium:
+        case ui::PackAction::HoverSizeLarge:
+            s.appPrefs.hover_card_size = app::NormalizeHoverCardSize(
+                hit.index - static_cast<int>(ui::PackAction::HoverSizeSmall));
+            if (!s.isolatedTest) s.appPrefs.Save();
+            break;
         case ui::PackAction::InstallAll: {
             // One pass over what is missing; packs already on disk are left alone
             // rather than downloaded again. Each download reports its own result
@@ -265,4 +293,180 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
     }
     InvalidateRect(s.hwnd,nullptr,FALSE);return true;
 }
+}
+namespace luling {
+// 系统右键菜单 "只在 Pulse 隐藏": ContextMenuPrefs only, Windows is unchanged.
+// Queued with the registry switches; SysCtxApply saves it.
+void SysCtxTogglePulse(AppState& s,int row) {
+    s.settings.SystemCtx().TogglePulseRow(row);
+    InvalidateRect(s.hwnd,nullptr,FALSE);
+}
+// 应用更改: Pulse's own switches go to ContextMenuPrefs (the same calls as the
+// Pulse menu's rows, SettingsController::ToggleUi), the registry ones to the job.
+void SysCtxApply(AppState& s) {
+    auto& model=s.settings.SystemCtx();
+    const auto pulse=model.TakePulseChanges();
+    if(!pulse.empty()) {
+        for(const auto& [key,hidden]:pulse.hidden) s.ctxMenuPrefs.SetItemEnabled(key,!hidden);
+        for(const auto& clsid:pulse.skipped) s.ctxMenuPrefs.SetComDisabled(ipc::HandlerCatalogKey(clsid),true);
+        s.ctxMenuPrefs.Save();
+    }
+    model.ApplyPending();
+}
+// 系统右键菜单 row "…": copy the registry path, open the program's folder,
+// hide it in Pulse only, delete a leftover (queued like the switches).
+// row -1: the selected entry (details panel).
+void SysCtxRowMenu(AppState& s,int row) {
+    auto& model=s.settings.SystemCtx();
+    const std::wstring key=model.RowRegistryPath(row),file=model.RowFile(row);
+    const std::wstring pulse_key=model.RowPulseKey(row);
+    std::vector<ui::FluentMenuItem> items;
+    auto add=[&](int command,const wchar_t* text,bool enabled) {
+        ui::FluentMenuItem item;item.command=command;item.text=text;item.enabled=enabled;items.push_back(std::move(item));
+    };
+    const size_t slash=file.find_last_of(L"\\/");
+    const std::wstring folder=slash==std::wstring::npos ? std::wstring() : file.substr(0,slash);
+    add(1,l10n::Pick(L"复制注册表路径",L"Copy registry path"),!key.empty());
+    add(2,l10n::Pick(L"复制程序路径",L"Copy program path"),!file.empty());
+    add(3,l10n::Pick(L"在新标签页打开所在文件夹",L"Open its folder in a new tab"),!folder.empty());
+    if(!pulse_key.empty()) {
+        items.back().separator_after=true;
+        add(4,l10n::Pick(L"只在 Pulse 右键菜单中隐藏",L"Hide in Pulse's menu only"),true);
+        items.back().checked=model.RowPulseHidden(row);
+    }
+    if(model.RowDeletable(row)) {
+        items.back().separator_after=true;
+        const bool deleting=model.RowDeleting(row);
+        add(5,deleting ? l10n::Pick(L"取消删除",L"Keep it")
+                       : l10n::Pick(L"删除残留项（点“应用更改”后生效）",L"Delete leftover (on Apply changes)"),true);
+    }
+    const int command=Popup(s,std::move(items));
+    if(command==1) app::CopyTextToClipboard(s.hwnd,key);
+    else if(command==2) app::CopyTextToClipboard(s.hwnd,file);
+    else if(command==3 && GetFileAttributesW(folder.c_str())!=INVALID_FILE_ATTRIBUTES) NewTab(s,folder);
+    else if(command==4) SysCtxTogglePulse(s,row);
+    else if(command==5) {model.DeleteRow(row);InvalidateRect(s.hwnd,nullptr,FALSE);}
+}
+void SysCtxOpenFolder(AppState& s,const std::wstring& file) {
+    const size_t slash=file.find_last_of(L"\\/");
+    if(slash==std::wstring::npos) return;
+    const std::wstring folder=file.substr(0,slash);
+    if(GetFileAttributesW(folder.c_str())!=INVALID_FILE_ATTRIBUTES) NewTab(s,folder);
+}
+// 全部还原…: confirm in a menu first; it may need one UAC.
+void SysCtxRestoreAll(AppState& s) {
+    std::vector<ui::FluentMenuItem> items;
+    ui::FluentMenuItem item;item.command=1;
+    item.text=l10n::Pick(L"撤销这次打开 Pulse 以来的全部改动",L"Undo every change made since Pulse started");
+    items.push_back(std::move(item));
+    ui::FluentMenuItem cancel;cancel.command=0;cancel.text=l10n::Pick(L"取消",L"Cancel");items.push_back(std::move(cancel));
+    if(Popup(s,std::move(items))==1) s.settings.SystemCtx().RestoreAll();
+}
+void SysCtxAction(AppState& s,int index) {
+    auto& model=s.settings.SystemCtx();
+    if(index==ui::kSysCtxLocalLayer) {OpenSettingsTab(s,2);return;}
+    if(index==ui::kSysCtxDetailPulse) {SysCtxTogglePulse(s,-1);return;}
+    if(index==ui::kSysCtxLog) {
+        const std::wstring dir=model.DataDirectory();
+        if(!dir.empty() && SHCreateDirectoryExW(nullptr,dir.c_str(),nullptr)<=ERROR_ALREADY_EXISTS) NewTab(s,dir);
+        return;
+    }
+    if(index>=ui::kSysCtxRemoveBase) {
+        // A leftover row's own 删除 / 撤回 button: queued like its switch.
+        model.DeleteRow(index-ui::kSysCtxRemoveBase);
+        InvalidateRect(s.hwnd,nullptr,FALSE);
+        return;
+    }
+    if(index>=ui::kSysCtxSlowSkipBase) {
+        // 概览 buttons. Pulse 跳过 only stops Pulse loading the handler; Windows is unchanged.
+        if(index>=ui::kSysCtxMarkRestoreBase) model.RestoreMarkRow(index-ui::kSysCtxMarkRestoreBase);
+        else if(index>=ui::kSysCtxSlowToggleBase) model.ToggleSlowRow(index-ui::kSysCtxSlowToggleBase);
+        else model.QueueSlowSkip(index-ui::kSysCtxSlowSkipBase);  // saved by 应用更改
+        InvalidateRect(s.hwnd,nullptr,FALSE);
+        return;
+    }
+    if(index>=ui::kSysCtxPreviewBase) {
+        // Live preview item: arm a drag; a release without moving selects it.
+        const int item=index-ui::kSysCtxPreviewBase;
+        const auto vm=BuildVm(s,false);
+        const auto rect=D2D1::RectF(0,0,static_cast<float>(s.compositor.Width()),static_cast<float>(s.compositor.Height()));
+        POINT pt{};GetCursorPos(&pt);ScreenToClient(s.hwnd,&pt);
+        const float top=s.renderer.SysCtxPreviewItemTop(vm,rect,item);
+        if(std::isnan(top)) return;
+        model.BeginPreviewDrag(item,static_cast<float>(pt.y),static_cast<float>(pt.y)-top);
+        SetCapture(s.hwnd);
+        InvalidateRect(s.hwnd,nullptr,FALSE);
+        return;
+    }
+    if(index>=ui::kSysCtxMoreBase) {SysCtxRowMenu(s,index-ui::kSysCtxMoreBase);return;}
+    if(index==ui::kSysCtxDetailCopy) {app::CopyTextToClipboard(s.hwnd,model.RowRegistryPath(-1));return;}
+    if(index==ui::kSysCtxDetailFolder) {SysCtxOpenFolder(s,model.RowFile(-1));return;}
+    if(index==ui::kSysCtxDetailDelete) model.DeleteRow(-1);
+    else if(index==ui::kSysCtxClean) model.DeleteSceneLeftovers();
+    else if(index==ui::kSysCtxRestoreAll) SysCtxRestoreAll(s);
+    else if(index==ui::kSysCtxRefresh) model.Refresh();
+    else if(index==ui::kSysCtxApply) SysCtxApply(s);
+    else if(index==ui::kSysCtxDiscard) model.DiscardPending();
+    else if(index==ui::kSysCtxUndo) model.Undo();
+    else if(index==ui::kSysCtxTabPreview || index==ui::kSysCtxTabDetail) model.SetSideTab(index==ui::kSysCtxTabDetail ? 1 : 0);
+    else if(index==ui::kSysCtxDetailSwitch) model.ToggleRow(-1);
+    else if(index==ui::kSysCtxOverview) model.ShowOverview();
+    else if(index>=ui::kSysCtxSelectBase) model.SelectRow(index-ui::kSysCtxSelectBase);
+    else if(index>=ui::kSysCtxRowBase) model.ToggleRow(index-ui::kSysCtxRowBase);
+    else if(index>=ui::kSysCtxSceneBase) model.SelectScene(index-ui::kSysCtxSceneBase);
+    else if(index>=ui::kSysCtxSubBase) model.SelectSub(index-ui::kSysCtxSubBase);
+    else if(index>=ui::kSysCtxFilterBase) model.SetFilter(index-ui::kSysCtxFilterBase);
+    // Scenes, filters and details change the page height.
+    auto vm=BuildVm(s,false);
+    const float maximum=s.renderer.SettingsMaxScroll(vm,static_cast<float>(s.compositor.Width()),static_cast<float>(s.compositor.Height()));
+    s.settings.SetScroll(s.settings.scroll(),maximum);
+    InvalidateRect(s.hwnd,nullptr,FALSE);
+}
+
+// 系统右键菜单 live preview drag, from app_input (pointer captured on press).
+bool SysCtxPreviewDragMove(AppState& s,int x,int y,WPARAM buttons) {
+    (void)x;
+    auto& model=s.settings.SystemCtx();
+    if(model.PreviewDragItem()<0) return false;
+    if(!(buttons&MK_LBUTTON)) {  // capture lost without WM_LBUTTONUP
+        model.EndPreviewDrag();
+        if(GetCapture()==s.hwnd) ReleaseCapture();
+        InvalidateRect(s.hwnd,nullptr,FALSE);
+        return true;
+    }
+    if(model.PreviewDragMove(static_cast<float>(y))) InvalidateRect(s.hwnd,nullptr,FALSE);
+    // Captured: no WM_SETCURSOR arrives, so set the drag cursor here.
+    if(model.PreviewDragLive()) SetCursor(LoadCursorW(nullptr,IDC_SIZENS));
+    return true;
+}
+
+bool SysCtxPreviewDragEnd(AppState& s,int x,int y) {
+    auto& model=s.settings.SystemCtx();
+    const int item=model.PreviewDragItem();
+    if(item<0) return false;
+    if(model.PreviewDragLive()) {
+        const auto vm=BuildVm(s,false);
+        const auto rect=D2D1::RectF(0,0,static_cast<float>(s.compositor.Width()),static_cast<float>(s.compositor.Height()));
+        const int zone=s.renderer.SysCtxDropZone(vm,rect,static_cast<float>(x),static_cast<float>(y));
+        model.EndPreviewDrag();
+        if(zone!=ui::kSysCtxZoneNone) model.DropPreview(item,zone);
+    } else {
+        model.EndPreviewDrag();
+        model.SelectPreview(item);
+    }
+    if(GetCapture()==s.hwnd) ReleaseCapture();
+    InvalidateRect(s.hwnd,nullptr,FALSE);
+    return true;
+}
+
+bool SysCtxPreviewDragCancel(AppState& s) {
+    auto& model=s.settings.SystemCtx();
+    if(model.PreviewDragItem()<0) return false;
+    model.EndPreviewDrag();
+    if(GetCapture()==s.hwnd) ReleaseCapture();
+    InvalidateRect(s.hwnd,nullptr,FALSE);
+    return true;
+}
+
 } // namespace luling
+

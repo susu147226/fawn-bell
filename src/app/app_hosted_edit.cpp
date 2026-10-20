@@ -480,6 +480,12 @@ void HideRenameOverlay(AppState& s, bool commit) {
                     req.type = ops::OpType::Rename;
                     req.sources.push_back(full);
                     req.new_name = buf;
+                    // Naming the folder 合并到文件夹 just made is part of that
+                    // action: one undo takes the name, the move and the folder.
+                    if (s.groupRenameUndo && _wcsicmp(full.c_str(), s.groupRenameFolder.c_str()) == 0) {
+                        req.undo_group = s.groupRenameUndo;
+                        req.undo_label = l10n::Pick(L"合并到文件夹", L"new folder with selection");
+                    }
                     tab->pending_selected_name = buf;
                     tab->pending_selected_names = { buf };
                     tab->pending_selection_revision = tab->selection_revision;
@@ -491,6 +497,8 @@ void HideRenameOverlay(AppState& s, bool commit) {
             }
         }
     }
+    s.groupRenameUndo = 0;
+    s.groupRenameFolder.clear();
     s.renameIgnoreKillFocus = true;
     ShowWindow(s.hwndRenameEdit, SW_HIDE);
     if (s.hwnd) SetFocus(s.hwnd);

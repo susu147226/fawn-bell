@@ -1,6 +1,7 @@
 #include <thread>
 // app_navigation.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "../fs/bitlocker_volume.h"
 #include "../fs/shell_namespace.h"
 #include "network_locations.h"
 #include "shell_window_sync.h"
@@ -2476,6 +2477,24 @@ bool ActivateExistingFolderTab(AppState& s, const std::wstring& path) {
     RecordRecentOpen(s, fs::NormalizePath(path), app::PlaceItemKind::Folder);
     FlashTab(s, static_cast<size_t>(index));
     return true;
+}
+
+
+// A BitLocker unlock prompt finished: reload every listing that was waiting on
+// that volume, and This PC for its lock state.
+void ApplyBitLockerUnlock(AppState& s, const std::wstring& root, bool unlocked) {
+    if (!unlocked) return;
+    std::vector<std::wstring> paths{L""};
+    ForEachPane(s, [&](app::Pane& pane) {
+        app::Tab* tab = pane.ActiveTab();
+        if (!tab || tab->current_path.empty()) return;
+        if (_wcsicmp(fs::DriveRootOf(tab->current_path).c_str(), root.c_str()) == 0)
+            paths.push_back(tab->current_path);
+    });
+    std::sort(paths.begin(), paths.end());
+    paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
+    for (const std::wstring& path : paths) RefreshPath(s, path, RefreshReason::Explicit);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
 } // namespace luling

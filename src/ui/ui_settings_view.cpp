@@ -53,6 +53,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     static_assert(std::size(kNavIcon) == kSettingsNavCount);
     // Page 5 (快速预览) has no string-table entry; see pack_text.
     auto nav_label = [](int page) -> std::wstring {
+        if (page == 6) return std::wstring(sysctx_text::PageTitle());
         return page == 5 ? std::wstring(pack_text::Title()) : luling::l10n::Get(kNav[page]);
     };
     // Hover plate and selection pill glide between rows (ui_motion.h); the
@@ -103,7 +104,8 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         : vm.settings_page == 4 ? luling::l10n::StringId::SettingsDuplicates
                                 : luling::l10n::StringId::SettingsAboutDiagnostics;
     MakeBrush(dc, theme.text, brText_);
-    const std::wstring title = vm.settings_page == 5 ? std::wstring(pack_text::Title()) : l10n::Get(page_title_id);
+    const std::wstring title = vm.settings_page == 6 ? std::wstring(sysctx_text::PageTitle())
+        : vm.settings_page == 5 ? std::wstring(pack_text::Title()) : l10n::Get(page_title_id);
     ComPtr<IDWriteTextLayout> title_layout;
     compositor_->DwriteFactory()->CreateTextLayout(title.c_str(), static_cast<UINT32>(title.size()),
         compositor_->HeaderFormat(), lay.content.right-lay.content.left-pad*2, 40*scale_, &title_layout);
@@ -778,6 +780,8 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                 }
             }
         }
+    } else if (vm.settings_page == 6) {
+        DrawSettingsSysCtx(vm, rect, theme);
     } else if (vm.settings_page == 5) {
         DrawSettingsPacks(vm, rect, theme);
     } else if (vm.settings_page == 4) {

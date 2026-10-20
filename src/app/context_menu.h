@@ -142,6 +142,17 @@ enum MenuCmd : int {
     CmdConvertCompress = 100109,
     // Built-in "send to compressed folder" row (Explorer's zipped folder).
     CmdCompressZip = 100110,
+    CmdCustomizeToolbar = 3899, // toolbar More / New menu: 自定义工具栏 sheet
+    CmdEjectDrive = 3900,       // removable / optical / USB drive: 弹出
+    CmdDisconnectDrive = 3901,  // mapped network drive: 断开连接
+    CmdUnlockDrive = 3902,      // BitLocker-locked drive: 解锁
+    CmdMapNetworkDrive = 3903,  // a share, or This PC background: 映射网络驱动器
+    CmdUnpinNetwork = 3904,     // Network view: remove the selected pins
+    CmdGroupIntoFolder = 3910,  // 2+ items: 合并到文件夹
+    CmdDissolveFolder = 3911,   // folders only: 解散文件夹
+    // Toolbar pinned apps and pin suggestions (自定义工具栏).
+    CmdToolbarAppBase = 5100,
+    CmdToolbarPinAppBase = 5120,
 };
 
 // These sit above the session-local COM id window, so ExecuteShellCommand's

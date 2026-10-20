@@ -11,6 +11,9 @@
 #include "column_strip_layout.h"
 #include "panel_metrics.h"
 #include "toolbar_layout.h"
+#include "sysctx_view.h"
+#include "video_preview.h"
+#include "../common/menu_icon.h"
 #include "thumbnail_cache.h"
 #include "folder_thumbnail_cache.h"
 #include "archive_preview.h"
@@ -600,11 +603,34 @@ enum class PackAction : int {
     ArchiveInstall, ArchiveRemove, ArchiveEnable,
     // 转换 pack (0.2.0): FFmpeg with encoders, GPL.
     TranscodeInstall, TranscodeRemove, TranscodeEnable,
+    TriggerHover, TriggerSpace,                         // 预览方式: hover card / Space only
+    HoverDelayShort, HoverDelayMedium, HoverDelayLong,  // 悬停延迟: 0.3 / 0.5 / 0.8 s
+    HoverSizeSmall, HoverSizeMedium, HoverSizeLarge,    // 卡片尺寸: 小 / 中 / 大
     // Settings > 预览增强包: one pass over every pack still missing.
     InstallAll,
     // 更新到: the catalog's newer release of an installed pack.
     Update, ImagesUpdate, RawUpdate, ArchiveUpdate, TranscodeUpdate,
     AutoUpdate,         // 自动更新预览增强包: on / off
+};
+
+struct HoverPreviewView {
+    bool visible = false;
+    D2D1_RECT_F anchor{};        // the hovered item, client px
+    D2D1_POINT_2F pointer{};     // the pointer when the card opened, client px
+    std::wstring path, name, type_text;
+    DWORD attrs = 0;
+    uint64_t size = 0;
+    uint64_t modified = 0;       // FILETIME as uint64 (thumbnail cache key part)
+    bool video = false;          // videos loop silently in the well
+    HWND owner = nullptr;
+    unsigned long long shown_ms = 0;
+    bool slow = false;
+    bool dwell = false;
+    D2D1_RECT_F dwell_row{};
+    float dwell_progress = 0.0f;  // 0..1
+    int size_step = 1;            // 0 small, 1 medium, 2 large
+    bool zoom = false;            // Ctrl held: much larger, for a closer look
+    bool instant = false;         // --shot: no size easing between frames
 };
 
 struct WindowViewModel {
@@ -615,6 +641,34 @@ struct WindowViewModel {
 
     bool can_go_back = false;
     bool can_go_forward = false;
+
+    // File commands the selection allows (app::SelectionCaps).
+    bool selection_cut = false;
+    bool selection_copy = false;
+    bool selection_rename = false;
+    bool selection_delete = false;
+    bool paste_target = false;      // current folder is real and writable (toolbar paste)
+    bool clipboard_files = false;   // CF_HDROP on the clipboard (refreshed on WM_CLIPBOARDUPDATE)
+    // Toolbar selection chip: leading commands of the Luling item menu.
+    std::vector<SelectionChipAction> selection_actions;
+    // Pinned toolbar commands (自定义工具栏), enabled per the current state.
+    std::vector<SelectionChipAction> toolbar_pins;
+    // Pinned apps after them (layout.pins[toolbar_pins.size() + i]).
+    struct ToolbarAppPin {
+        std::wstring name;
+        common::MenuIconRef icon;
+        // Against the selection, or the dragged items in drop mode:
+        // 0 neutral, 1 opens all, 2 some, 3 none (app::AppFit).
+        int fit = 0;
+    };
+    std::vector<ToolbarAppPin> toolbar_apps;
+    // A file drag is over the window: the selection chip and the pinned
+    // commands give way, the apps (drop targets) stay.
+    bool toolbar_drop_mode = false;
+    int toolbar_drop_app = -1;            // app under the drag, index into toolbar_apps
+    bool toolbar_drop_force = false;      // Shift: opening a type the app does not list
+    bool toolbar_drop_pin = false;        // a dragged program goes onto the pins
+    std::wstring toolbar_drop_label;      // "拖到软件上打开" / "固定到工具栏" (layout.pin_label)
 
     PaneViewModel pane;
     std::vector<PaneSlotView> pane_slots;
@@ -685,6 +739,10 @@ struct WindowViewModel {
     bool address_search_content = false;
     bool settings_search_pinyin = true;
     bool settings_global_search_enabled = false;
+    std::shared_ptr<const SysCtxView> settings_sysctx;
+    int settings_preview_trigger = 0;
+    int settings_hover_delay_ms = 500;
+    int settings_hover_card_size = 1;
     bool settings_global_search_capturing = false;
     std::wstring settings_global_search_hotkey;
     std::wstring settings_global_search_error;
@@ -896,6 +954,10 @@ struct HitTestResult {
         PaneDetails,
         ToolbarSort,
         ToolbarMore,
+        ToolbarSelAction,   // selection chip: quick actions, kSelChipMore, kSelChipClear, -1 chip body
+        ToolbarPin,         // pinned command or app (自定义工具栏): index into layout.pins
+        ToolbarPinLabel,    // drop mode: the label ahead of the pinned apps
+        NewButtonArrow,     // chevron segment of the split New button: open the New menu
         AddressBar,
         AddressSearch,
         AddressSearchInput,
@@ -908,6 +970,7 @@ struct HitTestResult {
         NetworkDiscoverySettings,
         SettingsContentIndex,
         SettingsFind, SettingsDisclosure, SettingsTheme, SettingsDropdown,
+        SettingsSysCtx,        // Settings > 系统右键菜单: index = SysCtxHit
         SettingsContentAction,
         AddressSearchClear,
         AddressSearchClose,
@@ -1104,11 +1167,59 @@ public:
     float SidebarFullWidth(float window_width) const;
     // Toolbar geometry honoring the vertical-tabs split (row 1 in the title bar).
     ToolbarLayout ToolbarLayoutAt(float w, float create_width, float filter_expand = 0.0f) const;
+    // Selection chip of the toolbar (empty while nothing is selected).
+    ToolbarSelectionChip SelectionChipAt(const ToolbarLayout& layout, float width, int selected,
+                                         int action_count) const;
     // 0 = default width; otherwise the minimum search field width in DIP.
     void SetSearchBarMinWidth(float dip) { search_min_dip_ = dip; }
     // Toolbar "Group" button: -1 hidden, 0 not grouped, 1..4 app::GroupBy value.
     void SetToolbarGroup(int group_by) { toolbar_group_ = group_by; }
+    // 自定义工具栏: the New button's main action (0 folder, 1 the type made
+    // last, 2 menu only), whether that last type was a text document, and how
+    // many commands are pinned.
+    void SetToolbarPrefs(int new_primary, bool last_text, int pin_count) {
+        new_primary_ = new_primary;
+        new_last_text_ = last_text;
+        pin_count_ = pin_count;
+    }
+    // Pinned apps: where they start among the pins, and drop mode with its label.
+    void SetToolbarApps(int app_from, bool drop_mode, std::wstring drop_label) {
+        pin_app_from_ = app_from;
+        pin_drop_mode_ = drop_mode;
+        pin_drop_label_ = std::move(drop_label);
+    }
+    float ToolbarPinLabelWidth() const;
+    // Selection chip input for the toolbar layout (the row reserves its room).
+    void SetToolbarSelection(int selected, int action_count) {
+        selection_count_ = selected;
+        selection_actions_ = action_count;
+    }
+    float SelectionChipLabelWidth(float width, int selected) const;
+    std::wstring NewButtonLabel() const;
+    const wchar_t* NewButtonGlyph() const;
     int ToolbarGroup() const { return toolbar_group_; }
+    float SysCtxPreviewItemTop(const WindowViewModel& vm, const D2D1_RECT_F& rect, int item);
+    int SysCtxDropZone(const WindowViewModel& vm, const D2D1_RECT_F& rect, float x, float y);
+    // The hover preview card (ui_hover_preview.cpp).
+    void DrawHoverPreview(const HoverPreviewView& view, const D2D1_RECT_F& client,
+                          const Theme& theme, bool high_contrast);
+    unsigned HoverPreviewFrameMs() const noexcept { return hover_frame_ms_; }
+    VideoPreview::State HoverVideoState() const;
+    struct HoverBenchSample {
+        int result = -1;
+        double content_ms = 0.0;
+        double properties_ms = -1.0;
+        double upload_ms = 0.0;
+        double first_ms = -1.0;
+        uint32_t width = 0, height = 0;
+    };
+    HoverBenchSample BenchHoverPreview(const std::wstring& path, DWORD attrs, uint64_t size,
+                                       uint64_t modified, uint32_t pixel_size, uint32_t timeout_ms,
+                                       bool properties_first);
+    double BenchHoverVideo(HWND owner, const std::wstring& path, uint32_t timeout_ms, double* ready_ms);
+    void SetHoverBench(bool on) noexcept { hover_bench_ = on; }
+    int PrefetchHoverPreview(const std::wstring& path, DWORD attrs, uint64_t size, uint64_t modified,
+                             bool photo_first = true);
     // Drum "Group by" picker drawn over everything (app/group_wheel_ui.cpp).
     GroupWheel& GroupWheelPicker() { return group_wheel_; }
     float ToolbarGroupWidth(float w) const;
@@ -1366,6 +1477,8 @@ public:
     D2D1_RECT_F AddressBarRect(float w) const;
     D2D1_RECT_F SearchBarRect(float w) const;
     D2D1_RECT_F NewCommandRect(float w) const;
+    D2D1_RECT_F NewArrowRect(float w) const;
+    D2D1_RECT_F NewArrowSegment(const D2D1_RECT_F& create, bool compact) const;
     D2D1_RECT_F SplitCommandRect(float w) const;
     D2D1_RECT_F AddressSearchButtonRect(float w) const;
     void DrawAddressSearchChrome(const WindowViewModel& vm, float w, const Theme& theme);
@@ -1491,6 +1604,7 @@ private:
     TabStripMetrics ComputeTabStrip(const WindowViewModel& vm, float window_w) const;
     void DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    void DrawToolbarApps(const WindowViewModel& vm, const ToolbarLayout& layout, const Theme& theme);
     void DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawPane(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
@@ -1517,6 +1631,12 @@ private:
     void DrawSettingsLulingMenu(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    void DrawSettingsSysCtx(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    // 右键菜单 layer cards, the same on pages 2 and 6.
+    void DrawCtxLayerCards(const D2D1_RECT_F& pulse, const D2D1_RECT_F& system, bool system_current,
+                           bool other_hovered, const Theme& theme);
+    IDWriteTextFormat* SysCtxTitleFormat();
+
 
     void DrawList(const PaneViewModel& vm, float x, float y, float w, float h, const Theme& theme,
                   int hover_region = 0, int hover_control_index = -1, bool pane_focused = true,
@@ -1623,6 +1743,38 @@ private:
     bool vertical_tabs_ = false;
     float search_min_dip_ = 0.0f;
     int toolbar_group_ = -1;
+    int pin_count_ = 0;
+    int pin_app_from_ = -1;
+    bool pin_drop_mode_ = false;
+    std::wstring pin_drop_label_;
+    int new_primary_ = 0;
+    bool new_last_text_ = false;
+    int selection_count_ = 0;
+    int selection_actions_ = 0;
+    struct AppIconEntry {
+        common::MenuIconRef pixels;
+        ComPtr<ID2D1Bitmap> bitmap;
+    };
+    std::vector<AppIconEntry> app_icon_bitmaps_;
+    ThumbnailCache hover_cache_;
+    ComPtr<ID2D1Bitmap> hover_frame_bitmap_;
+    ComPtr<ID2D1Device> hover_frame_device_;
+    uint64_t hover_frame_serial_ = ~0ull;
+    unsigned hover_frame_ms_ = 0;
+    std::shared_ptr<VideoPreview> hover_video_;
+    std::wstring hover_video_path_;
+    bool hover_video_failed_ = false;
+    std::wstring hover_shape_path_;
+    int hover_shape_kind_ = 0;
+    float hover_shape_aspect_ = 0.0f;
+    float hover_card_w_ = 0.0f, hover_well_h_ = 0.0f;
+    unsigned long long hover_ease_ms_ = 0;
+    bool hover_bench_ = false;
+    mutable ComPtr<IDWriteTextFormat> sysctx_title_format_;
+    mutable ComPtr<IDWriteTextFormat> sysctx_stat_format_;
+    mutable float sysctx_title_scale_ = 0.0f;
+    ID2D1DeviceContext* app_icon_dc_ = nullptr;
+    ID2D1Bitmap* AppIconBitmap(const common::MenuIconRef& pixels);
     bool sidebar_collapsed_ = false;
     bool sidebar_peek_ = false;
     bool collapse_anim_ = false;

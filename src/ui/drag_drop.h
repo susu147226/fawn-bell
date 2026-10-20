@@ -125,6 +125,13 @@ DWORD DoFileDragDrop(const std::vector<std::wstring>& paths, DWORD allowed_effec
                      const std::wstring& source_view = {},
                      std::function<void()> scroll_during_drag = {});
 
+// A dragged file that is a program: dropping files onto it opens them in it.
+bool IsDropLaunchProgram(const std::wstring& path);
+// `dest_dir` is one of `sources` or lies inside it: moving into itself.
+bool DropIntoOwnFolder(const std::vector<std::wstring>& sources, const std::wstring& dest_dir);
+// One quoted command line of `sources`, for launching that program.
+std::wstring DropLaunchArguments(const std::vector<std::wstring>& sources);
+
 // ---------------------------------------------------------------------------
 // Drop-in target.
 // ---------------------------------------------------------------------------

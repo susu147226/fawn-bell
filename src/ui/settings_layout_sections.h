@@ -272,6 +272,36 @@ inline const wchar_t* SystemHint(const WindowViewModel& vm) { return vm.settings
     : l10n::Pick(L"HEIC / AVIF 也可通过现代图像格式增强包预览，无需微软账户。",
                  L"The image pack also supports HEIC / AVIF without a Microsoft account."); }
 
+inline const wchar_t* TriggerSection() { return l10n::Pick(L"预览方式", L"Preview trigger"); }
+inline const wchar_t* TriggerTitle() { return l10n::Pick(L"打开预览", L"Open previews"); }
+inline const wchar_t* TriggerDesc(int trigger) {
+    return trigger == 1
+        ? l10n::Pick(L"选中文件后按空格键预览", L"Select a file and press Space")
+        : l10n::Pick(L"指针停在文件上时显示预览卡片，空格键仍可展开完整预览",
+                     L"Rest the pointer on a file for a preview card; Space still opens the full preview");
+}
+inline const wchar_t* TriggerChoice(int i) {
+    return i == 0 ? l10n::Pick(L"悬停预览", L"Hover") : l10n::Pick(L"空格预览", L"Space");
+}
+inline const wchar_t* DelayTitle() { return l10n::Pick(L"悬停延迟", L"Hover delay"); }
+inline const wchar_t* DelayDesc() { return l10n::Pick(L"指针停留多久后显示预览卡片",
+                                                      L"How long the pointer rests before the card appears"); }
+inline const wchar_t* DelayChoice(int i) {
+    if (i == 0) return l10n::Pick(L"0.3 秒", L"0.3 s");
+    if (i == 1) return l10n::Pick(L"0.5 秒", L"0.5 s");
+    return l10n::Pick(L"0.8 秒", L"0.8 s");
+}
+inline const wchar_t* SizeTitle() { return l10n::Pick(L"卡片尺寸", L"Card size"); }
+inline const wchar_t* SizeDesc() {
+    return l10n::Pick(L"卡片随内容变形；按住 Ctrl 临时放大",
+                      L"Follows the content's shape; hold Ctrl to enlarge");
+}
+inline const wchar_t* SizeChoice(int i) {
+    if (i == 0) return l10n::Pick(L"小", L"Small");
+    if (i == 1) return l10n::Pick(L"中", L"Medium");
+    return l10n::Pick(L"大", L"Large");
+}
+
 inline const wchar_t* OpenFolder() { return l10n::Pick(L"打开文件夹", L"Open folder"); }
 inline const wchar_t* Media() { return l10n::Pick(L"媒体", L"Media"); }
 inline const wchar_t* Advanced() { return l10n::Pick(L"高级", L"Advanced"); }
@@ -463,6 +493,30 @@ float LayoutSettingsPacks(SettingsLayout& l, const WindowViewModel& vm, float sc
     };
     y += caption_h(pack_text::Intro(), right - left) + 10*scale;
     const float font = static_cast<float>(vm.settings_ui_font_scale) / 100.0f;
+    // 预览方式: one card per choice row, segments at the right (below when narrow).
+    {
+        const bool narrow = right - left < 560*scale;
+        auto segments = [&](D2D1_RECT_F r, D2D1_RECT_F* output, int count, float width) {
+            const auto c = D2D1::RectF(narrow ? r.left + 16*scale : r.right - (width + 16)*scale,
+                r.bottom - 44*scale, r.right - 16*scale, r.bottom - 12*scale);
+            const float w = (c.right - c.left) / static_cast<float>(count);
+            for (int i = 0; i < count; ++i)
+                output[i] = D2D1::RectF(c.left + w*static_cast<float>(i), c.top, c.left + w*static_cast<float>(i + 1), c.bottom);
+        };
+        const float h = narrow ? 112.0f : 64.0f + 8.0f*(font - 1.0f)*4.0f;
+        l.trigger_section = row(28*font);
+        l.trigger_row = row(h);
+        segments(l.trigger_row, l.trigger_choice, 2, 220*font);
+        if (vm.settings_preview_trigger == 0) {
+            y += 8*scale;
+            l.hover_delay_row = row(h);
+            segments(l.hover_delay_row, l.hover_delay_choice, 3, 240*font);
+            y += 8*scale;
+            l.hover_size_row = row(h);
+            segments(l.hover_size_row, l.hover_size_choice, 3, 240*font);
+        }
+        y += 24*scale;
+    }
     l.preview_section = row(28*font);
     const float header_top = y;
     l.preview_header_title = D2D1::RectF(left + 54*scale, y + 12*scale, right - 48*scale, y + (12 + 26*font)*scale);

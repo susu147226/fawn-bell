@@ -3,6 +3,106 @@
 #include "pane_header_icons.h"
 
 namespace luling::ui {
+namespace {
+std::wstring SelectionChipLabel(int count) {
+    wchar_t buf[64]{};
+    swprintf_s(buf,l10n::Get(l10n::StringId::SelectedCountFormat).c_str(),count);
+    return buf;
+}
+}
+float MainRenderer::SelectionChipLabelWidth(float width, int selected) const {
+    // Narrow windows show the buttons only, as in the prototype.
+    if (selected <= 0 || width-EffectiveSidebarWidth(width) < 700*scale_ || !compositor_ || !compositor_->SmallFormat())
+        return 0.0f;
+    return std::ceil(typography::MeasureLine(compositor_,compositor_->SmallFormat(),SelectionChipLabel(selected)));
+}
+// Pinned apps (prototype app_pins.html): program icons after the pinned
+// commands. The dot under an icon says it opens every selected (or dragged)
+// item, a ring some of them; an app that opens none is dimmed. In drop mode
+// they sit on a faint accent band behind a label, and the app under the
+// drag gets an accent outline.
+void MainRenderer::DrawToolbarApps(const WindowViewModel& vm, const ToolbarLayout& layout, const Theme& theme) {
+    ID2D1DeviceContext* dc=compositor_->Dc();
+    const size_t from=vm.toolbar_pins.size();
+    D2D1_RECT_F band=layout.pin_label;
+    bool any=band.right > band.left;
+    for (size_t i=0;i<vm.toolbar_apps.size() && from+i<layout.pins.size();++i) {
+        const D2D1_RECT_F b=layout.pins[from+i];
+        if (b.right <= b.left) continue;
+        if (!any) band=b;
+        band.left=std::min(band.left,b.left);
+        band.right=std::max(band.right,b.right);
+        any=true;
+    }
+    if (!any) return;
+    MakeBrush(dc,theme.stroke_divider,brStrokeDivider_);
+    if (vm.toolbar_drop_mode) {
+        D2D1_COLOR_F fill=theme.accent;
+        fill.a*=0.07f;
+        painter_.FillRoundedRect(D2D1::RectF(band.left-3*scale_,band.top-2*scale_,band.right+3*scale_,band.bottom+2*scale_),
+            8*scale_,fill);
+    }
+    FillRect(dc,brStrokeDivider_.get(),band.left-7*scale_,band.top+7*scale_,scale_,18*scale_);
+    if (layout.pin_label.right > layout.pin_label.left && !vm.toolbar_drop_label.empty()) {
+        const D2D1_RECT_F l=layout.pin_label;
+        if (vm.toolbar_drop_pin) {
+            D2D1_COLOR_F hot=theme.accent;
+            hot.a*=0.18f;
+            painter_.FillRoundedRect(l,7*scale_,hot);
+        }
+        DrawIconText(l.left+8*scale_,l.top,20*scale_,l.bottom-l.top,vm.toolbar_drop_pin ? L"\xE718" : L"\xE8E5",
+            L"",theme.accent,0.85f);
+        painter_.DrawText(vm.toolbar_drop_label,D2D1::RectF(l.left+32*scale_,l.top,l.right-6*scale_,l.bottom),
+            compositor_->SmallFormat(),theme.accent);
+    }
+    ComPtr<ID2D1SolidColorBrush> accent;
+    dc->CreateSolidColorBrush(theme.accent,&accent);
+    for (size_t i=0;i<vm.toolbar_apps.size() && from+i<layout.pins.size();++i) {
+        const D2D1_RECT_F b=layout.pins[from+i];
+        if (b.right <= b.left) continue;
+        const WindowViewModel::ToolbarAppPin& app=vm.toolbar_apps[i];
+        if (i==0 && from > 0) {   // short divider between the commands and the apps
+            const float x=b.left-6.5f*scale_;
+            FillRect(dc,brStrokeDivider_.get(),x,b.top+9*scale_,scale_,14*scale_);
+        }
+        const bool target=vm.toolbar_drop_app==static_cast<int>(i);
+        if (target) {
+            D2D1_COLOR_F hot=theme.accent;
+            hot.a*=0.16f;
+            painter_.FillRoundedRect(b,6*scale_,hot);
+            if (accent.get()) {
+                const float h=scale_;
+                dc->DrawRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(b.left+h,b.top+h,b.right-h,b.bottom-h),
+                    6*scale_,6*scale_),accent.get(),2*scale_);
+            }
+        } else if (IsHovered(vm,HitTestResult::ToolbarPin,static_cast<int>(from+i))) {
+            painter_.FillRoundedRect(b,6*scale_,theme.fill_hover);
+        }
+        const float cx=std::round((b.left+b.right)*0.5f);
+        const float cy=std::round((b.top+b.bottom)*0.5f-(app.fit!=0 ? 1.5f*scale_ : 0.0f));
+        const float half=8*scale_;
+        const float opacity=app.fit==3 && !(target && vm.toolbar_drop_force) ? 0.35f : 1.0f;
+        if (ID2D1Bitmap* bitmap=AppIconBitmap(app.icon)) {
+            dc->DrawBitmap(bitmap,D2D1::RectF(cx-half,cy-half,cx+half,cy+half),opacity,
+                D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+        } else {
+            D2D1_COLOR_F c=theme.text_secondary;
+            c.a*=opacity;
+            DrawIconText(b.left,cy-15*scale_,b.right-b.left,30*scale_,L"\xECAA",L"",c,0.9f);
+        }
+        if (accent.get() && (app.fit==1 || app.fit==2)) {
+            const D2D1_POINT_2F dot=D2D1::Point2F(cx,b.bottom-4.5f*scale_);
+            if (app.fit==1) dc->FillEllipse(D2D1::Ellipse(dot,2*scale_,2*scale_),accent.get());
+            else dc->DrawEllipse(D2D1::Ellipse(dot,1.75f*scale_,1.75f*scale_),accent.get(),scale_);
+        }
+    }
+}
+
+ToolbarSelectionChip MainRenderer::SelectionChipAt(const ToolbarLayout& layout, float width, int selected,
+                                                   int action_count) const {
+    if (selected <= 0 || embedded_) return {};
+    return MakeToolbarSelectionChip(layout,scale_,SelectionChipLabelWidth(width,selected),action_count);
+}
 void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     auto* dc = compositor_->Dc();
     const float left = EffectiveSidebarWidth(rect.right);
@@ -15,7 +115,7 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
         for (int i=0;i<4;++i) {
             const auto r=layout.navigation[i];
             if (r.right<=r.left) continue;
-            const bool enabled=i==0 ? vm.can_go_back : i==1 ? vm.can_go_forward : i==2 ? vm.pane.can_go_up : true;
+            const bool enabled=i==0 ? vm.can_go_back : i==1 ? vm.can_go_forward : true;
             fluent::ButtonSpec button;
             button.bounds = r; button.glyph = nav_glyphs[i];
             button.state.enabled = enabled;
@@ -83,20 +183,47 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
     FillRect(dc,brStrokeDivider_.get(),left+margin_,title_bar_height_+44*scale_,rect.right-left-2*margin_,scale_);
     // Embedded hosts (the file picker) keep the address row only.
     if (embedded_) return;
-    const std::wstring label=l10n::Get(l10n::StringId::New);
+    // Split New button: the main part creates a folder (Ctrl+Shift+N), the
+    // chevron segment opens the New menu. Each segment gets its own hover.
+    const std::wstring label=NewButtonLabel();
+    const D2D1_RECT_F newArrow=NewArrowSegment(layout.create,compact);
     fluent::ButtonSpec create;
     create.bounds=layout.create; create.text=compact ? std::wstring_view{} : std::wstring_view{label};
-    create.glyph=kIconAdd; create.kind=fluent::ButtonKind::Primary;
-    create.icon_only=compact; create.drop_down=!compact;
-    create.state.hovered=IsHovered(vm,HitTestResult::NewButton);
+    create.glyph=NewButtonGlyph(); create.kind=fluent::ButtonKind::Primary;
+    create.drop_down=true;
+    // This PC, a server's shares, Pulse views: nothing can be created there.
+    create.state.enabled=vm.pane.can_create;
     painter_.DrawButton(create);
+    const bool newMainHot=vm.pane.can_create && IsHovered(vm,HitTestResult::NewButton);
+    const bool newArrowHot=IsHovered(vm,HitTestResult::NewButtonArrow);
+    if (newMainHot || newArrowHot) {
+        D2D1_RECT_F hot=layout.create;
+        if (newArrowHot) hot.left=newArrow.left; else hot.right=newArrow.left;
+        dc->PushAxisAlignedClip(hot,D2D1_ANTIALIAS_MODE_ALIASED);
+        create.state.hovered=true;
+        painter_.DrawButton(create);
+        dc->PopAxisAlignedClip();
+    }
+    if (newArrow.right > newArrow.left && newArrow.left > layout.create.left) {
+        auto divider=theme.accent_text;
+        divider.a*=0.35f;
+        ComPtr<ID2D1SolidColorBrush> divider_brush;
+        dc->CreateSolidColorBrush(divider,&divider_brush);
+        if (divider_brush.get()) FillRect(dc,divider_brush.get(),newArrow.left-0.5f*scale_,newArrow.top+7*scale_,
+            scale_,newArrow.bottom-newArrow.top-14*scale_);
+    }
     const wchar_t* glyphs[]={kIconCut,kIconCopy,kIconPaste,kIconRename,kIconDelete,kIconSplit,
         vm.details_visible ? kIconDetailsClose : kIconDetailsOpen,L""};
     const HitTestResult::Region hits[]={HitTestResult::Cut,HitTestResult::Copy,HitTestResult::Paste,
         HitTestResult::Rename,HitTestResult::Delete,HitTestResult::SplitButton,HitTestResult::DetailsToggle,HitTestResult::PaneColumnLayout};
     for(int i=0;i<8;++i) {
         if (layout.commands[i].right <= layout.commands[i].left) continue;
-        const bool enabled=i==2 || i>=5 || vm.pane.selected_count>0;
+        // Cut / copy / rename / delete follow what is selected (a drive takes
+        // a rename only; app::SelectionCaps); paste needs something to paste
+        // (clipboard files or a tray batch) and a folder that takes it.
+        const bool can_paste=vm.paste_target && (vm.clipboard_files || vm.tray_deck.batch_count>0);
+        const bool allowed[]={vm.selection_cut,vm.selection_copy,can_paste,vm.selection_rename,vm.selection_delete};
+        const bool enabled=i>=5 || allowed[i];
         const bool selected=(i==5 && vm.pane_slots.size()>1) || (i==6 && vm.details_visible) ||
             (i==7 && vm.pane.column_strip.enabled);
         DrawButton(layout.commands[i],theme,enabled && IsHovered(vm,hits[i]) ? theme.fill_hover :
@@ -124,6 +251,19 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
         DrawButton(layout.overflow,theme,IsHovered(vm,HitTestResult::ToolbarMore) ? theme.fill_hover : kTransparent,
             L"\xE712",L"",theme.text_secondary,true,true);
     }
+    // Pinned commands (自定义工具栏), after a divider.
+    for (size_t i=0;i<layout.pins.size() && i<vm.toolbar_pins.size();++i) {
+        const D2D1_RECT_F b=layout.pins[i];
+        if (b.right <= b.left) continue;
+        const SelectionChipAction& pin=vm.toolbar_pins[i];
+        if (i==0) {
+            MakeBrush(dc,theme.stroke_divider,brStrokeDivider_);
+            FillRect(dc,brStrokeDivider_.get(),b.left-7*scale_,b.top+7*scale_,scale_,18*scale_);
+        }
+        DrawButton(b,theme,pin.enabled && IsHovered(vm,HitTestResult::ToolbarPin,static_cast<int>(i)) ? theme.fill_hover : kTransparent,
+            pin.glyph,L"",pin.enabled ? theme.text_secondary : theme.text_disabled,true,true);
+    }
+    DrawToolbarApps(vm,layout,theme);
     const auto command = [&](D2D1_RECT_F bounds, const wchar_t* glyph, l10n::StringId label,
                              HitTestResult::Region region, bool dropdown, float turn = 0.0f) {
         fluent::ButtonSpec button;
@@ -138,8 +278,16 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
         button.state.hovered=IsHovered(vm,region);
         painter_.DrawButton(button);
     };
+    // Group dividers as in the prototype: after 新建, and between the view
+    // commands and the pane layout buttons.
     MakeBrush(dc,theme.stroke_divider,brStrokeDivider_);
-    FillRect(dc,brStrokeDivider_.get(),layout.sort.left-6*scale_,layout.sort.top+7*scale_,scale_,18*scale_);
+    if (layout.commands[0].right > layout.commands[0].left)
+        FillRect(dc,brStrokeDivider_.get(),layout.create.right+6*scale_,layout.create.top+7*scale_,scale_,18*scale_);
+    const D2D1_RECT_F view_tail=layout.group.right > layout.group.left ? layout.group : layout.filter;
+    const float pane_left=layout.commands[5].right > layout.commands[5].left ? layout.commands[5].left
+                        : layout.overflow.right > layout.overflow.left ? layout.overflow.left : 0.0f;
+    if (pane_left > view_tail.right+8*scale_)
+        FillRect(dc,brStrokeDivider_.get(),pane_left-7*scale_,layout.sort.top+7*scale_,scale_,18*scale_);
     // The shared drum picker turns the chevron of the button that opened it,
     // in step with its open/close fade.
     const float picker_open=group_wheel_.OpenAmount();
@@ -197,6 +345,44 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
                     [&](const std::wstring& t){ return MeasureTextWidth(f,compositor_->TextFormat(),t); });
             }
             painter_.DrawText(group_label,text_rc,compositor_->TextFormat(),theme.accent);
+        }
+    }
+    // Selection context (prototype note 4): shows up after the file commands
+    // while something is selected and folds away with the selection.
+    const ToolbarSelectionChip sel=SelectionChipAt(layout,rect.right,vm.toolbar_drop_mode ? 0 : vm.pane.selected_count,
+        static_cast<int>(vm.selection_actions.size()));
+    if (sel.chip.right > sel.chip.left) {
+        FillRect(dc,brStrokeDivider_.get(),sel.chip.left-7*scale_,sel.chip.top+7*scale_,scale_,18*scale_);
+        D2D1_COLOR_F fill=theme.accent;
+        fill.a*=0.10f;
+        painter_.FillRoundedRect(sel.chip,7*scale_,fill);
+        D2D1_COLOR_F edge=theme.accent;
+        edge.a*=0.28f;
+        ComPtr<ID2D1SolidColorBrush> edge_brush;
+        dc->CreateSolidColorBrush(edge,&edge_brush);
+        if (edge_brush.get()) {
+            const float h=0.5f*scale_;
+            dc->DrawRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(sel.chip.left+h,sel.chip.top+h,
+                sel.chip.right-h,sel.chip.bottom-h),7*scale_,7*scale_),edge_brush.get(),scale_);
+        }
+        if (sel.label.right > sel.label.left)
+            painter_.DrawText(SelectionChipLabel(vm.pane.selected_count),sel.label,compositor_->SmallFormat(),theme.accent);
+        D2D1_COLOR_F hot=theme.accent;
+        hot.a*=0.22f;
+        int last_action=-1;
+        for (int i=0;i<kSelChipSlots;++i) {
+            const D2D1_RECT_F b=sel.buttons[static_cast<size_t>(i)];
+            if (b.right <= b.left) continue;
+            if (i < kSelChipMore) last_action=i;
+            const std::wstring glyph=i==kSelChipMore ? std::wstring(L"\xE712")
+                : i==kSelChipClear ? std::wstring(kIconCloseSmall) : vm.selection_actions[static_cast<size_t>(i)].glyph;
+            DrawButton(b,theme,IsHovered(vm,HitTestResult::ToolbarSelAction,i) ? hot : kTransparent,
+                glyph,L"",theme.accent,true,true,i==kSelChipClear ? 0.6f : 0.85f);
+        }
+        if (last_action >= 0) {
+            // Quick actions | more and clear.
+            const D2D1_RECT_F b=sel.buttons[static_cast<size_t>(last_action)];
+            FillRect(dc,brStrokeDivider_.get(),b.right+4.5f*scale_,b.top+7*scale_,scale_,b.bottom-b.top-14*scale_);
         }
     }
 }

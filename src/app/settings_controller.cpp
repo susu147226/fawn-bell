@@ -1,6 +1,7 @@
 #include "../common/windows_compat.h"
 #include "../common/localization.h"
 #include "settings_controller.h"
+#include "system_ctx_model.h"
 #include "blank_pane_click.h"
 #include "default_file_manager.h"
 #include "shell_integration_registry.h"
@@ -52,12 +53,13 @@ const wchar_t* SettingsController::PageName(int page) noexcept {
     if (page == 3) return L"about";
     if (page == 4) return L"duplicates";
     if (page == 5) return L"packs";
+    if (page == 6) return L"sysctx";
     return L"general";
 }
 
 void SettingsController::SelectPage(int page) noexcept {
     CancelGlobalSearchHotkeyCapture();
-    page_ = std::clamp(page, 0, 5);
+    page_ = std::clamp(page, 0, 6);
     scroll_ = 0.0f;
     packs_checked_ = 0;  // re-read the packs when their page opens
 }
@@ -696,6 +698,11 @@ SettingsTaskEffect SettingsController::CompleteTask(const SettingsTaskResult& re
         error_ = l10n::Get(l10n::StringId::SettingsOperationError).c_str();
     }
     return effect;
+}
+
+SystemCtxModel& SettingsController::SystemCtx() {
+    if (!sysctx_) sysctx_ = std::make_shared<SystemCtxModel>();
+    return *sysctx_;
 }
 
 void SettingsController::BindUi(AppPrefs& prefs, ContextMenuPrefs& context,

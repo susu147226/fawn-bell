@@ -231,6 +231,19 @@ bool ContextMenuPrefs::ComDeferred(const std::wstring& key) const {
     return it != slow_ext.end() && (it->second.deferred || it->second.disabled);
 }
 
+std::vector<std::wstring> ContextMenuPrefs::HiddenCatalogKeys() const {
+    std::vector<std::wstring> keys;
+    for (const auto& item : seen)
+        if (!RowEnabled(item.key, item.category, item.from_com)) keys.push_back(item.key);
+    for (const auto& [key, on] : item_enabled)
+        if (!on) keys.push_back(key);
+    for (const auto& [key, state] : slow_ext)
+        if (state.disabled) keys.push_back(key);
+    std::sort(keys.begin(), keys.end());
+    keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+    return keys;
+}
+
 bool ContextMenuPrefs::ComDisabled(const std::wstring& key) const {
     auto it = slow_ext.find(key);
     return it != slow_ext.end() && it->second.disabled;

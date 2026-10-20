@@ -48,6 +48,7 @@ void MainRenderer::SetCompositor(Compositor* comp) {
         thumbnail_cache_.Reset();
         folder_thumbnail_cache_.Reset();
         details_cache_.Reset();
+        hover_cache_.Reset();
         preview_handler_.Reset();
         preview_mono_format_.reset();
     }
@@ -57,6 +58,7 @@ void MainRenderer::SetCompositor(Compositor* comp) {
         thumbnail_cache_.SetDeviceContext(comp->Dc());
         folder_thumbnail_cache_.SetDeviceContext(comp->Dc());
         details_cache_.SetDeviceContext(comp->Dc());
+        hover_cache_.SetDeviceContext(comp->Dc());
     }
 }
 
@@ -75,6 +77,7 @@ void MainRenderer::SetIconNotifyWindow(HWND hwnd) {
     thumbnail_cache_.SetNotifyWindow(hwnd);
     folder_thumbnail_cache_.SetNotifyWindow(hwnd);
     details_cache_.SetNotifyWindow(hwnd);
+    hover_cache_.SetNotifyWindow(hwnd);
     preview_handler_.SetNotifyWindow(hwnd);
 }
 
@@ -224,14 +227,21 @@ ToolbarLayout MainRenderer::ToolbarLayoutAt(float w, float create_width, float f
                                                  L"\xE8CB", true, scale_, 88.0f);
     const float filter_width = ToolbarCommandWidth(painter_, format, l10n::StringId::ToolbarFilter,
                                                    kIconFilter, false, scale_, 88.0f);
+    const float selection_span = selection_count_ > 0 && !embedded_ && !pin_drop_mode_
+        ? SelectionChipSpan(scale_, SelectionChipLabelWidth(w, selection_count_), selection_actions_) : 0.0f;
+    ToolbarPinOptions pins;
+    pins.app_from = pin_app_from_;
+    pins.drop_mode = pin_drop_mode_ && !embedded_;
+    pins.label_width = pins.drop_mode ? ToolbarPinLabelWidth() : 0.0f;
     if (!vertical_tabs_)
         return MakeToolbarLayout(w, scale_, title_bar_height_, margin_, create_width, left, filter_expand,
-                                 search_min_dip_, group_width, sort_width, filter_width);
+                                 search_min_dip_, group_width, sort_width, filter_width, pin_count_,
+                                 selection_span, pins);
     // Command row directly under the title bar; address row centered in it,
     // stopping short of the settings button.
     ToolbarLayout out = MakeToolbarLayout(w, scale_, title_bar_height_ - 46.0f * scale_, margin_,
                                           create_width, left, filter_expand, 0.0f, group_width, sort_width,
-                                          filter_width);
+                                          filter_width, pin_count_, selection_span, pins);
     const TitleChrome chrome = MakeTitleChrome(w, scale_, title_bar_height_);
     const float row_top = (title_bar_height_ - 36.0f * scale_) * 0.5f - 4.0f * scale_;
     const ToolbarLayout row = MakeToolbarLayout(chrome.settings_left - 4.0f * scale_, scale_, row_top,
@@ -240,6 +250,25 @@ ToolbarLayout MainRenderer::ToolbarLayoutAt(float w, float create_width, float f
     out.address = row.address;
     out.search = row.search;
     return out;
+}
+
+float MainRenderer::ToolbarPinLabelWidth() const {
+    if (!pin_drop_mode_ || pin_drop_label_.empty() || !compositor_ || !compositor_->SmallFormat())
+        return 0.0f;
+    const float text = std::ceil(typography::MeasureLine(compositor_, compositor_->SmallFormat(), pin_drop_label_));
+    return text + 42.0f * scale_;
+}
+
+std::wstring MainRenderer::NewButtonLabel() const {
+    if (new_primary_ == 2) return l10n::Get(l10n::StringId::New);
+    if (new_primary_ == 1 && new_last_text_) return l10n::Get(l10n::StringId::NewTextDocument);
+    return l10n::Get(l10n::StringId::NewFolder);
+}
+
+const wchar_t* MainRenderer::NewButtonGlyph() const {
+    if (new_primary_ == 2) return L"\xE710";                       // Add
+    if (new_primary_ == 1 && new_last_text_) return L"\xE8A5";     // Document
+    return L"\xE8F4";                                              // New folder
 }
 
 D2D1_RECT_F MainRenderer::SidebarToggleRect(float w) const {
@@ -274,10 +303,44 @@ D2D1_RECT_F MainRenderer::NewCommandRect(float w) const {
 D2D1_RECT_F MainRenderer::SplitCommandRect(float w) const {
     return ToolbarLayoutAt(w,NewButtonWidthPx(w-EffectiveSidebarWidth(w)<600*scale_)).commands[5];
 }
+D2D1_RECT_F MainRenderer::NewArrowRect(float w) const {
+    return NewArrowSegment(NewCommandRect(w), w - EffectiveSidebarWidth(w) < 600 * scale_);
+}
+// Split New button: the chevron segment is a fixed width at the right edge,
+// centred on the chevron that Painter::DrawButton places 8 DIP from the edge.
+D2D1_RECT_F MainRenderer::NewArrowSegment(const D2D1_RECT_F& create, bool compact) const {
+    if (create.right <= create.left) return create;
+    if (new_primary_ == 2) return create;   // menu-only New: the whole button opens the menu
+    const float arrow = (compact ? 28.0f : 32.0f) * scale_;
+    return D2D1::RectF(std::max(create.left, create.right - arrow), create.top, create.right, create.bottom);
+}
 float MainRenderer::NewButtonWidthPx(bool compact) const {
-    if (compact) return kCommandIconButtonDip * scale_;
-    return painter_.MeasureButtonWidth(
-        luling::l10n::Get(luling::l10n::StringId::New), kIconAdd, true);
+    // Compact: icon button + chevron segment at a fixed width, no text
+    // measuring. The full button labels the action and adds a gap so the label
+    // never runs into the segment divider.
+    if (compact) return (kCommandIconButtonDip + 28.0f) * scale_;
+    return painter_.MeasureButtonWidth(NewButtonLabel(), NewButtonGlyph(), true) + 12.0f * scale_;
+}
+
+ID2D1Bitmap* MainRenderer::AppIconBitmap(const common::MenuIconRef& pixels) {
+    ID2D1DeviceContext* dc = compositor_ ? compositor_->Dc() : nullptr;
+    if (!pixels || !pixels->Valid() || !dc) return nullptr;
+    if (dc != app_icon_dc_) {   // new device: the old bitmaps belong to the lost one
+        app_icon_bitmaps_.clear();
+        app_icon_dc_ = dc;
+    }
+    for (const auto& entry : app_icon_bitmaps_)
+        if (entry.pixels == pixels) return entry.bitmap.get();
+    if (app_icon_bitmaps_.size() >= 32) app_icon_bitmaps_.clear();
+    AppIconEntry entry;
+    entry.pixels = pixels;
+    const auto props = D2D1::BitmapProperties(
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    if (FAILED(dc->CreateBitmap(D2D1::SizeU(pixels->width, pixels->height), pixels->bgra.data(),
+                                pixels->width * 4u, props, &entry.bitmap)))
+        entry.bitmap.reset();  // remembered as missing: no retry every frame
+    app_icon_bitmaps_.push_back(std::move(entry));
+    return app_icon_bitmaps_.back().bitmap.get();
 }
 
 std::vector<BreadcrumbSegment> SplitBreadcrumb(const std::wstring& path) {

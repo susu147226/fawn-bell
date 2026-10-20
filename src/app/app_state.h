@@ -121,6 +121,10 @@ constexpr UINT WM_SHARE_CREDENTIALS_PROMPT = WM_APP + 76;
 // A device transfer finished on its worker thread. lParam owns a
 // ShellCopyResult (app_ops_ui.h).
 constexpr UINT WM_SHELL_COPY_DONE = WM_APP + 77;
+// Drive verbs finished on a worker: lParam owns app::DriveVerbResult.
+constexpr UINT WM_DRIVE_VERB = WM_APP + 78;
+// The BitLocker prompt finished: lParam owns app::BitLockerUnlockResult.
+constexpr UINT WM_BITLOCKER_UNLOCK = WM_APP + 79;
 
 enum class OmnibarMode { Path, Mixed, Command, Project };
 
@@ -197,6 +201,46 @@ struct AppState {
     // A device transfer is running on a worker thread; a second drop or paste
     // waits instead of starting a competing MTP session.
     std::atomic<bool> shell_copy_busy{false};
+    // A program is being dragged over the toolbar: dropping pins it.
+    bool dropToolbarPin = false;
+    bool toolbarDropMode = false;
+    std::vector<std::wstring> toolbarDropSources;   // the dragged items (fit hints)
+    std::wstring toolbarDropProgram;                // a single unpinned program among them
+    int dropToolbarApp = -1;                        // app under the drag (index into toolbar_apps)
+    bool dropToolbarForce = false;                  // Shift: also types the app does not list
+    // 解散文件夹: the recycle that ends each folder's chain, after which the
+    // parent is listed afresh.
+    struct DissolveStep {
+        uint64_t task_id = 0;
+        std::wstring parent;
+    };
+    std::vector<DissolveStep> dissolveSteps;
+    // 合并到文件夹: renaming the new folder joins the action's undo step.
+    std::wstring groupRenameFolder;
+    uint64_t groupRenameUndo = 0;
+
+    // The hover preview card (app_hover_preview.cpp): the file it shows, and
+    // what keeps it away after a click, key or wheel until the pointer moves.
+    struct HoverPreviewCard {
+        bool visible = false;
+        int row = -1;                   // source index in the pane's active tab
+        int pane = -1;                  // pane slot (hoverPaneIndex)
+        std::wstring path, name, type_text;
+        DWORD attrs = 0;
+        uint64_t size = 0, modified = 0;
+        POINT point{};                  // pointer when it opened, client px
+        ULONGLONG hidden_at = 0;        // moving on from a shown card: show the next one sooner
+        int quiet_row = -1, quiet_pane = -1; // clicked row: no card until the pointer leaves it
+        bool wait_move = false;         // keys/wheel: no card until the pointer moves
+        POINT quiet_point{};
+        bool video = false;             // loops silently in the card
+        bool slow = false;              // slow to decode: dwell line and loading sweep
+        ULONGLONG shown_at = 0;
+        int dwell_row = -1, dwell_pane = -1;
+        ULONGLONG dwell_start = 0;
+        UINT dwell_ms = 0;
+        UINT frame_ms = 0;              // kTimerHoverPreviewFrame interval, 0 when off
+    } hoverPreview;
     app::ListTypeAhead listTypeAhead;
     const app::Tab* listTypeAheadTab = nullptr;
     std::wstring listTypeAheadFolder;
@@ -845,5 +889,9 @@ inline AppState* GetAppState(HWND hwnd) {
 inline std::wstring ClipboardPath(const std::wstring& p) {
     return path::StripExtendedPathPrefix(p);
 }
+
+// Where process-level notifications go. Until windows are split out of
+// AppState, every window is the service window.
+inline HWND ServiceWindow(const AppState& s) { return s.hwnd; }
 
 } // namespace luling

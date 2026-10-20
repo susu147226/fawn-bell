@@ -8,6 +8,7 @@
 // EnumerateStaticVerbs does registry reads plus version-info lookups for
 // friendly app names: call it off the UI thread and cache per extension.
 #pragma once
+#include "../common/menu_icon.h"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -32,6 +33,15 @@ std::vector<StaticVerb> EnumerateStaticVerbs(const std::wstring& ext);
 std::vector<StaticVerb> DedupeStaticVerbs(std::vector<StaticVerb> verbs,
                                           const std::vector<std::wstring>& builtin_texts,
                                           size_t cap);
+
+common::MenuIconRef FileTypeMenuIcon(const std::wstring& ext);
+
+// A program's display name: Applications\<exe>\FriendlyAppName, else the
+// version resource's FileDescription, else the file name. Reads the file.
+std::wstring ProgramFriendlyName(const std::wstring& exe_path);
+// Icon pixels for "file[,index]" at the menu's 16 DIP, through the same
+// process-wide cache as the open-with rows. Touches the file: worker threads.
+common::MenuIconRef ProgramMenuIcon(const std::wstring& reference);
 
 std::wstring MachineStaticVerbCachePath();
 bool LoadMachineStaticVerbCache(std::unordered_map<std::wstring, std::vector<StaticVerb>>& out);

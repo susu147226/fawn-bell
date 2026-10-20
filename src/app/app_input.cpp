@@ -8,6 +8,7 @@
 #include "app_updates.h"
 #include "about_info.h"
 #include "app_internal.h"
+#include "app_hover_preview.h"
 #include "app_column_view.h"
 #include "details_column_menu.h"
 #include "../ui/lumatext_renderer.h"
@@ -95,6 +96,12 @@ void ClearDropFeedback(AppState& s) {
     s.dropBadgeMove = false;
     s.dropDestDir.clear();
     s.dropOpenWith.clear();
+    s.toolbarDropMode = false;
+    s.toolbarDropSources.clear();
+    s.toolbarDropProgram.clear();
+    s.dropToolbarApp = -1;
+    s.dropToolbarForce = false;
+    s.dropToolbarPin = false;
     s.springRow = -1;
     s.springStart = 0;
     InvalidateRect(s.hwnd, nullptr, FALSE);
@@ -171,9 +178,15 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
         return DROPEFFECT_NONE;
     }
 
+    // The toolbar holds the pinned apps while files are dragged over the
+    // window; the layout (and so the hit test) depends on it.
+    UpdateToolbarDropMode(s, sources);
     ui::WindowViewModel vm = BuildVm(s);
     D2D1_RECT_F rect = D2D1::RectF(0, 0, (float)s.compositor.Width(), (float)s.compositor.Height());
     ui::HitTestResult hit = s.renderer.HitTest(vm, rect, (float)pt.x, (float)pt.y);
+    DWORD toolbar_effect = DROPEFFECT_NONE;
+    if (ResolveToolbarAppDrop(s, vm, hit, sources, pt, key_state, allowed, toolbar_effect))
+        return toolbar_effect;
 
     app::Pane* hitPane = PaneAtSlot(s, hit.pane_index);
     app::Tab* tab = hitPane ? hitPane->ActiveTab() : ActiveTab(s);
@@ -1106,6 +1119,7 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         if (!s) return DefWindowProcW(hwnd, msg, wParam, lParam);
         int mx = GET_X_LPARAM(lParam);
         int my = GET_Y_LPARAM(lParam);
+        if (SysCtxPreviewDragMove(*s, mx, my, wParam)) return 0;
         s->hoverPoint = POINT{ mx, my };
         s->bloom_accent.SetPointer(static_cast<float>(mx), static_cast<float>(my), true);
         if (static_cast<float>(my) >= s->renderer.TitleBarHeight() && s->renderer.ReleaseTabWidths())
@@ -2136,6 +2150,7 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             s->hoverPaneIndex = hit.pane_index;
             s->ctxHoverSince = GetTickCount64();
             if (newHover < 0) s->ctxHoverPrefetched.clear();
+            NoteHoverPreviewRow(*s);
             InvalidateRect(hwnd, nullptr, FALSE);
         }
         int newCrumb = (hit.region == ui::HitTestResult::BreadcrumbSegment) ? hit.index : -1;
@@ -2672,16 +2687,23 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             GoUp(*s);
         } else if (hit.region == ui::HitTestResult::NavRefresh) {
             RefreshActiveTab(*s);
-        } else if (hit.region == ui::HitTestResult::NewButton) {
-            ShowNewDropdown(*s);
+        } else if (hit.region == ui::HitTestResult::NewButton ||
+                   hit.region == ui::HitTestResult::NewButtonArrow) {
+            // Split New button: main part creates a folder (inline rename),
+            // chevron opens the menu.
+            if (hit.region == ui::HitTestResult::NewButton) CreateNewItem(*s, ToolbarNewCreatesFolder(*s));
+            else ShowNewDropdown(*s);
         } else if (hit.region == ui::HitTestResult::BreadcrumbSegment) {
             // The trailing search segment edits the query instead of reloading it.
             const app::Tab* active = ActiveTab(*s);
             if (active && hit.path == active->current_path && IsAddressSearchResults(active)) ShowAddressSearch(*s);
             // Empty path is the This PC segment; NavigateTo handles it.
             else NavigateTo(*s, hit.path);
-        } else if (hit.region == ui::HitTestResult::Copy) {
-            MirrorSelectionToClipboard(*s, false);
+        } else if (hit.region == ui::HitTestResult::Copy ||
+                   hit.region == ui::HitTestResult::ToolbarSelAction ||
+                   hit.region == ui::HitTestResult::ToolbarPin) {
+            if (hit.region == ui::HitTestResult::Copy) MirrorSelectionToClipboard(*s, false);
+            else RunToolbarAction(*s, hit.region == ui::HitTestResult::ToolbarPin, hit.index);
         } else if (hit.region == ui::HitTestResult::Cut) {
             MirrorSelectionToClipboard(*s, true);
         } else if (hit.region == ui::HitTestResult::Paste) {
@@ -3224,6 +3246,7 @@ LRESULT HandleLButtonDblClk(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPA
 }
 
 LRESULT HandleLButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+        if (s && SysCtxPreviewDragEnd(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))) return 0;
         (void)msg;
         (void)wParam;
         if (s) {
@@ -3752,6 +3775,11 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         }
         POINT sp{ mx, my };
         ClientToScreen(hwnd, &sp);
+        // Toolbar selection chip: the same item menu as a right-clicked row.
+        if (hit.region == ui::HitTestResult::ToolbarSelAction) {
+            ShowItemContextMenu(*s, sp);
+            return 0;
+        }
         bool shown = false;
         if (hit.region == ui::HitTestResult::TabGroup && hit.index >= 0 &&
             hit.index < static_cast<int>(vm.tab_groups.size())) {
@@ -4121,7 +4149,8 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             s->appPrefs.Save();
             InvalidateRect(hwnd, nullptr, FALSE);
         } else if (wParam == VK_SPACE) {
-            ToggleQuickPreview(*s);
+            // A shown hover card's file is selected and opens in quick look.
+            if (!OpenHoverPreviewInQuickLook(*s)) ToggleQuickPreview(*s);
         } else if (ctrl && shift && wParam == L'A') {
             DispatchMenuCommand(*s, app::CmdSelectWildcard);
         } else if (ctrl && wParam == L'A') {
@@ -4129,6 +4158,7 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         } else if (ctrl && wParam == L'I') {
             DispatchMenuCommand(*s, app::CmdInvertSelection);
         } else if (wParam == VK_ESCAPE) {
+            if (SysCtxPreviewDragCancel(*s)) return 0;
             s->contentSelectionAction.reset();
             if (tab->search_content_active || tab->search_awaiting_content || tab->search_live_generation) {
                 CancelActiveContentSearch(*s, *tab);

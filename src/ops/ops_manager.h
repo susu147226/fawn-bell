@@ -110,6 +110,13 @@ struct OpRequest {
     std::vector<uint8_t> template_data;
     // Convert: one job per file.
     std::vector<ConvertJob> convert_jobs;
+    // Several operations making up one user action (合并到文件夹, 解散文件夹)
+    // share a nonzero group and undo as one step, under this label.
+    uint64_t undo_group = 0;
+    std::wstring undo_label;
+    // RecycleDelete only: skip any source that is not an empty folder when
+    // its turn comes (解散文件夹 queues it behind the move-out).
+    bool only_if_empty = false;
 };
 
 struct UndoEntry {
@@ -119,6 +126,8 @@ struct UndoEntry {
     std::wstring dest_dir;
     std::wstring new_name;
     bool supported = true;    // false = recorded for history, cannot be undone
+    uint64_t group = 0;       // OpRequest::undo_group (session only, not persisted)
+    std::wstring label;       // OpRequest::undo_label
 };
 
 struct OpStatus {
@@ -384,6 +393,8 @@ private:
     std::wstring journal_path_;
     OpStatus status_;
     std::deque<UndoEntry> undo_;
+    uint64_t deferred_undo_group_ = 0;
+    bool GroupPendingLocked(uint64_t group) const;   // guarded by mutex_
     std::deque<CompletedOperation> completions_;
     std::deque<FinishedTask> finished_tasks_;
     std::vector<std::wstring> moved_sources_; // Worker-owned until terminal publication.

@@ -12,6 +12,22 @@ namespace luling::app {
 
 struct AppPrefs {
     bool persist = true;
+    // 自定义工具栏: the New button's main part makes 0 a folder, 1 the type
+    // made last (toolbar_last_new: 0 folder, 1 text document), 2 nothing: the
+    // whole button opens the New menu. toolbar_pins is a bitmask of builtin
+    // commands pinned after the file commands.
+    int toolbar_new_primary = 0;
+    int toolbar_last_new = 0;
+    uint32_t toolbar_pins = 0;
+    // Programs pinned to the toolbar (自定义工具栏 → 固定的软件).
+    std::vector<std::wstring> toolbar_apps;
+    // Quick look trigger (Settings > 快速预览): 0 a card appears after the
+    // pointer rests on a file (hover_preview_delay_ms), Space still opens the
+    // full preview; 1 only Space previews.
+    int preview_trigger = 0;
+    int hover_preview_delay_ms = 500; // 300 / 500 / 800
+    // The card's size step: 0 small, 1 medium, 2 large. Ctrl enlarges it.
+    int hover_card_size = 1;
     bool launch_on_startup = false;
     bool keep_running_on_close = false;
     // The first close that leaves Luling in the tray explains how to come back
@@ -155,5 +171,20 @@ int NormalizeUiFontScale(int percent) noexcept;
 // List row height actually used: the chosen density, raised so larger
 // interface fonts still fit (112% -> at least 32, 125% -> at least 35).
 int EffectiveRowHeightDip(int list_row_height, int ui_font_scale) noexcept;
+
+constexpr int kPreviewTriggerHover = 0;
+constexpr int kPreviewTriggerSpace = 1;
+inline int NormalizePreviewTrigger(int value) noexcept {
+    return value == kPreviewTriggerSpace ? kPreviewTriggerSpace : kPreviewTriggerHover;
+}
+inline int NormalizeHoverPreviewDelay(int ms) noexcept {
+    return ms == 300 || ms == 800 ? ms : 500;
+}
+constexpr int kHoverCardSmall = 0;
+constexpr int kHoverCardMedium = 1;
+constexpr int kHoverCardLarge = 2;
+inline int NormalizeHoverCardSize(int value) noexcept {
+    return value == kHoverCardSmall || value == kHoverCardLarge ? value : kHoverCardMedium;
+}
 
 } // namespace luling::app

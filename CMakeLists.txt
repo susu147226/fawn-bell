@@ -741,7 +741,8 @@ add_executable(luling_ctx_handlers_test src/bench/ctx_handlers_test.cpp
     src/shell_host/ctx_handlers.cpp src/shell_host/packaged_ctx_handlers.cpp)
 target_link_libraries(luling_ctx_handlers_test PRIVATE ole32 shell32 uuid shlwapi)
 
-add_executable(luling_integration src/integration_host/main.cpp src/app/shell_integration_registry.cpp)
+add_executable(luling_integration src/integration_host/main.cpp src/app/shell_integration_registry.cpp
+    src/app/system_ctx_registry.cpp)
 target_link_libraries(luling_integration PRIVATE advapi32 shell32 shlwapi)
 
 add_executable(luling_open_handoff_test src/bench/open_handoff_test.cpp src/app/single_instance_coordinator.cpp src/app/this_pc_argument.cpp)
@@ -823,6 +824,8 @@ add_executable(luling_app_controllers_test
     src/app/folder_sort_prefs.cpp
     src/app/startup_location.cpp
     src/app/context_menu_prefs.cpp
+    src/app/system_ctx_model.cpp
+    src/app/system_ctx_registry.cpp
     src/app/builtin_menu_items.cpp
     src/app/address_bar_command.cpp
     src/app/last_tab_close.cpp
@@ -832,7 +835,7 @@ add_executable(luling_app_controllers_test
     src/index/network_agent_client.cpp)
 target_include_directories(luling_app_controllers_test PRIVATE "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(luling_app_controllers_test PRIVATE
-    user32 shell32 ole32 uuid advapi32 shlwapi luling_localization luling_runtime_log bcrypt winhttp)
+    user32 shell32 ole32 uuid advapi32 shlwapi version luling_localization luling_runtime_log bcrypt winhttp)
 
 # Shell-only operations (recycle bin, Explorer verbs) go through luling_shell.exe.
 # Copy/move use the in-process scheduler plus CopyFile2.

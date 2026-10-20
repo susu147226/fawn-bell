@@ -3,13 +3,16 @@
 #include "shell_verbs.h"
 
 #include "../ipc/ctx_menu_util.h"
+#include "../common/menu_icon.h"
 
 #include <windows.h>
+#include <shellapi.h>
 #include <shlwapi.h>
 #include <shlobj.h>
 #include <algorithm>
 #include <cstring>
 #include <cwctype>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -287,6 +290,125 @@ void CollectOpenWith(const std::wstring& ext_lower, const std::wstring& default_
     }
 }
 
+// ---- Row icons -------------------------------------------------------------
+
+// HICON -> premultiplied BGRA (menu_icon.h). Icons with an alpha channel use
+// it; classic ones take the AND mask. Monochrome icons are skipped.
+common::MenuIconRef IconPixels(HICON icon) {
+    ICONINFO info{};
+    if (!GetIconInfo(icon, &info)) return nullptr;
+    common::MenuIconRef result;
+    BITMAP color{};
+    if (info.hbmColor && GetObjectW(info.hbmColor, sizeof(color), &color) &&
+        color.bmWidth > 0 && color.bmHeight > 0 &&
+        color.bmWidth <= static_cast<LONG>(common::kMaxMenuIconEdge) &&
+        color.bmHeight <= static_cast<LONG>(common::kMaxMenuIconEdge)) {
+        auto pixels = std::make_shared<common::MenuIconPixels>();
+        pixels->width = static_cast<uint32_t>(color.bmWidth);
+        pixels->height = static_cast<uint32_t>(color.bmHeight);
+        const size_t count = static_cast<size_t>(pixels->width) * pixels->height;
+        pixels->bgra.resize(count * 4u);
+        std::vector<uint8_t> mask(count * 4u);
+        BITMAPINFO bi{};
+        bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bi.bmiHeader.biWidth = color.bmWidth;
+        bi.bmiHeader.biHeight = -color.bmHeight;  // top-down
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        if (HDC dc = CreateCompatibleDC(nullptr)) {
+            const UINT rows = static_cast<UINT>(color.bmHeight);
+            const bool ok = GetDIBits(dc, info.hbmColor, 0, rows, pixels->bgra.data(), &bi,
+                                      DIB_RGB_COLORS) == color.bmHeight;
+            const bool has_mask = info.hbmMask &&
+                GetDIBits(dc, info.hbmMask, 0, rows, mask.data(), &bi, DIB_RGB_COLORS) ==
+                    color.bmHeight;
+            DeleteDC(dc);
+            if (ok) {
+                auto& bgra = pixels->bgra;
+                bool any_alpha = false;
+                for (size_t i = 3; i < bgra.size(); i += 4) any_alpha = any_alpha || bgra[i] != 0;
+                if (!any_alpha) {
+                    // 24bpp-style icon: the mask (white = transparent) is the alpha.
+                    for (size_t i = 0; i + 3 < bgra.size(); i += 4) {
+                        const bool opaque = !has_mask || mask[i] == 0;
+                        bgra[i + 3] = opaque ? 255 : 0;
+                        if (!opaque) bgra[i] = bgra[i + 1] = bgra[i + 2] = 0;
+                    }
+                } else {
+                    // GetIconInfo hands out straight alpha; D2D wants premultiplied.
+                    for (size_t i = 0; i + 3 < bgra.size(); i += 4) {
+                        const uint32_t a = bgra[i + 3];
+                        if (a == 255) continue;
+                        for (size_t c = 0; c < 3; ++c)
+                            bgra[i + c] = static_cast<uint8_t>((bgra[i + c] * a + 127u) / 255u);
+                    }
+                }
+                result = std::move(pixels);
+            }
+        }
+    }
+    if (info.hbmColor) DeleteObject(info.hbmColor);
+    if (info.hbmMask) DeleteObject(info.hbmMask);
+    return result;
+}
+
+// Menu icon edge in pixels: 16 DIP at the system DPI (one size per process;
+// the menu scales the few-percent mismatch on a mixed-DPI desk).
+uint32_t MenuIconEdgePx() {
+    int dpi = 96;
+    if (HDC screen = GetDC(nullptr)) {
+        dpi = GetDeviceCaps(screen, LOGPIXELSX);
+        ReleaseDC(nullptr, screen);
+    }
+    const int px = MulDiv(16, dpi > 0 ? dpi : 96, 96);
+    return static_cast<uint32_t>(std::clamp(px, 16, static_cast<int>(common::kMaxMenuIconEdge)));
+}
+
+// "C:\...\app.exe,-101" / "%ProgramFiles%\app.exe" / quoted -> file + index.
+bool ParseIconReference(const std::wstring& reference, std::wstring& file, int& index) {
+    if (reference.empty() || reference.size() >= MAX_PATH * 2 || reference[0] == L'@') return false;
+    wchar_t buffer[MAX_PATH * 2]{};
+    wcsncpy_s(buffer, reference.c_str(), _TRUNCATE);
+    index = PathParseIconLocationW(buffer);
+    PathUnquoteSpacesW(buffer);
+    wchar_t expanded[MAX_PATH * 2]{};
+    const DWORD n = ExpandEnvironmentStringsW(buffer, expanded, ARRAYSIZE(expanded));
+    file = n > 0 && n <= ARRAYSIZE(expanded) ? expanded : buffer;
+    return !file.empty();
+}
+
+common::MenuIconRef LoadMenuIcon(const std::wstring& reference, uint32_t edge) {
+    std::wstring file;
+    int index = 0;
+    if (!ParseIconReference(reference, file, index)) return nullptr;
+    HICON icon = nullptr;
+    if (FAILED(SHDefExtractIconW(file.c_str(), index, 0, &icon, nullptr,
+                                 MAKELONG(edge, edge))) || !icon)
+        return nullptr;
+    common::MenuIconRef pixels = IconPixels(icon);
+    DestroyIcon(icon);
+    return pixels;
+}
+
+// Process-wide cache: a few dozen distinct references across all types, and
+// misses (no such file, no icon) are remembered too.
+common::MenuIconRef CachedMenuIcon(const std::wstring& reference) {
+    static std::mutex mutex;
+    static std::unordered_map<std::wstring, common::MenuIconRef> cache;
+    static uint32_t edge = 0;
+    const std::wstring key = ToLower(reference);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (edge == 0) edge = MenuIconEdgePx();
+        if (const auto found = cache.find(key); found != cache.end()) return found->second;
+    }
+    common::MenuIconRef pixels = LoadMenuIcon(reference, edge);
+    std::lock_guard<std::mutex> lock(mutex);
+    if (cache.size() >= 1024) cache.clear();
+    cache.emplace(key, pixels);
+    return pixels;
+}
 } // namespace
 
 std::vector<StaticVerb> EnumerateStaticVerbs(const std::wstring& ext) {
@@ -524,4 +646,42 @@ bool SeedMachineStaticVerbCache() {
     return SaveMachineStaticVerbCache(cache);
 }
 
+common::MenuIconRef FileTypeMenuIcon(const std::wstring& ext) {
+    static std::mutex mutex;
+    static std::unordered_map<std::wstring, common::MenuIconRef> cache;
+    const std::wstring key = ToLower(ext);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (const auto found = cache.find(key); found != cache.end()) return found->second;
+    }
+    common::MenuIconRef pixels;
+    SHFILEINFOW info{};
+    if (!key.empty() && SHGetFileInfoW(key.c_str(), FILE_ATTRIBUTE_NORMAL, &info, sizeof(info),
+                                       SHGFI_USEFILEATTRIBUTES | SHGFI_ICON | SHGFI_SMALLICON) && info.hIcon) {
+        pixels = IconPixels(info.hIcon);
+        DestroyIcon(info.hIcon);
+    }
+    std::lock_guard<std::mutex> lock(mutex);
+    if (cache.size() >= 256) cache.clear();
+    cache.emplace(key, pixels);
+    return pixels;
+}
+
+std::wstring ProgramFriendlyName(const std::wstring& exe_path) {
+    if (exe_path.empty()) return {};
+    const size_t slash = exe_path.find_last_of(L"\\/");
+    const std::wstring file = slash == std::wstring::npos ? exe_path : exe_path.substr(slash + 1);
+    // Same order as the open-with rows (the registered name, the version
+    // resource, the file name), but the version resource in the UI language:
+    // the name Explorer's 打开方式 shows — 记事本, not "Notepad".
+    std::wstring friendly = ResolveIndirect(RegReadString(
+        HKEY_CLASSES_ROOT, L"Applications\\" + file, L"FriendlyAppName"));
+    if (friendly.empty()) friendly = ExeFriendlyName(exe_path);
+    if (friendly.empty()) friendly = ExeBaseName(file);
+    return friendly;
+}
+
+common::MenuIconRef ProgramMenuIcon(const std::wstring& reference) {
+    return reference.empty() ? nullptr : CachedMenuIcon(reference);
+}
 } // namespace luling::app

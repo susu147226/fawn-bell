@@ -168,6 +168,7 @@ struct VideoPreview::Shared {
     void Wake() { if (wake) SetEvent(wake); }
     std::mutex mutex;
     State snapshot;
+    bool card = false;   // hover card: muted, pointer-transparent
     std::atomic<bool> stop{false};
     std::atomic<bool> finished{false};
     std::atomic<bool> repaint{true};
@@ -264,7 +265,7 @@ LRESULT CALLBACK VideoPreview::VideoProc(HWND hwnd, UINT message, WPARAM wparam,
     return DefWindowProcW(hwnd, message, wparam, lparam);
 }
 
-void VideoPreview::Open(HWND owner, const std::wstring& path) {
+void VideoPreview::Open(HWND owner, const std::wstring& path, bool card) {
     Reset();
     static std::once_flag registered;
     std::call_once(registered, [] {
@@ -279,6 +280,8 @@ void VideoPreview::Open(HWND owner, const std::wstring& path) {
     child_ = CreateWindowExW(0, kVideoClass, L"", WS_CHILD | WS_CLIPSIBLINGS,
         0, 0, 1, 1, owner, nullptr, GetModuleHandleW(nullptr), nullptr);
     state_ = std::make_shared<Shared>();
+    state_->card = card;
+    if (card) state_->snapshot.muted = true;
     state_->child = child_;
     if (!child_) { state_->snapshot.error = HRESULT_FROM_WIN32(GetLastError()); return; }
     SetWindowLongPtrW(child_, GWLP_USERDATA,

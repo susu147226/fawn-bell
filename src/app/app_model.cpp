@@ -1,7 +1,9 @@
 // app_model.cpp
 #include "app_model.h"
 #include "layout_pane_selection.h"
+#include "selection_caps.h"
 #include "network_sidebar.h"
+#include "../ops/clipboard.h"
 #include "../common/config_json.h"
 #include "search_query.h"
 #include "entry_group.h"
@@ -1927,6 +1929,16 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
     vm.dark = dark;
     vm.can_go_back = tab->CanGoBack();
     vm.can_go_forward = tab->CanGoForward();
+    vm.paste_target = !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path) &&
+        !tab->net_readonly && !IsUncServerRoot(tab->current_path);
+    {
+        const SelectionCaps caps = ComputeSelectionCaps(*tab, places);
+        vm.selection_cut = caps.cut;
+        vm.selection_copy = caps.copy;
+        vm.selection_rename = caps.rename;
+        vm.selection_delete = caps.del;
+    }
+    vm.clipboard_files = ops::ClipboardHasPasteableFiles();
 
     FillPaneViewModel(vm.pane, pane, places);
     vm.pane.focused = focused;

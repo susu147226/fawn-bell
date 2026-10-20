@@ -109,4 +109,6 @@ float TabFlashAmount(const AppState& s, const app::LayoutTab* key);
 bool SyncTagGroups(AppState& s);
 // Advances the luling; false once it has finished (or none is running).
 bool TickTabFlash(AppState& s);
+void ApplyBitLockerUnlock(AppState& s, const std::wstring& root, bool unlocked);
+
 } // namespace luling
