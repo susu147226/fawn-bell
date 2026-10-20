@@ -481,7 +481,11 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
     for (size_t i = bindings.size(); i-- > 0;) {
         if (i == 0 && write_failed) break; // retain the anchor so a failed restore can be retried
         Value anchor;
-        if (!Read(bindings[0].key, bindings[0].name, anchor) || !SameValue(anchor, current[0])) {
+        // Turning the takeover off must finish even when a third party rewrote
+        // the anchor while we held it: the snapshot is the only proof of the
+        // original values, and refusing here leaves Explorer taken over.
+        if (!force_restore &&
+            (!Read(bindings[0].key, bindings[0].name, anchor) || !SameValue(anchor, current[0]))) {
             ok = false;
             break;
         }
