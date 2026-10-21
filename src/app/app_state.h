@@ -422,6 +422,13 @@ struct AppState {
 
     ShotRequest shot;
     std::wstring open_path;   // folder to open as a new tab after session restore
+    // Multi-window: a window opened by OpenLulingWindow starts at this folder
+    // instead of restoring the session.
+    bool has_window_start = false;
+    std::wstring window_start_path;
+    // A tab that moves into this window instead of a first tab opening.
+    AppState* window_adopt_from = nullptr;
+    size_t window_adopt_index = 0;
     bool restart_launch = false; // --restart: wait for the old process before claiming the singleton
     Timing timing;
     std::wstring session_path;

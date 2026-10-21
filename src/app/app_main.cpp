@@ -121,6 +121,7 @@
 #include "app_messages.h"
 #include "host_routing.h"
 #include "host_window.h"
+#include "window_factory.h"
 #include "window_registry.h"
 #include "app_hover_preview.h"
 #include "drive_verbs.h"
@@ -468,8 +469,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->hwnd = hwnd;
         s->core.windows.Add(hwnd, s);
         if (!s->core.service_window) s->core.service_window = hwnd;
-        s->tray_controller.Attach(hwnd, cs->hInstance);
-        InstallTrayRevealHook(*s);
+        // Later windows skip the process-level setup below: services, saved
+        // state and the tray already belong to the first window.
+        const bool init_core = !s->core.started;
+        if (init_core) {
+            s->tray_controller.Attach(hwnd, cs->hInstance);
+            InstallTrayRevealHook(*s);
+        }
 
         s->scale = s->shot_scale_override > 0.0f
             ? s->shot_scale_override : (float)luling::compat::WindowDpi(hwnd) / 96.0f;
@@ -507,7 +513,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->renderer.SetCompositor(&s->compositor);
         s->renderer.SetScale(s->scale);
         s->renderer.SetIconNotifyWindow(hwnd);
-        RegisterAssocChangeNotify(hwnd);
+        if (init_core) RegisterAssocChangeNotify(ServiceWindow(*s));
         s->quickPreview.Initialize(hwnd, WM_QUICK_PREVIEW_NAVIGATE,
                                    WM_QUICK_PREVIEW_OPEN, WM_QUICK_PREVIEW_COMMAND);
 
@@ -529,6 +535,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             [s] { return s->appPrefs.close_window_with_last_tab; },
             [hwnd] { PostMessageW(hwnd, WM_CLOSE, 0, 0); },
         });
+        if (init_core) {
         if (s->isolatedTest) {
             s->places.persist = false;
             s->appPrefs.persist = s->isolatedTestPersist; // only into LULING_TEST_DATA_DIR
@@ -575,6 +582,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->locationHistory.persist = s->searchHistory.persist;
         if (s->locationHistory.persist) s->locationHistory.Load();
         s->showFps = s->forceStatusPerformance || s->appPrefs.show_status_performance;
+        } // init_core: preferences, history and startup repairs
         s->duplicateScan.scope = static_cast<app::DuplicateScanScope>(
             std::clamp(s->appPrefs.duplicate_scan_scope, 0, 2));
         s->duplicateScan.folder_path = s->appPrefs.duplicate_scan_folder;
@@ -609,9 +617,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (s->safeMode) {
             s->appPrefs.window_effect = L"none";
             s->appPrefs.background_image.clear();
-        } else {
+        } else if (init_core) {
             SeedShellVerbCache(*s);
-            StartShellRegistryWatch(hwnd);
+            StartShellRegistryWatch(ServiceWindow(*s));
         }
         s->renderer.SetRowHeightDip(static_cast<float>(
             app::EffectiveRowHeightDip(s->appPrefs.row_height, s->appPrefs.ui_font_scale)));
@@ -639,13 +647,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             (wcscmp(fixture_scope, L"selection") == 0 || wcscmp(fixture_scope, L"menu") == 0 ||
              wcscmp(fixture_scope, L"layout") == 0);
 #endif
-        if (!selection_fixture) {
+        if (init_core && !selection_fixture) {
             s->index.Start(hwnd, WM_INDEX_NOTIFY, WM_INDEX_SEARCH);
             StartChangeTracking(*s);
             s->networkIndex.Start(hwnd, WM_NETWORK_INDEX_NOTIFY, WM_NETWORK_INDEX_SEARCH);
             s->contentSearch.Start(hwnd, WM_CONTENT_SEARCH, s->contentIndexObserver ? index::ContentAgentMode::Observer : index::ContentAgentMode::Instant);
             s->duplicateSearch.Start(hwnd, WM_DUPLICATE_SCAN, false);
         }
+        if (init_core) {
         s->settings.SetServiceInstalled(s->index.ServiceInstalled());
         app::SettingsController::UiCallbacks settings_callbacks;
         settings_callbacks.pick_image = [s](std::wstring& path) {
@@ -734,23 +743,27 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         ApplyGlobalSearchSettings(*s);
 
         s->worker.Start([s](app::WorkResult res) { PostWorkerResult(*s, std::move(res)); });
-        RefreshSidebarModel(*s);
         if (s->appPrefs.persist) QueueTagAds(*s, {});
         RequestRecycleOccupancy(*s);
         RequestNetworkLocations(*s);
+        } // init_core: settings controller, worker and process queries
+        RefreshSidebarModel(*s);
 
         // Ops layer: queue worker + shell host IPC; notify repaints the status bar.
         const std::wstring data_dir = app::GetLulingDataDir();
-        diagnostics::InitializeDebugLog(data_dir);
-        diagnostics::DebugLog("app", L"start data=" + data_dir);
-        if (!s->isolatedTest && !data_dir.empty())
-            s->ops.SetJournalPath(data_dir + L"\\operations.json");
+        if (init_core) {
+            diagnostics::InitializeDebugLog(data_dir);
+            diagnostics::DebugLog("app", L"start data=" + data_dir);
+            if (!s->isolatedTest && !data_dir.empty())
+                s->ops.SetJournalPath(data_dir + L"\\operations.json");
+            // Drop stages of Luling processes that are gone (#55).
+            app::SweepDropStages(app::DropStageRoot(), false);
+        }
         s->ops.SetVerifyCopies(s->appPrefs.verify_copies);
         // Shell dialogs (打开方式…/属性) must be owned by the Luling window.
         s->ops.SetUiWindow(hwnd);
         s->ops.Start([hwnd] { PostMessageW(hwnd, WM_OPS_NOTIFY, 0, 0); });
-        // Drop stages of Luling processes that are gone (#55).
-        app::SweepDropStages(app::DropStageRoot(), false);
+        if (init_core) {
         const ops::RecoverySnapshot recovery = s->isolatedTest
             ? ops::RecoverySnapshot{} : s->ops.PendingRecovery();
         if (!recovery.entries.empty()) {
@@ -761,6 +774,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             else
                 s->ops.DiscardRecovery();
         }
+        }
+        if (init_core) {
         s->context_menu.SetShellOperations({
             [s](std::vector<std::wstring> paths, HWND owner, bool background, bool extended,
                 std::vector<std::wstring> disabled) {
@@ -782,6 +797,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 s->ops.ExecuteCommand(command, path);
             },
         });
+        } // init_core: shell context-menu session
         // Explorer verbs arrive on the shell client's reader thread; hop to
         // the UI thread with an owned payload (freed by the WM handler).
         s->ops.SetShellMenuCallback([hwnd](uint32_t token,
@@ -853,7 +869,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->session_active_layout_tab = 0;
             s->session_path.clear();
         }
-        if (!s->shot.active && !s->session_layout_tabs.empty()) {
+        if (!s->shot.active && s->has_window_start && s->session_layout_tabs.empty()) {
+            // A window opened from another one starts at its own folder.
+            const std::wstring start = s->window_start_path;
+            s->pane->NewTab(start);
+            StartLoadingPath(*s, *s->pane->ActiveTab(), start, PathLoadReason::Navigate);
+            RememberPath(*s, start);
+        } else if (!s->shot.active && !s->session_layout_tabs.empty()) {
             s->pane = nullptr;
             s->targetPane = nullptr;
             app::RestoreWindowTabs(
@@ -919,6 +941,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER |
             SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        if (init_core) s->core.started = true;
         return 0;
     }
 
@@ -1037,7 +1060,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_CLOSE: {
         if (s) { SuspendContentSearches(*s); s->globalSearchWindow.Hide(); }
-        if (s && (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled)) {
+        // Hiding to the tray is the last window's choice; closing one of
+        // several windows really closes it.
+        const bool last_window = !s || s->core.windows.IsLastWindow(hwnd);
+        if (last_window && s &&
+            (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled)) {
             HideMainWindowToTray(*s);
             return 0;
         }
@@ -1052,20 +1079,37 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return HandleInstanceCopyData(*s, reinterpret_cast<COPYDATASTRUCT*>(lParam));
     }
 
+    case WM_NEW_WINDOW: {
+        if (!s) return 0;
+        std::wstring path;
+        if (const app::Tab* tab = ActiveTab(*s);
+            tab && !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path))
+            path = tab->current_path;
+        OpenLulingWindow(*s, WindowInit{path});
+        return 0;
+    }
+
     case app::TrayController::kCallbackMessage: {
         if (!s) return 0;
         const auto result = s->tray_controller.HandleCallback(lParam);
         if (result == app::TrayController::CallbackResult::RestartRequested)
             RestartLuling(*s);
         else if (result == app::TrayController::CallbackResult::ExitRequested)
-            DestroyWindow(hwnd);
+            PostMessageW(hwnd, WM_EXIT_LULING, 0, 0);
         return 0;
     }
 
     case WM_EXIT_LULING:
-        // Palette "Exit Luling" (#57): the tray menu's full exit, reachable
-        // when the icon is hidden. Posted so the palette unwinds first.
-        DestroyWindow(hwnd);
+        // Palette "Exit Luling" (#57): the tray menu's full exit. Close every
+        // window least-recent first, so the most recent one runs the process
+        // teardown.
+        if (s) {
+            s->core.exiting = true;
+            for (HWND window : s->core.windows.ExitOrder())
+                if (IsWindow(window)) DestroyWindow(window);
+        } else {
+            DestroyWindow(hwnd);
+        }
         return 0;
 
     case WM_DPICHANGED: {
@@ -2167,7 +2211,10 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return 0;
 
     case WM_DESTROY: {
-        app::shell_tags::RevokeCommandServer();
+        // Closing one of several windows tears down what that window owns;
+        // services, saved state and the shared caches go with the last.
+        const bool last_window = !s || s->core.windows.IsLastWindow(hwnd);
+        if (last_window) app::shell_tags::RevokeCommandServer();
         if (s) {
             s->core.windows.Remove(hwnd);
             s->probe_scheduler.Clear();
@@ -2179,23 +2226,25 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 #endif
             s->framePump.Stop();
             StopShellWindows(*s);
-            ShutdownGlobalSearch(*s);
-            StopShellRegistryWatch();
-            s->watches.Stop();
-            s->folderSizes.Stop();
-            s->settings.ResetUi();
-            s->settings.Stop();
-            s->update_checker.Stop();
-            s->update_installer.Stop();
-            s->contentSearch.Stop();
-            s->duplicateSearch.Stop();
-            s->networkIndex.Stop();
-            s->changes.client.Stop();
-            s->index.Stop();
-            CancelNetworkLocations(*s);
-            CancelSidebarRefresh(*s);
-            s->worker.Stop();
             ShutdownDetailsSizeWalk(*s);
+            CancelSidebarRefresh(*s);
+            if (last_window) {
+                ShutdownGlobalSearch(*s);
+                StopShellRegistryWatch();
+                s->watches.Stop();
+                s->folderSizes.Stop();
+                s->settings.ResetUi();
+                s->settings.Stop();
+                s->update_checker.Stop();
+                s->update_installer.Stop();
+                s->contentSearch.Stop();
+                s->duplicateSearch.Stop();
+                s->networkIndex.Stop();
+                s->changes.client.Stop();
+                s->index.Stop();
+                CancelNetworkLocations(*s);
+                s->worker.Stop();
+            }
 
             if (s->dropTarget) {
                 RevokeDragDrop(hwnd);
@@ -2230,7 +2279,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
             // Visual-regression runs must never overwrite the user's real
             // window, path, tray, or undo session.
-            if (s->startupComplete && !s->shot.active && !s->menushot && !s->isolatedTest) {
+            if (last_window && s->startupComplete && !s->shot.active && !s->menushot && !s->isolatedTest) {
                 // A hidden tag-only launch must not overwrite the real
                 // window/tab session (SessionWritable); tags and places still save below.
                 if (!s->updateSessionPrepared) SaveWindowSession(*s, hwnd, true);
@@ -2239,21 +2288,32 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 if (!s->updateSessionPrepared) s->appPrefs.Save();
             }
 
-            s->tray_controller.Detach();
             s->ops.Stop();
-            ops::ShutdownElevatedTransferHelper();
-            app::SweepDropStages(app::DropStageRoot(), true);
-            s->single_instance.Release();
-
-            UnregisterAssocChangeNotify();
+            if (last_window) {
+                s->tray_controller.Detach();
+                ops::ShutdownElevatedTransferHelper();
+                app::SweepDropStages(app::DropStageRoot(), true);
+                s->single_instance.Release();
+                UnregisterAssocChangeNotify();
+            }
             s->renderer.SetIconNotifyWindow(nullptr);
             s->renderer.SetCompositor(nullptr);
             s->compositor.Shutdown();
             if (s->core.service_window == s->hwnd) s->core.service_window = nullptr;
             s->hwnd = nullptr;
         }
-        PostQuitMessage(0);
+        if (last_window) {
+            ReleaseRetiredWindowStates();
+            PostQuitMessage(0);
+        }
         return 0;
+    }
+
+    case WM_NCDESTROY: {
+        AppState* state = GetAppState(hwnd);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+        if (state) RetireWindowState(*state);
+        break;
     }
     }
 
@@ -2963,8 +3023,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         h = state.shot.height;
     }
 
-    constexpr DWORD kMainWindowStyle =
-        WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
     static_assert((kMainWindowStyle & WS_CAPTION) == WS_CAPTION &&
                   (kMainWindowStyle & WS_SYSMENU) == 0,
                   "keep the system animations without DWM's duplicate caption buttons");

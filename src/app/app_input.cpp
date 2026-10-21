@@ -4068,6 +4068,8 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             ToggleSidebarCollapsed(*s);
         } else if (ctrl && wParam == L'T') {
             OpenNewTab(*s);
+        } else if (ctrl && !shift && !alt && wParam == L'N') {
+            PostMessageW(s->hwnd, WM_NEW_WINDOW, 0, 0);
         } else if (ctrl && wParam == L'K') {
             if (shift) ShowOmnibar(*s, OmnibarMode::Mixed);
             else ShowAddressSearch(*s);

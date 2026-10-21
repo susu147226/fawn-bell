@@ -22,7 +22,9 @@ void RestartLuling(AppState& state) {
     // Release before the window goes away so the replacement can become primary
     // immediately instead of waiting out the mutex.
     state.single_instance.Release();
-    DestroyWindow(state.hwnd);
+    state.core.exiting = true;
+    for (HWND window : state.core.windows.ExitOrder())
+        if (IsWindow(window)) DestroyWindow(window);
 }
 
 } // namespace luling
