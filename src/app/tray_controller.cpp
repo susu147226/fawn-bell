@@ -57,7 +57,8 @@ bool TrayController::SetVisible(bool visible) {
     return true;
 }
 
-void TrayController::HideWindow(bool show_icon) {
+void TrayController::HideWindow(HWND window, bool show_icon) {
+    if (window) hwnd_ = window;
     if (!hwnd_) return;
     SetVisible(show_icon);
     ShowWindow(hwnd_, SW_HIDE);

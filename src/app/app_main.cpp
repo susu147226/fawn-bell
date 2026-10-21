@@ -1135,8 +1135,16 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (wParam == HTCLOSE) {
             SuspendContentSearches(*s);
             s->globalSearchWindow.Hide();
-            if (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled) HideMainWindowToTray(*s);
-            else DestroyWindow(hwnd);
+            // The last window may stay in the tray; closing one of several
+            // windows really closes it (and hides *this* one, not the window
+            // the tray icon was created on).
+            const bool last_window = s->core.windows.IsLastWindow(hwnd);
+            if (last_window &&
+                (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled)) {
+                HideMainWindowToTray(*s);
+            } else {
+                DestroyWindow(hwnd);
+            }
             return 0;
         }
         break;

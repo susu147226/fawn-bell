@@ -17,7 +17,10 @@ void HideMainWindowToTray(AppState& s) {
             l10n::Get(l10n::StringId::TrayStillRunningTitle),
             l10n::Get(l10n::StringId::TrayStillRunningText));
     }
-    s.tray_controller.HideWindow(show_icon);
+    // The icon restores the window it now hides (multi-window: the tray icon
+    // may have been created on another one).
+    InstallTrayRevealHook(s);
+    s.tray_controller.HideWindow(s.hwnd, show_icon);
 }
 
 bool WantsTrayIcon(const AppState& s, bool window_hidden) {

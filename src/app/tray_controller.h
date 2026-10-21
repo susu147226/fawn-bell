@@ -30,8 +30,10 @@ public:
     void Detach();
     bool SetVisible(bool visible);
     // `show_icon` false (icon set to never): hide without an icon; a second
-    // launch of Luling brings the window back.
-    void HideWindow(bool show_icon = true);
+    // launch of Luling brings the window back. The icon follows `window`, so
+    // closing one of several windows hides that one rather than the window
+    // the icon was created on.
+    void HideWindow(HWND window, bool show_icon = true);
     void RestoreWindow();
     // Sign-in launch into the tray: add the icon and keep the window hidden.
     // Returns false (caller shows the window) when the icon cannot be added

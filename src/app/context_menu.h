@@ -152,6 +152,7 @@ enum MenuCmd : int {
     CmdDissolveFolder = 3911,   // folders only: 解散文件夹
     CmdOpenInNewWindow = 3912,  // folder / background: open in a new window
     CmdTabMoveToNewWindow = 3913,  // tab menu: move this tab into a new window
+    CmdMergeWindows = 3914,        // toolbar 更多: merge every window into this one
     // Toolbar pinned apps and pin suggestions (自定义工具栏).
     CmdToolbarAppBase = 5100,
     CmdToolbarPinAppBase = 5120,

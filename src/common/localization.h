@@ -1071,6 +1071,7 @@ enum class StringId : UINT {
     OpenInNewWindow = IDS_OPEN_NEW_WINDOW,
     MoveTabToNewWindow = IDS_MOVE_TAB_TO_NEW_WINDOW,
     NewWindow = IDS_NEW_WINDOW,
+    MergeWindows = IDS_MERGE_WINDOWS,
     SettingsConfirmDelete = IDS_SETTINGS_CONFIRM_DELETE,
     SettingsConfirmDeleteDesc = IDS_SETTINGS_CONFIRM_DELETE_DESC,
     RecycleConfirmOne = IDS_RECYCLE_CONFIRM_ONE,

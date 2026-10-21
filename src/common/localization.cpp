@@ -10,7 +10,7 @@ namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
 // Must stay on the highest allocated string id, otherwise Get() returns empty.
-constexpr UINT kLastString = IDS_NEW_WINDOW;
+constexpr UINT kLastString = IDS_MERGE_WINDOWS;
 // Adding a string means moving kLastString with it: Get() returns an empty
 // string for anything above the bound, so a forgotten bump shows up as blank
 // labels rather than as a compile error.

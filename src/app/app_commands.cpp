@@ -9,6 +9,10 @@
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
 #include "window_factory.h"
+
+namespace luling {
+static void MergeAllWindows(AppState& s);
+}  // namespace luling
 #include "selection_caps.h"
 #include "../ui/toolbar_customize_dialog.h"
 #include "drive_verbs.h"
@@ -1162,6 +1166,7 @@ void DispatchMenuCommand(AppState& s, int cmd) {
     case app::CmdUnpinNetwork: UnpinSelectedNetworks(s); break;
     case app::CmdGroupIntoFolder: GroupSelectionIntoFolder(s); break;
     case app::CmdDissolveFolder: DissolveSelectedFolders(s); break;
+    case app::CmdMergeWindows: MergeAllWindows(s); break;
     case app::CmdCustomizeToolbar: ShowToolbarCustomize(s); break;
     default:
             if (cmd >= app::CmdIndexBase) {
@@ -3158,6 +3163,28 @@ void RunToolbarSelectionAction(AppState& s, int action) {
     else DispatchMenuCommand(s, cmd);
 }
 
+// Moves every tab of the other windows into this one, then closes them.
+static void MergeAllWindows(AppState& s) {
+    std::vector<HWND> others;
+    s.core.windows.ForEach([&](HWND hwnd, AppState&) {
+        if (hwnd != s.hwnd) others.push_back(hwnd);
+    });
+    for (HWND hwnd : others) {
+        AppState* src = s.core.windows.Lookup(hwnd);
+        if (!src || !src->hwnd) continue;
+        while (!src->window_tabs.items.empty()) {
+            auto moved = src->window_tabs.TakeTab(src->window_tabs.items.size() - 1, true);
+            if (!moved) break;
+            s.window_tabs.InsertTab(std::move(moved), s.window_tabs.items.size());
+        }
+        BindCurrentLayout(s);
+        app::RebuildLayoutRoot(*s.window_tabs.Active());
+        DestroyWindow(src->hwnd);
+    }
+    BindCurrentLayout(s);
+    if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
 void ShowToolbarMore(AppState& s) {
     if (!EnsureMenu(s)) return;
     auto* tab=ActiveTab(s);
@@ -3254,6 +3281,14 @@ void ShowToolbarMore(AppState& s) {
         item.text = l10n::Get(l10n::StringId::NewWindow);
         item.glyph = L"\xE8A7";  // OpenInNewWindow
         item.shortcut = L"Ctrl+N";
+        item.separator_after = true;
+        items.push_back(std::move(item));
+    }
+    if (s.core.windows.Count() > 1) {
+        ui::FluentMenuItem item;
+        item.command = app::CmdMergeWindows;
+        item.text = l10n::Get(l10n::StringId::MergeWindows);
+        item.glyph = L"\xE8C8";
         item.separator_after = true;
         items.push_back(std::move(item));
     }
