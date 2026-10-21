@@ -25,8 +25,8 @@ struct Roots {
     // Under `user`; holds <.ext>\UserChoice. Empty: ignore user choices.
     std::wstring file_exts = L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts";
     // Under `user` / `machine`: where 删除残留项 moves a key, so undo can put it back.
-    std::wstring user_trash = L"Software\\Pulse\\SystemContextMenu\\Deleted";
-    std::wstring machine_trash = L"Software\\Pulse\\SystemContextMenu\\Deleted";
+    std::wstring user_trash = L"Software\\Luling\\SystemContextMenu\\Deleted";
+    std::wstring machine_trash = L"Software\\Luling\\SystemContextMenu\\Deleted";
     bool resolve_strings = true; // SHLoadIndirectString / CLSID names
     bool check_owner = true;     // TrustedInstaller lookups (slow on big scans)
 };

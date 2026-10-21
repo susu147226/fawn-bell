@@ -108,7 +108,7 @@ public:
     std::wstring DataDirectory() const;     // holds ops.jsonl and the Backups folder
     std::wstring BackupDirectory() const;
 
-    // Paths under %LOCALAPPDATA%\Pulse\SystemContextMenu (tests override).
+    // Paths under %LOCALAPPDATA%\Luling\SystemContextMenu (tests override).
     void SetDataDirectoryForTesting(std::wstring directory);
 
 private:

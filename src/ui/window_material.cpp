@@ -210,9 +210,9 @@ FILE* MaterialLogFile() {
         wchar_t path[MAX_PATH]{};
         if (!GetEnvironmentVariableW(L"LOCALAPPDATA", dir, MAX_PATH))
             return nullptr;
-        swprintf_s(path, L"%s\\Pulse", dir);
+        swprintf_s(path, L"%s\\Luling", dir);
         CreateDirectoryW(path, nullptr);
-        swprintf_s(path, L"%s\\Pulse\\material.log", dir);
+        swprintf_s(path, L"%s\\Luling\\material.log", dir);
         FILE* f = nullptr;
         _wfopen_s(&f, path, L"a");
         return f;

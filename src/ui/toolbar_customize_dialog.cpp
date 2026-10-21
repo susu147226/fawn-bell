@@ -13,7 +13,7 @@
 namespace luling::ui {
 namespace {
 
-constexpr wchar_t kCustomizeClass[] = L"PulseToolbarCustomizeWindow";
+constexpr wchar_t kCustomizeClass[] = L"LulingToolbarCustomizeWindow";
 constexpr float kWidth = 460.0f;
 constexpr float kPad = 24.0f;
 constexpr float kTitleBar = 36.0f;
