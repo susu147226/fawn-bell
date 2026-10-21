@@ -574,8 +574,15 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         } else if (s->window_adopt_from) {
             AppState* src = s->window_adopt_from;
             if (s->window_adopt_index < src->window_tabs.items.size()) {
-                if (auto moved = src->window_tabs.TakeTab(s->window_adopt_index, false))
+                if (auto moved = src->window_tabs.TakeTab(s->window_adopt_index, false)) {
                     s->window_tabs.InsertTab(std::move(moved), 0);
+                    // The source was showing this tab: rebind it to its own
+                    // remaining tab, or it would read another window's data.
+                    src->window_tabs.EnsureDefault();
+                    BindCurrentLayout(*src);
+                    SyncVisibleWatches(*src);
+                    if (src->hwnd) InvalidateRect(src->hwnd, nullptr, FALSE);
+                }
             }
         }
         s->window_tabs.EnsureDefault();

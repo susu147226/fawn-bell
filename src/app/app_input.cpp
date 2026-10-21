@@ -3274,6 +3274,61 @@ LRESULT HandleLButtonDblClk(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPA
         return 0;
 }
 
+// Drops a dragged tab onto another Luling window's tab strip (multi-window):
+// the tab moves there, keeping its panes, and its own window switches to it.
+static bool DropTabOnWindow(AppState& s, int index, POINT screen) {
+    HWND under = WindowFromPoint(screen);
+    HWND root = under ? GetAncestor(under, GA_ROOT) : nullptr;
+    if (!root || root == s.hwnd) return false;
+    AppState* dst = GetAppState(root);
+    if (!dst || !dst->hwnd || dst->core.host.Hwnd() != s.core.host.Hwnd()) return false;
+    POINT pt = screen;
+    ScreenToClient(root, &pt);
+    const ui::WindowViewModel vm = BuildVm(*dst, false);
+    const float w = static_cast<float>(dst->compositor.Width());
+    const int tabs = static_cast<int>(dst->window_tabs.items.size());
+    D2D1_RECT_F first{}, last{};
+    bool have_tabs = false;
+    int insert = tabs;
+    for (int i = 0; i < tabs; ++i) {
+        D2D1_RECT_F rc{};
+        if (!dst->renderer.TabItemRect(vm, w, i, &rc)) continue;
+        if (!have_tabs) first = rc;
+        last = rc;
+        have_tabs = true;
+        if (insert == tabs && static_cast<float>(pt.x) < (rc.left + rc.right) * 0.5f) insert = i;
+    }
+    if (!have_tabs) return false;
+    // Only the strip's own row (and a little slack) accepts the drop.
+    if (static_cast<float>(pt.x) < first.left - 24.0f * dst->scale ||
+        static_cast<float>(pt.x) > last.right + 24.0f * dst->scale ||
+        static_cast<float>(pt.y) < first.top - 6.0f * dst->scale ||
+        static_cast<float>(pt.y) > first.bottom + 6.0f * dst->scale)
+        return false;
+    const bool was_last = s.window_tabs.items.size() == 1;
+    auto moved = s.window_tabs.TakeTab(static_cast<size_t>(index), was_last);
+    if (!moved) return false;
+    dst->window_tabs.InsertTab(std::move(moved), static_cast<size_t>(insert));
+    app::RebuildLayoutRoot(*dst->window_tabs.Active());
+    BindCurrentLayout(*dst);
+    SyncVisibleWatches(*dst);
+    if (dst->hwnd) {
+        SetForegroundWindow(dst->hwnd);
+        InvalidateRect(dst->hwnd, nullptr, FALSE);
+    }
+    if (was_last) {
+        // The tab was its window's only one: the window goes away.
+        if (s.hwnd) DestroyWindow(s.hwnd);
+        return true;
+    }
+    // The source window may have been showing the moved tab; rebind it so it
+    // falls back to its own remaining tab instead of reading another window's.
+    BindCurrentLayout(s);
+    SyncVisibleWatches(s);
+    if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
+    return true;
+}
+
 LRESULT HandleLButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (s && SysCtxPreviewDragEnd(*s, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))) return 0;
         (void)msg;
@@ -3453,6 +3508,24 @@ LRESULT HandleLButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
             if (s->tabDragPending || s->tabDragging) {
                 const bool wasActive = s->tabDragging;
+                if (wasActive && !s->tabDragFromChip && s->tabDragIndex >= 0 &&
+                    s->tabDragIndex < static_cast<int>(s->window_tabs.items.size())) {
+                    POINT screen{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+                    ClientToScreen(hwnd, &screen);
+                    if (DropTabOnWindow(*s, s->tabDragIndex, screen)) {
+                        s->tabDragPending = false;
+                        s->tabDragging = false;
+                        s->tabDragIndex = -1;
+                        s->tabDragRunPos = 0;
+                        s->tabDragRunLen = 1;
+                        s->tabDragFromChip = false;
+                        s->tabDragGroupId = 0;
+                        s->tabDragSlots = 1.0f;
+                        s->tabOrder.clear();
+                        if (GetCapture() == hwnd) ReleaseCapture();
+                        return 0;
+                    }
+                }
                 if (wasActive && s->pane && s->tabDragIndex >= 0 &&
                     s->tabDragIndex < static_cast<int>(s->window_tabs.items.size())) {
                     int cur = -1;
