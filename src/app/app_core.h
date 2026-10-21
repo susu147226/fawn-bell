@@ -6,10 +6,23 @@
 // member names so existing call sites are unchanged.
 #pragma once
 #include "app_worker.h"
+#include "app_model.h"
+#include "places.h"
+#include "shell_window_registry.h"
+#include "explorer_window_takeover.h"
 #include "app_prefs.h"
 #include "search_history.h"
 #include "location_history.h"
 #include "saved_search.h"
+#include "context_menu_prefs.h"
+#include "context_menu_controller.h"
+#include "settings_controller.h"
+#include "update_checker.h"
+#include "update_installer.h"
+#include "single_instance_coordinator.h"
+#include "tray_controller.h"
+#include "global_search_hotkey.h"
+#include "global_search_window.h"
 #include "../fs/fs_snapshot.h"
 #include "../index/index_client.h"
 #include "../index/network_agent_client.h"
@@ -25,6 +38,29 @@ struct AppCore {
     app::SearchHistoryWriter searchHistoryWriter;
     app::LocationHistory locationHistory;
     app::SavedSearchStore savedSearches;
+    // Shell context-menu preferences and the COM session every window reuses.
+    app::ContextMenuPrefs ctxMenuPrefs;
+    app::ContextMenuController context_menu;
+    app::SettingsController settings;
+    // Update check/download state: one check per process, shared by windows.
+    app::UpdateChecker update_checker;
+    app::UpdateResult update_result;
+    bool update_result_ready = false;
+    app::UpdateInstaller update_installer;
+    DWORD update_install_error = ERROR_SUCCESS;
+    // One tray icon, one single-instance endpoint, one global hotkey.
+    app::TrayController tray_controller;
+    GlobalSearchHotkey globalSearchHotkey;
+    GlobalSearchWindow globalSearchWindow;
+    app::SingleInstanceCoordinator single_instance;
+    // The staging tray and the favorites/recent catalog are user data, not
+    // window state: windows show the same tray and the same starred folders.
+    app::StagingTray tray;
+    app::PlacesCatalog places;
+    // Shell windows published for "open file location" and the Explorer
+    // takeover belong to the process, not to one window.
+    std::unique_ptr<app::ShellWindowRegistry> shell_windows;
+    std::unique_ptr<app::ExplorerWindowTakeover> explorer_takeover;
     app::WorkerPool worker;
     fs::SnapshotStore store;
     index::IndexClient index;

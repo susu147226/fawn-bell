@@ -291,22 +291,22 @@ struct AppState {
     uint32_t sidebarQuickAccessHiddenMask = 0;
     bool starredExpanded = true;
     float sidebarScroll = 0.0f;
-    app::StagingTray tray;
-    app::PlacesCatalog places;
-    app::ContextMenuPrefs ctxMenuPrefs;
+    app::StagingTray& tray = core.tray;
+    app::PlacesCatalog& places = core.places;
+    app::ContextMenuPrefs& ctxMenuPrefs = core.ctxMenuPrefs;
     // Explorer COM/static menu session, caches, and delayed refresh state.
-    app::ContextMenuController context_menu;
+    app::ContextMenuController& context_menu = core.context_menu;
     app::AppPrefs& appPrefs = core.appPrefs;
     app::SearchHistory& searchHistory = core.searchHistory;
     app::SearchHistoryWriter& searchHistoryWriter = core.searchHistoryWriter;
     // Folders the user visited: the address bar's history dropdown.
     app::LocationHistory& locationHistory = core.locationHistory;
-    app::SettingsController settings;
-    app::UpdateChecker update_checker;
-    app::UpdateResult update_result;
-    bool update_result_ready = false;
-    app::UpdateInstaller update_installer;
-    DWORD update_install_error = ERROR_SUCCESS;
+    app::SettingsController& settings = core.settings;
+    app::UpdateChecker& update_checker = core.update_checker;
+    app::UpdateResult& update_result = core.update_result;
+    bool& update_result_ready = core.update_result_ready;
+    app::UpdateInstaller& update_installer = core.update_installer;
+    DWORD& update_install_error = core.update_install_error;
     ULONGLONG next_update_progress_paint = 0;
     ULONGLONG next_update_check = GetTickCount64() + 15000;
     // Background preview pack updates (TickUpdates): half a minute after
@@ -317,11 +317,11 @@ struct AppState {
     std::wstring whatsNewVersion;      // set once after an upgrade; toast shown at whatsNewAt
     ULONGLONG whatsNewAt = 0;
     app::TabController tabs;
-    app::TrayController tray_controller;
+    app::TrayController& tray_controller = core.tray_controller;
     bool hidden_to_tray = false;       // the close button hid the window (tray_reveal.h)
-    GlobalSearchHotkey globalSearchHotkey;
-    GlobalSearchWindow globalSearchWindow;
-    app::SingleInstanceCoordinator single_instance;
+    GlobalSearchHotkey& globalSearchHotkey = core.globalSearchHotkey;
+    GlobalSearchWindow& globalSearchWindow = core.globalSearchWindow;
+    app::SingleInstanceCoordinator& single_instance = core.single_instance;
     ui::BloomAccentPicker bloom_accent;
     uint64_t tagAdsResultRevision = 0;
     std::unordered_set<std::wstring> tagAdsDiscoveryQueued;
@@ -624,9 +624,9 @@ struct AppState {
     std::shared_ptr<TrayTextProbe> trayTextProbe; // text/binary probe for "view diff"
     std::unique_ptr<ui::TextDiffWindow> textDiff; // stand-alone text compare window
     // Panes as shell windows for "open file location" (shell_window_sync.h).
-    std::unique_ptr<app::ShellWindowRegistry> shell_windows;
+    std::unique_ptr<app::ShellWindowRegistry>& shell_windows = core.shell_windows;
     std::vector<app::ShellWindowEntry> shell_windows_published;
-    std::unique_ptr<app::ExplorerWindowTakeover> explorer_takeover;   // experimental (B站 #1 2b)
+    std::unique_ptr<app::ExplorerWindowTakeover>& explorer_takeover = core.explorer_takeover;
     // One-time teaching bubbles (tips_seen bits in appPrefs).
     int teachTip = -1;                 // visible tip, -1 = none
     int teachCandidate = -1;           // trigger currently holding
