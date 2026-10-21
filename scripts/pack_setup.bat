@@ -58,6 +58,8 @@ if not exist "%LULING_MAKENSIS%" (
     echo NSIS not found: install NSIS or set LULING_MAKENSIS
     exit /b 1
 )
+rem A fresh CI checkout has no dist folder, and NSIS will not create it.
+if not exist "%CD%\dist" mkdir "%CD%\dist"
 "%LULING_MAKENSIS%" /DVERSION=%LULING_VERSION% /DBUILDDIR="%LULING_BUILD_DIR%" /DOUTDIR="%CD%\dist" /DROOT="%CD%" /DSUFFIX=%LULING_SUFFIX% %LULING_PACKSDEF% "%CD%\scripts\installer_luling.nsi" || exit /b 1
 echo.
 echo Installer written to dist\LulingSetup-%LULING_VERSION%%LULING_SUFFIX%.exe
