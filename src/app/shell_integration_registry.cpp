@@ -459,7 +459,9 @@ bool ApplyGroup(const std::wstring& group, const std::wstring& exe, bool on) {
         return true;
     }
 
-    if (!command_ours && !removed_anchor) return true; // no evidence that these values belong to Luling
+    // A live snapshot is evidence on its own: the command may have drifted away
+    // from ours while we held the takeover, and that case still has to restore.
+    if (!command_ours && !removed_anchor && !valid) return true;
     if (!valid) {
         // Migrate available legacy text through the same ownership checks.
         previous.before.resize(bindings.size());
