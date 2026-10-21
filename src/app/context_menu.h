@@ -150,6 +150,8 @@ enum MenuCmd : int {
     CmdUnpinNetwork = 3904,     // Network view: remove the selected pins
     CmdGroupIntoFolder = 3910,  // 2+ items: 合并到文件夹
     CmdDissolveFolder = 3911,   // folders only: 解散文件夹
+    CmdOpenInNewWindow = 3912,  // folder / background: open in a new window
+    CmdTabMoveToNewWindow = 3913,  // tab menu: move this tab into a new window
     // Toolbar pinned apps and pin suggestions (自定义工具栏).
     CmdToolbarAppBase = 5100,
     CmdToolbarPinAppBase = 5120,

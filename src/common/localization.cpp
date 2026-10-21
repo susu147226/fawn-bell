@@ -10,7 +10,7 @@ namespace {
 
 constexpr UINT kFirstString = IDS_SETTINGS;
 // Must stay on the highest allocated string id, otherwise Get() returns empty.
-constexpr UINT kLastString = IDS_ABOUT_RESTART;
+constexpr UINT kLastString = IDS_NEW_WINDOW;
 // Adding a string means moving kLastString with it: Get() returns an empty
 // string for anything above the bound, so a forgotten bump shows up as blank
 // labels rather than as a compile error.
@@ -22,7 +22,9 @@ static_assert(static_cast<UINT>(StringId::ResetWindowPosition) <= kLastString &&
               static_cast<UINT>(StringId::ThumbnailCacheRefreshed) <= kLastString);
 static_assert(static_cast<UINT>(StringId::SettingsStagingTrayDesc) <= kLastString);
 static_assert(static_cast<UINT>(StringId::MenuAppendSuffix) <= kLastString);
-static_assert(static_cast<UINT>(StringId::AboutRestart) == kLastString);
+static_assert(static_cast<UINT>(StringId::AboutRestart) <= kLastString);
+static_assert(static_cast<UINT>(StringId::OpenInNewWindow) <= kLastString &&
+              static_cast<UINT>(StringId::NewWindow) <= kLastString);
 static_assert(static_cast<UINT>(StringId::BatchRenameMore) <= kLastString);
 static_assert(static_cast<UINT>(StringId::BatchRenameFewer) <= kLastString);
 static_assert(static_cast<UINT>(StringId::RemoveFromSystem) <= kLastString);

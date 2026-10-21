@@ -424,6 +424,11 @@ struct WindowTabs {
         return created;
     }
     void CloseTab(size_t idx);
+    // Moving a tab between windows: TakeTab removes tab `idx` with its panes
+    // and history (`allow_last` for the only tab: the source window is going
+    // away); InsertTab places it at `index`, clamped to its pinned region.
+    std::unique_ptr<LayoutTab> TakeTab(size_t idx, bool allow_last = false);
+    size_t InsertTab(std::unique_ptr<LayoutTab> tab, size_t index);
     void SwitchTab(size_t idx);
     void MoveTab(size_t from, size_t to);
 };

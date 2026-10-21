@@ -8,6 +8,7 @@
 #include "app_updates.h"
 #include "about_info.h"
 #include "app_internal.h"
+#include "window_factory.h"
 #include "app_hover_preview.h"
 #include "app_column_view.h"
 #include "details_column_menu.h"
@@ -1459,6 +1460,32 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     }
                 }
                 if (s->tabDragging) {
+                    // Dragged down off the strip: the tab moves into a window
+                    // of its own at the pointer (M6a).
+                    if (!s->tabDragFromChip &&
+                        my - s->tabDragStartPt.y > static_cast<int>(24.0f * s->scale)) {
+                        const int index = s->tabDragIndex;
+                        s->tabDragPending = false;
+                        s->tabDragging = false;
+                        s->tabDragIndex = -1;
+                        s->tabDragFromChip = false;
+                        s->tabDragGroupId = 0;
+                        s->tabOrder.clear();
+                        if (GetCapture() == hwnd) ReleaseCapture();
+                        if (index >= 0 && index < static_cast<int>(s->window_tabs.items.size())) {
+                            POINT screen{mx, my};
+                            ClientToScreen(hwnd, &screen);
+                            const LONG w = static_cast<LONG>(900.0f * s->scale);
+                            const LONG h = static_cast<LONG>(600.0f * s->scale);
+                            WindowInit init;
+                            init.adopt_from = s;
+                            init.adopt_index = static_cast<size_t>(index);
+                            init.rect = RECT{screen.x - 120, screen.y - 24,
+                                             screen.x - 120 + w, screen.y - 24 + h};
+                            OpenLulingWindow(*s, init);
+                        }
+                        return 0;
+                    }
                     const int dx = mx - s->tabDragLastX;
                     // Collapsed chip drags clamp by the px block width; slot
                     // math only holds for tab-sized blocks.

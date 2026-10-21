@@ -517,6 +517,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->quickPreview.Initialize(hwnd, WM_QUICK_PREVIEW_NAVIGATE,
                                    WM_QUICK_PREVIEW_OPEN, WM_QUICK_PREVIEW_COMMAND);
 
+        if (s->window_adopt_from) {
+            AppState* src = s->window_adopt_from;
+            if (s->window_adopt_index < src->window_tabs.items.size()) {
+                if (auto moved = src->window_tabs.TakeTab(s->window_adopt_index, false))
+                    s->window_tabs.InsertTab(std::move(moved), 0);
+            }
+        }
         s->window_tabs.EnsureDefault();
         BindCurrentLayout(*s);
 #ifdef LULING_WITH_SELFTEST
@@ -534,6 +541,12 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             },
             [s] { return s->appPrefs.close_window_with_last_tab; },
             [hwnd] { PostMessageW(hwnd, WM_CLOSE, 0, 0); },
+            [s](int index) {
+                WindowInit init;
+                init.adopt_from = s;
+                init.adopt_index = static_cast<size_t>(index);
+                OpenLulingWindow(*s, init);
+            },
         });
         if (init_core) {
         if (s->isolatedTest) {
@@ -869,7 +882,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->session_active_layout_tab = 0;
             s->session_path.clear();
         }
-        if (!s->shot.active && s->has_window_start && s->session_layout_tabs.empty()) {
+        if (!s->shot.active && s->window_adopt_from && !s->window_tabs.items.empty()) {
+            // The tab moved in alive; its folders start loading here.
+            if (app::Tab* adopted = s->pane ? s->pane->ActiveTab() : nullptr) {
+                if (!adopted->current_path.empty())
+                    StartLoadingPath(*s, *adopted, adopted->current_path, PathLoadReason::RestoreSession);
+            }
+        } else if (!s->shot.active && s->has_window_start && s->session_layout_tabs.empty()) {
             // A window opened from another one starts at its own folder.
             const std::wstring start = s->window_start_path;
             s->pane->NewTab(start);

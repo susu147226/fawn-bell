@@ -252,6 +252,9 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
     std::vector<ui::FluentMenuItem> items;
     items.push_back(MenuItem(CmdTabNewRight, TabText(Text::TabNewRight), L"\xE710"));
     items.push_back(MenuItem(CmdTabDuplicate, TabText(Text::TabDuplicate), L"\xE8C8"));
+    if (callbacks_.move_tab_to_new_window)
+        items.push_back(MenuItem(CmdTabMoveToNewWindow,
+            luling::l10n::Get(luling::l10n::StringId::MoveTabToNewWindow).c_str(), L"\xE8A7"));
     items.push_back(MenuItem(CmdTabRename,
         luling::l10n::Get(luling::l10n::StringId::TabRename).c_str(), L"\xE8AC"));
     ui::FluentMenuItem colors;
@@ -301,6 +304,8 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
     const int command = menu.TrackPopup(screen_pt, std::move(items));
     if (command == CmdTabDuplicate) {
         DuplicateTab(tabs, static_cast<size_t>(tab_index));
+    } else if (command == CmdTabMoveToNewWindow && callbacks_.move_tab_to_new_window) {
+        callbacks_.move_tab_to_new_window(tab_index);
     } else if (command == CmdTabNewRight) {
         const Tab* current = tabs.Active() ? tabs.Active()->ActiveFolder() : nullptr;
         OpenCreatedTab(tabs, static_cast<size_t>(tab_index) + 1,

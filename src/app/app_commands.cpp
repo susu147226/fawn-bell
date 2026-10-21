@@ -8,6 +8,7 @@
 #include "app_column_view.h"
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
+#include "window_factory.h"
 #include "selection_caps.h"
 #include "../ui/toolbar_customize_dialog.h"
 #include "drive_verbs.h"
@@ -881,6 +882,28 @@ void DispatchMenuCommand(AppState& s, int cmd) {
             if (!entry.is_dir) continue;
             const std::wstring path = EntryFullPath(*tab, index);
             if (!path.empty()) OpenFolderTab(s, path);
+        }
+        break;
+    }
+    case app::CmdOpenInNewWindow: {
+        app::Tab* tab = ActiveTab(s);
+        if (!tab) break;
+        bool opened = false;
+        for (int index : tab->SelectedIndices()) {
+            if (index < 0 || index >= static_cast<int>(tab->EntryCount())) continue;
+            const fs::DirEntry& entry = tab->EntryAt(static_cast<size_t>(index));
+            if (!entry.is_dir) continue;
+            const std::wstring path = EntryFullPath(*tab, index);
+            if (path.empty()) continue;
+            OpenLulingWindow(s, WindowInit{path});
+            opened = true;
+        }
+        // Nothing selected (background menu): the folder on screen.
+        if (!opened) {
+            const std::wstring path =
+                !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path)
+                    ? tab->current_path : std::wstring();
+            OpenLulingWindow(s, WindowInit{path});
         }
         break;
     }
@@ -3225,6 +3248,15 @@ void ShowToolbarMore(AppState& s) {
     properties.enabled=tab->SelectedCount()>0;
     properties.separator_after=true;
     items.push_back(std::move(properties));
+    {
+        ui::FluentMenuItem item;
+        item.command = app::CmdOpenInNewWindow;
+        item.text = l10n::Get(l10n::StringId::NewWindow);
+        item.glyph = L"\xE8A7";  // OpenInNewWindow
+        item.shortcut = L"Ctrl+N";
+        item.separator_after = true;
+        items.push_back(std::move(item));
+    }
     items.push_back(CustomizeToolbarItem());
     items.push_back(app::BuildShortcutHints());
     POINT anchor{static_cast<LONG>(layout.overflow.left),static_cast<LONG>(layout.overflow.bottom)};

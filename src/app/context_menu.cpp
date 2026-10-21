@@ -88,8 +88,10 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
     strip.separator_after = true;
     items.push_back(std::move(strip));
 
-    if (folder)
+    if (folder) {
         items.push_back(Item(CmdOpenInNewTab, l10n::Get(l10n::StringId::OpenNewTab).c_str(), kGlyphOpenInNewTab));
+        items.push_back(Item(CmdOpenInNewWindow, l10n::Get(l10n::StringId::OpenInNewWindow).c_str(), kGlyphOpenInNewTab));
+    }
     items.push_back(Item(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C"));
     items.push_back(Item(CmdOpenTerminal, l10n::Get(l10n::StringId::OpenTerminalHere).c_str(), kGlyphTerminal));
     items.push_back(Item(CmdProperties, l10n::Get(l10n::StringId::Properties).c_str(), kGlyphProperties, L"Alt+Enter"));
@@ -319,6 +321,7 @@ std::vector<ui::FluentMenuItem> BuildBackgroundMenu(bool can_paste, bool can_und
         l10n::Get(l10n::StringId::RemoveFromSystem).c_str(), L"\xE74D"));
     items.back().separator_after = true;
     items.push_back(Item(CmdPaste, l10n::Get(l10n::StringId::Paste).c_str(), kGlyphPaste, L"Ctrl+V", can_paste));
+    items.push_back(Item(CmdOpenInNewWindow, l10n::Get(l10n::StringId::OpenInNewWindow).c_str(), kGlyphOpenInNewTab));
     items.push_back(Item(CmdCopyPath, l10n::Get(l10n::StringId::CopyPath).c_str(), kGlyphLink, L"Ctrl+Shift+C"));
     items.back().separator_after = true;
     items.push_back(Item(CmdSelectAll, l10n::Get(l10n::StringId::SelectAll).c_str(), kGlyphSelectAll, L"Ctrl+A"));
