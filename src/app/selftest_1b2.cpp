@@ -4850,7 +4850,8 @@ void TestQuickAccess() {
           L"quick access: recycle location rejected");
 
     {
-        AppState state;
+        AppCore core;
+        AppState state{core};
         state.places.persist = false;
         state.ctxMenuPrefs.persist = false;
         std::vector<ui::FluentMenuItem> menu;

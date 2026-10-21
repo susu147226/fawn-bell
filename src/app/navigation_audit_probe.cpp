@@ -189,7 +189,8 @@ int RunNavigationAuditProbe(AppState& s, FILE* log) {
     }
     // Exercise the production vertical drop entry with an isolated tab model.
     {
-        auto probe = std::make_unique<AppState>();
+        AppCore probe_core;
+        auto probe = std::make_unique<AppState>(probe_core);
         auto& tabs = probe->window_tabs;
         tabs.NewTab(fixture_root).pinned = true;
         tabs.NewTab(fixture_root);

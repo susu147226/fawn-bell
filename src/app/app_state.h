@@ -10,6 +10,7 @@
 #include "../ui/drag_drop.h"
 #include "../ui/file_operation_dialog.h"
 #include "../ui/quick_preview_window.h"
+#include "app_core.h"
 #include "list_type_ahead.h"
 #include "preview_selection_follow.h"
 #include "../ui/text_diff_window.h"
@@ -180,6 +181,8 @@ struct TrayTextProbe {
 
 struct SidebarRefreshLoad;
 struct AppState {
+    explicit AppState(AppCore& shared) : core(shared) {}
+    AppCore& core;
     HWND hwnd = nullptr;
     ui::Compositor compositor;
     ui::NotificationToast notification_toast;
@@ -249,8 +252,8 @@ struct AppState {
     app::Pane* pane = nullptr;          // focused leaf of the current layout tab
     app::Pane* targetPane = nullptr;    // Shift+D marked destination
 
-    fs::SnapshotStore store;
-    app::WorkerPool worker;
+    fs::SnapshotStore& store = core.store;
+    app::WorkerPool& worker = core.worker;
     fs::DirWatchSet watches;
     struct DirNotifyBatch {
         std::wstring path;
@@ -293,11 +296,11 @@ struct AppState {
     app::ContextMenuPrefs ctxMenuPrefs;
     // Explorer COM/static menu session, caches, and delayed refresh state.
     app::ContextMenuController context_menu;
-    app::AppPrefs appPrefs;
-    app::SearchHistory searchHistory;
-    app::SearchHistoryWriter searchHistoryWriter;
+    app::AppPrefs& appPrefs = core.appPrefs;
+    app::SearchHistory& searchHistory = core.searchHistory;
+    app::SearchHistoryWriter& searchHistoryWriter = core.searchHistoryWriter;
     // Folders the user visited: the address bar's history dropdown.
-    app::LocationHistory locationHistory;
+    app::LocationHistory& locationHistory = core.locationHistory;
     app::SettingsController settings;
     app::UpdateChecker update_checker;
     app::UpdateResult update_result;
@@ -323,13 +326,13 @@ struct AppState {
     uint64_t tagAdsResultRevision = 0;
     std::unordered_set<std::wstring> tagAdsDiscoveryQueued;
     std::unordered_set<std::wstring> tagAdsDiscoveryChecked;
-    index::IndexClient index;
+    index::IndexClient& index = core.index;
     app::FolderSizes folderSizes;
     ChangeTrackingUi changes;
-    index::NetworkAgentClient networkIndex;
-    index::ContentSearchClient contentSearch;
+    index::NetworkAgentClient& networkIndex = core.networkIndex;
+    index::ContentSearchClient& contentSearch = core.contentSearch;
     std::shared_ptr<ContentSelectionAction> contentSelectionAction;
-    index::ContentSearchClient duplicateSearch;
+    index::ContentSearchClient& duplicateSearch = core.duplicateSearch;
     app::DuplicateScanSession duplicateScan;
     uint64_t dup_view_epoch = 0;
     std::wstring dup_view_language;
@@ -337,7 +340,7 @@ struct AppState {
     std::vector<index::VolumeInfo> dup_volume_cache;
     ULONGLONG dup_volume_cache_tick = 0;
     bool dup_volume_cache_pending = false;
-    app::SavedSearchStore savedSearches;
+    app::SavedSearchStore& savedSearches = core.savedSearches;
     struct PendingIndexSearch {
         index::Query query;
         index::SearchResult local;
