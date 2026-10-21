@@ -2089,11 +2089,13 @@ void TestMenuModel() {
     Check(items.size() > 2 && items[2].shortcut == L"Ctrl+Shift+C",
           L"menu: 复制路径 carries Ctrl+Shift+C");
     auto folder_items = BuildItemMenu(false, L"", true);
-    Check(folder_items.size() == 15, L"menu: folder item menu adds 在新标签打开");
-    Check(folder_items.size() > 3 &&
+    Check(folder_items.size() == 16, L"menu: folder item menu adds 在新标签打开");
+    Check(folder_items.size() > 4 &&
           folder_items[2].command == CmdOpenInNewTab &&
           folder_items[2].text == L"在新标签打开" &&
-          folder_items[3].command == CmdCopyPath,
+          folder_items[3].command == CmdOpenInNewWindow &&
+          folder_items[3].text == L"在新窗口打开" &&
+          folder_items[4].command == CmdCopyPath,
           L"menu: 在新标签打开 sits before 复制路径");
     Check(!items.back().enabled, L"menu: undo disabled without a stack");
 
