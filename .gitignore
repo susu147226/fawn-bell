@@ -92,3 +92,6 @@ CONERR$
 
 # Local promotional video (not part of source releases).
 /docs/video/*.mp4
+
+# Local MCP server config (machine-specific paths)
+.mcp.json

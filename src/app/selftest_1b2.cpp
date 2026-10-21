@@ -2052,16 +2052,20 @@ void TestMenuModel() {
                         reinterpret_cast<IUnknown**>(&dwrite));
 
     // Item menu: 打开 + icon strip (cut/copy/delete/rename) + verbs + undo.
+    // The rename-sequence trio, 压缩为 ZIP and 转换 were added later; the count
+    // below is the whole menu, not just the original rows.
     auto items = BuildItemMenu(false, L"");
-    Check(items.size() == 9, L"menu: item menu is 打开+图标条+verbs+undo");
+    Check(items.size() == 14, L"menu: item menu is 打开+图标条+verbs+undo");
     // Command-id ranges must not overlap: CmdTabJoinGroupBase once collided
     // with CmdTabCloseOthers and "join group" closed every other tab.
     static_assert(CmdTabJoinGroupBase > CmdTabCloseRight &&
                   CmdTabJoinGroupBase + 32 <= CmdRecentBase,
                   "join-group ids must sit between tab commands and recents");
     std::vector<int> want{ CmdOpen, CmdNone, CmdCopyPath, CmdOpenTerminal, CmdProperties,
-                           CmdPinWorkspace, CmdPinNetwork, CmdTags, CmdUndo };
-    bool ids_ok = items.size() >= want.size();
+                           CmdPinWorkspace, CmdPinNetwork, CmdTags,
+                           CmdRenameSequenceZero, CmdRenameSequenceOne, CmdAppendNameSuffix,
+                           CmdCompressZip, CmdNone, CmdUndo };
+    bool ids_ok = items.size() == want.size();
     for (size_t i = 0; i < want.size() && i < items.size(); ++i)
         if (items[i].command != want[i]) ids_ok = false;
     Check(ids_ok, L"menu: verb order and ids");
@@ -2075,7 +2079,7 @@ void TestMenuModel() {
     Check(items.size() > 2 && items[2].shortcut == L"Ctrl+Shift+C",
           L"menu: 复制路径 carries Ctrl+Shift+C");
     auto folder_items = BuildItemMenu(false, L"", true);
-    Check(folder_items.size() == 10, L"menu: folder item menu adds 在新标签打开");
+    Check(folder_items.size() == 15, L"menu: folder item menu adds 在新标签打开");
     Check(folder_items.size() > 3 &&
           folder_items[2].command == CmdOpenInNewTab &&
           folder_items[2].text == L"在新标签打开" &&
