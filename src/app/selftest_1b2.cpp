@@ -6213,6 +6213,7 @@ void TestTrayStack() {
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
+    state->appPrefs.staging_tray = true;  // the deck only lays out while the tray is on
     state->tray.Collect(files, false);
     Check(TrayItemTotalCount(state->tray) == 5, L"tray stack: five staged items");
     {

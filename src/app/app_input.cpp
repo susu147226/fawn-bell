@@ -1173,7 +1173,9 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         // Press-and-hold on the top staging-tray card: the card follows the
         // pointer; releasing decides between a fling to the back and a spring.
         if (s->trayDrag.pending || s->trayDrag.active) {
-            if ((GetKeyState(VK_LBUTTON) & 0x8000) == 0) {
+            // wParam carries the button state of this very message; the
+            // asynchronous key state can lag behind synthetic input.
+            if ((wParam & MK_LBUTTON) == 0 && (GetKeyState(VK_LBUTTON) & 0x8000) == 0) {
                 ReleaseTrayDrag(*s, false);
                 if (GetCapture() == hwnd) ReleaseCapture();
                 return 0;
