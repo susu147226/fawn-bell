@@ -27,7 +27,8 @@ bool RunWorkspaceRestoreTest() {
         fsys::create_directory(base / name); folders.push_back((base / name).wstring());
     }
     for (int scenario = 0; scenario < 5; ++scenario) {
-        auto state = std::make_unique<AppState>();
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core);
         state->isolatedTest = true;
         state->shot.active = true;
         state->appPrefs.persist = state->searchHistory.persist = state->ctxMenuPrefs.persist = false;

@@ -68,7 +68,8 @@ bool RunTabPinBoundaryTest() {
         fprintf(log, "[%s] %s\n", ok ? "PASS" : "FAIL", label);
         fflush(log);
     };
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->isolatedTest = true;
     state->appPrefs.persist = state->searchHistory.persist = state->ctxMenuPrefs.persist = false;
     app::TabController controller; // No callbacks, providers or preferences writes.

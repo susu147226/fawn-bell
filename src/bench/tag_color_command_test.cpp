@@ -52,7 +52,8 @@ bool RunTagColorCommandTest() {
         Environment environment(directory.wstring());
         check(environment.installed, "private preference root installed");
         if (!environment.installed) continue;
-        auto state = std::make_unique<AppState>(); auto& s = *state;
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core); auto& s = *state;
         s.isolatedTest = true; s.shot.active = true;
         s.searchHistory.persist = s.ctxMenuPrefs.persist = false;
         s.hwnd = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 320, 200, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);

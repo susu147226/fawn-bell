@@ -10,7 +10,8 @@ int wmain() {
     using namespace luling;
     OleInitialize(nullptr);
     l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
-    auto owned=std::make_unique<AppState>(); auto& s=*owned;
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core); auto& s=*owned;
     s.isolatedTest=true; s.appPrefs.persist=false;
     s.accentColor=ui::HexColor(0x0078D4);
     s.hwnd=CreateWindowExW(0,L"STATIC",L"",WS_OVERLAPPEDWINDOW,0,0,1100,640,nullptr,nullptr,nullptr,nullptr);

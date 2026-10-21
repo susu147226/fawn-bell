@@ -29,7 +29,8 @@ bool RunContentHistoryOrderTest() {
         ~Barrier() { CloseHandle(entered); CloseHandle(release); }
     };
     check(log != nullptr, "regression log opened");
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->isolatedTest = true;
     state->places.persist = false;
     state->appPrefs.persist = state->searchHistory.persist = state->ctxMenuPrefs.persist = false;

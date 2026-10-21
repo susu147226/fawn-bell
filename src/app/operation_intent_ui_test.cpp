@@ -16,7 +16,8 @@ bool RunOperationIntentUiTest() {
     auto check = [&](bool ok, const char* label) {
         fprintf(log, "[%s] %s\n", ok ? "PASS" : "FAIL", label); fflush(log); failures += !ok;
     };
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     auto& s = *state;
     s.isolatedTest = true; s.shot.active = true;
     s.appPrefs.persist = s.searchHistory.persist = s.ctxMenuPrefs.persist = s.places.persist = false;

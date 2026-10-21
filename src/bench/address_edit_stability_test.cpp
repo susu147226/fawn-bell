@@ -28,7 +28,8 @@ LRESULT CALLBACK Observe(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_P
 int main() {
     using namespace luling;
     OleInitialize(nullptr); l10n::Initialize(GetModuleHandleW(nullptr),L"zh-CN");
-    auto owned=std::make_unique<AppState>(); auto& s=*owned;
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core); auto& s=*owned;
     s.isolatedTest=true; s.appPrefs.persist=false; s.searchHistory.persist=false;
     s.hwnd=CreateWindowExW(0,L"STATIC",L"",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,-20000,-20000,1100,720,nullptr,nullptr,nullptr,nullptr);
     int failures=0;

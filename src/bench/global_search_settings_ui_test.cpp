@@ -12,7 +12,8 @@ int main() {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << label << std::endl;
         if (!ok) ++failures;
     };
-    auto owned = std::make_unique<AppState>();
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core);
     auto& s = *owned;
     s.isolatedTest = true;
     s.appPrefs.persist = false;

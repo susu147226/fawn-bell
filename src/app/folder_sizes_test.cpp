@@ -183,7 +183,8 @@ bool RunFolderSizesTest() {
         watched.Stop();
     }
     {
-        auto state = std::make_unique<AppState>();
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core);
         state->isolatedTest = true;
         state->appPrefs.persist = false;
         state->settings.BindUi(state->appPrefs, state->ctxMenuPrefs, state->index, state->networkIndex, {});
@@ -270,7 +271,8 @@ bool RunFolderSizesTest() {
         std::filesystem::create_directories(sorted / L"small");
         file(sorted / L"Big" / L"x.bin", 3000);
         file(sorted / L"small" / L"y.bin", 10);
-        auto state = std::make_unique<AppState>();
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core);
         state->isolatedTest = true;
         state->appPrefs.persist = false;
         state->settings.BindUi(state->appPrefs, state->ctxMenuPrefs, state->index, state->networkIndex, {});

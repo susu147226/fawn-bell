@@ -137,7 +137,8 @@ bool RunAddressEditorTest() {
         if (log) { fprintf(log, "[%s] %s\n", value ? "PASS" : "FAIL", label); fflush(log); }
         ok &= value;
     };
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->isolatedTest = true;
     state->places.persist = state->appPrefs.persist = state->searchHistory.persist = false;
     // The outside clicks below land on the status bar. Its context hint can put an
@@ -285,7 +286,8 @@ bool RunRenameEditorTest() {
     HANDLE file = CreateFileW(source.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (!check(file != INVALID_HANDLE_VALUE, "real source created")) return false;
     CloseHandle(file);
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;

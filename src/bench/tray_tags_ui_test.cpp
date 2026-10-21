@@ -53,7 +53,8 @@ bool RunTrayTagsUiTest() {
     };
     const std::wstring initial[]{file(L"pair-a.txt"), file(L"pair-b.txt"), file(L"pair-c.txt"), file(L"pair-d.txt")};
     check(!initial[0].empty() && !initial[1].empty() && !initial[2].empty() && !initial[3].empty(), "private comparison files created");
-    auto owner = std::make_unique<AppState>(); auto& s = *owner;
+    AppCore owner_core;
+    auto owner = std::make_unique<AppState>(owner_core); auto& s = *owner;
     s.isolatedTest = true; s.shot.active = true;
     s.appPrefs.persist = s.searchHistory.persist = s.ctxMenuPrefs.persist = s.places.persist = false;
     s.appPrefs.tray_dests.clear();

@@ -11,7 +11,8 @@ int main() {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << std::endl;
         if (!ok) ++failures;
     };
-    auto owned = std::make_unique<AppState>(); auto& s = *owned;
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core); auto& s = *owned;
     s.appPrefs.persist = false;
     WNDCLASSW wc{}; wc.hInstance = GetModuleHandleW(nullptr); wc.lpfnWndProc = DefWindowProcW;
     wc.lpszClassName = L"LulingRenameFixture"; RegisterClassW(&wc);

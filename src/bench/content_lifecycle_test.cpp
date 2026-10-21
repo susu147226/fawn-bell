@@ -16,7 +16,8 @@ int wmain() {
     int failures = 0;
     auto check = [&](bool ok, const char* label) { printf("[%s] %s\n", ok ? "PASS" : "FAIL", label); if (!ok) ++failures; };
     {
-        auto state = std::make_unique<AppState>(); auto& s = *state;
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core); auto& s = *state;
         s.appPrefs.persist = false; s.isolatedTest = true;
         s.window_tabs.EnsureDefault(); s.pane = s.window_tabs.Active()->FocusedPane();
         s.contentSearch.Start(nullptr, 0, index::ContentAgentMode::Instant);

@@ -27,7 +27,8 @@ int LiveLatency(const wchar_t* document) {
     std::filesystem::create_directories(root); std::filesystem::create_directories(profile);
     SetEnvironmentVariableW(L"LOCALAPPDATA", profile.c_str());
     for (int i = 0; i < 4000; ++i) std::ofstream(root / (std::to_wstring(i) + L".txt")) << "Background indexed document " << i << std::string(2048, 'x');
-    auto owned = std::make_unique<AppState>(); auto& s = *owned;
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core); auto& s = *owned;
     s.appPrefs.persist = false;
     s.hwnd = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
     s.window_tabs.EnsureDefault(); s.pane = s.window_tabs.Active()->FocusedPane();
@@ -440,7 +441,8 @@ int wmain(int argc, wchar_t** argv) {
         std::cout << (ok ? "[PASS] " : "[FAIL] ") << name << std::endl;
         if (!ok) ++failures;
     };
-    auto owned = std::make_unique<AppState>(); auto& s = *owned;
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core); auto& s = *owned;
     s.appPrefs.persist = false;
     s.hwnd = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
     s.window_tabs.EnsureDefault(); s.pane = s.window_tabs.Active()->FocusedPane();

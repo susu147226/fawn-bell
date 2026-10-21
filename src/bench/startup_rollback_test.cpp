@@ -58,7 +58,8 @@ int RunStartupRollbackTest(HINSTANCE instance, WNDPROC window_proc) {
     for (int stage : {1, 2}) {
         fault_stage = stage;
         {
-            auto state = std::make_unique<AppState>();
+            AppCore state_core;
+            auto state = std::make_unique<AppState>(state_core);
             // The saved session is intentionally still transitional when startup fails.
             state->session_path = L"C:\\kept-fixture";
             state->pending_undo_json = L"{\"fixture\":1}";
@@ -79,7 +80,8 @@ int RunStartupRollbackTest(HINSTANCE instance, WNDPROC window_proc) {
     }
     fault_stage = 0;
     {
-        auto state = std::make_unique<AppState>();
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core);
         state->window_tabs.EnsureDefault();
         BindCurrentLayout(*state);
         state->pane->NewTab(root.wstring());

@@ -8,7 +8,8 @@ int wmain() {
     using namespace luling;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->isolatedTest = true;
     state->appPrefs.persist = false;
     state->settings.BindUi(state->appPrefs, state->ctxMenuPrefs, state->index, state->networkIndex, {});

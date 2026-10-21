@@ -646,7 +646,8 @@ LRESULT CALLBACK NavigationTestProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 }
 
 void TestMouseHistoryNavigation() {
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     Pane pane;
     pane.NewTab(L"luling:settings/general");
@@ -740,7 +741,8 @@ void TestFilterControls() {
     TickFilterAnimation(animation, false, 1540);
     Check(animation.filter_expand == 0, L"filter: clear collapse finishes in 140ms without a tail");
 
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false; state->appPrefs.persist = false; state->isolatedTest = true;
     WNDCLASSW wc{}; wc.lpfnWndProc = BlankPaneTestProc;
     wc.hInstance = GetModuleHandleW(nullptr); wc.lpszClassName = L"LulingFilterControlsSelftest";
@@ -825,7 +827,8 @@ void TestFilterControls() {
 }
 
 void TestRenameOutsideClick() {
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
@@ -1008,7 +1011,8 @@ void TestBlankPaneClickNavigation() {
             }
         }
     }
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     WNDCLASSW wc{};
@@ -1392,7 +1396,8 @@ void TestAddressSearch() {
         }
     }
     Check(layouts_ok, L"address search: controls and input fit narrow and high-DPI layouts");
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     Check(!state->addressSearchCurrent, L"address search: default scope is entire index");
     state->addressSearching = true;
     ULONGLONG now = 1000;
@@ -1514,7 +1519,8 @@ void CALLBACK DriveHistoryInteractionTimer(HWND, UINT, UINT_PTR timer, DWORD) {
 }
 
 void TestAddressSearchHistoryInteraction(float scale = 1.0f, bool dark = false) {
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->searchHistory.persist = false;
     state->scale = scale;
@@ -1643,7 +1649,8 @@ void TestGlobalSearchHandoff() {
     Check(parsed && kind == L"search" && spec.content == request.query && spec.name.empty() &&
           spec.location == LocationScope::CurrentFolder && spec.custom_folder == request.folder,
           L"global search handoff: content query keeps the current-folder scope");
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     Pane pane;
     state->pane = &pane;
     pane.view.current_path = scoped;
@@ -1654,7 +1661,8 @@ void TestGlobalSearchHandoff() {
 }
 
 void TestContinuousSearch() {
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     Pane first;
     Pane second;
     state->pane = &first;
@@ -1712,7 +1720,8 @@ void TestContinuousSearch() {
 }
 
 void TestLiveAddressSearch() {
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->searchHistory.persist = false;
     state->places.persist = false;
     auto& pane = *state->window_tabs.NewTab(L"C:\\live-search-test").FocusedPane();
@@ -1948,7 +1957,8 @@ void TestAdvancedEditClicks() {
 }
 
 void TestCtrlDragSelection() {
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     Pane pane;
     state->pane = &pane;
     auto& tab = pane.view;
@@ -3223,7 +3233,8 @@ void TestFolderViews() {
     Check(!prefs.folder_views.Find(long_path) && !prefs.folder_views.Find(L""),
           L"folder views: reset clears saved choices");
 
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
@@ -3393,7 +3404,8 @@ void TestFolderSorts() {
           prefs.folder_views.Default() == ViewMode::Details,
           L"folder sorts: reset restores defaults");
 
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
@@ -3509,7 +3521,8 @@ void TestStartupLocation() {
     CreateDirectoryW(work.c_str(), nullptr);
     CreateDirectoryW(home.c_str(), nullptr);
 
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
@@ -3658,7 +3671,8 @@ void TestTrayReveal() {
     CreateDirectoryW(root.c_str(), nullptr);
     for (const auto* dir : {&work, &other, &home}) CreateDirectoryW(dir->c_str(), nullptr);
 
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
@@ -6194,7 +6208,8 @@ void TestTrayStack() {
         files.push_back(p);
     }
 
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->places.persist = false;
     state->appPrefs.persist = false;
     state->isolatedTest = true;
@@ -6808,7 +6823,8 @@ void TestTabShortcuts() {
     keys[VK_CONTROL] = 0x80;
     Check(have_keys && SetKeyboardState(keys), L"tab shortcuts: set edit test modifiers");
     if (have_keys) {
-        auto state = std::make_unique<AppState>();
+        AppCore state_core;
+        auto state = std::make_unique<AppState>(state_core);
         LRESULT result = -1;
         Check(HandleHostedEditMessage(*state, nullptr, WM_CHAR, VK_TAB, 0, result) && result == 0,
               L"tab shortcuts: hosted edits consume Ctrl+Tab character");

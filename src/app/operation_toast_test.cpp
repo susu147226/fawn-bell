@@ -40,7 +40,8 @@ bool RunOperationToastTest() {
     const auto target = fixture / L"existing.txt";
     std::ofstream(source) << "source";
     std::ofstream(target) << "existing";
-    auto state = std::make_unique<AppState>();
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core);
     state->isolatedTest = true;
     state->places.persist = false;
     state->appPrefs.persist = false;

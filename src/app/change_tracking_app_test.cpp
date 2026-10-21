@@ -34,7 +34,8 @@ bool RunChangeTrackingAppTest() {
         "rolling tracking cutoffs exact");
     check(ChangeSince(1, now) <= now && now - ChangeSince(1, now) < 26 * 3600,
         "today uses local midnight");
-    auto state = std::make_unique<AppState>();
+    AppCore core;
+    auto state = std::make_unique<AppState>(core);
     state->isolatedTest = true;
     state->places.persist = false;
     state->appPrefs.persist = false;
@@ -153,7 +154,8 @@ bool RunChangeTrackingAppTest() {
     state->changes.enabled = false;
     ApplyChangeDetails(*state, 3, {});
     check(tab.snapshot == old, "disabled tracking ignores in-flight detail response");
-    auto polling = std::make_unique<AppState>();
+    AppCore polling_core;
+    auto polling = std::make_unique<AppState>(polling_core);
     polling->hwnd = GetDesktopWindow();
     polling->places.persist = false;
     polling->appPrefs.persist = false;

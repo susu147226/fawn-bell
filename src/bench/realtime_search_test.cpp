@@ -42,7 +42,8 @@ int wmain(int argc, wchar_t** argv) {
         return 1;
     }
     CloseHandle(host.hThread);
-    auto owned = std::make_unique<AppState>(); auto& s = *owned;
+    AppCore owned_core;
+    auto owned = std::make_unique<AppState>(owned_core); auto& s = *owned;
     s.isolatedTest = true; s.appPrefs.persist = false;
     s.hwnd = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr);
     s.window_tabs.EnsureDefault(); s.pane = s.window_tabs.Active()->FocusedPane();

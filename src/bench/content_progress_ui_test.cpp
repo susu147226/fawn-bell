@@ -17,7 +17,8 @@ int main(int argc, char** argv) {
         std::cout<<(ok ? "[PASS] ":"[FAIL] ")<<label<<std::endl;
         if(!ok) ++failures;
     };
-    auto state=std::make_unique<AppState>(); auto& s=*state;
+    AppCore state_core;
+    auto state = std::make_unique<AppState>(state_core); auto& s=*state;
     s.isolatedTest=true; s.appPrefs.persist=false; s.searchHistory.persist=false;
     WNDCLASSW wc{}; wc.hInstance=GetModuleHandleW(nullptr); wc.lpfnWndProc=DefWindowProcW;
     wc.lpszClassName=L"LulingContentProgressFixture"; RegisterClassW(&wc);
