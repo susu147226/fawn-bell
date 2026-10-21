@@ -118,6 +118,10 @@
 #pragma comment(lib, "uxtheme.lib")
 #pragma comment(lib, "psapi.lib")
 #include "app_internal.h"
+#include "app_messages.h"
+#include "host_routing.h"
+#include "host_window.h"
+#include "window_registry.h"
 #include "app_hover_preview.h"
 #include "drive_verbs.h"
 #include "bitlocker_unlock.h"
@@ -399,6 +403,31 @@ static void NoteUiActivity(HWND hwnd, bool visible) {
     SyncUiTimerRate(hwnd, visible);
 }
 
+// WM_COPYDATA payloads: shell tag requests, an open request forwarded by a
+// second launch, or an older open-path message. The host window receives
+// them and hands them to the target window; a test instance may post them
+// straight to a window instead.
+static LRESULT HandleInstanceCopyData(AppState& s, COPYDATASTRUCT* cds) {
+    if (!cds) return FALSE;
+    if (app::ShellTagRequest tag_request; app::DecodeShellTagRequest(cds, tag_request)) {
+        QueueShellTagRequest(s, std::move(tag_request), false);
+        return TRUE;
+    }
+    if (cds->dwData == app::SingleInstanceCoordinator::OpenRequestMessageId()) {
+        app::SingleInstanceCoordinator::OpenRequest request;
+        if (!app::SingleInstanceCoordinator::DecodeOpenRequest(cds, request)) return FALSE;
+        const auto accepted = s.single_instance.AcceptOpenRequest(request, GetTickCount64());
+        if (accepted == app::SingleInstanceCoordinator::OpenAcceptance::Invalid) return FALSE;
+        if (accepted == app::SingleInstanceCoordinator::OpenAcceptance::New)
+            OpenFolderInNewTab(s, request.path);
+        return TRUE; // acceptance, not a claim that asynchronous enumeration succeeded
+    }
+    std::wstring path;
+    if (!app::SingleInstanceCoordinator::DecodeOpenPath(cds, path)) return FALSE;
+    OpenFolderInNewTab(s, path);
+    return TRUE;
+}
+
 LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     AppState* s = GetAppState(hwnd);
     if (s && msg != 0 && msg == app::UpdateShutdownMessage())
@@ -437,6 +466,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s = reinterpret_cast<AppState*>(cs->lpCreateParams);
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(s));
         s->hwnd = hwnd;
+        s->core.windows.Add(hwnd, s);
         if (!s->core.service_window) s->core.service_window = hwnd;
         s->tray_controller.Attach(hwnd, cs->hInstance);
         InstallTrayRevealHook(*s);
@@ -1015,26 +1045,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     }
 
     case WM_COPYDATA: {
-        if (!s || !s->single_instance.OwnsEndpoint(hwnd)) return FALSE;
-        auto* cds = reinterpret_cast<COPYDATASTRUCT*>(lParam);
-        if (app::ShellTagRequest tag_request; s && app::DecodeShellTagRequest(cds, tag_request)) {
-            // Explorer "Luling tags" verb: tag in place, never raise the window.
-            QueueShellTagRequest(*s, std::move(tag_request), false);
-            return TRUE;
-        }
-        if (cds && cds->dwData == app::SingleInstanceCoordinator::OpenRequestMessageId()) {
-            app::SingleInstanceCoordinator::OpenRequest request;
-            if (!s || !app::SingleInstanceCoordinator::DecodeOpenRequest(cds, request)) return FALSE;
-            const auto accepted = s->single_instance.AcceptOpenRequest(request, GetTickCount64());
-            if (accepted == app::SingleInstanceCoordinator::OpenAcceptance::Invalid) return FALSE;
-            if (accepted == app::SingleInstanceCoordinator::OpenAcceptance::New)
-                OpenFolderInNewTab(*s, request.path);
-            return TRUE; // acceptance, not a claim that asynchronous enumeration succeeded
-        }
-        std::wstring path;
-        if (!s || !app::SingleInstanceCoordinator::DecodeOpenPath(cds, path)) return FALSE;
-        OpenFolderInNewTab(*s, path);
-        return TRUE;
+        if (!s) return FALSE;
+        // Normally the host owns the endpoint; a test instance posts straight
+        // to the window (its scripts cannot reach the user's endpoint).
+        if (!s->single_instance.OwnsEndpoint(hwnd) && !s->isolatedTest) return FALSE;
+        return HandleInstanceCopyData(*s, reinterpret_cast<COPYDATASTRUCT*>(lParam));
     }
 
     case app::TrayController::kCallbackMessage: {
@@ -1113,6 +1128,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         break;
 
     case WM_ACTIVATE:
+        if (s && LOWORD(wParam) != WA_INACTIVE) s->core.windows.Touch(hwnd);
         if (s) s->renderer.NotifyPreviewActivate(LOWORD(wParam) != WA_INACTIVE);
         if (s && LOWORD(wParam) != WA_INACTIVE) {
             std::wstring kind, page;
@@ -2153,6 +2169,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_DESTROY: {
         app::shell_tags::RevokeCommandServer();
         if (s) {
+            s->core.windows.Remove(hwnd);
             s->probe_scheduler.Clear();
             s->probeQueue.clear();
             s->probeUnc.clear();
@@ -2887,6 +2904,33 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
 
     if (!state.isolatedTest && !state.shot.active) app::StartUpdateDownloadCleanup();
 
+    // Hidden host (multi-window): owns the single-instance endpoint and
+    // forwards process-level notifications to the window used most recently.
+    const bool host_created = state.core.host.Create(
+        hInstance, [&state](HWND, UINT message, WPARAM wParam, LPARAM lParam) -> std::optional<LRESULT> {
+            AppState* const target = state.core.windows.MostRecent();
+            if (app::IsHostRoutedMessage(message))
+                return target ? SendMessageW(target->hwnd, message, wParam, lParam) : 0;
+            if (message != 0 && message == app::TrayController::TaskbarCreatedMessage()) {
+                if (target) return SendMessageW(target->hwnd, message, wParam, lParam);
+                return 0;
+            }
+            // System broadcasts reach every top-level window anyway; before a
+            // window exists the host answers the shutdown queries itself.
+            if (message == WM_SETTINGCHANGE || message == WM_DEVICECHANGE ||
+                message == WM_QUERYENDSESSION || message == WM_ENDSESSION) {
+                if (target) return SendMessageW(target->hwnd, message, wParam, lParam);
+                return message == WM_QUERYENDSESSION ? TRUE : 0;
+            }
+            if (message != WM_COPYDATA) return std::nullopt;
+            if (!target) return FALSE;
+            if (!state.single_instance.OwnsEndpoint(state.core.host.Hwnd()) && !state.isolatedTest)
+                return FALSE;
+            return HandleInstanceCopyData(*target, reinterpret_cast<COPYDATASTRUCT*>(lParam));
+        });
+    if (!host_created) return 1;
+    state.core.service_window = state.core.host.Hwnd();
+
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
@@ -2941,7 +2985,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         nullptr, nullptr, hInstance, &state);
 
     if (!hwnd) return 1;
-    if (!SkipSingletonFromArgv() && !state.single_instance.PublishEndpoint(hwnd)) {
+    if (!SkipSingletonFromArgv() && !state.single_instance.PublishEndpoint(state.core.host.Hwnd())) {
         DestroyWindow(hwnd);
         return 1;
     }

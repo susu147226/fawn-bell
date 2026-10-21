@@ -7,6 +7,11 @@
 #pragma once
 #include "app_worker.h"
 #include "app_model.h"
+#include "app_change_tracking.h"
+#include "folder_sizes.h"
+#include "live_network_search.h"
+#include "host_window.h"
+#include "window_registry.h"
 #include "places.h"
 #include "shell_window_registry.h"
 #include "explorer_window_takeover.h"
@@ -27,8 +32,16 @@
 #include "../index/index_client.h"
 #include "../index/network_agent_client.h"
 #include "../index/content_search_client.h"
+#include <mutex>
+#include <queue>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace luling {
+
+struct AppState;
 
 struct AppCore {
     // Where process-level notifications go. The first window to start owns it;
@@ -44,6 +57,31 @@ struct AppCore {
     index::ContentSearchClient contentSearch;
     index::ContentSearchClient duplicateSearch;
     fs::SnapshotStore store;
+    // Results of shared navigation/scan work. Every window drains the same
+    // queue; a result applies only to the tabs whose path and generation it
+    // carries, so a background window's refresh still lands.
+    std::mutex resultMutex;
+    std::queue<app::WorkResult> results;
+    app::FolderSizes folderSizes;
+    ChangeTrackingUi changes;
+    uint64_t tagAdsResultRevision = 0;
+    std::unordered_set<std::wstring> tagAdsDiscoveryQueued;
+    std::unordered_set<std::wstring> tagAdsDiscoveryChecked;
+    std::vector<index::VolumeInfo> dup_volume_cache;
+    ULONGLONG dup_volume_cache_tick = 0;
+    bool dup_volume_cache_pending = false;
+    struct PendingIndexSearch {
+        index::Query query;
+        index::SearchResult local;
+        index::SearchResult network;
+        bool local_ready = false;
+        bool network_ready = false;
+        bool network_snapshot = false; // Captured for this request, not global root configuration.
+        std::wstring live_network_root;  // #74: scope walked live instead of the network index
+    };
+    std::unordered_map<uint32_t, PendingIndexSearch> pendingIndexSearches;
+    LiveNetworkSearchSessions liveNetworkSearches;
+    uint32_t nextIndexReq = 1;
     // Preferences and the user's history belong to the process: every window
     // reads the same copy and a save from one is what the others see.
     app::AppPrefs appPrefs;
@@ -74,6 +112,13 @@ struct AppCore {
     // takeover belong to the process, not to one window.
     std::unique_ptr<app::ShellWindowRegistry> shell_windows;
     std::unique_ptr<app::ExplorerWindowTakeover> explorer_takeover;
+    // Multi-window: every window registers here; the hidden host owns the
+    // process endpoint and forwards routed notifications to the most recent
+    // window. Declared last so it is torn down first.
+    app::BasicWindowRegistry<AppState> windows;
+    bool started = false;  // the first window ran the process-level setup
+    bool exiting = false;  // closing every window: not a user-close of one
+    app::HostWindow host;
 };
 
 } // namespace luling
