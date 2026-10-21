@@ -439,8 +439,8 @@ bool GenericProduct(const std::wstring& product) {
 
 std::wstring MethodText(const Item& item, bool toggleable) {
     if (item.trusted_installer)
-        return l10n::Pick(L"这一项由 Windows 自己管理（TrustedInstaller），Pulse 不会去改它。",
-                          L"Windows manages this entry itself (TrustedInstaller); Pulse leaves it alone.");
+        return l10n::Pick(L"这一项由 Windows 自己管理（TrustedInstaller），鹿铃不会去改它。",
+                          L"Windows manages this entry itself (TrustedInstaller); Luling leaves it alone.");
     if (item.is_protected)
         return l10n::Pick(L"这是 Windows 的基础命令，关掉会让资源管理器不好用，所以不提供开关。",
                           L"A basic Windows command; switching it off breaks File Explorer, so there is no switch.");
@@ -448,13 +448,13 @@ std::wstring MethodText(const Item& item, bool toggleable) {
         return l10n::Pick(L"新建、发送到、打开方式的开关会在后续版本提供，现在可以查看和定位。",
                           L"Switches for New, Send to and Open with come in a later version; for now you can inspect them.");
     std::wstring text = item.kind == Kind::Verb
-        ? l10n::Pick(L"关闭后，这个命令不再出现在右键菜单里。Pulse 只给它加上隐藏标记（和 ContextMenuManager 的做法相同），"
+        ? l10n::Pick(L"关闭后，这个命令不再出现在右键菜单里。鹿铃只给它加上隐藏标记（和 ContextMenuManager 的做法相同），"
                      L"重新打开就去掉标记，原有设置不会丢。",
-                     L"Switched off, the command leaves the context menu. Pulse only adds hide markers (as "
+                     L"Switched off, the command leaves the context menu. Luling only adds hide markers (as "
                      L"ContextMenuManager does); switching it on removes them and nothing else changes.")
-        : l10n::Pick(L"关闭后，Windows 不再加载这个扩展，它添加的菜单项也随之消失。Pulse 只是把它的注册表项挪到旁边的"
+        : l10n::Pick(L"关闭后，Windows 不再加载这个扩展，它添加的菜单项也随之消失。鹿铃只是把它的注册表项挪到旁边的"
                      L"“-”分组（和 ContextMenuManager 的做法相同），重新打开就挪回来。",
-                     L"Switched off, Windows stops loading the extension and its rows leave the menu. Pulse moves its key "
+                     L"Switched off, Windows stops loading the extension and its rows leave the menu. Luling moves its key "
                      L"to the sibling \"-\" group (as ContextMenuManager does); switching it on moves it back.");
     if (Deletable(item))
         text += l10n::Pick(L"\n它指向的程序已经不存在（多半是卸载时没清理干净），可以直接删除这个残留项。删除前会导出 .reg 备份，"
@@ -535,7 +535,7 @@ SystemCtxModel::SystemCtxModel() {
 
     PWSTR local = nullptr;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &local)) && local)
-        data_dir_ = std::wstring(local) + L"\\Pulse\\SystemContextMenu";
+        data_dir_ = std::wstring(local) + L"\\Luling\\SystemContextMenu";
     CoTaskMemFree(local);
 }
 

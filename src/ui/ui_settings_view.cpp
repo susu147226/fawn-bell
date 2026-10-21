@@ -48,7 +48,8 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         luling::l10n::StringId::SettingsDuplicates,
     };
     static constexpr const wchar_t* kNavIcon[] = {
-        kIconHome, kIconSearch, kIconSettings, kIconInfo, kIconCopy, L"\xE890"  // Quick Look
+        kIconHome, kIconSearch, kIconSettings, kIconInfo, kIconCopy, L"\xE890",  // Quick Look
+        L"\xE700"  // 系统右键菜单
     };
     static_assert(std::size(kNavIcon) == kSettingsNavCount);
     // Page 5 (快速预览) has no string-table entry; see pack_text.

@@ -331,7 +331,7 @@ void SysCtxRowMenu(AppState& s,int row) {
     add(3,l10n::Pick(L"在新标签页打开所在文件夹",L"Open its folder in a new tab"),!folder.empty());
     if(!pulse_key.empty()) {
         items.back().separator_after=true;
-        add(4,l10n::Pick(L"只在 Pulse 右键菜单中隐藏",L"Hide in Pulse's menu only"),true);
+        add(4,l10n::Pick(L"只在鹿铃右键菜单中隐藏",L"Hide in Luling's menu only"),true);
         items.back().checked=model.RowPulseHidden(row);
     }
     if(model.RowDeletable(row)) {
@@ -357,7 +357,7 @@ void SysCtxOpenFolder(AppState& s,const std::wstring& file) {
 void SysCtxRestoreAll(AppState& s) {
     std::vector<ui::FluentMenuItem> items;
     ui::FluentMenuItem item;item.command=1;
-    item.text=l10n::Pick(L"撤销这次打开 Pulse 以来的全部改动",L"Undo every change made since Pulse started");
+    item.text=l10n::Pick(L"撤销这次打开鹿铃以来的全部改动",L"Undo every change made since Luling started");
     items.push_back(std::move(item));
     ui::FluentMenuItem cancel;cancel.command=0;cancel.text=l10n::Pick(L"取消",L"Cancel");items.push_back(std::move(cancel));
     if(Popup(s,std::move(items))==1) s.settings.SystemCtx().RestoreAll();

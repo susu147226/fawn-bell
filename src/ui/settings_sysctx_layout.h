@@ -21,9 +21,9 @@ inline const wchar_t* Intro() { return l10n::Pick(
 inline const wchar_t* Undo() { return l10n::Pick(L"撤销", L"Undo"); }
 inline const wchar_t* Log() { return l10n::Pick(L"操作日志", L"Activity log"); }
 inline const wchar_t* RestoreAll() { return l10n::Pick(L"全部还原…", L"Restore all…"); }
-inline const wchar_t* LocalTitle() { return l10n::Pick(L"Pulse 右键菜单", L"Pulse context menu"); }
-inline const wchar_t* LocalCaption() { return l10n::Pick(L"只影响 Pulse · 不需要权限 · 随时恢复",
-                                                         L"Only inside Pulse · no permission needed · always reversible"); }
+inline const wchar_t* LocalTitle() { return l10n::Pick(L"鹿铃右键菜单", L"Luling context menu"); }
+inline const wchar_t* LocalCaption() { return l10n::Pick(L"只影响鹿铃 · 不需要权限 · 随时恢复",
+                                                         L"Only inside Luling · no permission needed · always reversible"); }
 inline const wchar_t* LocalTag() { return l10n::Pick(L"切换 →", L"Switch →"); }
 inline const wchar_t* SystemTitle() { return l10n::Pick(L"系统右键菜单", L"System context menu"); }
 inline const wchar_t* SystemCaption() { return l10n::Pick(
@@ -57,7 +57,7 @@ inline std::wstring PendingTitle(int n) {
 }
 inline std::wstring PendingCaption(const SysCtxView& v) {
     if (v.pending_pulse == v.pending)  // nothing for the registry: no backup, no admin
-        return l10n::Pick(L"只改 Pulse 自己的右键菜单，Windows 不变", L"Pulse's own menu only; Windows is unchanged");
+        return l10n::Pick(L"只改鹿铃自己的右键菜单，Windows 不变", L"Luling's own menu only; Windows is unchanged");
     if (v.pending_admin > 0)
         return l10n::Pick(L"其中 ", L"") + std::to_wstring(v.pending_admin) +
                l10n::Pick(L" 项涉及所有用户，需确认一次管理员权限 · 写入前先导出 .reg 备份",
@@ -104,9 +104,9 @@ inline std::wstring Permission(const SysCtxRowView& r) {
 }
 inline const wchar_t* EnabledTitle() { return l10n::Pick(L"在系统里启用", L"Enabled in Windows"); }
 inline const wchar_t* EnabledCaption() { return l10n::Pick(L"资源管理器和所有应用", L"File Explorer and every app"); }
-inline const wchar_t* PulseShownTitle() { return l10n::Pick(L"在 Pulse 右键菜单中显示", L"Shown in Pulse's menu"); }
-inline const wchar_t* PulseShownCaption() { return l10n::Pick(L"只影响 Pulse，不改动 Windows", L"Pulse only; Windows is unchanged"); }
-inline const wchar_t* PulseHidden() { return l10n::Pick(L"Pulse 中隐藏", L"Hidden in Pulse"); }
+inline const wchar_t* PulseShownTitle() { return l10n::Pick(L"在鹿铃右键菜单中显示", L"Shown in Luling's menu"); }
+inline const wchar_t* PulseShownCaption() { return l10n::Pick(L"只影响鹿铃，不改动 Windows", L"Luling only; Windows is unchanged"); }
+inline const wchar_t* PulseHidden() { return l10n::Pick(L"鹿铃中隐藏", L"Hidden in Luling"); }
 inline const wchar_t* CopyKey() { return l10n::Pick(L"复制注册表路径", L"Copy registry path"); }
 inline const wchar_t* OpenFolder() { return l10n::Pick(L"打开所在文件夹", L"Open folder"); }
 inline const wchar_t* NoSelection() { return l10n::Pick(L"在左侧列表里点一个条目查看详情。",
@@ -154,21 +154,21 @@ inline const wchar_t* Stat(int i) {
     case 0: return l10n::Pick(L"已禁用", L"Switched off");
     case 1: return l10n::Pick(L"由 ContextMenuManager 禁用", L"Off by ContextMenuManager");
     case 2: return l10n::Pick(L"拖慢右键 ≥150 ms 的扩展", L"Extensions slowing the menu ≥150 ms");
-    default: return l10n::Pick(L"Pulse 做过的改动", L"Changes made by Pulse");
+    default: return l10n::Pick(L"鹿铃做过的改动", L"Changes made by Luling");
     }
 }
 inline const wchar_t* SlowTitle() { return l10n::Pick(L"慢扩展排行", L"Slowest extensions"); }
 inline const wchar_t* SlowCaption() {
-    return l10n::Pick(L"来自 Pulse 右键菜单的实测数据（每个场景最近一次）。禁用后，资源管理器和 Pulse 的右键都会变快。",
-                      L"Measured while Pulse built its own menu (the last query per scene). Switching one off "
-                      L"speeds up File Explorer and Pulse alike.");
+    return l10n::Pick(L"来自鹿铃右键菜单的实测数据（每个场景最近一次）。禁用后，资源管理器和鹿铃的右键都会变快。",
+                      L"Measured while Luling built its own menu (the last query per scene). Switching one off "
+                      L"speeds up File Explorer and Luling alike.");
 }
 inline const wchar_t* SlowEmpty() {
-    return l10n::Pick(L"还没有数据。在 Pulse 里右键几次文件或文件夹，这里就会显示各扩展的耗时。",
-                      L"No data yet. Right-click a few files or folders in Pulse and the times show up here.");
+    return l10n::Pick(L"还没有数据。在鹿铃里右键几次文件或文件夹，这里就会显示各扩展的耗时。",
+                      L"No data yet. Right-click a few files or folders in Luling and the times show up here.");
 }
-inline const wchar_t* PulseSkip() { return l10n::Pick(L"Pulse 跳过", L"Skip in Pulse"); }
-inline const wchar_t* PulseSkipped() { return l10n::Pick(L"Pulse 已跳过", L"Skipped in Pulse"); }
+inline const wchar_t* PulseSkip() { return l10n::Pick(L"鹿铃跳过", L"Skip in Luling"); }
+inline const wchar_t* PulseSkipped() { return l10n::Pick(L"鹿铃已跳过", L"Skipped in Luling"); }
 inline const wchar_t* TurnOff() { return l10n::Pick(L"禁用", L"Turn off"); }
 inline const wchar_t* Off() { return l10n::Pick(L"已禁用", L"Off"); }
 inline const wchar_t* MarksTitle() { return l10n::Pick(L"来自其他工具的禁用标记", L"Marks left by other tools"); }
@@ -192,8 +192,8 @@ inline const wchar_t* OverviewSideHint() {
                       L"Pick a scene on the left to see its menu here, live with your changes.");
 }
 inline const wchar_t* OverviewSideNote() {
-    return l10n::Pick(L"概览页的数据来自 Pulse 实际右键时的测量，不需要额外运行任何东西。",
-                      L"The overview uses what Pulse measured on real right-clicks; nothing else needs to run.");
+    return l10n::Pick(L"概览页的数据来自鹿铃实际右键时的测量，不需要额外运行任何东西。",
+                      L"The overview uses what Luling measured on real right-clicks; nothing else needs to run.");
 }
 inline std::wstring Ms(uint32_t ms) { return std::to_wstring(ms) + L" ms"; }
 } // namespace sysctx_text

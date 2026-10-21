@@ -44,6 +44,7 @@ int SettingsController::PageFromName(std::wstring_view name) noexcept {
     if (name == L"about") return 3;
     if (name == L"duplicates") return 4;
     if (name == L"packs") return 5;
+    if (name == L"sysctx") return 6;
     return 0;
 }
 

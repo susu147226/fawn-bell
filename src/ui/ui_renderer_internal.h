@@ -1816,7 +1816,7 @@ TitleChrome MakeTitleChrome(float window_w, float scale, float title_h) {
 }
 
 constexpr float kSettingsNavW = 200.0f;
-constexpr int kSettingsNavCount = 6;  // 5: 预览增强包
+constexpr int kSettingsNavCount = 7;  // 5: 预览增强包, 6: 系统右键菜单
 
 // System folder groups shown under Settings > Exclusions: 0-3 follow
 // index::kSystemExclusionGroups, 4-5 are always skipped by the index.
@@ -2170,7 +2170,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
     l.nav = D2D1::RectF(l.body.left, l.body.top, l.body.left + nav_width, l.body.bottom);
     l.content = D2D1::RectF(l.nav.right, l.body.top, l.body.right, l.body.bottom);
     for (int i = 0; i < kSettingsNavCount; ++i) {
-        const int position = i == 4 ? 3 : i == 5 ? 4 : i;
+        const int position = i == 4 ? 3 : i == 5 ? 4 : i == 6 ? 5 : i;
         const float top = i == 3 ? l.nav.bottom - 92*scale : l.nav.top + (20 + position*46)*scale;
         l.nav_row[i] = D2D1::RectF(l.nav.left + 8*scale, top, l.nav.right - 8*scale, top + 40*scale);
     }
