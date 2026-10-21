@@ -263,8 +263,12 @@ std::wstring GroupFolderKey(const std::wstring& path) {
         // One shared choice per virtual kind: every search remembers the same.
         std::wstring key = path;
         for (auto& ch : key) ch = static_cast<wchar_t>(std::towlower(ch));
-        const size_t colon = key.find(L':', 6);
-        const std::wstring kind = key.substr(6, colon == std::wstring::npos ? std::wstring::npos : colon - 6);
+        // "luling:" is seven characters; a second colon only appears after it,
+        // so the kind is taken from index 7 onward.
+        constexpr size_t kPrefixLen = 7;
+        const size_t colon = key.find(L':', kPrefixLen);
+        const std::wstring kind = key.substr(
+            kPrefixLen, colon == std::wstring::npos ? std::wstring::npos : colon - kPrefixLen);
         if (kind == L"recent") return L"luling:recent";
         if (kind == L"search" || kind == L"saved-search") return L"luling:search";
         if (kind == L"tag") return L"luling:tag";
