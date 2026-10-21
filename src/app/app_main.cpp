@@ -314,6 +314,24 @@ static bool SessionWritable(const AppState& s) {
         !ShellTagHeadlessLaunch();
 }
 
+static app::WindowSessionSnapshot CaptureSessionWindow(AppState& w) {
+    app::WindowSessionSnapshot snap;
+    WINDOWPLACEMENT wp{ sizeof(wp) };
+    if (w.hwnd && GetWindowPlacement(w.hwnd, &wp)) {
+        snap.window_rect = wp.rcNormalPosition;
+        snap.maximized = (wp.showCmd == SW_SHOWMAXIMIZED);
+    }
+    snap.layout = CaptureWindowLayout(w);
+    RememberLayoutFocus(w);
+    snap.active_layout_tab = static_cast<int>(w.window_tabs.active);
+    for (const auto& group : w.window_tabs.tab_groups)
+        snap.tab_groups.push_back({group.id, group.name, group.color_rgb, group.collapsed});
+    for (const auto& layout : w.window_tabs.items)
+        snap.layout_tabs.push_back(app::CaptureLayoutTab(*layout));
+    snap.undo_json = w.ops.UndoToJson();
+    return snap;
+}
+
 static app::SessionSnapshot CaptureWindowSession(AppState& s, HWND hwnd) {
     app::SessionSnapshot snap;
     WINDOWPLACEMENT wp{ sizeof(wp) };
@@ -341,6 +359,16 @@ static app::SessionSnapshot CaptureWindowSession(AppState& s, HWND hwnd) {
     snap.details_preview_only = s.detailsPreviewOnly;
     snap.details_preview = s.detailsPreviewEnabled;
     snap.details_panel_width = static_cast<int>(std::lround(s.detailsPanelWidth));
+    // Session v8: every window, most recent first. The single-window fields
+    // above mirror the window being saved, which older readers restore.
+    snap.windows.clear();
+    int focused = 0;
+    s.core.windows.ForEach([&](HWND, AppState& w) {
+        if (&w == &s) focused = static_cast<int>(snap.windows.size());
+        snap.windows.push_back(CaptureSessionWindow(w));
+    });
+    if (snap.windows.empty()) snap.windows.push_back(CaptureSessionWindow(s));
+    snap.focused_window = std::clamp(focused, 0, static_cast<int>(snap.windows.size()) - 1);
     return snap;
 }
 
@@ -356,6 +384,17 @@ static bool SaveWindowSession(AppState& s, HWND hwnd, bool force) {
         prefs, s.prefsSavedJson, force,
         [&s](const std::wstring&) { return s.appPrefs.Save(); });
     return session_saved && prefs_saved;
+}
+
+// Leaves the whole process: the session is captured while every window is
+// still registered, then each window closes least-recent first.
+static void ExitAllWindows(AppState& s) {
+    if (!s.core.exiting) {
+        if (SessionWritable(s)) SaveWindowSession(s, s.hwnd, true);
+        s.core.exiting = true;
+    }
+    for (HWND window : s.core.windows.ExitOrder())
+        if (IsWindow(window)) DestroyWindow(window);
 }
 
 bool luling::PrepareSessionForUpdate(AppState& s) {
@@ -517,7 +556,22 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->quickPreview.Initialize(hwnd, WM_QUICK_PREVIEW_NAVIGATE,
                                    WM_QUICK_PREVIEW_OPEN, WM_QUICK_PREVIEW_COMMAND);
 
-        if (s->window_adopt_from) {
+        if (s->window_restore) {
+            // A window reopened from the session: its own layout and tabs.
+            ApplyWindowLayout(*s, s->window_restore->layout);
+            if (!s->window_restore->layout_tabs.empty()) {
+                s->pane = nullptr;
+                s->targetPane = nullptr;
+                app::RestoreWindowTabs(
+                    s->window_tabs, s->window_restore->layout_tabs,
+                    s->window_restore->tab_groups, s->window_restore->active_layout_tab,
+                    [s](app::Tab& tab, const std::wstring& path) {
+                        StartLoadingPath(*s, tab, path, PathLoadReason::RestoreSession);
+                    });
+                for (auto& owned : s->window_tabs.items) app::RebuildLayoutRoot(*owned);
+            }
+            s->pending_undo_json = s->window_restore->undo_json;
+        } else if (s->window_adopt_from) {
             AppState* src = s->window_adopt_from;
             if (s->window_adopt_index < src->window_tabs.items.size()) {
                 if (auto moved = src->window_tabs.TakeTab(s->window_adopt_index, false))
@@ -882,7 +936,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->session_active_layout_tab = 0;
             s->session_path.clear();
         }
-        if (!s->shot.active && s->window_adopt_from && !s->window_tabs.items.empty()) {
+        if (!s->shot.active && s->window_restore && !s->window_tabs.items.empty()) {
+            // Tabs came back above; nothing to open.
+        } else if (!s->shot.active && s->window_adopt_from && !s->window_tabs.items.empty()) {
             // The tab moved in alive; its folders start loading here.
             if (app::Tab* adopted = s->pane ? s->pane->ActiveTab() : nullptr) {
                 if (!adopted->current_path.empty())
@@ -961,6 +1017,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER |
             SWP_NOACTIVATE | SWP_FRAMECHANGED);
         if (init_core) s->core.started = true;
+        if (init_core && !s->shot.active && !s->session_extra_windows.empty())
+            PostMessageW(hwnd, WM_OPEN_SESSION_WINDOWS, 0, 0);
         return 0;
     }
 
@@ -1098,6 +1156,19 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return HandleInstanceCopyData(*s, reinterpret_cast<COPYDATASTRUCT*>(lParam));
     }
 
+    case WM_OPEN_SESSION_WINDOWS: {
+        if (!s) return 0;
+        auto windows = std::move(s->session_extra_windows);
+        s->session_extra_windows.clear();
+        // Back to front, so the session's stacking order comes back.
+        for (auto it = windows.rbegin(); it != windows.rend(); ++it) {
+            WindowInit init;
+            init.restore = &*it;
+            OpenLulingWindow(*s, init);
+        }
+        return 0;
+    }
+
     case WM_NEW_WINDOW: {
         if (!s) return 0;
         std::wstring path;
@@ -1123,9 +1194,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         // window least-recent first, so the most recent one runs the process
         // teardown.
         if (s) {
-            s->core.exiting = true;
-            for (HWND window : s->core.windows.ExitOrder())
-                if (IsWindow(window)) DestroyWindow(window);
+            ExitAllWindows(*s);
         } else {
             DestroyWindow(hwnd);
         }
@@ -2298,7 +2367,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
             // Visual-regression runs must never overwrite the user's real
             // window, path, tray, or undo session.
-            if (last_window && s->startupComplete && !s->shot.active && !s->menushot && !s->isolatedTest) {
+            if (last_window && !s->core.exiting && s->startupComplete && !s->shot.active && !s->menushot && !s->isolatedTest) {
                 // A hidden tag-only launch must not overwrite the real
                 // window/tab session (SessionWritable); tags and places still save below.
                 if (!s->updateSessionPrepared) SaveWindowSession(*s, hwnd, true);
@@ -2809,6 +2878,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         state.detailsPanelWidth = static_cast<float>(session.details_panel_width);
         state.renderer.SetDetailsPanelWidth(state.detailsPanelWidth);
         if (state.darkMode) state.themeOverride = ui::ThemeMode::Dark;
+        // Session v8: the first window restores the focused window from the
+        // single-window fields; the rest open after it is shown.
+        if (session.windows.size() > 1) {
+            const int focused = std::clamp(session.focused_window, 0,
+                                           static_cast<int>(session.windows.size()) - 1);
+            for (int i = 0; i < static_cast<int>(session.windows.size()); ++i)
+                if (i != focused)
+                    state.session_extra_windows.push_back(session.windows[static_cast<size_t>(i)]);
+        }
     }
 
     // Parse command line.

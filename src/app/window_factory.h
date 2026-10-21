@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include "session.h"
+
 namespace luling {
 
 struct AppState;
@@ -21,19 +23,6 @@ struct AppState;
 // minimize / maximize animations without its duplicate caption buttons.
 constexpr DWORD kMainWindowStyle =
     WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
-
-// One window's sidebar and details pane, for the session.
-struct WindowLayoutSnapshot {
-    int sidebar_collapsed = 0;
-    int sidebar_hidden = 0;
-    std::vector<int> sidebar_order;
-    int quick_access_hidden = 0;
-    bool starred_expanded = true;
-    bool details_panel = false;
-    int details_panel_width = 340;
-    bool details_preview_only = false;
-    bool details_preview = true;
-};
 
 struct WindowInit {
     std::wstring path;  // folder of the first tab ("" = This PC)
@@ -45,6 +34,8 @@ struct WindowInit {
     // A tab that moves in alive instead of a first tab opening.
     AppState* adopt_from = nullptr;
     size_t adopt_index = 0;
+    // A window reopened from the session: its tabs, layout and place.
+    const app::WindowSessionSnapshot* restore = nullptr;
 };
 
 // Creates and shows a window on `from`'s core at `init.path`, next to `from`
@@ -53,8 +44,8 @@ struct WindowInit {
 HWND OpenLulingWindow(AppState& from, const WindowInit& init);
 
 // A window's sidebar and details pane, for the session.
-WindowLayoutSnapshot CaptureWindowLayout(const AppState& s);
-void ApplyWindowLayout(AppState& s, const WindowLayoutSnapshot& layout);
+app::WindowLayoutSnapshot CaptureWindowLayout(const AppState& s);
+void ApplyWindowLayout(AppState& s, const app::WindowLayoutSnapshot& layout);
 
 // WM_NCDESTROY: hands the state of a window opened by OpenLulingWindow over
 // for release. False for the first window, whose state WinMain owns.

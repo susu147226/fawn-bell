@@ -28,6 +28,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include "content_results_ui.h"
 #include "app_worker.h"
 #include "places.h"
@@ -426,6 +427,11 @@ struct AppState {
     // instead of restoring the session.
     bool has_window_start = false;
     std::wstring window_start_path;
+    // A window reopened from the session (multi-window).
+    std::optional<app::WindowSessionSnapshot> window_restore;
+    // The first window keeps the session's other windows for
+    // WM_OPEN_SESSION_WINDOWS.
+    std::vector<app::WindowSessionSnapshot> session_extra_windows;
     // A tab that moves into this window instead of a first tab opening.
     AppState* window_adopt_from = nullptr;
     size_t window_adopt_index = 0;

@@ -76,11 +76,20 @@ HWND OpenLulingWindow(AppState& from, const WindowInit& init) {
     state->window_start_path = init.path;
     state->window_adopt_from = init.adopt_from;
     state->window_adopt_index = init.adopt_index;
+    if (init.restore) state->window_restore = *init.restore;
     g_windows.push_back(std::move(owned));
 
     RECT rect = init.rect ? *init.rect : CascadedRect(from);
+    bool maximize = false;
+    if (init.restore) {
+        const RECT& back = init.restore->window_rect;
+        if (back.right > back.left && back.bottom > back.top) rect = back;
+        // The monitor this rectangle lived on may be gone.
+        app::ClampWindowRectToVisibleWorkArea(rect);
+        maximize = init.restore->maximized;
+    }
     const HMONITOR from_monitor = MonitorFromWindow(from.hwnd, MONITOR_DEFAULTTONEAREST);
-    if (!init.rect && init.monitor && init.monitor != from_monitor) {
+    if (!init.rect && !init.restore && init.monitor && init.monitor != from_monitor) {
         MONITORINFO there{sizeof(there)};
         MONITORINFO here{sizeof(here)};
         const RECT normal = NormalScreenRect(from.hwnd);
@@ -101,12 +110,12 @@ HWND OpenLulingWindow(AppState& from, const WindowInit& init) {
         if (it != g_windows.end()) g_windows.erase(it);
         return nullptr;
     }
-    ShowWindow(hwnd, SW_SHOWNORMAL);
+    ShowWindow(hwnd, maximize ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
     return hwnd;
 }
 
-WindowLayoutSnapshot CaptureWindowLayout(const AppState& s) {
-    WindowLayoutSnapshot layout;
+app::WindowLayoutSnapshot CaptureWindowLayout(const AppState& s) {
+    app::WindowLayoutSnapshot layout;
     layout.sidebar_collapsed = static_cast<int>(s.sidebarCollapsedMask);
     layout.sidebar_hidden = static_cast<int>(s.sidebarHiddenMask);
     layout.sidebar_order = s.sidebarOrder;
@@ -119,7 +128,7 @@ WindowLayoutSnapshot CaptureWindowLayout(const AppState& s) {
     return layout;
 }
 
-void ApplyWindowLayout(AppState& s, const WindowLayoutSnapshot& layout) {
+void ApplyWindowLayout(AppState& s, const app::WindowLayoutSnapshot& layout) {
     s.sidebarCollapsedMask = static_cast<uint32_t>(layout.sidebar_collapsed);
     s.sidebarHiddenMask = static_cast<uint32_t>(layout.sidebar_hidden);
     if (!layout.sidebar_order.empty()) s.sidebarOrder = layout.sidebar_order;

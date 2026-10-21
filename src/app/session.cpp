@@ -14,13 +14,18 @@
 
 namespace luling::app {
 
+static bool SplitTopLevelObjects(const std::wstring& body, std::vector<std::wstring>& out);
+static bool ExtractJsonArray(const std::wstring& json, const wchar_t* key, std::wstring& body);
+
 namespace {
 
 // Session file version. Bump when a stored field changes meaning: the loader
 // migrates (or discards) values written by older versions.
 //   6 -> 7: BuiltinQuickAccess lost its reserved "starred" bit, so the stored
 //           quick-access mask is dropped for files written before 7.
-constexpr int kSessionVersion = 7;
+//   7 -> 8: windows[] holds every window; a file without it restores one
+//           window from the single-window fields below.
+constexpr int kSessionVersion = 8;
 
 // Folder-view column widths: modified, type, size[, created, accessed].
 // The two date columns are only written when set, so the value stays the
@@ -119,6 +124,83 @@ std::vector<float> ParseDipList(const std::wstring& value) {
     }
     while (!out.empty() && out.back() <= 0.0f) out.pop_back();
     return out;
+}
+
+// One windows[] element (session version 8).
+std::wstring WindowSessionToJson(const WindowSessionSnapshot& w) {
+    const WindowLayoutSnapshot& l = w.layout;
+    std::wstring order;
+    for (size_t i = 0; i < l.sidebar_order.size(); ++i) {
+        if (i) order += L",";
+        order += std::to_wstring(l.sidebar_order[i]);
+    }
+    std::wostringstream f;
+    f << L"    {\"left\":" << w.window_rect.left << L",\"top\":" << w.window_rect.top
+      << L",\"right\":" << w.window_rect.right << L",\"bottom\":" << w.window_rect.bottom
+      << L",\"maximized\":" << (w.maximized ? L"true" : L"false") << L",\n";
+    f << L"     \"sidebarCollapsed\":" << l.sidebar_collapsed
+      << L",\"sidebarHidden\":" << l.sidebar_hidden
+      << L",\"sidebarOrder\":\"" << order << L"\""
+      << L",\"quickAccessHidden\":" << l.quick_access_hidden
+      << L",\"starredExpanded\":" << (l.starred_expanded ? L"true" : L"false") << L",\n";
+    f << L"     \"detailsPanel\":" << (l.details_panel ? 1 : 0)
+      << L",\"detailsPanelWidth\":" << std::clamp(l.details_panel_width,
+             static_cast<int>(ui::kDetailsMinWidthDip), static_cast<int>(ui::kPanelWidthMaxDip))
+      << L",\"detailsPreviewOnly\":" << (l.details_preview_only ? L"true" : L"false")
+      << L",\"detailsPreview\":" << (l.details_preview ? L"true" : L"false") << L",\n";
+    f << L"     \"undo\":" << (w.undo_json.empty() ? L"[]" : w.undo_json)
+      << L",\"activeTab\":" << w.active_layout_tab << L",\n";
+    f << L"     \"tabGroups\":" << TabGroupsToJson(w.tab_groups) << L",\n";
+    f << L"     \"layoutTabs\":" << LayoutTabsToJson(w.layout_tabs) << L"}";
+    return f.str();
+}
+
+std::vector<int> ParseSidebarOrderText(const std::wstring& value) {
+    std::vector<int> order;
+    size_t start = 0;
+    while (start < value.size()) {
+        const size_t end = value.find(L',', start);
+        int v = 0;
+        bool digits = false;
+        for (size_t i = start; i < (end == std::wstring::npos ? value.size() : end); ++i) {
+            const wchar_t c = value[i];
+            if (c < L'0' || c > L'9') { digits = false; break; }
+            digits = true;
+            v = v * 10 + static_cast<int>(c - L'0');
+        }
+        if (digits && v < kSidebarSectionCount) order.push_back(v);
+        if (end == std::wstring::npos) break;
+        start = end + 1;
+    }
+    return order;
+}
+
+WindowSessionSnapshot ParseWindowSessionJson(const std::wstring& wj) {
+    WindowSessionSnapshot w;
+    w.window_rect = RECT{luling::json::ExtractInt(wj, L"left"),
+                         luling::json::ExtractInt(wj, L"top"),
+                         luling::json::ExtractInt(wj, L"right"),
+                         luling::json::ExtractInt(wj, L"bottom")};
+    w.maximized = luling::json::ExtractBool(wj, L"maximized", false);
+    WindowLayoutSnapshot& l = w.layout;
+    l.sidebar_collapsed = luling::json::ExtractInt(wj, L"sidebarCollapsed");
+    l.sidebar_hidden = luling::json::ExtractInt(wj, L"sidebarHidden");
+    l.sidebar_order = NormalizeSidebarOrder(
+        ParseSidebarOrderText(luling::json::ExtractString(wj, L"sidebarOrder")));
+    l.quick_access_hidden = luling::json::ExtractInt(wj, L"quickAccessHidden");
+    l.starred_expanded = luling::json::ExtractBool(wj, L"starredExpanded", true);
+    l.details_panel = luling::json::ExtractInt(wj, L"detailsPanel") != 0;
+    l.details_panel_width = std::clamp(luling::json::ExtractInt(wj, L"detailsPanelWidth", 340),
+        static_cast<int>(ui::kDetailsMinWidthDip), static_cast<int>(ui::kPanelWidthMaxDip));
+    l.details_preview_only = luling::json::ExtractBool(wj, L"detailsPreviewOnly", false);
+    l.details_preview = luling::json::ExtractBool(wj, L"detailsPreview", true);
+    w.active_layout_tab = luling::json::ExtractInt(wj, L"activeTab");
+    std::wstring body;
+    if (ExtractJsonArray(wj, L"tabGroups", body)) ParseTabGroups(L"[" + body + L"]", w.tab_groups);
+    if (ExtractJsonArray(wj, L"layoutTabs", body)) ParseLayoutTabs(L"[" + body + L"]", w.layout_tabs);
+    if (std::wstring undo = luling::json::ExtractArray(wj, L"undo"); !undo.empty())
+        w.undo_json = std::move(undo);
+    return w;
 }
 
 } // namespace
@@ -327,8 +409,16 @@ std::wstring SessionToJson(const SessionSnapshot& snap) {
     f << L"  \"undo\":" << (snap.undo_json.empty() ? L"[]" : snap.undo_json) << L",\n";
     f << L"  \"activeTab\":" << snap.active_layout_tab << L",\n";
     f << L"  \"tabGroups\":" << TabGroupsToJson(snap.tab_groups) << L",\n";
-    f << L"  \"layoutTabs\":" << LayoutTabsToJson(snap.layout_tabs) << L"\n";
-    f << L"}\n";
+    f << L"  \"layoutTabs\":" << LayoutTabsToJson(snap.layout_tabs);
+    if (!snap.windows.empty()) {
+        f << L",\n  \"focusedWindow\":"
+          << std::clamp(snap.focused_window, 0, static_cast<int>(snap.windows.size()) - 1);
+        f << L",\n  \"windows\":[\n";
+        for (size_t i = 0; i < snap.windows.size(); ++i)
+            f << (i ? L",\n" : L"") << WindowSessionToJson(snap.windows[i]);
+        f << L"\n  ]";
+    }
+    f << L"\n}\n";
     return f.str();
 }
 
@@ -443,6 +533,36 @@ bool ParseSessionJson(const std::wstring& json, SessionSnapshot& snap) {
         if (ParseLayoutTabs(L"[" + layoutBody + L"]", parsed))
             snap.layout_tabs = std::move(parsed);
     }
+    // Version 8: windows[]; a file without it (v7 and older) is one window
+    // described by the single-window fields parsed above.
+    snap.windows.clear();
+    std::wstring windowsBody;
+    if (ExtractJsonArray(json, L"windows", windowsBody)) {
+        std::vector<std::wstring> objects;
+        if (SplitTopLevelObjects(windowsBody, objects))
+            for (const std::wstring& wj : objects) snap.windows.push_back(ParseWindowSessionJson(wj));
+    }
+    if (snap.windows.empty()) {
+        WindowSessionSnapshot w;
+        w.window_rect = snap.window_rect;
+        w.maximized = snap.maximized;
+        w.layout.sidebar_collapsed = snap.sidebar_collapsed;
+        w.layout.sidebar_hidden = snap.sidebar_hidden;
+        w.layout.sidebar_order = snap.sidebar_order;
+        w.layout.quick_access_hidden = snap.quick_access_hidden;
+        w.layout.starred_expanded = snap.starred_expanded;
+        w.layout.details_panel = snap.details_panel;
+        w.layout.details_panel_width = snap.details_panel_width;
+        w.layout.details_preview_only = snap.details_preview_only;
+        w.layout.details_preview = snap.details_preview;
+        w.layout_tabs = snap.layout_tabs;
+        w.tab_groups = snap.tab_groups;
+        w.active_layout_tab = snap.active_layout_tab;
+        w.undo_json = snap.undo_json;
+        snap.windows.push_back(std::move(w));
+    }
+    snap.focused_window = std::clamp(luling::json::ExtractInt(json, L"focusedWindow"), 0,
+                                     static_cast<int>(snap.windows.size()) - 1);
     return true;
 }
 
