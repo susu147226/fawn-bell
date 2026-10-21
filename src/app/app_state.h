@@ -893,8 +893,10 @@ inline std::wstring ClipboardPath(const std::wstring& p) {
     return path::StripExtendedPathPrefix(p);
 }
 
-// Where process-level notifications go. Until windows are split out of
-// AppState, every window is the service window.
-inline HWND ServiceWindow(const AppState& s) { return s.hwnd; }
+// Where process-level notifications go: the window that owns the core's
+// service endpoint, falling back to this window before one has been claimed.
+inline HWND ServiceWindow(const AppState& s) {
+    return s.core.service_window ? s.core.service_window : s.hwnd;
+}
 
 } // namespace luling

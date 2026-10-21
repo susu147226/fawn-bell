@@ -31,6 +31,9 @@
 namespace luling {
 
 struct AppCore {
+    // Where process-level notifications go. The first window to start owns it;
+    // extra windows keep using that one instead of stealing the route.
+    HWND service_window = nullptr;
     // Preferences and the user's history belong to the process: every window
     // reads the same copy and a save from one is what the others see.
     app::AppPrefs appPrefs;

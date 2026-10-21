@@ -437,6 +437,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s = reinterpret_cast<AppState*>(cs->lpCreateParams);
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(s));
         s->hwnd = hwnd;
+        if (!s->core.service_window) s->core.service_window = hwnd;
         s->tray_controller.Attach(hwnd, cs->hInstance);
         InstallTrayRevealHook(*s);
 
@@ -2231,6 +2232,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->renderer.SetIconNotifyWindow(nullptr);
             s->renderer.SetCompositor(nullptr);
             s->compositor.Shutdown();
+            if (s->core.service_window == s->hwnd) s->core.service_window = nullptr;
             s->hwnd = nullptr;
         }
         PostQuitMessage(0);
