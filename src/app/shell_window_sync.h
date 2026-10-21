@@ -16,6 +16,9 @@ void SyncShellWindows(AppState& s);
 void StopShellWindows(AppState& s);
 // WM_SHELL_SELECT: brings the pane forward and selects the item.
 void HandleShellSelect(AppState& s, const app::ShellSelectRequest& request);
+// True when one of this window's panes owns `key`; the select request is
+// routed to the window that does (multi-window).
+bool WindowHasPaneKey(const AppState& s, uint64_t key);
 // WM_EXPLORER_TAKEOVER: opens the source folder, then acknowledges the actual load.
 void HandleExplorerTakeover(AppState& s, const app::ExplorerTakeoverRequest& request);
 void CompleteExplorerNavigation(app::Tab& tab, uint64_t generation, bool success);

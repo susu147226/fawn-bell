@@ -1333,7 +1333,20 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_SHELL_SELECT: {
         std::unique_ptr<app::ShellSelectRequest> request(reinterpret_cast<app::ShellSelectRequest*>(lParam));
-        if (s && request) HandleShellSelect(*s, *request);
+        if (s && request) {
+            // The pane may have moved to another window: hand the request to
+            // whichever window owns it.
+            if (WindowHasPaneKey(*s, request->key)) {
+                HandleShellSelect(*s, *request);
+            } else {
+                bool handled = false;
+                app::ForEachWindowSharingCore(*s, [&](AppState& w) {
+                    if (handled || !WindowHasPaneKey(w, request->key)) return;
+                    HandleShellSelect(w, *request);
+                    handled = true;
+                });
+            }
+        }
         return 0;
     }
 
@@ -1838,7 +1851,12 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_BITLOCKER_UNLOCK: {
         std::unique_ptr<app::BitLockerUnlockResult> result(
             reinterpret_cast<app::BitLockerUnlockResult*>(lParam));
-        if (s && result) ApplyBitLockerUnlock(*s, result->root, result->unlocked);
+        if (s && result) {
+            // Every window showing the drive reloads or updates its banner.
+            app::ForEachWindowSharingCore(*s, [&](AppState& w) {
+                ApplyBitLockerUnlock(w, result->root, result->unlocked);
+            });
+        }
         return 0;
     }
 
@@ -2332,6 +2350,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 s->index.Stop();
                 CancelNetworkLocations(*s);
                 s->worker.Stop();
+            } else if (AppState* next = s->core.windows.MostRecentExcept(hwnd)) {
+                // Hand the process bindings this window held to the next one:
+                // the tray icon's hide/restore target and its reveal hook.
+                if (s->tray_controller.Window() == hwnd) {
+                    s->tray_controller.Retarget(next->hwnd);
+                    InstallTrayRevealHook(*next);
+                }
             }
 
             if (s->dropTarget) {

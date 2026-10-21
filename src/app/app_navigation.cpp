@@ -1,6 +1,7 @@
 #include <thread>
 // app_navigation.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "window_registry.h"
 #include "../fs/bitlocker_volume.h"
 #include "../fs/shell_namespace.h"
 #include "network_locations.h"
@@ -1376,7 +1377,11 @@ void ProcessPendingResults(AppState& s) {
         s.results = {};
     }
     while (!batch.empty()) {
-        ApplyWorkerResult(s, batch.front());
+        // A listing may be on screen in any window: apply the result to
+        // every window that shares the core; only the owning tabs match.
+        app::ForEachWindowSharingCore(s, [&](AppState& window) {
+            ApplyWorkerResult(window, batch.front());
+        });
         batch.pop();
     }
 }

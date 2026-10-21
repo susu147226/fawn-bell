@@ -132,6 +132,15 @@ void StopShellWindows(AppState& s) {
     s.shell_windows_published.clear();
 }
 
+bool WindowHasPaneKey(const AppState& s, uint64_t key) {
+    for (const auto& tab : s.window_tabs.items) {
+        if (!tab) continue;
+        for (const auto& pane : tab->panes)
+            if (pane && PaneKey(*pane) == key) return true;
+    }
+    return false;
+}
+
 void HandleShellSelect(AppState& s, const app::ShellSelectRequest& request) {
     size_t layout_index = 0;
     app::Pane* target = nullptr;

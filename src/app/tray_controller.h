@@ -52,6 +52,12 @@ public:
     CallbackResult HandleCallback(LPARAM event);
 
     bool IsVisible() const noexcept { return icon_added_; }
+    // The window whose hide/restore the icon drives; a closing window hands
+    // it to the one used next (multi-window).
+    HWND Window() const noexcept { return hwnd_; }
+    void Retarget(HWND hwnd) noexcept {
+        if (hwnd_ && hwnd) hwnd_ = hwnd;
+    }
 
 private:
     NOTIFYICONDATAW IconData(UINT flags = 0) const;
