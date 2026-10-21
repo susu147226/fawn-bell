@@ -34,6 +34,16 @@ struct AppCore {
     // Where process-level notifications go. The first window to start owns it;
     // extra windows keep using that one instead of stealing the route.
     HWND service_window = nullptr;
+    // Start/Stop and the tray Attach/Detach belong to that window too; other
+    // windows reuse these instances without starting or stopping them.
+    app::WorkerPool worker;
+    // IPC clients come first so they outlive the services holding pointers to
+    // them: a consumer's destructor may still be running when the core unwinds.
+    index::IndexClient index;
+    index::NetworkAgentClient networkIndex;
+    index::ContentSearchClient contentSearch;
+    index::ContentSearchClient duplicateSearch;
+    fs::SnapshotStore store;
     // Preferences and the user's history belong to the process: every window
     // reads the same copy and a save from one is what the others see.
     app::AppPrefs appPrefs;
@@ -64,12 +74,6 @@ struct AppCore {
     // takeover belong to the process, not to one window.
     std::unique_ptr<app::ShellWindowRegistry> shell_windows;
     std::unique_ptr<app::ExplorerWindowTakeover> explorer_takeover;
-    app::WorkerPool worker;
-    fs::SnapshotStore store;
-    index::IndexClient index;
-    index::NetworkAgentClient networkIndex;
-    index::ContentSearchClient contentSearch;
-    index::ContentSearchClient duplicateSearch;
 };
 
 } // namespace luling
