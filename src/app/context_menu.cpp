@@ -101,10 +101,6 @@ std::vector<ui::FluentMenuItem> BuildItemMenu(bool can_undo, const std::wstring&
     items.back().separator_after = true;
     items.push_back(Item(CmdTags, l10n::Get(l10n::StringId::TagsEllipsis).c_str(), kGlyphTag));
     items.back().separator_after = true;
-    items.push_back(Item(CmdRenameSequenceZero,
-        l10n::Get(l10n::StringId::MenuRenameSeqZero).c_str(), kGlyphRename));
-    items.push_back(Item(CmdRenameSequenceOne,
-        l10n::Get(l10n::StringId::MenuRenameSeqOne).c_str(), kGlyphRename));
     items.push_back(Item(CmdAppendNameSuffix,
         l10n::Get(l10n::StringId::MenuAppendSuffix).c_str(), kGlyphRename));
     items.push_back(Item(CmdCompressZip,

@@ -1092,6 +1092,31 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             + (static_cast<float>(i) + vm.tabs[i].x_offset) * strip.pitch + extra;
         drawTab(i, left, false);
     }
+    // Another window dragged over this strip: the strip lights up and a bar
+    // marks where its tabs would land, pulsing until the drag is released.
+    if (vm.window_drop_index >= 0 && !vm.tabs.empty()) {
+        const int count = static_cast<int>(vm.tabs.size());
+        const int at = std::clamp(vm.window_drop_index, 0, count);
+        float drop_x = strip.x0;
+        if (at < count) {
+            const float extra = at < static_cast<int>(strip.extra.size()) ? strip.extra[static_cast<size_t>(at)] : 0.0f;
+            drop_x = strip.x0 + (static_cast<float>(at) + vm.tabs[static_cast<size_t>(at)].x_offset) * strip.pitch + extra;
+        } else {
+            const size_t last = static_cast<size_t>(count - 1);
+            const float extra = static_cast<int>(last) < static_cast<int>(strip.extra.size()) ? strip.extra[last] : 0.0f;
+            drop_x = strip.x0 + (static_cast<float>(last) + vm.tabs[last].x_offset) * strip.pitch + extra +
+                strip.Width(vm, last);
+        }
+        const float phase = static_cast<float>(GetTickCount64() % 1200) / 1200.0f;
+        const float pulse = 0.65f + 0.35f * (0.5f + 0.5f * std::sin(phase * 6.2831853f));
+        const float band_right = chrome.group_left > strip.x0 ? chrome.group_left : strip.x0 + 24.0f * scale_;
+        MakeBrush(dc, WithAlpha(theme.accent, 0.10f * pulse), brFillHover_);
+        FillRoundedRect(dc, brFillHover_.get(), strip.x0, strip.y,
+                        std::max(24.0f * scale_, band_right - strip.x0), strip.h, 6.0f * scale_);
+        MakeBrush(dc, WithAlpha(theme.accent, 0.9f * pulse), brAccent_);
+        FillRoundedRect(dc, brAccent_.get(), drop_x - 1.5f * scale_, strip.y + 3.0f * scale_,
+                        3.0f * scale_, std::max(6.0f * scale_, strip.h - 6.0f * scale_), 1.5f * scale_);
+    }
     // The dragged run floats as one block (browser group drag); collapsed
     // members stay hidden and do not take float width.
     if (dragI >= 0 && dragI < static_cast<int>(vm.tabs.size())) {

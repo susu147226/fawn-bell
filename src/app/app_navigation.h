@@ -79,7 +79,7 @@ void SortBy(AppState& s, ui::SortColumn col);
 void SetSort(AppState& s, ui::SortColumn col, ui::SortDirection direction);
 // "Group by" for the active folder (remembered per folder); 0 turns it off.
 void SetGroupBy(AppState& s, int group_by);
-void OpenSelected(AppState& s);
+void OpenSelected(AppState& s, bool folder_in_new_window = false);
 // Opens one path as if chosen in the list: folders navigate, files launch.
 void OpenPath(AppState& s, const std::wstring& path);
 void GoUp(AppState& s);

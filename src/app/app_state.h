@@ -403,6 +403,9 @@ struct AppState {
     int tabDragGroupId = 0;              // chip drag: app::TabGroup::id
     float tabDragSlots = 1.0f;           // visual width of the drag block in slots
     float tabDragBlockW = 0.0f;          // >0: collapsed chip drag block (chip+gap, px)
+    // Another window is being dragged over this tab strip: where its tabs
+    // would land (-1: nowhere). Drawn as a bar where the tabs would go.
+    int windowDropIndex = -1;
     struct TabTrack { float start = 0.0f; int durationMs = 150; std::chrono::steady_clock::time_point t0; };
     std::unordered_map<const app::LayoutTab*, TabTrack> tabTracks;
     std::unordered_map<const app::LayoutTab*, float> tabOffsets;
@@ -794,6 +797,12 @@ struct AppState {
     bool launched_select_newest = false;
     ULONGLONG launched_select_until = 0;
     ULONGLONG launched_select_next_try = 0;
+    // A finished rename or move into the folder on screen: these names should
+    // be selected and scrolled into view once the refreshed listing is there.
+    std::vector<std::wstring> reveal_names;
+    std::wstring reveal_folder;
+    ULONGLONG reveal_until = 0;
+    ULONGLONG reveal_next_try = 0;
     // Device namespace items cannot be expressed as CF_HDROP. Copying one keeps
     // the selection here so paste can hand it to IFileOperation.
     std::vector<std::wstring> shellClipboardPaths;

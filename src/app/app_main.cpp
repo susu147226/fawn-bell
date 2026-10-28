@@ -99,6 +99,8 @@
 #include <cwctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <dwmapi.h>
 #include <exception>
 #include <process.h>
 #include <memory>
@@ -122,6 +124,9 @@
 #include "host_routing.h"
 #include "host_window.h"
 #include "window_factory.h"
+#include "window_merge.h"
+#include "window_move_merge.h"
+#include "operation_reveal.h"
 #include "window_registry.h"
 #include "app_hover_preview.h"
 #include "drive_verbs.h"
@@ -443,6 +448,29 @@ static void NoteUiActivity(HWND hwnd, bool visible) {
     SyncUiTimerRate(hwnd, visible);
 }
 
+// Another virtual desktop or a shell cloak hides the window without Iconic or
+// VISIBLE changing; nothing it paints is seen, so motion waits.
+static bool WindowCloaked(HWND hwnd) {
+    DWORD cloaked = 0;
+    return SUCCEEDED(DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) &&
+           cloaked != 0;
+}
+
+// A forwarded launch: a folder opens as a tab; a launch without a path (Win+E
+// through the shell integration) asks for another window at the current
+// folder, even when that folder is already visible.
+static void OpenForwardedLaunch(AppState& s, const std::wstring& path) {
+    if (!path.empty()) {
+        OpenFolderInNewTab(s, path);
+        return;
+    }
+    std::wstring current;
+    if (const app::Tab* tab = ActiveTab(s);
+        tab && !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path))
+        current = tab->current_path;
+    OpenLulingWindow(s, WindowInit{current});
+}
+
 // WM_COPYDATA payloads: shell tag requests, an open request forwarded by a
 // second launch, or an older open-path message. The host window receives
 // them and hands them to the target window; a test instance may post them
@@ -459,13 +487,57 @@ static LRESULT HandleInstanceCopyData(AppState& s, COPYDATASTRUCT* cds) {
         const auto accepted = s.single_instance.AcceptOpenRequest(request, GetTickCount64());
         if (accepted == app::SingleInstanceCoordinator::OpenAcceptance::Invalid) return FALSE;
         if (accepted == app::SingleInstanceCoordinator::OpenAcceptance::New)
-            OpenFolderInNewTab(s, request.path);
+            OpenForwardedLaunch(s, request.path);
         return TRUE; // acceptance, not a claim that asynchronous enumeration succeeded
     }
     std::wstring path;
     if (!app::SingleInstanceCoordinator::DecodeOpenPath(cds, path)) return FALSE;
-    OpenFolderInNewTab(s, path);
+    OpenForwardedLaunch(s, path);
     return TRUE;
+}
+
+// After the hand-off nothing left matters to the user or to a new Luling, so a
+// service, destructor or DLL that hangs from there must not keep a process
+// without windows alive. Saved files are replaced atomically or journaled;
+// ending here loses at most an update in flight, never a file.
+constexpr DWORD kExitWatchdogMs = 2000;
+static void StartExitWatchdog() {
+    try {
+        std::thread([] {
+            Sleep(kExitWatchdogMs);
+            diagnostics::DebugLog("app", L"exit_watchdog: still running after the hand-off; ending the process");
+            TerminateProcess(GetCurrentProcess(), 0);
+        }).detach();
+    } catch (...) {
+    }
+}
+
+// The last window's first steps on the way out: what the user sees and what a
+// new Luling would depend on. The tray icon goes, saved state is written, file
+// operations stop and leave their recovery journal, and only then is the
+// single-instance claim released, so a Luling started now reads finished files
+// instead of being forwarded to this one. Stopping the services comes after.
+static void HandOffAtExit(AppState& s, HWND hwnd) {
+    s.tray_controller.Detach();
+    // Closing the search window may still record its size in the preferences.
+    ShutdownGlobalSearch(s);
+    // Visual-regression runs must never overwrite the user's real window,
+    // path, tray, or undo session.
+    if (s.startupComplete && !s.shot.active && !s.menushot && !s.isolatedTest) {
+        // A hidden tag-only launch must not overwrite the real window/tab
+        // session (SessionWritable); tags and places still save below.
+        if (!s.updateSessionPrepared && !s.core.exiting) SaveWindowSession(s, hwnd, true);
+        s.places.Save();
+        s.ctxMenuPrefs.Save();
+        if (!s.updateSessionPrepared) s.appPrefs.Save();
+    }
+    s.searchHistoryWriter.Flush();
+    s.ops.Stop();
+    ops::ShutdownElevatedTransferHelper();
+    // Sweeps every stage, so it must finish before another Luling makes one.
+    app::SweepDropStages(app::DropStageRoot(), true);
+    s.single_instance.Release();
+    StartExitWatchdog();
 }
 
 LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -1124,6 +1196,12 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_NCLBUTTONDOWN: {
         if (!s) break;
         if (s->addressEditing && !s->addressSearching) HideAddressEditor(*s, false);
+        if (wParam == HTCAPTION) {
+            // Dragging the window by its title bar may merge it into another
+            // window's tab strip; resizing by the frame must not.
+            NoteTitleBarPress(*s);
+            break;
+        }
         if (wParam == HTMINBUTTON) {
             ShowWindow(hwnd, SW_MINIMIZE);
             return 0;
@@ -1143,6 +1221,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled)) {
                 HideMainWindowToTray(*s);
             } else {
+                // Pinned tabs outlive their window: they join the one that stays.
+                if (!last_window && !s->core.exiting) {
+                    if (AppState* next = s->core.windows.MostRecentExcept(hwnd))
+                        MovePinnedTabsInto(*s, *next);
+                }
                 DestroyWindow(hwnd);
             }
             return 0;
@@ -1159,6 +1242,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled)) {
             HideMainWindowToTray(*s);
             return 0;
+        }
+        // Pinned tabs outlive their window: they join the one that stays.
+        if (!last_window && s && !s->core.exiting) {
+            if (AppState* next = s->core.windows.MostRecentExcept(hwnd))
+                MovePinnedTabsInto(*s, *next);
         }
         break;
     }
@@ -1191,6 +1279,18 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             tab && !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path))
             path = tab->current_path;
         OpenLulingWindow(*s, WindowInit{path});
+        return 0;
+    }
+
+    case WM_UNDO_WINDOW_MERGE: {
+        if (!s) return 0;
+        UndoWindowMerge(*s);
+        return 0;
+    }
+
+    case WM_MERGE_WINDOW: {
+        if (!s) return 0;
+        FinishWindowMerge(*s, reinterpret_cast<HWND>(wParam), static_cast<size_t>(lParam));
         return 0;
     }
 
@@ -1304,6 +1404,18 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
 
+    case WM_ENTERSIZEMOVE:
+        if (s) BeginWindowMove(*s);
+        break;
+
+    case WM_MOVING:
+        if (s) TrackWindowMove(*s);
+        break;
+
+    case WM_EXITSIZEMOVE:
+        if (s) EndWindowMove(*s);
+        break;
+
     case WM_SIZE: {
         if (s) {
             s->compositor.Resize(LOWORD(lParam), HIWORD(lParam));
@@ -1368,7 +1480,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_FRAME_PUMP: {
         if (!s) return 0;
         s->framePump.FrameConsumed();
-        if (!IsWindowVisible(hwnd) || IsIconic(hwnd) ||
+        if (!IsWindowVisible(hwnd) || IsIconic(hwnd) || WindowCloaked(hwnd) ||
             (!s->scrollAnimating && !s->renderer.TickMotion(GetTickCount64()))) {
             s->framePump.Disarm();  // WM_PAINT re-arms once shown again
             return 0;
@@ -1408,6 +1520,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             const ULONGLONG now = GetTickCount64();
             TickUpdates(*s, now);
             TickLaunchedSelection(*s, now);
+            TickOperationReveal(*s, now);
             TickFolderValidation(*s, now);
             TickQuickPreviewSelection(*s, now);
             if (TickSidebarRefresh(*s, now)) dirty = true;
@@ -1416,10 +1529,18 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             if (s->renderer.TickMotion(now)) {
                 // Paced by the frame pump when it runs; the timer only
                 // re-arms it so the two never both render the same motion.
-                if (s->framePump.Running()) s->framePump.Arm();
-                else dirty = true;
+                // A cloaked window paints nothing anyone can see; motion
+                // picks up again on the first tick after it comes back.
+                if (WindowCloaked(hwnd)) {
+                } else if (s->framePump.Running()) {
+                    s->framePump.Arm();
+                } else {
+                    dirty = true;
+                }
             }
             if (luling::TickSidebarPeek(*s, now)) dirty = true;
+            // A window dragged over this strip pulses its pre-merge marker.
+            if (s->windowDropIndex >= 0) dirty = true;
             TickShellTagMenu(*s, now);
             if (s->detailsPreviewFoldStart) {
                 const float t = std::min(1.0f, static_cast<float>(now - s->detailsPreviewFoldStart) / 150.0f);
@@ -1942,6 +2063,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                             s->tray.ReplacePath(completed.sources[i], completed.destinations[i]);
                             tag_metadata_paths.push_back(completed.destinations[i]);
                         }
+                        // The results just landed in the folder on screen:
+                        // select them and bring them into view.
+                        QueueOperationReveal(*s, completed.destinations);
                         if (completed.type == ops::OpType::Move &&
                             s->pendingCutClipboardSequence != 0) {
                             s->completedCutClipboardPaths.insert(
@@ -2350,7 +2474,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             ShutdownDetailsSizeWalk(*s);
             CancelSidebarRefresh(*s);
             if (last_window) {
-                ShutdownGlobalSearch(*s);
+                // Hand off before any service can stall: tray, saved state,
+                // file operations and the single-instance claim go first.
+                HandOffAtExit(*s, hwnd);
                 StopShellRegistryWatch();
                 s->watches.Stop();
                 s->folderSizes.Stop();
@@ -2405,25 +2531,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 DeleteObject(s->editBrush);
                 s->editBrush = nullptr;
             }
-            // Visual-regression runs must never overwrite the user's real
-            // window, path, tray, or undo session.
-            if (last_window && !s->core.exiting && s->startupComplete && !s->shot.active && !s->menushot && !s->isolatedTest) {
-                // A hidden tag-only launch must not overwrite the real
-                // window/tab session (SessionWritable); tags and places still save below.
-                if (!s->updateSessionPrepared) SaveWindowSession(*s, hwnd, true);
-                s->places.Save();
-                s->ctxMenuPrefs.Save();
-                if (!s->updateSessionPrepared) s->appPrefs.Save();
-            }
-
-            s->ops.Stop();
-            if (last_window) {
-                s->tray_controller.Detach();
-                ops::ShutdownElevatedTransferHelper();
-                app::SweepDropStages(app::DropStageRoot(), true);
-                s->single_instance.Release();
-                UnregisterAssocChangeNotify();
-            }
+            // The last window stopped its operations in the hand-off already.
+            if (!last_window) s->ops.Stop();
+            if (last_window) UnregisterAssocChangeNotify();
             s->renderer.SetIconNotifyWindow(nullptr);
             s->renderer.SetCompositor(nullptr);
             s->compositor.Shutdown();

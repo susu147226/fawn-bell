@@ -65,5 +65,7 @@ constexpr UINT WM_NEW_WINDOW = WM_APP + 81;             // open another window a
 constexpr UINT WM_OPEN_SESSION_WINDOWS = WM_APP + 82;   // first window shown: open the session's other windows
 constexpr UINT WM_BEGIN_TAB_DETACH = WM_APP + 83;       // a tab dragged off the strip: open it in a new window
 constexpr UINT WM_OPEN_EXTERNAL = WM_APP + 84;          // host: lParam std::wstring*, a forwarded launch
+constexpr UINT WM_UNDO_WINDOW_MERGE = WM_APP + 85;      // merge toast clicked: reopen the merged windows
+constexpr UINT WM_MERGE_WINDOW = WM_APP + 86;           // wParam target HWND, lParam tab index: a window was dropped on a strip
 
 } // namespace luling

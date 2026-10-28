@@ -2062,10 +2062,10 @@ void TestMenuModel() {
                         reinterpret_cast<IUnknown**>(&dwrite));
 
     // Item menu: 打开 + icon strip (cut/copy/delete/rename) + verbs + undo.
-    // The rename-sequence trio, 压缩为 ZIP and 转换 were added later; the count
-    // below is the whole menu, not just the original rows.
+    // 追加后缀, 压缩为 ZIP and 转换 were added later; the count below is the
+    // whole menu, not just the original rows.
     auto items = BuildItemMenu(false, L"");
-    Check(items.size() == 14, L"menu: item menu is 打开+图标条+verbs+undo");
+    Check(items.size() == 12, L"menu: item menu is 打开+图标条+verbs+undo");
     // Command-id ranges must not overlap: CmdTabJoinGroupBase once collided
     // with CmdTabCloseOthers and "join group" closed every other tab.
     static_assert(CmdTabJoinGroupBase > CmdTabCloseRight &&
@@ -2073,8 +2073,7 @@ void TestMenuModel() {
                   "join-group ids must sit between tab commands and recents");
     std::vector<int> want{ CmdOpen, CmdNone, CmdCopyPath, CmdOpenTerminal, CmdProperties,
                            CmdPinWorkspace, CmdPinNetwork, CmdTags,
-                           CmdRenameSequenceZero, CmdRenameSequenceOne, CmdAppendNameSuffix,
-                           CmdCompressZip, CmdNone, CmdUndo };
+                           CmdAppendNameSuffix, CmdCompressZip, CmdNone, CmdUndo };
     bool ids_ok = items.size() == want.size();
     for (size_t i = 0; i < want.size() && i < items.size(); ++i)
         if (items[i].command != want[i]) ids_ok = false;
@@ -2089,7 +2088,7 @@ void TestMenuModel() {
     Check(items.size() > 2 && items[2].shortcut == L"Ctrl+Shift+C",
           L"menu: 复制路径 carries Ctrl+Shift+C");
     auto folder_items = BuildItemMenu(false, L"", true);
-    Check(folder_items.size() == 16, L"menu: folder item menu adds 在新标签打开");
+    Check(folder_items.size() == 14, L"menu: folder item menu adds 在新标签打开");
     Check(folder_items.size() > 4 &&
           folder_items[2].command == CmdOpenInNewTab &&
           folder_items[2].text == L"在新标签打开" &&
@@ -4012,16 +4011,41 @@ void TestSnapshotPatchBatch() {
                 same = false;
                 continue;
             }
-            for (size_t i = 0; i < seq.size(); ++i) {
-                if (seq[i].name != batch[i].name || seq[i].size != batch[i].size ||
-                    seq[i].is_dir != batch[i].is_dir)
-                    same = false;
+            // The two paths must agree on what the folder now holds and on the
+            // metadata of every row. Their orders can differ where a rename
+            // moved a row's sort key before a newcomer arrived (the one-by-one
+            // path cannot see the final key), so the order is checked against
+            // the rule the batch path promises instead: a new row sits before
+            // every final row that sorts after it.
+            const auto by_name = [](const fs::DirEntry& a, const fs::DirEntry& b) {
+                return a.name < b.name;
+            };
+            std::vector<fs::DirEntry> seq_sorted = seq;
+            std::vector<fs::DirEntry> batch_sorted = batch;
+            std::sort(seq_sorted.begin(), seq_sorted.end(), by_name);
+            std::sort(batch_sorted.begin(), batch_sorted.end(), by_name);
+            bool rows_same = true;
+            for (size_t i = 0; i < seq_sorted.size(); ++i) {
+                if (seq_sorted[i].name != batch_sorted[i].name ||
+                    seq_sorted[i].size != batch_sorted[i].size ||
+                    seq_sorted[i].is_dir != batch_sorted[i].is_dir)
+                    rows_same = false;
             }
+            bool placed = true;
+            for (const wchar_t* added : {L"file3.txt", L"file20.txt"}) {
+                size_t at = batch.size();
+                for (size_t i = 0; i < batch.size(); ++i)
+                    if (batch[i].name == added) { at = i; break; }
+                if (at == batch.size()) { placed = false; break; }
+                for (size_t j = 0; j < at; ++j)
+                    if (EntryLess(batch[at], batch[j], col, sort_dir)) placed = false;
+            }
+            if (!rows_same || !placed) same = false;
             last = batch;
         }
     }
     }
-    Check(same, L"patch batch: identical to per-event patching for every sort order and grouping");
+    Check(same, L"patch batch: rows match per-event patching, new rows land in sort order");
     const auto has = [&](const wchar_t* name) {
         return std::any_of(last.begin(), last.end(),
                            [&](const fs::DirEntry& e) { return e.name == name; });
@@ -4097,13 +4121,13 @@ void TestSnapshotPatchHoldsRows() {
           L"patch hold: a renamed row keeps its place instead of re-sorting");
     make(L"aardvark.txt", 1);
     Check(name_asc(entries, ev(FILE_ACTION_ADDED, L"aardvark.txt"), dir) == NotifyPatch::Applied &&
-          names(entries) == L"zeta.txt,beta.txt,gamma.txt,aardvark.txt",
-          L"patch hold: a new row lands at the end until the next sort");
+          names(entries) == L"aardvark.txt,zeta.txt,beta.txt,gamma.txt",
+          L"patch hold: a new row goes before the first row that sorts after it");
     make(L"beta.txt", 5000);
     Check(ApplyDirNotify(entries, dir, ev(FILE_ACTION_MODIFIED, L"beta.txt"),
                          ui::SortColumn::Size, ui::SortDirection::Desc) == NotifyPatch::Applied &&
-          names(entries) == L"zeta.txt,beta.txt,gamma.txt,aardvark.txt" &&
-          entries[1].size == 5000u,
+          names(entries) == L"aardvark.txt,zeta.txt,beta.txt,gamma.txt" &&
+          entries[2].size == 5000u,
           L"patch hold: a modified row keeps its place and takes the new size");
 
     {
@@ -4112,12 +4136,12 @@ void TestSnapshotPatchHoldsRows() {
         make(L"notes.md", 1);
         name_asc(entries, ev(FILE_ACTION_ADDED, L"new"), dir);
         name_asc(entries, ev(FILE_ACTION_ADDED, L"notes.md"), dir);
-        Check(names(entries) == L"new,notes.md,zeta.txt,beta.txt,gamma.txt,aardvark.txt",
-              L"patch hold: grouped, a new row joins the end of its own group");
+        Check(names(entries) == L"new,notes.md,aardvark.txt,zeta.txt,beta.txt,gamma.txt",
+              L"patch hold: grouped, a new row goes to its sort position in its group");
         MoveFileW(full(L"zeta.txt").c_str(), full(L"zeta.md").c_str());
         name_asc(entries, ev(FILE_ACTION_RENAMED_NEW_NAME, L"zeta.md", L"zeta.txt"), dir);
-        Check(names(entries) == L"new,notes.md,zeta.md,beta.txt,gamma.txt,aardvark.txt",
-              L"patch hold: grouped, a rename into another group moves to that group's end");
+        Check(names(entries) == L"new,notes.md,zeta.md,aardvark.txt,beta.txt,gamma.txt",
+              L"patch hold: grouped, a rename into another group moves to its place there");
     }
 
     for (const wchar_t* name : {L"zeta.md", L"beta.txt", L"gamma.txt", L"aardvark.txt", L"notes.md"})
@@ -4160,11 +4184,11 @@ void TestEntryOrderHold() {
                                                     entry(L"charlie"), entry(L"delta"),
                                                     entry(L"zulu")});
     const auto held = keep(shown, fresh, {{L"echo", L"zulu"}});
-    Check(names(held) == L"alpha,zulu,delta,beta,charlie",
-          L"order hold: rows keep their place, a renamed row its old one, new rows go last");
+    Check(names(held) == L"alpha,charlie,zulu,delta,beta",
+          L"order hold: rows keep their place, a renamed row its old one, new rows merge in sorted");
     Check(!held.empty() && held[0].size == 42u,
           L"order hold: kept rows take the fresh metadata");
-    Check(names(keep(shown, fresh, {})) == L"alpha,delta,beta,charlie,zulu",
+    Check(names(keep(shown, fresh, {})) == L"alpha,charlie,delta,beta,zulu",
           L"order hold: without a rename hint the new name is just a new row");
     Check(names(keep({}, fresh, {})) == names(fresh),
           L"order hold: nothing shown yet means plain sort order");
@@ -4176,8 +4200,8 @@ void TestEntryOrderHold() {
         const auto fresh_grouped = sorted({entry(L"docs", true), entry(L"new", true),
                                            entry(L"z.md"), entry(L"a.txt"), entry(L"b.txt"),
                                            entry(L"c.txt")});
-        Check(names(keep(shown_grouped, fresh_grouped, {})) == L"docs,new,z.md,c.txt,a.txt,b.txt",
-              L"order hold: grouped, new rows join the end of their own group");
+        Check(names(keep(shown_grouped, fresh_grouped, {})) == L"docs,new,z.md,b.txt,c.txt,a.txt",
+              L"order hold: grouped, new rows merge in at their sort position");
         const auto fresh_moved = sorted({entry(L"docs", true), entry(L"a.md"), entry(L"c.txt")});
         Check(names(keep(shown_grouped, fresh_moved, {{L"a.txt", L"a.md"}})) == L"docs,a.md,c.txt",
               L"order hold: grouped, a rename into another group leaves its old row");

@@ -2712,6 +2712,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.settings_preview_trigger = s.appPrefs.preview_trigger;
     vm.settings_hover_delay_ms = s.appPrefs.hover_preview_delay_ms;
     vm.settings_hover_card_size = s.appPrefs.hover_card_size;
+    vm.window_drop_index = s.windowDropIndex;
     return vm;
 }
 

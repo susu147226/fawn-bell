@@ -63,6 +63,7 @@ std::vector<HelpGroup> HelpGroups() {
             {Id::HelpMarkTarget, L"Ctrl D"},
             {Id::HelpTransferTarget, L"Ctrl Alt C / X"},
             {Id::HelpSidebar, L"Ctrl B"},
+            {Id::HelpMoveWindow, l10n::Pick(L"Alt + 拖动标签", L"Alt + drag a tab")},
         }},
     };
 }

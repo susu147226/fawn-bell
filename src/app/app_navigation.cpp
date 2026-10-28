@@ -2,6 +2,7 @@
 // app_navigation.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
 #include "window_registry.h"
+#include "window_factory.h"
 #include "../fs/bitlocker_volume.h"
 #include "../fs/shell_namespace.h"
 #include "network_locations.h"
@@ -2125,8 +2126,8 @@ void SetGroupBy(AppState& s, int group_by) {
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
-void OpenSelected(AppState& s) {
-    if(DeferContentSelection(s,[=](AppState& v){OpenSelected(v);})) return;
+void OpenSelected(AppState& s, bool folder_in_new_window) {
+    if(DeferContentSelection(s,[=](AppState& v){OpenSelected(v, folder_in_new_window);})) return;
     app::Tab* tab = ActiveTab(s);
     if (!tab || !tab->snapshot) return;
     if (IsRecycleTab(tab)) {
@@ -2135,11 +2136,17 @@ void OpenSelected(AppState& s) {
     }
     const auto indices = tab->SelectedIndices();
     if (indices.empty()) return;
+    // Shift+double-click opens a folder (or a folder shortcut) in a window of
+    // its own, the way Explorer does.
+    const auto open_folder = [&](const std::wstring& path) {
+        if (folder_in_new_window) OpenLulingWindow(s, WindowInit{path});
+        else NavigateTo(s, path);
+    };
     if (indices.size() == 1) {
         const fs::DirEntry& e = tab->EntryAt(static_cast<size_t>(indices[0]));
         if (e.change_record_only) return;
         if (!e.link_target.empty()) {
-            if (e.link_target_is_dir) NavigateTo(s, e.link_target);
+            if (e.link_target_is_dir) open_folder(e.link_target);
             else {
                 s.ops.OpenWith(e.link_target);
                 RecordRecentOpen(s, e.link_target, app::PlaceItemKind::File);
@@ -2147,7 +2154,7 @@ void OpenSelected(AppState& s) {
             return;
         }
         std::wstring full = EntryFullPath(*tab, indices[0]);
-        if (e.is_dir) NavigateTo(s, full);
+        if (e.is_dir) open_folder(full);
         else {
             if (fs::IsShellPath(full)) fs::ShellOpen(full);
             else s.ops.OpenWith(full);

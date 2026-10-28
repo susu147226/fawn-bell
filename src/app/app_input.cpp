@@ -9,6 +9,8 @@
 #include "about_info.h"
 #include "app_internal.h"
 #include "window_factory.h"
+#include "window_merge.h"
+#include "window_move_merge.h"
 #include "app_hover_preview.h"
 #include "app_column_view.h"
 #include "details_column_menu.h"
@@ -1116,6 +1118,81 @@ void UpdateSmoothScroll(AppState& s) {
     ClampScroll(s);
 }
 
+// Cross-window tab drags use the same pre-merge marker as a dragged window:
+// the strip under the cursor shows where the tabs would land.
+static HWND g_tabDropWindow = nullptr;
+static int g_tabDropIndex = -1;
+// The cursor is over another Luling window (its strip or its content): the
+// drag is aiming there, so it must not spawn a window of its own.
+static bool g_tabOverWindow = false;
+
+static void ClearTabDropTarget(AppState& any) {
+    if (AppState* old = any.core.windows.Lookup(g_tabDropWindow)) {
+        if (old->windowDropIndex >= 0) {
+            old->windowDropIndex = -1;
+            InvalidateRect(old->hwnd, nullptr, FALSE);
+        }
+    }
+    g_tabDropWindow = nullptr;
+    g_tabDropIndex = -1;
+    g_tabOverWindow = false;
+}
+
+static void UpdateTabDropTarget(AppState& s, POINT screen) {
+    AppState* target = nullptr;
+    int index = -1;
+    bool over_window = false;
+    HWND under = WindowFromPoint(screen);
+    HWND root = under ? GetAncestor(under, GA_ROOT) : nullptr;
+    if (root && root != s.hwnd) {
+        AppState* dst = GetAppState(root);
+        if (dst && dst->hwnd && dst->core.host.Hwnd() == s.core.host.Hwnd()) {
+            over_window = true;
+            index = TabStripDropIndex(*dst, screen);
+            if (index >= 0) target = dst;
+        }
+    }
+    g_tabOverWindow = over_window;
+    if (target && g_tabDropWindow == target->hwnd) {
+        if (g_tabDropIndex != index) {
+            g_tabDropIndex = index;
+            target->windowDropIndex = index;
+            InvalidateRect(target->hwnd, nullptr, FALSE);
+        }
+        return;
+    }
+    ClearTabDropTarget(s);
+    if (target) {
+        g_tabDropWindow = target->hwnd;
+        g_tabDropIndex = index;
+        target->windowDropIndex = index;
+        InvalidateRect(target->hwnd, nullptr, FALSE);
+    }
+}
+
+// A window's only tab carries the window: released over another window's
+// strip, the two windows become one (with the merge toast and its undo).
+static bool TryMergeSingleTabWindow(AppState& s, HWND hwnd, POINT screen) {
+    if (s.tabDragFromChip || s.window_tabs.items.size() != 1) return false;
+    HWND under = WindowFromPoint(screen);
+    HWND root = under ? GetAncestor(under, GA_ROOT) : nullptr;
+    if (!root || root == s.hwnd) return false;
+    AppState* dst = GetAppState(root);
+    if (!dst || !dst->hwnd || dst->core.host.Hwnd() != s.core.host.Hwnd()) return false;
+    const int at = TabStripDropIndex(*dst, screen);
+    if (at < 0) return false;
+    WINDOWPLACEMENT before{sizeof(WINDOWPLACEMENT)};
+    GetWindowPlacement(hwnd, &before);
+    ClearTabDropTarget(s);
+    s.tabDragPending = false;
+    s.tabDragging = false;
+    s.tabDragIndex = -1;
+    s.tabOrder.clear();
+    if (GetCapture() == hwnd) ReleaseCapture();
+    MergeWindowInto(s, *dst, static_cast<size_t>(at), before);
+    return true;
+}
+
 LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (!s) return DefWindowProcW(hwnd, msg, wParam, lParam);
         int mx = GET_X_LPARAM(lParam);
@@ -1337,8 +1414,17 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
         }
 
+        if (s->tabDragPending && (GetKeyState(VK_LBUTTON) & 0x8000) != 0) {
+            // The strip of another window under the cursor shows the same
+            // pre-merge marker a dragged window uses.
+            POINT drag_screen{mx, my};
+            ClientToScreen(hwnd, &drag_screen);
+            if (s->tabDragFromChip) ClearTabDropTarget(*s);
+            else UpdateTabDropTarget(*s, drag_screen);
+        }
         if (s->tabDragPending) {
             if ((GetKeyState(VK_LBUTTON) & 0x8000) == 0) {
+                ClearTabDropTarget(*s);
                 s->tabDragPending = false;
                 s->tabDragging = false;
                 s->tabDragIndex = -1;
@@ -1351,7 +1437,8 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 if (GetCapture() == hwnd) ReleaseCapture();
             } else if (s->tabDragging ||
                        (s->pane && s->window_tabs.items.size() >= 2 &&
-                        std::abs(mx - s->tabDragStartPt.x) >= 2)) {
+                        (std::abs(mx - s->tabDragStartPt.x) >= 2 ||
+                         std::abs(my - s->tabDragStartPt.y) >= 2))) {
                 if (!s->tabDragging && s->pane &&
                     s->tabDragIndex >= 0 &&
                     s->tabDragIndex < static_cast<int>(s->window_tabs.items.size())) {
@@ -1462,7 +1549,7 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 if (s->tabDragging) {
                     // Dragged down off the strip: the tab moves into a window
                     // of its own at the pointer (M6a).
-                    if (!s->tabDragFromChip &&
+                    if (!s->tabDragFromChip && !g_tabOverWindow &&
                         my - s->tabDragStartPt.y > static_cast<int>(24.0f * s->scale)) {
                         const int index = s->tabDragIndex;
                         s->tabDragPending = false;
@@ -1471,6 +1558,7 @@ LRESULT HandleMouseMove(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         s->tabDragFromChip = false;
                         s->tabDragGroupId = 0;
                         s->tabOrder.clear();
+                        ClearTabDropTarget(*s);
                         if (GetCapture() == hwnd) ReleaseCapture();
                         if (index >= 0 && index < static_cast<int>(s->window_tabs.items.size())) {
                             POINT screen{mx, my};
@@ -2287,6 +2375,15 @@ void OpenNetworkDiscoverySettings(HWND owner) {
     }
 }
 
+// Alt+drag on the tab strip moves the window even when tabs fill it: the
+// system move loop starts from the same title-bar path, so no tab drag arms
+// and a release over another window's strip merges as usual.
+static void StartWindowMoveFromTab(HWND hwnd, int mx, int my) {
+    POINT screen{mx, my};
+    ClientToScreen(hwnd, &screen);
+    SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, MAKELPARAM(screen.x, screen.y));
+}
+
 LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (!s) return DefWindowProcW(hwnd, msg, wParam, lParam);
         s->blankDoubleTab = nullptr;
@@ -2510,6 +2607,10 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         } else if (hit.region == ui::HitTestResult::TabGroup) {
             // Group chip (Chromium behavior): press arms a whole-group drag;
             // a plain release toggles collapse; right-click opens the editor.
+            if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
+                StartWindowMoveFromTab(hwnd, mx, my);
+                return 0;
+            }
             if (hit.index >= 0 && hit.index < static_cast<int>(vm.tab_groups.size()) &&
                 s->pane) {
                 const int gid = vm.tab_groups[static_cast<size_t>(hit.index)].id;
@@ -2530,6 +2631,11 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 }
             }
         } else if (hit.region == ui::HitTestResult::Tab && hit.index >= 0) {
+            // Alt+drag: the strip is a window handle even when tabs fill it.
+            if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
+                StartWindowMoveFromTab(hwnd, mx, my);
+                return 0;
+            }
             SwitchTab(*s, hit.index);
             s->tabDragPending = true;
             s->tabDragging = false;
@@ -3266,7 +3372,7 @@ LRESULT HandleLButtonDblClk(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPA
         } else if (hit.region == ui::HitTestResult::Row && hit.index >= 0) {
             app::Tab* tab = ActiveTab(*s);
             if (tab) tab->SelectOnly(hit.index);
-            OpenSelected(*s);
+            OpenSelected(*s, (wParam & MK_SHIFT) != 0);
         } else if (hit.region == ui::HitTestResult::AddressBar ||
                    hit.region == ui::HitTestResult::BreadcrumbSegment) {
             ShowOmnibar(*s, OmnibarMode::Path);
@@ -3276,35 +3382,16 @@ LRESULT HandleLButtonDblClk(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 // Drops a dragged tab onto another Luling window's tab strip (multi-window):
 // the tab moves there, keeping its panes, and its own window switches to it.
+// The strip decides where it lands with the same rule that drew the marker, so
+// every spot that shows the pre-merge hint really accepts the drop.
 static bool DropTabOnWindow(AppState& s, int index, POINT screen) {
     HWND under = WindowFromPoint(screen);
     HWND root = under ? GetAncestor(under, GA_ROOT) : nullptr;
     if (!root || root == s.hwnd) return false;
     AppState* dst = GetAppState(root);
     if (!dst || !dst->hwnd || dst->core.host.Hwnd() != s.core.host.Hwnd()) return false;
-    POINT pt = screen;
-    ScreenToClient(root, &pt);
-    const ui::WindowViewModel vm = BuildVm(*dst, false);
-    const float w = static_cast<float>(dst->compositor.Width());
-    const int tabs = static_cast<int>(dst->window_tabs.items.size());
-    D2D1_RECT_F first{}, last{};
-    bool have_tabs = false;
-    int insert = tabs;
-    for (int i = 0; i < tabs; ++i) {
-        D2D1_RECT_F rc{};
-        if (!dst->renderer.TabItemRect(vm, w, i, &rc)) continue;
-        if (!have_tabs) first = rc;
-        last = rc;
-        have_tabs = true;
-        if (insert == tabs && static_cast<float>(pt.x) < (rc.left + rc.right) * 0.5f) insert = i;
-    }
-    if (!have_tabs) return false;
-    // Only the strip's own row (and a little slack) accepts the drop.
-    if (static_cast<float>(pt.x) < first.left - 24.0f * dst->scale ||
-        static_cast<float>(pt.x) > last.right + 24.0f * dst->scale ||
-        static_cast<float>(pt.y) < first.top - 6.0f * dst->scale ||
-        static_cast<float>(pt.y) > first.bottom + 6.0f * dst->scale)
-        return false;
+    const int insert = TabStripDropIndex(*dst, screen);
+    if (insert < 0) return false;
     const bool was_last = s.window_tabs.items.size() == 1;
     auto moved = s.window_tabs.TakeTab(static_cast<size_t>(index), was_last);
     if (!moved) return false;
@@ -3508,11 +3595,18 @@ LRESULT HandleLButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             }
             if (s->tabDragPending || s->tabDragging) {
                 const bool wasActive = s->tabDragging;
+                // A window's only tab carries the window into the other one.
+                {
+                    POINT screen{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+                    ClientToScreen(hwnd, &screen);
+                    if (TryMergeSingleTabWindow(*s, hwnd, screen)) return 0;
+                }
                 if (wasActive && !s->tabDragFromChip && s->tabDragIndex >= 0 &&
                     s->tabDragIndex < static_cast<int>(s->window_tabs.items.size())) {
                     POINT screen{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
                     ClientToScreen(hwnd, &screen);
                     if (DropTabOnWindow(*s, s->tabDragIndex, screen)) {
+                        ClearTabDropTarget(*s);
                         s->tabDragPending = false;
                         s->tabDragging = false;
                         s->tabDragIndex = -1;
@@ -3644,6 +3738,7 @@ LRESULT HandleLButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                 s->tabDragGroupId = 0;
                 s->tabDragSlots = 1.0f;
                 s->tabOrder.clear();
+                ClearTabDropTarget(*s);
                 if (GetCapture() == hwnd) ReleaseCapture();
                 InvalidateRect(hwnd, nullptr, FALSE);
                 return 0;
@@ -3792,6 +3887,7 @@ LRESULT HandleCaptureChanged(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LP
                 InvalidateRect(hwnd, nullptr, FALSE);
             }
             if (s->tabDragPending || s->tabDragging) {
+                ClearTabDropTarget(*s);
                 s->tabDragPending = false;
                 s->tabDragging = false;
                 s->tabDragIndex = -1;
@@ -3816,6 +3912,7 @@ LRESULT HandleCaptureChanged(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LP
             s->scrollbarSidebar = false;
             s->splitterDragging = false;
             s->splitterDragIndex = -1;
+            if (s->tabDragPending || s->tabDragging) ClearTabDropTarget(*s);
             s->tabDragPending = false;
             s->tabDragging = false;
             s->tabDragIndex = -1;
@@ -4170,6 +4267,8 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             OpenNewTab(*s);
         } else if (ctrl && !shift && !alt && wParam == L'N') {
             PostMessageW(s->hwnd, WM_NEW_WINDOW, 0, 0);
+        } else if (ctrl && shift && !alt && wParam == L'J') {
+            MergeWindowsInto(*s);
         } else if (ctrl && wParam == L'K') {
             if (shift) ShowOmnibar(*s, OmnibarMode::Mixed);
             else ShowAddressSearch(*s);

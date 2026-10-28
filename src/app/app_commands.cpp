@@ -9,10 +9,7 @@
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
 #include "window_factory.h"
-
-namespace luling {
-static void MergeAllWindows(AppState& s);
-}  // namespace luling
+#include "window_merge.h"
 #include "selection_caps.h"
 #include "../ui/toolbar_customize_dialog.h"
 #include "drive_verbs.h"
@@ -1018,17 +1015,6 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         break;
     case app::CmdNewFolder: CreateNewItem(s, true); break;
     case app::CmdNewTextFile: CreateNewItem(s, false); break;
-    case app::CmdRenameSequenceZero:
-    case app::CmdRenameSequenceOne: {
-        // rename.py's rule: group by extension, number each group from the
-        // chosen start, prefix typed straight into the pattern field.
-        app::BatchRenameRule rule;
-        rule.pattern = L"{n}{ext}";
-        rule.start = cmd == app::CmdRenameSequenceZero ? 0 : 1;
-        rule.group_by_extension = true;
-        ShowBatchRename(s, rule);
-        break;
-    }
     case app::CmdAppendNameSuffix: {
         // readd.py's rule: the configured text inserted between the stem and
         // the extension. Expressed as a pattern because the dialog rebuilds the
@@ -1166,7 +1152,7 @@ void DispatchMenuCommand(AppState& s, int cmd) {
     case app::CmdUnpinNetwork: UnpinSelectedNetworks(s); break;
     case app::CmdGroupIntoFolder: GroupSelectionIntoFolder(s); break;
     case app::CmdDissolveFolder: DissolveSelectedFolders(s); break;
-    case app::CmdMergeWindows: MergeAllWindows(s); break;
+    case app::CmdMergeWindows: MergeWindowsInto(s); break;
     case app::CmdCustomizeToolbar: ShowToolbarCustomize(s); break;
     default:
             if (cmd >= app::CmdIndexBase) {
@@ -3164,26 +3150,6 @@ void RunToolbarSelectionAction(AppState& s, int action) {
 }
 
 // Moves every tab of the other windows into this one, then closes them.
-static void MergeAllWindows(AppState& s) {
-    std::vector<HWND> others;
-    s.core.windows.ForEach([&](HWND hwnd, AppState&) {
-        if (hwnd != s.hwnd) others.push_back(hwnd);
-    });
-    for (HWND hwnd : others) {
-        AppState* src = s.core.windows.Lookup(hwnd);
-        if (!src || !src->hwnd) continue;
-        while (!src->window_tabs.items.empty()) {
-            auto moved = src->window_tabs.TakeTab(src->window_tabs.items.size() - 1, true);
-            if (!moved) break;
-            s.window_tabs.InsertTab(std::move(moved), s.window_tabs.items.size());
-        }
-        BindCurrentLayout(s);
-        app::RebuildLayoutRoot(*s.window_tabs.Active());
-        DestroyWindow(src->hwnd);
-    }
-    BindCurrentLayout(s);
-    if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
-}
 
 void ShowToolbarMore(AppState& s) {
     if (!EnsureMenu(s)) return;

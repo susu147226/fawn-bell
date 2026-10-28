@@ -706,6 +706,9 @@ struct WindowViewModel {
     int tab_drag_count = 1;  // >1: a whole group run floats as one block
     bool tab_drag_chip = false; // drag started from the group chip (collapse-safe)
     float tab_drag_x = 0.0f; // left edge of the floating tab (px)
+    // Another window dragged over this strip: where its tabs would land (-1:
+    // nowhere). Drawn as an insertion bar, pulsing until it is released.
+    int window_drop_index = -1;
     bool tray_drop = false;       // staging tray under a drag
     std::wstring drag_badge;      // action badge text near the cursor
     float drag_badge_x = 0.0f;

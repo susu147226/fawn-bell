@@ -85,7 +85,12 @@ public:
         BatchRenameShownForTest(hwnd_);
 #endif
         SetForegroundWindow(hwnd_);
-        if (edit_find_) SetFocus(edit_find_);
+        // The new name is what the dialog is for: the caret starts there, with
+        // the default text selected so typing replaces it.
+        if (edit_pattern_) {
+            SetFocus(edit_pattern_);
+            SendMessageW(edit_pattern_, EM_SETSEL, 0, -1);
+        }
 
         MSG message{};
         while (!done_ && GetMessageW(&message, nullptr, 0, 0) > 0) {
@@ -227,6 +232,11 @@ private:
         auto* self = reinterpret_cast<BatchRenameWindow*>(ref);
         if (!self) return DefSubclassProc(hwnd, msg, wparam, lparam);
         switch (msg) {
+        case WM_SETFOCUS:
+            // The index field holds a starting number: selecting it means a
+            // typed number replaces it instead of following it.
+            if (hwnd == self->edit_number_) SendMessageW(hwnd, EM_SETSEL, 0, -1);
+            break;
         case WM_KEYDOWN:
             if (wparam == VK_ESCAPE) {
                 self->Complete(false);
