@@ -18,6 +18,7 @@ namespace luling::app {
 
 inline constexpr UINT kHostRoutedMessages[] = {
     WM_WORKER_RESULT,          // PostWorkerResult (shared queue, any window drains it)
+    WM_OPS_NOTIFY,             // shared ops layer: the most recent window shows progress
     WM_INDEX_NOTIFY,           // IndexClient status
     WM_INDEX_SEARCH,           // IndexClient search results
     WM_NETWORK_INDEX_NOTIFY,   // NetworkAgentClient status

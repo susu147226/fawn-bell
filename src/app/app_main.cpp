@@ -904,11 +904,16 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 s->ops.SetJournalPath(data_dir + L"\\operations.json");
             // Drop stages of Luling processes that are gone (#55).
             app::SweepDropStages(app::DropStageRoot(), false);
+            // The ops layer is process-level: one start, owned by the first
+            // window, notifying through the host so the most recent window
+            // shows the progress. Closing any window must not stop it.
+            s->ops.SetVerifyCopies(s->appPrefs.verify_copies);
+            // Shell dialogs (打开方式…/属性) are owned by a Luling window.
+            s->ops.SetUiWindow(hwnd);
+            s->ops.Start([notify = ServiceWindow(*s)] {
+                if (notify) PostMessageW(notify, WM_OPS_NOTIFY, 0, 0);
+            });
         }
-        s->ops.SetVerifyCopies(s->appPrefs.verify_copies);
-        // Shell dialogs (打开方式…/属性) must be owned by the Luling window.
-        s->ops.SetUiWindow(hwnd);
-        s->ops.Start([hwnd] { PostMessageW(hwnd, WM_OPS_NOTIFY, 0, 0); });
         if (init_core) {
         const ops::RecoverySnapshot recovery = s->isolatedTest
             ? ops::RecoverySnapshot{} : s->ops.PendingRecovery();
@@ -945,17 +950,21 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         });
         } // init_core: shell context-menu session
         // Explorer verbs arrive on the shell client's reader thread; hop to
-        // the UI thread with an owned payload (freed by the WM handler).
-        s->ops.SetShellMenuCallback([hwnd](uint32_t token,
-                                           std::vector<ops::ShellMenuItem> items,
-                                           bool partial,
-                                           std::vector<std::wstring> slow_clsids) {
-            auto* payload = new ShellCtxItemsPayload{
-                std::move(items), partial, std::move(slow_clsids) };
-            if (!PostMessageW(hwnd, WM_SHELLCTX_ITEMS, token,
-                              reinterpret_cast<LPARAM>(payload)))
-                delete payload;
-        });
+        // the UI thread with an owned payload (freed by the WM handler). The
+        // callback belongs to the shared ops layer, so it posts through the
+        // host: the host hands the rows to the window that has the menu open.
+        if (init_core) {
+            s->ops.SetShellMenuCallback([notify = ServiceWindow(*s)](uint32_t token,
+                                               std::vector<ops::ShellMenuItem> items,
+                                               bool partial,
+                                               std::vector<std::wstring> slow_clsids) {
+                auto* payload = new ShellCtxItemsPayload{
+                    std::move(items), partial, std::move(slow_clsids) };
+                if (!notify || !PostMessageW(notify, WM_SHELLCTX_ITEMS, token,
+                                             reinterpret_cast<LPARAM>(payload)))
+                    delete payload;
+            });
+        }
         if (!s->pending_undo_json.empty()) s->ops.UndoFromJson(s->pending_undo_json);
         s->operationWindow = std::make_unique<ui::FileOperationWindow>();
         ui::FileOperationCallbacks operation_callbacks;
@@ -1376,6 +1385,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_ACTIVATE:
         if (s && LOWORD(wParam) != WA_INACTIVE) s->core.windows.Touch(hwnd);
+        // Dialogs the shared ops layer opens belong to the window in use.
+        if (s && LOWORD(wParam) != WA_INACTIVE) s->ops.SetUiWindow(hwnd);
         if (s) s->renderer.NotifyPreviewActivate(LOWORD(wParam) != WA_INACTIVE);
         if (s && LOWORD(wParam) != WA_INACTIVE) {
             std::wstring kind, page;
@@ -2531,8 +2542,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 DeleteObject(s->editBrush);
                 s->editBrush = nullptr;
             }
-            // The last window stopped its operations in the hand-off already.
-            if (!last_window) s->ops.Stop();
+            // The last window stopped the shared ops layer in the hand-off.
             if (last_window) UnregisterAssocChangeNotify();
             s->renderer.SetIconNotifyWindow(nullptr);
             s->renderer.SetCompositor(nullptr);

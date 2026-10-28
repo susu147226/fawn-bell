@@ -7,6 +7,7 @@
 #pragma once
 #include "app_worker.h"
 #include "app_model.h"
+#include "../ops/ops_manager.h"
 #include "app_change_tracking.h"
 #include "folder_sizes.h"
 #include "live_network_search.h"
@@ -50,6 +51,10 @@ struct AppCore {
     // Start/Stop and the tray Attach/Detach belong to that window too; other
     // windows reuse these instances without starting or stopping them.
     app::WorkerPool worker;
+    // The ops layer is process-level like the Shell host it drives: one queue,
+    // one undo stack, one luling_shell client for every window. A window
+    // closing must not stop it (that left the others without folder verbs).
+    ops::OpsManager ops;
     // IPC clients come first so they outlive the services holding pointers to
     // them: a consumer's destructor may still be running when the core unwinds.
     index::IndexClient index;

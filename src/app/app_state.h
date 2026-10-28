@@ -521,7 +521,7 @@ struct AppState {
     std::wstring filterCue;
 
     // Stage 1B-1: ops layer (queue + undo), inline rename overlay.
-    ops::OpsManager ops;
+    ops::OpsManager& ops = core.ops;
     std::wstring pending_undo_json; // loaded from session, imported in WM_CREATE
     uint64_t opsCompleted = 0;
     std::unique_ptr<ui::FileOperationWindow> operationWindow;
