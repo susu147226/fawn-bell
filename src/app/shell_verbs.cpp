@@ -123,6 +123,7 @@ bool FillStaticVerbFromKey(HKEY root, const std::wstring& verb_key, const std::w
     out.display = StripMnemonics(display);
     out.app_path.clear();
     out.command = command;
+    out.icon = RegReadString(root, verb_key, L"Icon");
     out.children.clear();
     if (allow_cascade)
         CollectCascadeChildren(root, subcommands, ext_key, background, out.children);
@@ -644,6 +645,16 @@ bool SeedMachineStaticVerbCache() {
     }
     RegCloseKey(key);
     return SaveMachineStaticVerbCache(cache);
+}
+
+bool StaticVerbIcon(const StaticVerb& verb, std::wstring& file, int& index) {
+    if (ParseIconReference(verb.icon, file, index)) return true;
+    std::wstring exe = verb.app_path;
+    if (exe.empty() && !verb.command.empty()) exe = CommandExePath(verb.command);
+    if (exe.empty()) return false;
+    file = std::move(exe);
+    index = 0;
+    return true;
 }
 
 common::MenuIconRef FileTypeMenuIcon(const std::wstring& ext) {

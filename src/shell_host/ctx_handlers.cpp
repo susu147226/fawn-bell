@@ -539,7 +539,10 @@ HRESULT QueryOneHandler(const CtxHandlerDesc& handler, const CtxBind& bind,
 void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
                          std::vector<CtxItemOut>& out) {
     if (!slot.menu || !slot.hmenu) return;
-    if (!slot.send_to_title.empty()) InitMenuPopup(slot.menu2, slot.menu3, slot.hmenu, 0);
+    // WM_INITMENUPOPUP is where most handlers add their row bitmaps and fill
+    // placeholder rows; Explorer sends it before showing the menu, and a row
+    // without it comes back empty or plain.
+    InitMenuPopup(slot.menu2, slot.menu3, slot.hmenu, 0);
     const int count = GetMenuItemCount(slot.hmenu);
     bool pending_separator = false;
     auto push = [&](CtxItemOut item) {

@@ -591,6 +591,18 @@ std::vector<ShellMenuEntry> ContextMenuController::ComposeEntries(
         ShellMenuEntry entry;
         entry.text = verb.display;
         entry.verb = verb.verb;
+        // The verb's own Icon value lives beside the key it was read from
+        // (per file type / progid / CommandStore); a fixed root search misses it.
+        const auto apply_verb_icon = [](const StaticVerb& source, ShellMenuEntry& target) {
+            std::wstring file;
+            int index = 0;
+            if (StaticVerbIcon(source, file, index)) {
+                target.icon_path = std::move(file);
+                target.icon_index = index;
+            } else {
+                ResolveVerbIcon(target);
+            }
+        };
         if (!verb.children.empty()) {
             entry.command = 0;
             const size_t n = (std::min)(verb.children.size(),
@@ -601,14 +613,14 @@ std::vector<ShellMenuEntry> ContextMenuController::ComposeEntries(
                     static_cast<int>(i) * ipc::kStaticVerbStride + static_cast<int>(j) + 1;
                 child.text = verb.children[j].display;
                 child.verb = verb.children[j].verb;
-                ResolveVerbIcon(child);
+                apply_verb_icon(verb.children[j], child);
                 entry.children.push_back(std::move(child));
             }
         } else {
             entry.command = CmdShellStaticBase +
                 static_cast<int>(i) * ipc::kStaticVerbStride;
         }
-        ResolveVerbIcon(entry);
+        apply_verb_icon(verb, entry);
         entries.push_back(std::move(entry));
     }
     for (size_t i = 0; i < com_items_.size(); ++i) {

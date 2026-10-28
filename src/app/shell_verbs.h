@@ -20,8 +20,15 @@ struct StaticVerb {
     std::wstring display;   // menu row text
     std::wstring app_path;  // non-empty => open-with entry: launch this exe
     std::wstring command;   // raw HKCR command template; CommandStore children need this
+    // The verb key's own Icon value ("file,index"), read where the verb was
+    // enumerated (FileExts / ProgID / SystemFileAssociations / CommandStore).
+    std::wstring icon;
     std::vector<StaticVerb> children; // cascade flyout (SubCommands / ExtendedSubCommandsKey)
 };
+
+// The icon to draw for a static verb row: its Icon value, else the program the
+// row launches. Empty when neither exists.
+bool StaticVerbIcon(const StaticVerb& verb, std::wstring& file, int& index);
 
 // ext is ".dwg" (file), or a location key ":folder" / ":drive" / ":bg".
 // File keys return progid/OpenWith verbs plus "打开方式…". Location keys
