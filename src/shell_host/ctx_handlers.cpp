@@ -7,6 +7,7 @@
 #include <shlwapi.h>
 #include <shobjidl.h>
 
+#include <algorithm>
 #include <cwctype>
 #include <unordered_set>
 
@@ -241,6 +242,100 @@ common::MenuIconRef MenuItemIcon(HMENU menu, UINT pos) {
     return pixels;
 }
 
+// 16 DIP at the system DPI; the menu scales the few-percent mismatch on a
+// mixed-DPI desk.
+uint32_t MenuIconEdgePx() {
+    int dpi = 96;
+    if (HDC screen = GetDC(nullptr)) {
+        dpi = GetDeviceCaps(screen, LOGPIXELSX);
+        ReleaseDC(nullptr, screen);
+    }
+    const int px = MulDiv(16, dpi > 0 ? dpi : 96, 96);
+    return static_cast<uint32_t>(std::clamp(px, 16, static_cast<int>(common::kMaxMenuIconEdge)));
+}
+
+// HICON -> premultiplied BGRA (common/menu_icon.h). Icons with an alpha channel
+// use it; classic ones take the AND mask.
+common::MenuIconRef IconPixels(HICON icon) {
+    ICONINFO info{};
+    if (!GetIconInfo(icon, &info)) return nullptr;
+    common::MenuIconRef result;
+    BITMAP color{};
+    if (info.hbmColor && GetObjectW(info.hbmColor, sizeof(color), &color) &&
+        color.bmWidth > 0 && color.bmHeight > 0 &&
+        color.bmWidth <= static_cast<LONG>(common::kMaxMenuIconEdge) &&
+        color.bmHeight <= static_cast<LONG>(common::kMaxMenuIconEdge)) {
+        auto pixels = std::make_shared<common::MenuIconPixels>();
+        pixels->width = static_cast<uint32_t>(color.bmWidth);
+        pixels->height = static_cast<uint32_t>(color.bmHeight);
+        const size_t count = static_cast<size_t>(pixels->width) * pixels->height;
+        pixels->bgra.resize(count * 4u);
+        std::vector<uint8_t> mask(count * 4u);
+        BITMAPINFO bi{};
+        bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bi.bmiHeader.biWidth = color.bmWidth;
+        bi.bmiHeader.biHeight = -color.bmHeight;  // top-down
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        if (HDC dc = CreateCompatibleDC(nullptr)) {
+            const UINT rows = static_cast<UINT>(color.bmHeight);
+            const bool ok = GetDIBits(dc, info.hbmColor, 0, rows, pixels->bgra.data(), &bi,
+                                      DIB_RGB_COLORS) == color.bmHeight;
+            const bool has_mask = info.hbmMask &&
+                GetDIBits(dc, info.hbmMask, 0, rows, mask.data(), &bi, DIB_RGB_COLORS) ==
+                    color.bmHeight;
+            DeleteDC(dc);
+            if (ok) {
+                auto& bgra = pixels->bgra;
+                bool any_alpha = false;
+                for (size_t i = 3; i < bgra.size(); i += 4) any_alpha = any_alpha || bgra[i] != 0;
+                if (!any_alpha) {
+                    for (size_t i = 0; i + 3 < bgra.size(); i += 4) {
+                        const bool opaque = !has_mask || mask[i] == 0;
+                        bgra[i + 3] = opaque ? 255 : 0;
+                        if (!opaque) bgra[i] = bgra[i + 1] = bgra[i + 2] = 0;
+                    }
+                } else {
+                    for (size_t i = 0; i + 3 < bgra.size(); i += 4) {
+                        const uint32_t a = bgra[i + 3];
+                        if (a == 255) continue;
+                        for (size_t c = 0; c < 3; ++c)
+                            bgra[i + c] = static_cast<uint8_t>((bgra[i + c] * a + 127u) / 255u);
+                    }
+                }
+                result = std::move(pixels);
+            }
+        }
+    }
+    if (info.hbmColor) DeleteObject(info.hbmColor);
+    if (info.hbmMask) DeleteObject(info.hbmMask);
+    return result;
+}
+
+// A packaged command's GetIcon reference ("C:\...\app.exe,-101" or
+// "%ProgramFiles%\app.exe") as pixels. ms-resource references cannot be
+// resolved here and stay without an icon.
+common::MenuIconRef MenuIconFromReference(const std::wstring& reference) {
+    if (reference.empty() || reference[0] == L'@') return nullptr;
+    wchar_t buffer[MAX_PATH * 2]{};
+    wcsncpy_s(buffer, reference.c_str(), _TRUNCATE);
+    int index = PathParseIconLocationW(buffer);
+    PathUnquoteSpacesW(buffer);
+    wchar_t expanded[MAX_PATH * 2]{};
+    const DWORD n = ExpandEnvironmentStringsW(buffer, expanded, ARRAYSIZE(expanded));
+    const std::wstring file = n > 0 && n <= ARRAYSIZE(expanded) ? expanded : buffer;
+    if (file.empty()) return nullptr;
+    HICON icon = nullptr;
+    const uint32_t edge = MenuIconEdgePx();
+    if (FAILED(SHDefExtractIconW(file.c_str(), index, 0, &icon, nullptr,
+                                 MAKELONG(edge, edge))) || !icon)
+        return nullptr;
+    common::MenuIconRef pixels = IconPixels(icon);
+    DestroyIcon(icon);
+    return pixels;
+}
+
 std::wstring MenuItemText(HMENU menu, UINT pos) {
     wchar_t buf[512]{};
     MENUITEMINFOW mii{ sizeof(mii) };
@@ -443,6 +538,15 @@ HRESULT QueryOneHandler(const CtxHandlerDesc& handler, const CtxBind& bind,
         if (bind.data)
             SHCreateShellItemArrayFromDataObject(bind.data, IID_PPV_ARGS(&items));
         hr = items ? CreateExplorerCommandMenu(command, items, &slot.menu) : E_FAIL;
+        if (SUCCEEDED(hr) && items) {
+            // A packaged verb reports its icon through GetIcon (a file,index
+            // reference); its menu rows carry no MIIM_BITMAP of their own.
+            LPWSTR icon_reference = nullptr;
+            if (SUCCEEDED(command->GetIcon(items, &icon_reference)) && icon_reference) {
+                slot.command_icon = MenuIconFromReference(icon_reference);
+                CoTaskMemFree(icon_reference);
+            }
+        }
         if (items) items->Release();
         command->Release();
     } else {
@@ -549,6 +653,8 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
         if (item.text.empty()) return;
         item.clsid = slot.clsid;
         item.handler = slot.name;
+        // A packaged verb's rows carry no bitmap; its GetIcon result stands in.
+        if (!item.icon) item.icon = slot.command_icon;
         if (pending_separator && !out.empty()) {
             out.back().separator_after = true;
             pending_separator = false;
@@ -611,6 +717,7 @@ void CollectHandlerItems(const CtxHandlerSlot& slot, bool background,
             for (auto& k : kids) {
                 k.clsid = slot.clsid;
                 k.handler = slot.name;
+                if (!k.icon) k.icon = slot.command_icon;
                 out.push_back(std::move(k));
             }
             continue;

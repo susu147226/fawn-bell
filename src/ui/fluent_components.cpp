@@ -1325,16 +1325,60 @@ ID2D1Bitmap* MenuIconBitmap(ID2D1DeviceContext* dc, const std::wstring& path, in
     HICON icon = nullptr;
     if (FAILED(SHDefExtractIconW(path.c_str(), index, 0, nullptr, &icon, MAKELONG(20, 20))) || !icon)
         return nullptr;
+    // HICON -> premultiplied BGRA, the same pixels the shell handler rows use.
+    // WIC's CreateBitmapFromHBITMAP fails for the classic 1bpp/4bpp masks many
+    // program icons still ship, which silently left icon_path rows blank.
     ComPtr<ID2D1Bitmap> bitmap;
     ICONINFO info{};
     if (GetIconInfo(icon, &info)) {
-        ComPtr<IWICImagingFactory> wic;
-        if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
-                                       IID_PPV_ARGS(&wic))) && wic.get()) {
-            ComPtr<IWICBitmap> source;
-            if (SUCCEEDED(wic->CreateBitmapFromHBITMAP(info.hbmColor, nullptr,
-                                                       WICBitmapUseAlpha, &source)) && source.get())
-                dc->CreateBitmapFromWicBitmap(source.get(), nullptr, &bitmap);
+        BITMAP color{};
+        if (info.hbmColor && GetObjectW(info.hbmColor, sizeof(color), &color) &&
+            color.bmWidth > 0 && color.bmHeight > 0 &&
+            color.bmWidth <= 64 && color.bmHeight <= 64) {
+            const size_t count = static_cast<size_t>(color.bmWidth) * color.bmHeight;
+            std::vector<uint8_t> bgra(count * 4u);
+            std::vector<uint8_t> mask(count * 4u);
+            BITMAPINFO bi{};
+            bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+            bi.bmiHeader.biWidth = color.bmWidth;
+            bi.bmiHeader.biHeight = -color.bmHeight;
+            bi.bmiHeader.biPlanes = 1;
+            bi.bmiHeader.biBitCount = 32;
+            bi.bmiHeader.biCompression = BI_RGB;
+            if (HDC mem = CreateCompatibleDC(nullptr)) {
+                const UINT rows = static_cast<UINT>(color.bmHeight);
+                const bool ok = GetDIBits(mem, info.hbmColor, 0, rows, bgra.data(), &bi,
+                                          DIB_RGB_COLORS) == color.bmHeight;
+                const bool has_mask = info.hbmMask &&
+                    GetDIBits(mem, info.hbmMask, 0, rows, mask.data(), &bi, DIB_RGB_COLORS) ==
+                        color.bmHeight;
+                DeleteDC(mem);
+                if (ok) {
+                    bool any_alpha = false;
+                    for (size_t i = 3; i < bgra.size(); i += 4) any_alpha = any_alpha || bgra[i] != 0;
+                    if (!any_alpha) {
+                        for (size_t i = 0; i + 3 < bgra.size(); i += 4) {
+                            const bool opaque = !has_mask || mask[i] == 0;
+                            bgra[i + 3] = opaque ? 255 : 0;
+                            if (!opaque) bgra[i] = bgra[i + 1] = bgra[i + 2] = 0;
+                        }
+                    } else {
+                        for (size_t i = 0; i + 3 < bgra.size(); i += 4) {
+                            const uint32_t a = bgra[i + 3];
+                            if (a == 255) continue;
+                            for (size_t c = 0; c < 3; ++c)
+                                bgra[i + c] = static_cast<uint8_t>((bgra[i + c] * a + 127u) / 255u);
+                        }
+                    }
+                    const auto props = D2D1::BitmapProperties(
+                        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                                          D2D1_ALPHA_MODE_PREMULTIPLIED));
+                    dc->CreateBitmap(D2D1::SizeU(static_cast<UINT32>(color.bmWidth),
+                                                 static_cast<UINT32>(color.bmHeight)),
+                                     bgra.data(), static_cast<UINT32>(color.bmWidth) * 4u,
+                                     props, &bitmap);
+                }
+            }
         }
         if (info.hbmColor) DeleteObject(info.hbmColor);
         if (info.hbmMask) DeleteObject(info.hbmMask);

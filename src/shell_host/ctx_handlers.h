@@ -44,6 +44,9 @@ struct CtxHandlerSlot {
     // Localized title obtained from the SendTo CLSID, used to isolate its
     // submenu in the default Shell context menu (which has no canonical verb).
     std::wstring send_to_title;
+    // Packaged (IExplorerCommand) handlers report their icon through GetIcon
+    // instead of row bitmaps; rows without one of their own use this.
+    common::MenuIconRef command_icon;
 };
 
 struct CtxBind {

@@ -8,6 +8,8 @@
 #include <cwctype>
 #include <unordered_set>
 #include <windows.h>
+#include <shlobj.h>
+#include <shlwapi.h>
 
 namespace luling::app {
 
@@ -18,8 +20,11 @@ bool ReadRegString(HKEY root, const std::wstring& path, const wchar_t* name, std
     DWORD size = sizeof(buf);
     if (RegGetValueW(root, path.c_str(), name, RRF_RT_REG_SZ, nullptr, buf, &size) != ERROR_SUCCESS)
         return false;
-    if (size < sizeof(wchar_t)) return false;
-    out.assign(buf, size / sizeof(wchar_t) - 1);
+    // The returned size is not a reliable character count (it can include a
+    // second NUL). A length-based assign kept the byte after the terminator,
+    // turning "shell32.dll" into "shell32.dll l" and losing the icon.
+    out.assign(buf);
+    while (!out.empty() && (out.back() == L' ' || out.back() == L'\t')) out.pop_back();
     return !out.empty();
 }
 
@@ -43,6 +48,17 @@ void SplitIconValue(std::wstring value, std::wstring& path, int& index) {
     path = std::move(value);
 }
 
+// Does this file actually carry the icon at that index? A registered path can
+// be stale, and some extension DLLs ship no icon resources at all.
+bool ExtractsIcon(const std::wstring& path, int index) {
+    if (path.empty()) return false;
+    HICON icon = nullptr;
+    const bool ok = SUCCEEDED(SHDefExtractIconW(path.c_str(), index, 0, nullptr, &icon,
+                                                MAKELONG(16, 16))) && icon;
+    if (icon) DestroyIcon(icon);
+    return ok;
+}
+
 // The icon Explorer draws for a third-party verb. On a typical machine none of
 // these rows registers an Icon value at all: the picture comes from the command's
 // executable, or from the handler CLSID's DefaultIcon / its own DLL at index 0.
@@ -54,6 +70,40 @@ void ResolveVerbIcon(ShellMenuEntry& entry) {
     std::wstring path;
     int index = 0;
     std::wstring clsid = entry.clsid;
+    const auto apply_icon = [&](std::wstring icon_path_value, int icon_index) {
+        // WPS Office's shell extensions use assorted blue document/share
+        // glyphs, and kwpsshellext64.dll has no icon resources at all. Every
+        // WPS row shows the WPS brand mark instead: qingshellext64.dll #3
+        // (wpsoffice.exe #0 carries the same one).
+        std::wstring lower = icon_path_value;
+        for (auto& c : lower) c = static_cast<wchar_t>(std::towlower(c));
+        if (lower.find(L"\\wps office\\") != std::wstring::npos) {
+            const size_t slash = icon_path_value.find_last_of(L'\\');
+            if (slash != std::wstring::npos) {
+                const std::wstring dir = icon_path_value.substr(0, slash + 1);
+                const std::pair<const wchar_t*, int> brand[] = {
+                    {L"qingshellext64.dll", 3}, {L"wpsoffice.exe", 0}, {L"wps.exe", 0}};
+                for (const auto& [file, brand_index] : brand) {
+                    const std::wstring candidate = dir + file;
+                    if (GetFileAttributesW(candidate.c_str()) != INVALID_FILE_ATTRIBUTES &&
+                        ExtractsIcon(candidate, brand_index)) {
+                        entry.icon_path = candidate;
+                        entry.icon_index = brand_index;
+                        return;
+                    }
+                }
+            }
+        }
+        if (!ExtractsIcon(icon_path_value, icon_index)) {
+            // Nothing extractable at that path: leave it empty rather than
+            // drawing a broken image.
+            entry.icon_path.clear();
+            entry.icon_index = 0;
+            return;
+        }
+        entry.icon_path = std::move(icon_path_value);
+        entry.icon_index = icon_index;
+    };
 
     if (!entry.verb.empty()) {
         for (const wchar_t* root : kRoots) {
@@ -64,8 +114,7 @@ void ResolveVerbIcon(ShellMenuEntry& entry) {
                     ReadRegString(HKEY_CLASSES_ROOT, std::wstring(view) + key, L"Icon", value)) {
                     SplitIconValue(value, path, index);
                     if (!path.empty()) {
-                        entry.icon_path = std::move(path);
-                        entry.icon_index = index;
+                        apply_icon(std::move(path), index);
                         return;
                     }
                 }
@@ -85,16 +134,14 @@ void ResolveVerbIcon(ShellMenuEntry& entry) {
             if (ReadRegString(HKEY_CLASSES_ROOT, base + L"\\DefaultIcon", L"", value)) {
                 SplitIconValue(value, path, index);
                 if (!path.empty()) {
-                    entry.icon_path = std::move(path);
-                    entry.icon_index = index;
+                    apply_icon(std::move(path), index);
                     return;
                 }
             }
             // An extension without a registered icon draws its own; its DLL's first
             // icon is what that usually is.
             if (ReadRegString(HKEY_CLASSES_ROOT, base + L"\\InProcServer32", L"", value)) {
-                entry.icon_path = std::move(value);
-                entry.icon_index = 0;
+                apply_icon(std::move(value), 0);
                 return;
             }
         }
@@ -125,8 +172,7 @@ void ResolveVerbIcon(ShellMenuEntry& entry) {
                     if (SearchPathW(nullptr, exe.c_str(), nullptr, 1024, full, nullptr) == 0) continue;
                     exe = full;
                 }
-                entry.icon_path = std::move(exe);
-                entry.icon_index = 0;
+                apply_icon(std::move(exe), 0);
                 return;
             }
         }

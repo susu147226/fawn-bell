@@ -652,6 +652,12 @@ bool StaticVerbIcon(const StaticVerb& verb, std::wstring& file, int& index) {
     std::wstring exe = verb.app_path;
     if (exe.empty() && !verb.command.empty()) exe = CommandExePath(verb.command);
     if (exe.empty()) return false;
+    // "cmd.exe /s /k ..." names a program without a path; resolve it.
+    if (exe.find_first_of(L"\\/:") == std::wstring::npos) {
+        wchar_t full[MAX_PATH]{};
+        if (SearchPathW(nullptr, exe.c_str(), nullptr, ARRAYSIZE(full), full, nullptr) > 0)
+            exe = full;
+    }
     file = std::move(exe);
     index = 0;
     return true;
