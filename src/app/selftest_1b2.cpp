@@ -4683,6 +4683,12 @@ void TestSplitLayout() {
     Check(LooksLikeFilesystemPath(L"C:\\Windows") && LooksLikeFilesystemPath(L"\\\\server\\share") &&
           !LooksLikeFilesystemPath(L"新建文件夹"),
           L"omnibar: path-like detection");
+    // A server pasted with one leading backslash is a UNC path, not the root of
+    // the current drive; an existing local folder keeps its meaning.
+    Check(AddressNavigationTarget(L"\\luling-test-server\\media") == L"\\\\luling-test-server\\media" &&
+          AddressNavigationTarget(L"\\\\luling-test-server\\media") == L"\\\\luling-test-server\\media" &&
+          AddressNavigationTarget(L"C:\\Windows") == L"C:\\Windows",
+          L"address: one leading backslash still opens the server share");
     auto palCmd = BuildCommandPalette(L">新建", { L"C:\\新建" }, {}, false);
     Check(!palCmd.empty() && palCmd[0].command == CmdNewFolder, L"omnibar: >新建 matches 新建文件夹");
     bool cmd_has_layout = false;

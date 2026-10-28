@@ -56,12 +56,28 @@ std::wstring FormatAddressPath(const std::wstring& text) {
     return t;
 }
 
+namespace {
+
+// A server pasted with one leading backslash ("\nas\media") is a UNC path, not
+// the root of the current drive: Win32 would resolve it to "D:\nas\media" and
+// the user lands in a folder that does not exist. A folder that really exists
+// on this drive keeps its drive-root meaning.
+std::wstring PreferUncServerRoot(const std::wstring& text) {
+    if (text.size() < 4 || text[0] != L'\\' || text[1] == L'\\') return text;
+    const size_t share = text.find(L'\\', 1);
+    if (share == std::wstring::npos || share + 1 >= text.size()) return text;
+    if (GetFileAttributesW(text.c_str()) != INVALID_FILE_ATTRIBUTES) return text;
+    return L"\\" + text;
+}
+
+} // namespace
+
 std::wstring AddressNavigationTarget(const std::wstring& text, bool* shortcut) {
     const app::AddressShortcut resolved = app::ResolveAddressShortcut(text);
     if (shortcut) *shortcut = resolved.resolved;
-    if (!resolved.resolved) return FormatAddressPath(text);
+    if (!resolved.resolved) return PreferUncServerRoot(FormatAddressPath(text));
     if (resolved.path.empty() || resolved.path.starts_with(L"luling:")) return resolved.path;
-    return FormatAddressPath(resolved.path);
+    return PreferUncServerRoot(FormatAddressPath(resolved.path));
 }
 
 LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
@@ -666,8 +682,8 @@ bool HandleMultiPathPaste(AppState& s) {
     const auto paths = SplitPastedPaths(ReadClipboardText());
     if (paths.size() <= 1) return false;
     HideAddressEditor(s, false);
-    NavigateTo(s, paths.front());
-    for (size_t i = 1; i < paths.size(); ++i) OpenTabAt(s, paths[i]);
+    NavigateTo(s, PreferUncServerRoot(paths.front()));
+    for (size_t i = 1; i < paths.size(); ++i) OpenTabAt(s, PreferUncServerRoot(paths[i]));
     return true;
 }
 } // namespace
