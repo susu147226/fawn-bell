@@ -107,47 +107,13 @@ Section "鹿铃" SecMain
   ; takeover reversible — removing it here would strand Explorer with no way back.
   ; (The uninstaller restores it, before it removes anything.)
 
-  ; The user's own state is every top-level .json in the data directory: settings,
-  ; pinned places, tags, custom menu rows, address and search history, saved
-  ; layouts. Everything else in there — indexes, caches, logs, whatever a crash
-  ; left behind — is rebuilt from scratch, and a stale one is exactly what a clean
-  ; install is meant to avoid. Walking the wildcard beats a hardcoded list that
-  ; would quietly start discarding files as the app grows.
-  RMDir /r "$TEMP\LulingKeep"
-  CreateDirectory "$TEMP\LulingKeep"
-  FindFirst $R0 $R1 "$LOCALAPPDATA\Luling\*.json"
-  luling_keep_loop:
-    StrCmp $R1 "" luling_keep_done
-    CopyFiles /SILENT "$LOCALAPPDATA\Luling\$R1" "$TEMP\LulingKeep\"
-    FindNext $R0 $R1
-    Goto luling_keep_loop
-  luling_keep_done:
-  FindClose $R0
-
-  ; The whole tree the previous version owned: program files, data directories,
-  ; leftovers under ProgramData, shortcuts and registration.
-  ;
-  ; The downloaded preview packs are an exception. They are user content (100+ MB
-  ; of downloads), not a cache: wiping them was what made the packs look like they
-  ; had vanished after an update, and re-fetching them costs the user real time.
-  ; The tree is moved aside first — a same-volume rename, so it is instant — and
-  ; put back afterwards. The app re-associates through each pack's installed.json
-  ; and never notices the install happened.
-  RMDir /r "$LOCALAPPDATA\LulingPacksKeep"
-  IfFileExists "$LOCALAPPDATA\Luling\packs\*.*" 0 luling_no_pack_keep
-    Rename "$LOCALAPPDATA\Luling\packs" "$LOCALAPPDATA\LulingPacksKeep"
-  luling_no_pack_keep:
-
+  ; User state stays where it is: settings, pinned places, tags, saved layouts,
+  ; the window/tab session, history and the downloaded packs all live under
+  ; %LOCALAPPDATA%\Luling (and %APPDATA%\Luling for older builds). An update
+  ; replaces the program files and nothing else — wiping the data directory also
+  ; wiped what the user had set up, which is worse than any stale cache. Caches
+  ; and the index stay too; the new build migrates them on its own.
   RMDir /r "$INSTDIR"
-  RMDir /r "$LOCALAPPDATA\Luling"
-  RMDir /r "$LOCALAPPDATA\鹿铃"
-  RMDir /r "$APPDATA\Luling"
-  RMDir /r "$APPDATA\鹿铃"
-  ReadEnvStr $1 "ProgramData"
-  StrCmp $1 "" luling_no_programdata
-    RMDir /r "$1\Luling"
-    RMDir /r "$1\鹿铃"
-  luling_no_programdata:
 
   Delete "$DESKTOP\鹿铃.lnk"
   Delete "$SMPROGRAMS\鹿铃\鹿铃.lnk"
@@ -163,16 +129,6 @@ Section "鹿铃" SecMain
   DeleteRegKey HKLM "Software\Classes\*\shell\Luling"
   DeleteRegKey HKCU "Software\Classes\*\shell\LulingTags"
   DeleteRegKey HKLM "Software\Classes\*\shell\LulingTags"
-
-  ; The user's state goes back before the new build's files land.
-  CreateDirectory "$LOCALAPPDATA\Luling"
-  CopyFiles /SILENT "$TEMP\LulingKeep\*.*" "$LOCALAPPDATA\Luling\"
-  RMDir /r "$TEMP\LulingKeep"
-
-  ; And so do the packs moved aside above.
-  IfFileExists "$LOCALAPPDATA\LulingPacksKeep\*.*" 0 luling_no_pack_restore
-    Rename "$LOCALAPPDATA\LulingPacksKeep" "$LOCALAPPDATA\Luling\packs"
-  luling_no_pack_restore:
 
   SetOutPath "$INSTDIR"
   File "${BUILDDIR}\luling.exe"
