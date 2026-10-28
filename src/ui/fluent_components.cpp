@@ -1423,7 +1423,16 @@ void Painter::DrawMenuItem(const MenuItemSpec& spec) {
             DrawGlyph(spec.glyph, icon_bounds, foreground);
         }
     };
-    if (!spec.icon_path.empty()) {
+    if (spec.icon_bitmap) {
+        // The row's own MIIM_BITMAP from a shell handler: what Explorer paints.
+        const float side = (std::min)(icon_bounds.right - icon_bounds.left,
+                                      icon_bounds.bottom - icon_bounds.top);
+        const float cx = (icon_bounds.left + icon_bounds.right) * 0.5f;
+        const float cy = (icon_bounds.top + icon_bounds.bottom) * 0.5f;
+        dc_->DrawBitmap(spec.icon_bitmap, D2D1::RectF(cx - side * 0.5f, cy - side * 0.5f,
+                                                      cx + side * 0.5f, cy + side * 0.5f),
+                        1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+    } else if (!spec.icon_path.empty()) {
         // The verb's own icon, the one Explorer shows. Falls back to the glyph when
         // the program moved away or the index no longer exists.
         if (ID2D1Bitmap* bitmap = MenuIconBitmap(dc_, std::wstring(spec.icon_path), spec.icon_index)) {

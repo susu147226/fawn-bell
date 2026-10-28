@@ -142,7 +142,10 @@ ShellMenuEntry ComEntry(const ops::ShellMenuItem& item, int command = 0) {
     entry.from_com = true;
     entry.clsid = item.clsid;
     entry.handler = item.handler;
-    ResolveVerbIcon(entry);
+    entry.icon = item.icon;
+    // The handler's own pixels are what Explorer paints; the registry lookup is
+    // only the fallback for handlers that set no bitmap.
+    if (!entry.icon) ResolveVerbIcon(entry);
     return entry;
 }
 
@@ -174,6 +177,7 @@ void AppendShellSection(std::vector<ui::FluentMenuItem>& items,
         row.enabled = e.enabled;
         row.icon_path = e.icon_path;
         row.icon_index = e.icon_index;
+        row.icon = e.icon;
         // Software-owned submenu: keep the hierarchy as a one-level flyout.
         for (const auto& c : e.children) {
             if (c.text.empty() || c.command == 0) continue;
@@ -183,6 +187,7 @@ void AppendShellSection(std::vector<ui::FluentMenuItem>& items,
             child.enabled = c.enabled;
             child.icon_path = c.icon_path;
             child.icon_index = c.icon_index;
+            child.icon = c.icon;
             row.children.push_back(std::move(child));
         }
         if (header && row.children.empty()) continue;
@@ -596,12 +601,14 @@ std::vector<ShellMenuEntry> ContextMenuController::ComposeEntries(
                     static_cast<int>(i) * ipc::kStaticVerbStride + static_cast<int>(j) + 1;
                 child.text = verb.children[j].display;
                 child.verb = verb.children[j].verb;
+                ResolveVerbIcon(child);
                 entry.children.push_back(std::move(child));
             }
         } else {
             entry.command = CmdShellStaticBase +
                 static_cast<int>(i) * ipc::kStaticVerbStride;
         }
+        ResolveVerbIcon(entry);
         entries.push_back(std::move(entry));
     }
     for (size_t i = 0; i < com_items_.size(); ++i) {

@@ -180,6 +180,9 @@ struct ShellMenuEntry {
     // when the verb has no Icon value; the row then draws no icon rather than a guess.
     std::wstring icon_path;
     int icon_index = 0;
+    // The handler's own menu bitmap (Explorer's pixels), which wins over
+    // icon_path when the handler set one.
+    common::MenuIconRef icon;
 };
 
 // Context menu for a selected entry: 打开 + icon strip (cut/copy/delete/

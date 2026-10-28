@@ -460,6 +460,7 @@ void ShellClient::ReaderThread() {
                 }
                 std::vector<std::wstring> slow_clsids;
                 if (ok) r.TryStringArray(slow_clsids);
+                if (ok) luling::ipc::TryCtxItemIcons(r, items);
                 if (ok) {
                     bool pending = false;
                     {

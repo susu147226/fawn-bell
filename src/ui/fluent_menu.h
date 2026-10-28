@@ -197,6 +197,16 @@ private:
         int w = 0;
         int h = 0;
     };
+    // Shell handler row icons (MIIM_BITMAP pixels) rasterized for the current
+    // popup. The bitmap belongs to the composition device in use, so the list
+    // starts empty on every TrackPopup.
+    struct IconBitmap {
+        common::MenuIconRef pixels;
+        ID2D1Bitmap* bitmap = nullptr;
+    };
+    ID2D1Bitmap* IconBitmapFor(const common::MenuIconRef& pixels, ID2D1DeviceContext* dc);
+    void ClearIconBitmaps();
+    std::vector<IconBitmap> icon_bitmaps_;
 
     bool EnsureWindow();
     bool EnsureFilterEdit();

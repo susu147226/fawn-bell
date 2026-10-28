@@ -106,6 +106,9 @@ struct MenuItemSpec {
     // Non-empty: draw this file's icon (index `icon_index`) in the glyph slot.
     std::wstring_view icon_path;
     int icon_index = 0;
+    // Explorer-style app icon from a shell handler (premultiplied pixels on the
+    // painter's device); wins over glyph, pictogram and icon_path.
+    ID2D1Bitmap* icon_bitmap = nullptr;
     ControlState state{};
     bool has_submenu = false;
     bool separator_after = false;

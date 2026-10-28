@@ -1748,6 +1748,7 @@ void OpsManager::ConfigureShellCallbacks() {
             m.text = std::move(it.text);
             m.clsid = std::move(it.clsid);
             m.handler = std::move(it.handler);
+            m.icon = std::move(it.icon);
             out.push_back(std::move(m));
         }
         OnCtxItems(id, std::move(out), partial, std::move(slow_clsids));

@@ -815,6 +815,7 @@ void SendCtxItems(uint32_t session_id, const std::vector<CtxItemOut>& items,
         w.PutString(it.handler);
     }
     w.PutStringArray(slow_clsids);
+    luling::ipc::PutCtxItemIcons(w, items);
     SendMsg(RSP_CTX_ITEMS, session_id, w.data());
 }
 

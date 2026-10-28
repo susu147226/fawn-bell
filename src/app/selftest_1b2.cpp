@@ -16,6 +16,7 @@
 #include "tab_shortcuts.h"
 #include "quick_access.h"
 #include "../common/windows_compat.h"
+#include "../ipc/protocol.h"
 #include "app_input.h"
 #include "app_hosted_edit.h"
 #include "app_navigation.h"
@@ -6645,6 +6646,33 @@ void TestNormalizeGroupRuns() {
     }
 }
 
+void TestCtxMenuIcons() {
+    struct Row {
+        std::wstring text;
+        common::MenuIconRef icon;
+    };
+    std::vector<Row> rows(2);
+    rows[0].text = L"plain";
+    rows[1].text = L"with icon";
+    auto pixels = std::make_shared<common::MenuIconPixels>();
+    pixels->width = 2;
+    pixels->height = 1;
+    pixels->bgra = { 1, 2, 3, 255, 4, 5, 6, 128 };
+    rows[1].icon = pixels;
+
+    ipc::PayloadWriter writer;
+    writer.PutU32(7);
+    ipc::PutCtxItemIcons(writer, rows);
+    std::vector<Row> parsed(2);
+    ipc::PayloadReader reader(writer.data().data(), writer.data().size());
+    uint32_t lead = 0;
+    const bool ok = reader.GetU32(lead) && lead == 7 && ipc::TryCtxItemIcons(reader, parsed);
+    Check(ok && !parsed[0].icon && parsed[1].icon && parsed[1].icon->width == 2 &&
+              parsed[1].icon->height == 1 && parsed[1].icon->bgra.size() == 8 &&
+              parsed[1].icon->bgra[3] == 255,
+          L"ctx icons: row bitmaps survive the shell protocol");
+}
+
 void TestChipBlockDragGeometry() {
     Check(CollapsedChipBlockW(24.0f, 6.0f) == 30.0f,
           L"chipdrag: block width is chip plus gap");
@@ -7686,6 +7714,7 @@ int RunSelfTest1B2() {
     TestDetailsMeta();
     TestMoveTabRun();
     TestNormalizeGroupRuns();
+    TestCtxMenuIcons();
     TestChipBlockDragGeometry();
     TestFindGroupRun();
     TestSessionLayoutTabs();

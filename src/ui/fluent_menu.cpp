@@ -228,6 +228,7 @@ int FluentMenuModel::NextEnabled(int from, int dir) const {
 // FluentMenu window
 // ---------------------------------------------------------------------------
 FluentMenu::~FluentMenu() {
+    ClearIconBitmaps();
     if (tooltip_) DestroyWindow(tooltip_);
     HideFilterEdit();
     if (edit_) {
@@ -623,6 +624,7 @@ bool FluentMenu::RenderSurface(const FluentMenuModel& model, int hover_row, int 
             spec.glyph = it->glyph;
             spec.icon_path = it->icon_path;
             spec.icon_index = it->icon_index;
+            if (it->icon) spec.icon_bitmap = IconBitmapFor(it->icon, dc);
             spec.glyph_scale = it->glyph_scale;
             spec.shortcut = it->shortcut;
             spec.shortcut_inline = it->shortcut_inline;
@@ -1567,6 +1569,28 @@ int FluentMenu::TrackDropdown(RECT control_rect, std::vector<FluentMenuItem> ite
     return TrackPopup({control_rect.left, control_rect.bottom}, std::move(items));
 }
 
+ID2D1Bitmap* FluentMenu::IconBitmapFor(const common::MenuIconRef& pixels,
+                                       ID2D1DeviceContext* dc) {
+    if (!pixels || !pixels->Valid() || !dc) return nullptr;
+    for (const auto& entry : icon_bitmaps_)
+        if (entry.pixels == pixels) return entry.bitmap;
+    IconBitmap entry;
+    entry.pixels = pixels;
+    const auto props = D2D1::BitmapProperties(
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+    if (FAILED(dc->CreateBitmap(D2D1::SizeU(pixels->width, pixels->height), pixels->bgra.data(),
+                                pixels->width * 4u, props, &entry.bitmap)))
+        entry.bitmap = nullptr;  // remembered as missing: no retry every frame
+    icon_bitmaps_.push_back(std::move(entry));
+    return icon_bitmaps_.back().bitmap;
+}
+
+void FluentMenu::ClearIconBitmaps() {
+    for (auto& entry : icon_bitmaps_)
+        if (entry.bitmap) entry.bitmap->Release();
+    icon_bitmaps_.clear();
+}
+
 int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
                            FilterFn filter, bool top_center) {
     if (!EnsureWindow()) {
@@ -1577,6 +1601,7 @@ int FluentMenu::TrackPopup(POINT screen_pt, std::vector<FluentMenuItem> items,
         return 0;
     }
     HideSubWindow(); // stale flyout state from the previous invocation
+    ClearIconBitmaps();
     filter_fn_ = std::move(filter);
     filter_query_ = initial_filter_text_;
     filter_committed_ = false;

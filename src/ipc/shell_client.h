@@ -33,6 +33,9 @@ struct CtxMenuItem {
     std::wstring text;
     std::wstring clsid;
     std::wstring handler;
+    // The row's own menu bitmap from the handler (premultiplied BGRA); null
+    // when the handler set none.
+    common::MenuIconRef icon;
 };
 
 class ShellClient {
