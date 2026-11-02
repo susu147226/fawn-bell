@@ -226,7 +226,8 @@ int RunP1RegressionProbe(AppState& s, const wchar_t* output) {
     tab->SetSnapshot(entries);
     tab->filter_text.clear();
     ui::PaneViewModel grouped;
-    app::FillPaneViewModel(grouped, *s.pane, &s.places);
+    app::FillPaneViewModel(grouped, *s.pane, &s.places,
+        s.appPrefs.list_checkboxes);
     auto groups = std::make_shared<ui::ListGroups>(3);
     for (int i = 0; i < 3; ++i) { (*groups)[i].first = i; (*groups)[i].count = 1; }
     (*groups)[1].collapsed = true;

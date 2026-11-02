@@ -145,7 +145,7 @@ std::vector<Binding> Bindings(const std::wstring& group, const std::wstring& exe
     if (group == L"WinE") {
         shell = L"Software\\Classes\\CLSID\\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}\\shell";
         verb = shell + L"\\opennewwindow";
-        line = L"\"" + exe + L"\"";
+        line = L"\"" + exe + L"\" --new-window";
     } else if (group == L"ThisPc") {
         shell = L"Software\\Classes\\CLSID\\{20D04FE0-3AEA-1069-A2D8-08002B30309D}\\shell";
         verb = shell + L"\\open";
@@ -555,6 +555,19 @@ bool ReadShellIntegration(ShellIntegrationKind kind, const std::wstring& exe) {
         }
     }
     return true;
+}
+
+bool ReadShellIntegrationCommand(ShellIntegrationKind kind, std::wstring& command) {
+    command.clear();
+    for (const auto& group : Groups(kind)) {
+        const auto bindings = Bindings(group, std::wstring());
+        if (bindings.empty()) return false;
+        Value value;
+        if (!Read(bindings.front().key, bindings.front().name, value) || !value.exists) return false;
+        command = Text(value);
+        return true;
+    }
+    return false;
 }
 
 bool HasShellIntegrationOwnership(ShellIntegrationKind kind, const std::wstring& exe) {

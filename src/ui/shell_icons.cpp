@@ -1,6 +1,7 @@
 // shell_icons.cpp
 #include "shell_icons.h"
 #include "../common/path_utils.h"
+#include "../fs/shell_namespace.h"
 
 #include <commoncontrols.h>
 #include <shellapi.h>
@@ -265,6 +266,20 @@ void ShellIconCache::WorkerLoop() {
                     if (victim != generic_index_.end()) generic_index_.erase(victim);
                 }
                 generic_index_[key] = index;
+            }
+        } else if (luling::fs::IsShellPath(path)) {
+            // Portable devices (MTP phones, cameras): the path is an encoded
+            // PIDL, not a file name; asking the shell by PIDL gives the same
+            // folder/document icons Explorer shows instead of falling back to
+            // the generic PC picture.
+            PIDLIST_ABSOLUTE pidl = nullptr;
+            if (luling::fs::ShellPidlFromPath(path, pidl) && pidl) {
+                SHFILEINFOW shell_info{};
+                if (SHGetFileInfoW(reinterpret_cast<LPCWSTR>(pidl), 0, &shell_info,
+                                   sizeof(shell_info),
+                                   SHGFI_PIDL | SHGFI_SYSICONINDEX | SHGFI_SMALLICON))
+                    index = shell_info.iIcon;
+                CoTaskMemFree(pidl);
             }
         } else {
             // Shell icon handlers for ordinary files open their content and can

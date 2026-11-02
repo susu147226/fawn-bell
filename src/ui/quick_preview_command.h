@@ -12,10 +12,14 @@ struct QuickPreviewItem {
     uint64_t modified = 0, size = 0;
     bool starred = false;
     bool read_only = false;
+    // 1-based place in the listing and its length; 0 when unknown.
+    int position = 0, count = 0;
 };
 
 enum class QuickPreviewAction : int {
     None = 0, Open, Cut, Copy, CopyPath, ToggleStar, Rename, Delete, Properties,
+    OpenWith,           // launch the app in QuickPreviewCommand::app_path
+    OpenWithDialog,     // shell "打开方式…" picker
     InstallMediaPack,   // start (or cancel) the FFmpeg preview pack download
     InstallImagePack,   // start (or cancel) the image preview pack download
 };
@@ -38,6 +42,7 @@ inline bool CanApplyPreviewFileAction(bool folder_listing, bool selected_archive
 struct QuickPreviewCommand {
     QuickPreviewAction action = QuickPreviewAction::None;
     QuickPreviewItem target;
+    std::wstring app_path;   // OpenWith: the program to launch
     bool shift = false;
     bool folder_child = false;
 };

@@ -84,6 +84,11 @@ int MainRenderer::SettingsSliderValueAt(const WindowViewModel& vm, const D2D1_RE
                                         int which, float x) const {
     const SettingsLayout lay = MakeSettingsLayout(vm, rect, scale_, title_bar_height_,
                                                   status_height_, &painter_);
+    if (which >= 2 && which <= 4) {
+        const int max_value = which == 2 ? 359 : 100;
+        return SettingsSliderValue(
+            SettingsSlider(lay.accent_custom_cells[which - 2], scale_), x, max_value);
+    }
     return which == 0
         ? SettingsSliderValue(SettingsSlider(lay.wallpaper_look_row, scale_), x, kPanelTransparencyMax)
         : SettingsSliderValue(SettingsSlider(lay.wallpaper_blur_row, scale_), x, kWallpaperBlurMax);
@@ -233,11 +238,43 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                                           compositor_);
             return r;
         }
-        for (int i = 0; i < kSettingsNavCount; ++i) {
+        for (int i = 0; i < kSettingsNavItemCount; ++i) {
             if (ContainsPt(lay.nav_row[i], x, y)) {
                 r.region = HitTestResult::SettingsNav;
-                r.index = i;
+                r.index = kSettingsNav[i].page;
                 return r;
+            }
+        }
+        if (ContainsPt(lay.nav_about, x, y)) {
+            r.region = HitTestResult::SettingsNav;
+            r.index = 3;
+            return r;
+        }
+        if (vm.settings_page == 11 || vm.settings_page == 12) {
+            const int target = vm.settings_page == 11 ? HitTestSettingsAi(lay, vm, x, y)
+                                                      : HitTestSettingsAiModel(lay, vm, x, y);
+            if (target >= 0) {
+                r.region = HitTestResult::SettingsAiAction;
+                r.index = target;
+                return r;
+            }
+        }
+        if (vm.settings_page == 13 && vm.settings_shortcuts) {
+            if (ContainsPt(lay.shortcut_reset, x, y)) {
+                r.region = HitTestResult::SettingsShortcutReset;
+                return r;
+            }
+            size_t row_index = 0;
+            for (const auto& group : *vm.settings_shortcuts) {
+                for (const auto& row : group.rows) {
+                    if (row.command >= 0 && row_index < lay.shortcut_rows.size() &&
+                        ContainsPt(lay.shortcut_rows[row_index], x, y)) {
+                        r.region = HitTestResult::SettingsShortcutRow;
+                        r.index = row.command;
+                        return r;
+                    }
+                    ++row_index;
+                }
             }
         }
         if (ContainsPt(lay.content, x, y)) {
@@ -260,17 +297,6 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             for(int i=0;i<3;++i) if(ContainsPt(actions[i],x,y)) {r.region=HitTestResult::SettingsContentAction;r.index=i+1;return r;}
 
             if (vm.settings_page == 0) {
-                const D2D1_RECT_F integration_rows[]={lay.default_manager_row,lay.startup_row[2],
-                    lay.win_e_row,lay.this_pc_row,lay.explorer_windows_row};
-                for(int i=0;i<5;++i) if(ContainsPt(integration_rows[i],x,y)) {
-                    r.region=HitTestResult::SettingsIntegration;r.index=i;return r;
-                }
-                if(vm.settings_integration_can_retry && ContainsPt(lay.integration_retry,x,y)) {
-                    r.region=HitTestResult::SettingsIntegration;r.index=5;return r;
-                }
-                if(vm.settings_integration_can_restore && ContainsPt(lay.integration_restore,x,y)) {
-                    r.region=HitTestResult::SettingsIntegration;r.index=6;return r;
-                }
                 if (vm.settings_bloom) {
                     vm.settings_bloom->SetDisk(lay.accent_picker);
                     const int dot = vm.settings_bloom->HitDot(x, y);
@@ -278,6 +304,30 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         r.region = HitTestResult::SettingsAccent;
                         r.index = dot;
                         return r;
+                    }
+                }
+                if (ContainsPt(lay.accent_toggle_button, x, y)) {
+                    r.region = HitTestResult::SettingsAccentToggle;
+                    r.index = 0;
+                    return r;
+                }
+                if (vm.settings_accent_editor_open) {
+                    static constexpr int kAccentMax[3] = {359, 100, 100};
+                    const HitTestResult::Region regions[3] = {HitTestResult::SettingsAccentHue,
+                                                  HitTestResult::SettingsAccentSaturation,
+                                                  HitTestResult::SettingsAccentLightness};
+                    for (int i = 0; i < 3; ++i) {
+                        const auto zone = D2D1::RectF(
+                            lay.accent_custom_cells[i][0].left - 12.0f * scale_,
+                            lay.accent_custom_cells[i][0].top - 8.0f * scale_,
+                            lay.accent_custom_cells[i][2].right,
+                            lay.accent_custom_cells[i][2].bottom + 8.0f * scale_);
+                        if (ContainsPt(zone, x, y)) {
+                            r.region = regions[i];
+                            r.index = SettingsSliderValue(
+                                SettingsSlider(lay.accent_custom_cells[i], scale_), x, kAccentMax[i]);
+                            return r;
+                        }
                     }
                 }
                 for (int i = 0; i < 3; ++i) {
@@ -300,54 +350,6 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         r.index = i;
                         return r;
                     }
-                }
-                for (int i = 0; i < 3; ++i) {
-                    if (ContainsPt(lay.folder_sort_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsFolderSort;
-                        r.index = i;
-                        return r;
-                    }
-                }
-                for (int i = 0; i < 3; ++i) {
-                    if (ContainsPt(lay.notify_icon_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsNotifyIcon;
-                        r.index = i;
-                        return r;
-                    }
-                }
-                for (int i = 0; i < 2; ++i) {
-                    if (ContainsPt(lay.startup_open_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsStartupOpen;
-                        r.index = i;
-                        return r;
-                    }
-                    if (ContainsPt(lay.new_tab_open_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsNewTabOpen;
-                        r.index = i;
-                        return r;
-                    }
-                }
-                if (ContainsPt(lay.home_folder_choose, x, y)) {
-                    r.region = HitTestResult::SettingsHomeFolder;
-                    r.index = 0;
-                    return r;
-                }
-                if (ContainsPt(lay.home_folder_reset, x, y)) {
-                    r.region = HitTestResult::SettingsHomeFolder;
-                    r.index = 1;
-                    return r;
-                }
-                for (int i = 0; i < 3; ++i) {
-                    if (ContainsPt(lay.tray_icon_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsTrayIcon;
-                        r.index = i;
-                        return r;
-                    }
-                }
-                if (ContainsPt(lay.staging_tray_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle;
-                    r.index = 35;
-                    return r;
                 }
                 for (int i = 0; i < 3; ++i) {
                     if (ContainsPt(lay.language_segment[i], x, y)) {
@@ -390,6 +392,48 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                                                   kWallpaperBlurMax);
                     return r;
                 }
+            } else if (vm.settings_page == 7) {
+                for (int i = 0; i < 4; ++i) {
+                    if (ContainsPt(lay.mtime_style_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsMtimeStyle; r.index = i; return r;
+                    }
+                    if (ContainsPt(lay.mtime_days_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsMtimeDays; r.index = i; return r;
+                    }
+                }
+                for (int i = 0; i < 6; ++i) {
+                    if (ContainsPt(lay.mtime_palette_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsMtimePalette; r.index = i; return r;
+                    }
+                }
+                for (int i = 0; i < 5; ++i) {
+                    if (ContainsPt(lay.mtime_opt_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsToggle; r.index = 41 + i; return r;
+                    }
+                }
+                if (ContainsPt(lay.cloud_status_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 46; return r;
+                }
+                if (ContainsPt(lay.sticky_parent_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 47; return r;
+                }
+                if (ContainsPt(lay.tree_view_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 49; return r;
+                }
+                if (ContainsPt(lay.svn_status_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 48; return r;
+                }
+                if (ContainsPt(lay.thumb_cache_button, x, y)) {
+                    r.region = HitTestResult::SettingsThumbCacheClear;
+                    return r;
+                }
+                for (int i = 0; i < 3; ++i) {
+                    if (ContainsPt(lay.folder_sort_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsFolderSort;
+                        r.index = i;
+                        return r;
+                    }
+                }
                 if (ContainsPt(lay.hidden_files_row, x, y)) {
                     r.region = HitTestResult::SettingsToggle;
                     r.index = 5;
@@ -398,31 +442,92 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 if (ContainsPt(lay.protected_files_row, x, y)) {
                     r.region = HitTestResult::SettingsToggle; r.index = 16; return r;
                 }
-                if (ContainsPt(lay.pinned_names_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle;
-                    r.index = 6;
-                    return r;
-                }
-                if (ContainsPt(lay.vertical_tabs_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 23; return r;
-                }
-                if (ContainsPt(lay.hints_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 24; return r;
-                }
-                if (vm.settings_tips_seen && ContainsPt(lay.hints_reset_button, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 25; return r;
-                }
-                if (ContainsPt(lay.shell_tags_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 21; return r;
+                if (ContainsPt(lay.hidden_shares_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 38; return r;
                 }
                 for (int i = 0; i < 3; ++i) if (ContainsPt(lay.blank_click_choice[i], x, y)) {
                     r.region = HitTestResult::SettingsBlankClick; r.index = i; return r;
                 }
-                if (ContainsPt(lay.change_tracking_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 8; return r;
+                if (ContainsPt(lay.single_click_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 37; return r;
                 }
-                for (int i = 0; i < 3; ++i) if (ContainsPt(lay.change_days[i], x, y)) {
-                    r.region = HitTestResult::SettingsChangeDays; r.index = i; return r;
+                if (ContainsPt(lay.checkbox_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 39; return r;
+                }
+            } else if (vm.settings_page == 8) {
+                if (ContainsPt(lay.home_folder_choose, x, y)) {
+                    r.region = HitTestResult::SettingsHomeFolder;
+                    r.index = 0;
+                    return r;
+                }
+                if (ContainsPt(lay.home_folder_reset, x, y)) {
+                    r.region = HitTestResult::SettingsHomeFolder;
+                    r.index = 1;
+                    return r;
+                }
+                for (int i = 0; i < 2; ++i) {
+                    if (ContainsPt(lay.startup_open_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsStartupOpen;
+                        r.index = i;
+                        return r;
+                    }
+                    if (ContainsPt(lay.new_tab_open_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsNewTabOpen;
+                        r.index = i;
+                        return r;
+                    }
+                }
+                if (ContainsPt(lay.close_last_tab_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 26; return r;
+                }
+                if (ContainsPt(lay.single_window_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 36; return r;
+                }
+                if (ContainsPt(lay.vertical_tabs_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 23; return r;
+                }
+                if (ContainsPt(lay.pinned_names_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 6; return r;
+                }
+                for (size_t i = 0; i < lay.tab_manage_rows.size(); ++i) {
+                    if (i >= vm.settings_tab_manage.size()) break;
+                    const auto& row = lay.tab_manage_rows[i];
+                    if (!ContainsPt(row, x, y)) continue;
+                    if (ContainsPt(TabManageCloseRect(row, scale_), x, y)) {
+                        r.region = HitTestResult::SettingsTabClose;
+                        r.index = static_cast<int>(i);
+                        return r;
+                    }
+                    if (ContainsPt(TabManageRenameRect(row, scale_), x, y)) {
+                        r.region = HitTestResult::SettingsTabRename;
+                        r.index = static_cast<int>(i);
+                        return r;
+                    }
+                    if (ContainsPt(TabManageGroupRect(row, scale_), x, y)) {
+                        r.region = HitTestResult::SettingsTabGroup;
+                        r.index = static_cast<int>(i);
+                        return r;
+                    }
+                    if (ContainsPt(TabManageColorRect(row, scale_), x, y)) {
+                        r.region = HitTestResult::SettingsTabColor;
+                        r.index = static_cast<int>(i);
+                        return r;
+                    }
+                    r.region = HitTestResult::SettingsTabRow;
+                    r.index = static_cast<int>(i);
+                    return r;
+                }
+            } else if (vm.settings_page == 9) {
+                const D2D1_RECT_F integration_rows[]={lay.default_manager_row,lay.startup_row[2],
+                    lay.win_e_row,lay.this_pc_row,lay.explorer_windows_row};
+                for(int i=0;i<5;++i) if(ContainsPt(integration_rows[i],x,y)) {
+                    r.region=HitTestResult::SettingsIntegration;r.index=i;return r;
+                }
+                if(vm.settings_integration_can_retry && ContainsPt(lay.integration_retry,x,y)) {
+                    r.region=HitTestResult::SettingsIntegration;r.index=5;return r;
+                }
+                if(vm.settings_integration_can_restore && ContainsPt(lay.integration_restore,x,y)) {
+                    r.region=HitTestResult::SettingsIntegration;r.index=6;return r;
                 }
                 for (int i = 0; i < 2; ++i) {
                     if (ContainsPt(lay.startup_row[i], x, y)) {
@@ -431,14 +536,50 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         return r;
                     }
                 }
-                if (ContainsPt(lay.close_last_tab_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 26; return r;
+                if (ContainsPt(lay.start_in_tray_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 27; return r;
                 }
+                if (ContainsPt(lay.explorer_fallback_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 40; return r;
+                }
+                for (int i = 0; i < 3; ++i) {
+                    if (ContainsPt(lay.notify_icon_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsNotifyIcon;
+                        r.index = i;
+                        return r;
+                    }
+                }
+                for (int i = 0; i < 3; ++i) {
+                    if (ContainsPt(lay.tray_icon_row[i], x, y)) {
+                        r.region = HitTestResult::SettingsTrayIcon;
+                        r.index = i;
+                        return r;
+                    }
+                }
+                if (ContainsPt(lay.shell_tags_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 21; return r;
+                }
+            } else if (vm.settings_page == 10) {
                 if (ContainsPt(lay.confirm_delete_row, x, y)) {
                     r.region = HitTestResult::SettingsToggle; r.index = 32; return r;
                 }
-                if (ContainsPt(lay.start_in_tray_row, x, y)) {
-                    r.region = HitTestResult::SettingsToggle; r.index = 27; return r;
+                if (ContainsPt(lay.staging_tray_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 35; return r;
+                }
+                if (ContainsPt(lay.change_tracking_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 8; return r;
+                }
+                for (int i = 0; i < 3; ++i) if (ContainsPt(lay.change_days[i], x, y)) {
+                    r.region = HitTestResult::SettingsChangeDays; r.index = i; return r;
+                }
+                if (ContainsPt(lay.hints_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 24; return r;
+                }
+                if (vm.settings_tips_seen && ContainsPt(lay.hints_reset_button, x, y)) {
+                    r.region = HitTestResult::SettingsToggle; r.index = 25; return r;
+                }
+                for (int i = 0; i < 3; ++i) if (ContainsPt(lay.collision_choice[i], x, y)) {
+                    r.region = HitTestResult::SettingsCollision; r.index = i; return r;
                 }
             } else if (vm.settings_page == 1) {
                 if (ContainsPt(lay.global_search_row, x, y)) {
@@ -536,8 +677,11 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 }
                 if(ContainsPt(lay.context_restore,x,y)) {r.region=HitTestResult::SettingsRestore;return r;}
             } else if (vm.settings_page == 3) {
-                for (int i = 0; i < 4; ++i) {
-                    if (ContainsPt(i < 3 ? lay.about_action[i] : lay.release_all, x, y)) {
+                for (int i = 0; i < 6; ++i) {
+                    const D2D1_RECT_F& bounds = i < 3 ? lay.about_action[i]
+                        : i == 3 ? lay.release_all
+                        : i == 4 ? lay.backup_export : lay.backup_import;
+                    if (ContainsPt(bounds, x, y)) {
                         r.region = HitTestResult::SettingsAboutAction;
                         r.index = i;
                         return r;
@@ -578,7 +722,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 if (ContainsPt(lay.update_auto_row, x, y)) {
                     r.region = HitTestResult::SettingsToggle; r.index = 31; return r;
                 }
-            } else if (vm.settings_page == 5) {
+            } else if (vm.settings_page == 5 || vm.settings_page == 14) {
                 // Buttons first: they sit inside the clickable rows.
                 const std::pair<const D2D1_RECT_F*, PackAction> pack_targets[] = {
                     {&lay.trigger_choice[0], PackAction::TriggerHover},
@@ -1183,11 +1327,25 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             return out;
         }
         if (ShowsColumnHeader(paneVm.view_mode) && y >= columnTop && y < listTop) {
+            if (paneVm.list_checkboxes && ShowsRowCheckbox(paneVm.view_mode)) {
+                const float size = kCheckboxSizeDip * scale_;
+                const float cy = (columnTop + listTop) * 0.5f;
+                if (ContainsPt(D2D1::RectF(paneRc.left + 18 * scale_, cy - size * 0.5f,
+                                           paneRc.left + 18 * scale_ + size, cy + size * 0.5f),
+                               x, y)) {
+                    out.region = HitTestResult::RowSelectAll;
+                    out.pane_index = paneIndex;
+                    return out;
+                }
+            }
             if (paneVm.curated_order) {
                 out.region = HitTestResult::Pane;
                 return out;
             }
-            const DetailsColumnLayout columns = DetailsColumns(paneRc, paneVm);
+            D2D1_RECT_F headerBounds = paneRc;
+            if (paneVm.list_checkboxes && ShowsRowCheckbox(paneVm.view_mode))
+                headerBounds.left += kCheckboxGutterDip * scale_;
+            const DetailsColumnLayout columns = DetailsColumns(headerBounds, paneVm);
             for (int divider = 0; divider < columns.count - 1; ++divider) {
                 if (std::abs(x - columns.DividerX(divider)) <= 4.0f * scale_) {
                     out.region = HitTestResult::ColumnDivider;
@@ -1272,7 +1430,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 return out;
             }
             if (const ListGroups* groups = paneVm.Groups()) {
-                const D2D1_RECT_F list = PaneListRect(paneRc, extra, paneVm.view_mode);
+                const D2D1_RECT_F list = PaneListRect(paneRc, extra, paneVm.view_mode, paneVm.list_checkboxes);
                 const ViewLayout grouped(paneVm.view_mode, list, paneVm.EntryCount(),
                                          paneVm.scroll_x, paneVm.scroll_y, scale_,
                                          ListRowHeightDip(paneVm, list), groups);
@@ -1292,7 +1450,40 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     return out;
                 }
             }
+            if (paneVm.sticky_parent && paneVm.EntryCount() > 0 && paneVm.scroll_y > 0.5f &&
+                !paneVm.Groups()) {
+                const D2D1_RECT_F stickyList =
+                    PaneListRect(paneRc, extra, paneVm.view_mode, paneVm.list_checkboxes);
+                const float stickyH = (std::min)(48.0f * scale_, ListRowHeightDip(paneVm, stickyList));
+                if (ContainsPt(D2D1::RectF(stickyList.left, stickyList.top, stickyList.right,
+                                           stickyList.top + stickyH), x, y)) {
+                    out.region = HitTestResult::StickyParent;
+                    out.pane_index = paneIndex;
+                    return out;
+                }
+            }
             int idx = ItemFromPointInPane(paneVm, paneRect, x, y);
+            if (idx < 0 && paneVm.list_checkboxes && ShowsRowCheckbox(paneVm.view_mode) &&
+                x >= paneRc.left && y >= paneRc.top) {
+                // A checkbox's box can sit just left of the row's layout cell,
+                // where the row hit test does not look; take the row from y and
+                // test the box so a click on it is never a blank-pane click.
+                const D2D1_RECT_F list = PaneListRect(paneRc, extra, paneVm.view_mode, true);
+                ViewLayout rowLayout(paneVm.view_mode, list, paneVm.EntryCount(),
+                                     paneVm.scroll_x, paneVm.scroll_y, scale_,
+                                     ListRowHeightDip(paneVm, list), paneVm.Groups());
+                const float probeX = std::min(list.right - 2.0f * scale_,
+                                              list.left + 12.0f * scale_);
+                const int row = rowLayout.HitTest(probeX, y);
+                const int src = row >= 0 ? paneVm.SourceIndex(row) : -1;
+                if (src >= 0 && ContainsPt(
+                        RowCheckboxRect(rowLayout.IconRect(row), rowLayout.ItemRect(row), scale_), x, y)) {
+                    out.region = HitTestResult::RowCheck;
+                    out.index = src;
+                    out.pane_index = paneIndex;
+                    return out;
+                }
+            }
             if(idx>=0 && paneVm.content_results && !paneVm.content_results->Ready(static_cast<size_t>(idx))) {
                 paneVm.content_results->Prefetch(static_cast<size_t>(idx));
                 out.region=HitTestResult::Pane; return out;
@@ -1301,14 +1492,35 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 if (idx != paneVm.rename_index) {
                     int viewRow = paneVm.ViewIndex(idx);
                     if (viewRow >= 0 && compositor_ && compositor_->DwriteFactory()) {
-                        const D2D1_RECT_F list = PaneListRect(paneRc, extra, paneVm.view_mode);
+                        const D2D1_RECT_F list = PaneListRect(paneRc, extra, paneVm.view_mode, paneVm.list_checkboxes);
                         const DetailsColumnLayout columns = DetailsColumns(list, paneVm);
                         ViewLayout layout(paneVm.view_mode, list, paneVm.EntryCount(),
                                           paneVm.scroll_x, paneVm.scroll_y, scale_,
                                           ListRowHeightDip(paneVm, list), paneVm.Groups());
                         const D2D1_RECT_F nameRc = layout.NameRect(viewRow);
                         const D2D1_RECT_F cell = layout.ItemRect(viewRow);
+                        if (paneVm.list_checkboxes &&
+                            ((ShowsRowCheckbox(paneVm.view_mode) &&
+                              ContainsPt(RowCheckboxRect(layout.IconRect(viewRow), cell, scale_), x, y)) ||
+                             (ShowsGridCheckbox(paneVm.view_mode) &&
+                              ContainsPt(GridCheckboxRect(layout.IconRect(viewRow), scale_), x, y)))) {
+                            out.region = HitTestResult::RowCheck; out.index = idx; return out;
+                        }
                         const ListEntryView& entry = MakeVisibleEntry(paneVm, static_cast<size_t>(idx));
+                        // Inline file tree: the chevron gutter left of the icon.
+                        if (paneVm.view_mode == ViewMode::Details && entry.tree_has_children) {
+                            const float indent = 16.0f * scale_;
+                            const D2D1_RECT_F icon = layout.IconRect(viewRow);
+                            const float cx = icon.left + entry.tree_depth * indent - 8.0f * scale_;
+                            const D2D1_RECT_F chevron = D2D1::RectF(
+                                cx - 9.0f * scale_, cell.top, cx + 9.0f * scale_, cell.bottom);
+                            if (ContainsPt(chevron, x, y)) {
+                                out.region = HitTestResult::TreeChevron;
+                                out.index = idx;
+                                out.pane_index = paneIndex;
+                                return out;
+                            }
+                        }
                         const auto folder_size_rect = paneVm.view_mode == ViewMode::Details
                             ? D2D1::RectF(columns.Left(ColumnKind::Size), cell.top,
                                 columns.Left(ColumnKind::Size) + columns.Width(ColumnKind::Size), cell.bottom)

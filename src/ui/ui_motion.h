@@ -234,6 +234,9 @@ public:
         return offset;
     }
 
+    // Settings > 修改时间提示: the file behind this row just changed.
+    void FlashNow(uint64_t key, uint64_t now) { born_[key] = now; }
+
     // 1 -> 0 accent flash strength for a newly appeared row.
     float Flash(uint64_t key) const {
         const auto it = born_.find(key);
@@ -277,5 +280,46 @@ private:
     std::unordered_map<uint64_t, D2D1_POINT_2F> shifts_;
     std::unordered_map<uint64_t, uint64_t> born_;
 };
+
+// Damped spring (mass 1) evaluated in closed form: a transition is a pure
+// function of elapsed time, so dropped frames never change the path.
+struct SpringSpec {
+    float k = 520.0f;
+    float c = 34.0f;
+};
+
+namespace spring {
+inline constexpr SpringSpec Snappy{520.0f, 34.0f};
+inline constexpr SpringSpec Smooth{380.0f, 36.0f};
+inline constexpr SpringSpec Plate{2600.0f, 98.0f};
+inline constexpr SpringSpec Pop{620.0f, 30.0f};
+inline constexpr SpringSpec Open{480.0f, 38.0f};
+inline constexpr SpringSpec Close{700.0f, 52.0f};
+inline constexpr SpringSpec Soft{260.0f, 24.0f};
+} // namespace spring
+
+inline float SpringProgress(SpringSpec s, float t_ms) noexcept {
+    if (t_ms <= 0.0f) return 0.0f;
+    const float t = t_ms * 0.001f;
+    const float w0 = std::sqrt(s.k);
+    const float zeta = s.c / (2.0f * w0);
+    if (zeta < 0.999f) {
+        const float wd = w0 * std::sqrt(1.0f - zeta * zeta);
+        const float e = std::exp(-zeta * w0 * t);
+        return 1.0f - e * (std::cos(wd * t) + (zeta * w0 / wd) * std::sin(wd * t));
+    }
+    if (zeta <= 1.001f) return 1.0f - std::exp(-w0 * t) * (1.0f + w0 * t);
+    const float r = w0 * std::sqrt(zeta * zeta - 1.0f);
+    const float r1 = -zeta * w0 + r, r2 = -zeta * w0 - r;
+    return 1.0f - (r2 * std::exp(r1 * t) - r1 * std::exp(r2 * t)) / (r2 - r1);
+}
+
+inline uint32_t SpringSettleMs(SpringSpec s) noexcept {
+    const float w0 = std::sqrt(s.k);
+    const float zeta = s.c / (2.0f * w0);
+    const float decay = zeta < 1.0f ? zeta * w0 : w0 * (zeta - std::sqrt(std::max(0.0f, zeta * zeta - 1.0f)));
+    const float ms = 1000.0f * 5.3f / std::max(decay, 1.0f);
+    return static_cast<uint32_t>(std::clamp(ms, 60.0f, 900.0f));
+}
 
 } // namespace luling::ui::motion

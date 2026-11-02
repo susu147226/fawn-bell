@@ -5,13 +5,17 @@
 #include "../ui/shortcut_help.h"
 // app_commands.cpp — extracted from app_main.cpp.
 #include "quick_access.h"
+#include "shortcut_map.h"
 #include "app_column_view.h"
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
+#include "app_tree.h"
+#include "app_navigation.h"
 #include "window_factory.h"
 #include "window_merge.h"
 #include "selection_caps.h"
 #include "../ui/toolbar_customize_dialog.h"
+#include "../ui/tag_manager_dialog.h"
 #include "drive_verbs.h"
 #include "bitlocker_unlock.h"
 #include "../fs/bitlocker_volume.h"
@@ -57,6 +61,7 @@
 #include <uxtheme.h>
 #include <psapi.h>
 #include <shellapi.h>
+#include <wrl/client.h>
 #include <shlobj.h>
 #include <shobjidl.h>
 #include <shlwapi.h>
@@ -117,16 +122,14 @@ void CopySelectedPath(AppState& s) {
 
 // Creates "新建文件夹"/"新建文本文档.txt" via the ops layer, then (on the next
 // snapshot) selects it and enters the rename overlay.
-void CreateNewItem(AppState& s, bool folder) {
+void CreateNewItemWithExtension(AppState& s, bool folder, const std::wstring& extension,
+                                l10n::StringId label) {
     app::Tab* tab = ActiveTab(s);
     if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) || tab->net_readonly) return;
-    std::wstring name = folder
-        ? app::UniqueChildName(tab->current_path,
-            l10n::Get(l10n::StringId::NewFolder), L"")
-        : app::UniqueChildName(tab->current_path,
-            l10n::Get(l10n::StringId::NewTextDocument), L".txt");
+    const std::wstring name = app::UniqueChildName(tab->current_path, l10n::Get(label),
+                                                   folder ? L"" : extension);
     std::wstring full = tab->current_path;
-    if (!full.ends_with(L"\\")) full += L"\\";
+    if (!full.ends_with(L'\\')) full += L'\\';
     full += name;
     ops::OpRequest req;
     req.type = folder ? ops::OpType::CreateFolder : ops::OpType::CreateTextFile;
@@ -134,6 +137,34 @@ void CreateNewItem(AppState& s, bool folder) {
     const auto task_id = s.ops.Submit(std::move(req));
     app::QueueCreateRenameIntent(tab->create_rename_intents, task_id,
         tab->current_path, tab->view_generation);
+}
+
+void CreateNewItem(AppState& s, bool folder) {
+    CreateNewItemWithExtension(s, folder, L".txt", l10n::StringId::NewTextDocument);
+}
+
+// 快捷方式: a .lnk pointing at the folder being viewed, then the inline rename
+// overlay. Explorer's New > Shortcut opens a wizard; a folder shortcut is the
+// useful default here.
+void CreateNewShortcut(AppState& s) {
+    using Microsoft::WRL::ComPtr;
+    app::Tab* tab = ActiveTab(s);
+    if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) ||
+        tab->net_readonly) return;
+    const std::wstring name = app::UniqueChildName(tab->current_path,
+        l10n::Get(l10n::StringId::NewShortcut), L".lnk");
+    std::wstring full = tab->current_path;
+    if (!full.ends_with(L'\\')) full += L'\\';
+    full += name;
+    ComPtr<IShellLinkW> link;
+    ComPtr<IPersistFile> file;
+    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&link))) || FAILED(link.As(&file)))
+        return;
+    link->SetPath(tab->current_path.c_str());
+    link->SetWorkingDirectory(tab->current_path.c_str());
+    if (FAILED(file->Save(full.c_str(), TRUE))) return;
+    RefreshActiveTab(s);
 }
 
 // 新建 rows backed by HKCR\<ext>\ShellNew: the name mirrors Explorer — the
@@ -770,6 +801,70 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
     return true;
 }
 
+void ShowTagManager(AppState& s) {
+    ui::TagManagerSpec spec;
+    spec.title = l10n::Get(l10n::StringId::TagManagerTitle);
+    spec.intro = l10n::Get(l10n::StringId::TagManagerIntro);
+    spec.tabs[0] = l10n::Get(l10n::StringId::TagManagerAll);
+    spec.tabs[1] = l10n::Get(l10n::StringId::TagManagerFrequent);
+    spec.tabs[2] = l10n::Get(l10n::StringId::TagManagerUnused);
+    spec.tabs[3] = l10n::Get(l10n::StringId::TagManagerInvalid);
+    spec.done_text = l10n::Get(l10n::StringId::ToolbarDone);
+    spec.merge_text = l10n::Get(l10n::StringId::TagManagerMerge);
+    spec.delete_text = l10n::Get(l10n::StringId::TagManagerDelete);
+    spec.invalid_note = l10n::Get(l10n::StringId::TagManagerInvalidNote);
+    for (const app::ColorTag& tag : s.places.tags) {
+        ui::TagManagerRow row;
+        row.id = tag.id;
+        row.name = tag.name;
+        row.rgb = tag.rgb;
+        row.count = static_cast<int>(tag.paths.size());
+        // Missing-item check is bounded: a tag with thousands of entries only
+        // probes its first 64, which already tells the user what they need.
+        size_t probed = 0;
+        for (const std::wstring& path : tag.paths) {
+            if (probed++ >= 64) break;
+            if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+                row.invalid = true;
+                break;
+            }
+        }
+        spec.rows.push_back(std::move(row));
+    }
+    ui::TagManagerResult result;
+    if (!ui::ShowTagManagerDialog(s.hwnd, spec, result, s.darkMode, s.accentColor)) return;
+    if (result.merge_ids.empty() && result.delete_ids.empty()) return;
+
+    std::vector<app::TagAdsUpdate> updates;
+    bool changed = false;
+    if (!result.merge_ids.empty()) {
+        const app::TagId target = result.merge_ids.front();
+        for (size_t i = 1; i < result.merge_ids.size(); ++i) {
+            const app::TagId other = result.merge_ids[i];
+            if (other == target || !s.places.FindTag(other)) continue;
+            const std::vector<std::wstring> paths = s.places.PathsForTag(other);
+            if (!paths.empty()) s.places.SetTagsBatch(target, paths, true, &updates);
+            changed = s.places.DeleteTag(other, &updates) > 0 || changed;
+        }
+    }
+    for (const app::TagId& id : result.delete_ids) {
+        if (!s.places.FindTag(id)) continue;
+        changed = s.places.DeleteTag(id, &updates) > 0 || changed;
+    }
+    if (!changed) return;
+    QueueTagAds(s, std::move(updates));
+    // Tag views of a tag that no longer exists fall back to a fresh listing.
+    ForEachPane(s, [&](app::Pane& pane) {
+        auto* tab = pane.ActiveTab();
+        if (!tab || !fs::IsVirtualPath(tab->current_path)) return;
+        std::wstring kind, reference;
+        app::ParseLulingPath(tab->current_path, &kind, &reference);
+        if (kind == L"tag") LoadVirtualView(s, *tab, tab->current_path);
+    });
+    SyncTagGroups(s);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
 std::wstring SelectedShare(AppState& s);
 void RunMapNetworkDrive(AppState& s, const std::wstring& share);
 void RunDriveVerb(AppState& s, int cmd);
@@ -796,6 +891,13 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         const auto& shell_new = app::ShellNewItems();
         const size_t index = static_cast<size_t>(cmd - app::CmdNewShellBase);
         if (index < shell_new.size()) CreateShellNewItem(s, shell_new[index]);
+        return;
+    }
+    if (cmd >= app::CmdNewBuiltinBase &&
+        cmd < app::CmdNewBuiltinBase + app::BuiltinNewItemCount()) {
+        const int index = cmd - app::CmdNewBuiltinBase;
+        CreateNewItemWithExtension(s, false, app::BuiltinNewItemExtension(index),
+                                   app::BuiltinNewItemLabel(index));
         return;
     }
     if(needs_files && DeferContentSelection(s,[cmd](AppState& v){DispatchMenuCommand(v,cmd);})) return;
@@ -896,7 +998,7 @@ void DispatchMenuCommand(AppState& s, int cmd) {
             if (!entry.is_dir) continue;
             const std::wstring path = EntryFullPath(*tab, index);
             if (path.empty()) continue;
-            OpenLulingWindow(s, WindowInit{path});
+            OpenWindowOrTab(s, WindowInit{path});
             opened = true;
         }
         // Nothing selected (background menu): the folder on screen.
@@ -904,7 +1006,7 @@ void DispatchMenuCommand(AppState& s, int cmd) {
             const std::wstring path =
                 !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path)
                     ? tab->current_path : std::wstring();
-            OpenLulingWindow(s, WindowInit{path});
+            OpenWindowOrTab(s, WindowInit{path});
         }
         break;
     }
@@ -1015,6 +1117,21 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         break;
     case app::CmdNewFolder: CreateNewItem(s, true); break;
     case app::CmdNewTextFile: CreateNewItem(s, false); break;
+    case app::CmdNewMarkdown:
+        CreateNewItemWithExtension(s, false, L".md", l10n::StringId::NewMarkdownDocument);
+        break;
+    case app::CmdNewShortcut: CreateNewShortcut(s); break;
+    case app::CmdNewPrimaryBase:
+    case app::CmdNewPrimaryBase + 1:
+    case app::CmdNewPrimaryBase + 2: {
+        const int choice = cmd - app::CmdNewPrimaryBase;
+        if (s.appPrefs.toolbar_new_primary != choice) {
+            s.appPrefs.toolbar_new_primary = choice;
+            if (!s.isolatedTest) s.appPrefs.Save();
+            InvalidateRect(s.hwnd, nullptr, FALSE);
+        }
+        break;
+    }
     case app::CmdAppendNameSuffix: {
         // readd.py's rule: the configured text inserted between the stem and
         // the extension. Expressed as a pattern because the dialog rebuilds the
@@ -1072,9 +1189,11 @@ void DispatchMenuCommand(AppState& s, int cmd) {
         ShowTagPicker(s, point);
         break;
     }
-    case app::CmdShortcutHelp:
-        ui::ShowShortcutHelp(s.hwnd, s.darkMode, s.accentColor);
+    case app::CmdShortcutHelp: {
+        const auto groups = app::ShortcutGroupsWithPrefs(s.appPrefs.shortcut_bindings);
+        ui::ShowShortcutHelp(s.hwnd, s.darkMode, s.accentColor, &groups);
         break;
+    }
     case app::CmdResetWindowPosition:
         // The palette is reachable by keyboard, so this is the way back for a
         // window stranded on a monitor that no longer exists (B26, §9.3).
@@ -1628,7 +1747,7 @@ void ShowNewDropdown(AppState& s) {
     if (!EnsureMenu(s)) return;
     const auto anchor = s.renderer.NewCommandRect((float)s.compositor.Width()); POINT pt{(LONG)anchor.left, (LONG)anchor.bottom};
     ClientToScreen(s.hwnd, &pt);
-    int cmd = s.menu->TrackPopup(pt, app::BuildNewMenu());
+    int cmd = s.menu->TrackPopup(pt, app::BuildNewMenu(s.appPrefs.toolbar_new_primary));
     if (cmd != app::CmdNone) DispatchMenuCommand(s, cmd);
 }
 
@@ -2398,6 +2517,8 @@ bool QuickPreviewItemAt(AppState& s, const app::Tab& tab, int index, ui::QuickPr
     if (item.path.empty()) return false;
     item.starred = s.places.IsStarred(item.path);
     item.read_only = IsRecycleTab(&tab) || tab.net_readonly;
+    item.position = index + 1;
+    item.count = static_cast<int>(tab.EntryCount());
     return true;
 }
 
@@ -2442,7 +2563,8 @@ void ToggleQuickPreview(AppState& s) {
         const POINT* zoom_from = nullptr;
         if (app::Tab* tab = ActiveTab(s); tab && s.pane) {
             ui::PaneViewModel pane;
-            app::FillPaneViewModel(pane, *s.pane, &s.places);
+            app::FillPaneViewModel(pane, *s.pane, &s.places,
+        s.appPrefs.list_checkboxes);
             const int view = pane.ViewIndex(tab->selected_index);
             if (view >= 0) {
                 const D2D1_RECT_F bounds = FocusedPaneRect(s);
@@ -2464,6 +2586,114 @@ void ToggleQuickPreview(AppState& s) {
         s.quickPreview.Show(item, s.darkMode, effect, s.safeMode, zoom_from);
         s.quickPreviewSelection.Reset(item.path);
     }
+}
+
+namespace {
+// Keep the toggled folder selected after expansion changes row indices.
+bool SelectTreePath(app::Tab& tab, const std::wstring& full_path) {
+    if (!tab.tree_rows) return false;
+    for (size_t i = 0; i < tab.tree_rows->size(); ++i) {
+        if (_wcsicmp((*tab.tree_rows)[i].full_path.c_str(), full_path.c_str()) == 0) {
+            tab.selected_index = static_cast<int>(i);
+            tab.selection_anchor = tab.selected_index;
+            tab.selected.clear();
+            tab.selected.insert(tab.selected_index);
+            tab.all_selected = false;
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
+
+void ToggleTreeExpansion(AppState& s, app::Tab& tab, int index) {
+    if (!tab.TreeActive() || index < 0 || index >= static_cast<int>(tab.EntryCount())) return;
+    const fs::DirEntry entry = tab.EntryAt(static_cast<size_t>(index));
+    if (!entry.tree_has_children || entry.full_path.empty()) return;
+    const std::wstring key = app::TreePathKey(entry.full_path);
+    if (tab.tree_expanded.erase(key) > 0) {
+        app::RebuildTreeRows(tab);
+        SelectTreePath(tab, entry.full_path);
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        return;
+    }
+    tab.tree_expanded.insert(key);
+    // Refresh every time a folder opens: it may have changed while collapsed.
+    // The cached children still draw immediately below.
+    if (!tab.tree_pending.contains(key)) {
+        tab.tree_pending[key] = app::BeginTreeChildrenLoad(
+            s.hwnd, entry.full_path, tab.sort_column, tab.sort_direction,
+            tab.show_hidden_files, tab.show_protected_os_files);
+    }
+    app::RebuildTreeRows(tab);
+    SelectTreePath(tab, entry.full_path);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
+void ApplyTreeChildren(AppState& s, UINT_PTR token) {
+    std::wstring path;
+    bool ok = false;
+    uint64_t stamp = 0;
+    const auto entries = app::TakeTreeChildrenLoad(token, path, ok, stamp);
+    if (!entries) return;  // stale: its tab is gone
+    const std::wstring key = app::TreePathKey(path);
+    ForEachPane(s, [&](app::Pane& pane) {
+        app::Tab* tab = pane.ActiveTab();
+        if (!tab) return;
+        const auto pending = tab->tree_pending.find(key);
+        if (pending == tab->tree_pending.end() || pending->second != token) return;
+        tab->tree_pending.erase(pending);
+        if (ok) {
+            tab->tree_children[key] = *entries;
+            tab->tree_child_stamps[key] = stamp;
+        } else {
+            // The folder is gone or unreadable: collapse it instead of polling
+            // a dead path forever.
+            tab->tree_expanded.erase(key);
+            tab->tree_children.erase(key);
+            tab->tree_child_stamps.erase(key);
+        }
+        if (!tab->TreeActive()) return;
+        // A background refresh must not move the user's selection.
+        std::wstring keep;
+        if (tab->selected_index >= 0 && tab->selected_index < static_cast<int>(tab->EntryCount()))
+            keep = tab->EntryAt(static_cast<size_t>(tab->selected_index)).full_path;
+        app::RebuildTreeRows(*tab);
+        const bool kept = !keep.empty() && SelectTreePath(*tab, keep);
+        if (!kept) SelectTreePath(*tab, path);
+    });
+    InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
+void RefreshExpandedTreeFolders(AppState& s) {
+    if (!app::TreeViewEnabled() || s.treeStampToken != 0) return;
+    std::vector<std::pair<std::wstring, uint64_t>> folders;
+    ForEachPane(s, [&](app::Pane& pane) {
+        app::Tab* tab = pane.ActiveTab();
+        if (!tab || !tab->TreeActive()) return;
+        for (const std::wstring& path : tab->tree_expanded) {
+            const auto stamp = tab->tree_child_stamps.find(path);
+            folders.emplace_back(path, stamp == tab->tree_child_stamps.end() ? 0 : stamp->second);
+        }
+    });
+    if (folders.empty()) return;
+    s.treeStampToken = app::BeginTreeStampCheck(s.hwnd, std::move(folders));
+}
+
+void ApplyTreeStamps(AppState& s, UINT_PTR token) {
+    if (s.treeStampToken == token) s.treeStampToken = 0;
+    const auto changed = app::TakeTreeStampCheck(token);
+    if (!changed || changed->empty()) return;
+    ForEachPane(s, [&](app::Pane& pane) {
+        app::Tab* tab = pane.ActiveTab();
+        if (!tab || !tab->TreeActive()) return;
+        for (const std::wstring& path : *changed) {
+            if (!tab->tree_expanded.contains(path) || tab->tree_pending.contains(path)) continue;
+            tab->tree_pending[path] = app::BeginTreeChildrenLoad(
+                s.hwnd, path, tab->sort_column, tab->sort_direction,
+                tab->show_hidden_files, tab->show_protected_os_files);
+        }
+    });
 }
 
 void NavigateQuickPreview(AppState& s, int direction) {
@@ -2555,6 +2785,21 @@ void ApplySettingsEffects(AppState& s, app::SettingsEffect effects) {
             if (auto* tab = pane.ActiveTab()) {
                 tab->SetShowHiddenFiles(s.appPrefs.show_hidden_files);
                 tab->SetShowProtectedOsFiles(s.appPrefs.show_protected_os_files);
+            }
+        });
+        s.scrollTargetY = 0.0f;
+    }
+    if (app::HasEffect(effects, app::SettingsEffect::TreeView)) {
+        app::SetTreeViewEnabled(s.appPrefs.tree_view);
+        ForEachPane(s, [&](app::Pane& pane) {
+            if (app::Tab* tab = pane.ActiveTab()) {
+                if (!s.appPrefs.tree_view) {
+                    tab->tree_expanded.clear();
+                    tab->tree_children.clear();
+                    tab->tree_child_stamps.clear();
+                    tab->tree_pending.clear();
+                }
+                app::RebuildTreeRows(*tab);
             }
         });
         s.scrollTargetY = 0.0f;
@@ -3001,15 +3246,26 @@ struct ToolbarPinDef {
     const wchar_t* glyph;
     l10n::StringId label;
     const wchar_t* shortcut;
+    int group = 0;   // 0 工具, 1 选中时
 };
 // Bit i of AppPrefs::toolbar_pins pins kToolbarPins[i] (prototype PINNABLE;
-// 新建文件夹 is the New button itself and always shown).
+// 新建文件夹 is the New button itself and always shown). Existing bit meanings
+// stay put: new commands are appended so saved preferences keep working.
 constexpr ToolbarPinDef kToolbarPins[] = {
-    {app::CmdNewTextFile, L"\xE8A5", l10n::StringId::NewTextDocument, L""},
-    {app::CmdCopyPath, L"\xE71B", l10n::StringId::CopyPath, L"Ctrl+Shift+C"},
-    {app::CmdOpenTerminal, L"\xE756", l10n::StringId::OpenInTerminal, L""},
-    {app::CmdProperties, L"\xE946", l10n::StringId::Properties, L"Alt+Enter"},
-    {app::CmdUndo, L"\xE7A7", l10n::StringId::Undo, L"Ctrl+Z"},
+    {app::CmdNewTextFile, L"\xE8A5", l10n::StringId::NewTextDocument, L"", 0},
+    {app::CmdCopyPath, L"\xE71B", l10n::StringId::CopyPath, L"Ctrl+Shift+C", 0},
+    {app::CmdOpenTerminal, L"\xE756", l10n::StringId::OpenInTerminal, L"", 0},
+    {app::CmdProperties, L"\xE946", l10n::StringId::Properties, L"Alt+Enter", 0},
+    {app::CmdUndo, L"\xE7A7", l10n::StringId::Undo, L"Ctrl+Z", 0},
+    {app::CmdCut, L"\xE8C6", l10n::StringId::Cut, L"Ctrl+X", 0},
+    {app::CmdCopy, L"\xE8C8", l10n::StringId::Copy, L"Ctrl+C", 0},
+    {app::CmdPaste, L"\xE77F", l10n::StringId::Paste, L"Ctrl+V", 0},
+    {app::CmdRename, L"\xE8AC", l10n::StringId::Rename, L"F2", 0},
+    {app::CmdDelete, L"\xE74D", l10n::StringId::Delete, L"Del", 0},
+    {app::CmdCompressZip, L"\xE7B8", l10n::StringId::TrayMenuZip, L"", 0},
+    {app::CmdSelectAll, L"\xE8B3", l10n::StringId::SelectAll, L"Ctrl+A", 1},
+    {app::CmdInvertSelection, L"\xE8D3", l10n::StringId::InvertSelection, L"", 1},
+    {app::CmdSelectWildcard, L"\xE71C", l10n::StringId::SelectWildcard, L"", 1},
 };
 ui::FluentMenuItem CustomizeToolbarItem() {
     ui::FluentMenuItem item;
@@ -3286,6 +3542,15 @@ std::vector<ui::SelectionChipAction> ToolbarPinActions(AppState& s) {
         case app::CmdCopyPath: action.enabled = has_selection || !tab->current_path.empty(); break;
         case app::CmdOpenTerminal: action.enabled = !TerminalTarget(s).empty(); break;
         case app::CmdProperties: action.enabled = has_selection; break;
+        case app::CmdCut:
+        case app::CmdCopy:
+        case app::CmdDelete:
+        case app::CmdCompressZip: action.enabled = has_selection; break;
+        case app::CmdRename: action.enabled = tab->SelectedCount() == 1; break;
+        case app::CmdPaste: action.enabled = has_selection || !tab->current_path.empty(); break;
+        case app::CmdSelectAll:
+        case app::CmdInvertSelection:
+        case app::CmdSelectWildcard: action.enabled = tab->EntryCount() > 0; break;
         default: action.enabled = s.ops.CanUndo(); break;
         }
         out.push_back(std::move(action));
@@ -3320,6 +3585,11 @@ void ShowToolbarCustomize(AppState& s) {
     spec.pin_heading = l10n::Get(l10n::StringId::PinToToolbar);
     spec.done_text = l10n::Get(l10n::StringId::ToolbarDone);
     spec.cancel_text = l10n::Get(l10n::StringId::Cancel);
+    spec.tab_tools = l10n::Get(l10n::StringId::ToolbarTabTools);
+    spec.tab_selection = l10n::Get(l10n::StringId::ToolbarTabSelection);
+    spec.tab_apps = l10n::Get(l10n::StringId::ToolbarTabApps);
+    spec.search_hint = l10n::Get(l10n::StringId::ToolbarSearchHint);
+    spec.shortcut_hint = l10n::Get(l10n::StringId::ToolbarShortcutHint);
     const l10n::StringId primary[] = {l10n::StringId::NewPrimaryFolder, l10n::StringId::NewPrimaryLast,
                                       l10n::StringId::NewPrimaryMenu};
     for (int i = 0; i < 3; ++i) {
@@ -3334,6 +3604,7 @@ void ShowToolbarCustomize(AppState& s) {
     folder.label = l10n::Get(l10n::StringId::NewFolder);
     folder.caption = l10n::Get(l10n::StringId::AlwaysShown);
     folder.locked = true;
+    folder.group = 0;
     spec.pins.push_back(std::move(folder));
     for (size_t i = 0; i < std::size(kToolbarPins); ++i) {
         ui::ToolbarCustomizeRow row;
@@ -3341,6 +3612,7 @@ void ShowToolbarCustomize(AppState& s) {
         row.label = l10n::Get(kToolbarPins[i].label);
         row.caption = kToolbarPins[i].shortcut;
         row.checked = (s.appPrefs.toolbar_pins & (1u << i)) != 0;
+        row.group = kToolbarPins[i].group;
         spec.pins.push_back(std::move(row));
     }
     FillToolbarAppRows(s, spec);

@@ -48,6 +48,9 @@ struct AppPrefs {
     bool integration_residual = false; // runtime: some association still belongs to Luling
     bool integration_incomplete = false;
     bool take_over_explorer_windows = false; // experimental choice; runtime is gated by integration_enabled
+    // True once the user toggled the row above. Existing installs that never
+    // touched it adopt the takeover together with folder integration.
+    bool take_over_explorer_windows_set = false;
     bool shell_tag_menu = false;    // File Explorer "Luling tags" submenu (shell_tag_menu.cpp syncs HKCU)   // registry is the source of truth (not in app.json)
     bool verify_copies = false;
     bool show_status_performance = false;
@@ -73,6 +76,8 @@ struct AppPrefs {
     int new_tab_open = 0;
     // Closing the only tab closes the window (app/last_tab_close.h).
     bool close_window_with_last_tab = false;
+    // Single-window mode: every open-in-window request becomes a tab here.
+    bool single_window = false;
     bool confirm_recycle_delete = false; // ask before Delete moves items to the Recycle Bin
     // Sign-in launches (Run value with --startup) stay hidden behind the tray icon.
     bool start_in_tray = false;
@@ -93,6 +98,37 @@ struct AppPrefs {
     bool show_protected_os_files = false;
     // Double click on empty list space: 0 nothing, 1 back, 2 up (blank_pane_click.h).
     int blank_click_action = 0;
+    // Copy / move into a folder that already has the name: 0 ask, 1 keep both
+    // (the new item gets a copy suffix), 2 replace the existing one.
+    int collision_policy = 0;
+    // A single click opens the item (a drag still selects); off by default.
+    bool single_click_open = false;
+    // A checkbox leads every row so multi-selection does not need Ctrl.
+    bool list_checkboxes = false;
+    bool show_hidden_shares = false;   // \\server lists $ admin shares
+    // A folder Luling cannot open (gone, not a folder, no access) opens in
+    // Windows Explorer instead of an empty tab.
+    bool explorer_fallback = true;
+    // 修改时间提示: mark items whose mtime is recent. Style: 0 off, 1 dot,
+    // 2 time bar, 3 text only. Days: 1 / 3 / 7 / 30. Palette: 0 accent,
+    // 1 cool-warm, 2 teal, 3 amber, 4 aurora, 5 graphite.
+    int mtime_style = 0;
+    int mtime_days = 7;
+    int mtime_palette = 0;
+    bool mtime_dim_old = true;
+    bool mtime_bold_today = true;
+    bool mtime_in_icons = true;
+    bool mtime_folders = false;
+    bool mtime_flash = true;
+    // OneDrive Files On-Demand state shown after the name.
+    bool cloud_status = true;
+    // A pinned parent-folder row at the top of a scrolled list; clicking it
+    // goes up one level.
+    bool sticky_parent = true;
+    // Inline file tree in the details list: folders expand to show children.
+    bool tree_view = true;
+    // SVN working-copy status after the name (needs svn.exe).
+    bool svn_status = false;
     bool change_tracking_enabled = false;
     int change_tracking_days = 7;
     // system / zh-CN / en-US
@@ -121,9 +157,16 @@ struct AppPrefs {
     // Empty = theme default, or Windows when explicitly selected.
     std::wstring accent_rgb;
     bool accent_follow_system = false;
+    // The custom accent as HSL (the Appearance sliders); kept alongside
+    // accent_rgb so dragging never round-trips through RGB quantization.
+    int accent_h = 206;
+    int accent_s = 100;
+    int accent_l = 38;
     // Tag colors the user added via the custom color dialog (0xRRGGBB),
     // appended after the seven Finder defaults in the swatch strip.
     std::vector<uint32_t> custom_tag_colors;
+    // 快捷键 overrides (shortcut_map.h): packed command << 16 | vk << 8 | mods.
+    std::vector<uint32_t> shortcut_bindings;
     int duplicate_scan_scope = 0; // 0 folder, 1 drive, 2 all local disks
     std::wstring duplicate_scan_folder;
     std::wstring duplicate_scan_drive;

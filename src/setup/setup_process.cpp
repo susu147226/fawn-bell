@@ -154,7 +154,7 @@ void StopLulingHosts(const std::vector<std::wstring>& dirs, bool touch_service) 
     // Scoped to the install directories (the Inno script used taskkill /IM,
     // which also ended hosts of portable copies that do not lock our files).
     std::vector<ProcessEntry> list;
-    for (const wchar_t* image : {L"Luling.Index.exe", L"Luling.Preview.exe", L"luling_shell.exe"}) {
+    for (const wchar_t* image : {L"Luling.Index.exe", L"Luling.Preview.exe", L"Luling.AI.exe", L"luling_shell.exe"}) {
         if (!FindProcesses(image, dirs, list, false)) continue;
         for (const auto& p : list) {
             const bool ok = EndProcess(p.pid);

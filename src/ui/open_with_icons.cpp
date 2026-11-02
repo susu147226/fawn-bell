@@ -206,8 +206,20 @@ OpenWithIconCache::Badge OpenWithIconCache::BadgeFor(const std::wstring& name, u
         preview::IsFamilyExtension(preview::PreviewFamily::Psd, extension) ||
         preview::IsOneOf(extension, {L".apng", L".jxl", L".raw", L".dng", L".cr2", L".cr3",
             L".nef", L".nrw", L".arw", L".sr2", L".orf", L".rw2", L".raf", L".pef"})) return {};
+    return BadgeForExtension(extension, pixels, L"");
+}
+
+OpenWithIconCache::Badge OpenWithIconCache::AppIconFor(const std::wstring& name, uint32_t pixels) {
+    const std::wstring extension = LowerExtension(name);
+    if (!dc_ || extension.empty() || extension == L".lnk" || extension == L".url") return {};
+    return BadgeForExtension(extension, pixels, L"app|");
+}
+
+OpenWithIconCache::Badge OpenWithIconCache::BadgeForExtension(const std::wstring& extension,
+                                                              uint32_t pixels,
+                                                              const std::wstring& key_prefix) {
     const uint32_t bucket = BucketPixels(pixels);
-    const std::wstring key = extension + L"|" + std::to_wstring(bucket);
+    const std::wstring key = key_prefix + extension + L"|" + std::to_wstring(bucket);
     Badge previous;
     if (const auto it = entries_.find(key); it != entries_.end()) {
         previous = {it->second.bitmap.get(), it->second.needs_plate};
@@ -282,6 +294,24 @@ void OpenWithIconCache::WorkerLoop() {
     }
     wic.reset();
     if (SUCCEEDED(com_hr)) CoUninitialize();
+}
+
+common::MenuIconRef LoadAppIconPixels(const std::wstring& file, uint32_t pixels) {
+    if (file.empty()) return nullptr;
+    ComPtr<IWICImagingFactory> wic;
+    if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&wic))) || !wic.get())
+        return nullptr;
+    const uint32_t edge = (std::min)(pixels ? pixels : 32u, 64u);
+    UINT width = 0, height = 0;
+    std::vector<uint8_t> data;
+    if (!LoadImageFile(wic.get(), file, edge, width, height, data) || data.empty())
+        return nullptr;
+    auto out = std::make_shared<common::MenuIconPixels>();
+    out->width = width;
+    out->height = height;
+    out->bgra = std::move(data);
+    return out->Valid() ? common::MenuIconRef(std::move(out)) : nullptr;
 }
 
 } // namespace luling::ui

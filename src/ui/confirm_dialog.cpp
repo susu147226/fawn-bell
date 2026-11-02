@@ -69,10 +69,24 @@ public:
         SetForegroundWindow(hwnd_);
 
         MSG message{};
-        while (!done_ && GetMessageW(&message, nullptr, 0, 0) > 0) {
-            RedirectStrayModalKey(message, hwnd_);
-            TranslateMessage(&message);
-            DispatchMessageW(&message);
+        while (!done_) {
+            if (spec_.cancel && spec_.cancel->load()) {
+                // The caller went away; answer as if the person pressed Esc.
+                choice_ = ConfirmChoice::Cancel;
+                break;
+            }
+            const DWORD wait = MsgWaitForMultipleObjectsEx(0, nullptr, 100, QS_ALLINPUT,
+                                                           MWMO_INPUTAVAILABLE);
+            if (wait == WAIT_TIMEOUT) continue;
+            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+                if (message.message == WM_QUIT) {
+                    done_ = true;
+                    break;
+                }
+                RedirectStrayModalKey(message, hwnd_);
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
         }
         if (IsWindow(hwnd_)) { HideComposedDialog(hwnd_, owner_); DestroyWindow(hwnd_); }
         hwnd_ = nullptr;

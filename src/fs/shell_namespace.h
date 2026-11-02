@@ -16,6 +16,8 @@ namespace luling::fs {
 
 bool IsShellPath(const std::wstring& path);
 std::wstring MakeShellPath(PCIDLIST_ABSOLUTE pidl);
+// Decodes a "luling:shell:…" path into an owned absolute PIDL (CoTaskMemFree).
+bool ShellPidlFromPath(const std::wstring& path, PIDLIST_ABSOLUTE& pidl);
 // Throws std::runtime_error on a malformed path or a failed bind.
 void EnumerateShellDirectory(const std::wstring& path, std::vector<DirEntry>& out,
                              const std::atomic<bool>* cancelled = nullptr);

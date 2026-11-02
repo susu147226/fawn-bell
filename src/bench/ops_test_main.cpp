@@ -331,7 +331,19 @@ static void CheckDeleteProgress(const std::wstring& srcDir)
 int wmain(int argc, wchar_t** argv) {
     setvbuf(stdout, nullptr, _IONBF, 0);
     // Assertions below use the Simplified texts (" - 副本", "已取消"); the
-    // English forms are checked separately.
+    // English forms are checked separately. The string table lives in the
+    // app's resources, so load that module beside this test binary.
+    {
+        wchar_t module[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, module, MAX_PATH);
+        std::wstring app(module);
+        app.resize(app.find_last_of(L"\\/") + 1);
+        app += L"luling.exe";
+        if (HMODULE resources = LoadLibraryExW(app.c_str(), nullptr, LOAD_LIBRARY_AS_DATAFILE))
+            l10n::Initialize(reinterpret_cast<HINSTANCE>(resources), L"zh-CN");
+        else
+            l10n::Initialize(GetModuleHandleW(nullptr), L"zh-CN");
+    }
     l10n::SetLanguage(L"zh-CN");
     fprintf(stderr, "[test] start\n");
 

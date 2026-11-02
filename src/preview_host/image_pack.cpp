@@ -252,6 +252,11 @@ bool ImagePackDecode(const std::wstring& path, UINT cap, bool grid, ImagePackFra
     return ok;
 }
 
+bool ImagePackAccelerate(const std::wstring&, UINT, bool, ImagePackFrame& frame) {
+    frame = ImagePackFrame{};
+    return false;   // this build's pack does not offer accelerated PNG / WebP
+}
+
 std::vector<PreviewPropertyValue> ParseImagePackProbe(std::string_view output) {
     std::string format, width, height, bits, alpha, hdr, primaries, images, animated, lossless, channels,
         compression, parts, depth;

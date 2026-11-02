@@ -1,4 +1,5 @@
 #include "app_internal.h"
+#include "settings_backup.h"
 #include <shlobj.h>
 #include "system_ctx_model.h"
 #include "app_hover_preview.h"
@@ -51,10 +52,10 @@ struct SettingDestination { I title;int page;unsigned expanded; };
 constexpr SettingDestination destinations[]={
     {I::SettingsTheme,0,0},{I::SettingsThemeColor,0,0},{I::SettingsWindowEffect,0,0},{I::SettingsLanguage,0,0},{I::SettingsTextRender,0,0},{I::SettingsUiFontSize,0,0},
     {I::SettingsIntegration,0,0},{I::SettingsDefaultManager,0,0},{I::SettingsLaunch,0,0},{I::SettingsStartInTray,0,0},{I::SettingsKeepRunning,0,0},{I::SettingsNotifyIcon,0,0},
-    {I::SettingsHomeFolder,0,0},{I::SettingsStartupOpen,0,0},{I::SettingsNewTabOpen,0,0},{I::SettingsCloseLastTab,0,0},{I::SettingsRowHeight,0,0},{I::SettingsShowPerformance,0,0},
+    {I::SettingsHomeFolder,0,0},{I::SettingsStartupOpen,0,0},{I::SettingsNewTabOpen,0,0},{I::SettingsCloseLastTab,0,0},{I::SettingsSingleWindow,0,0},{I::SettingsRowHeight,0,0},{I::SettingsShowPerformance,0,0},
     {I::ListSmartDate,0,0},{I::ListZebraRows,0,0},{I::ListSizeBar,0,0},{I::ListTagNameColor,0,0},{I::ListSelectionOutline,0,0},{I::ListThumbnailBadges,0,0},{I::SettingsFolderSort,0,0},{I::SettingsConfirmDelete,0,0},
     {I::SettingsWallpaper,0,1},{I::SettingsWallpaperLook,0,1},{I::SettingsWallpaperBlur,0,1},{I::SettingsTrayIcon,0,1},{I::SettingsStagingTray,0,1},{I::SettingsShowHidden,0,1},{I::SettingsShowProtected,0,1},{I::PinnedNames,0,1},{I::SettingsVerticalTabs,0,1},{I::SettingsHints,0,1},{I::SettingsHintsReset,0,1},
-    {I::SettingsBlankClickBack,0,1},{I::SettingsChangeTracking,0,1},{I::SettingsOpenFolders,0,0},{I::SettingsWinE,0,0},{I::SettingsThisPc,0,0},{I::SettingsExplorerWindows,0,0},{I::SettingsShellTags,0,1},
+    {I::SettingsBlankClickBack,0,1},{I::SettingsCollision,0,1},{I::SettingsSingleClick,0,1},{I::SettingsHiddenShares,0,1},{I::SettingsChangeTracking,0,1},{I::SettingsOpenFolders,0,0},{I::SettingsWinE,0,0},{I::SettingsThisPc,0,0},{I::SettingsExplorerWindows,0,0},{I::SettingsShellTags,0,1},
     {I::GlobalSearch,1,0},{I::GlobalSearchHotkey,1,0},{I::SearchPinyin,1,0},{I::ContentIndexManage,1,0},{I::IndexLocation,1,2},{I::LocalDrives,1,2},
     {I::Exclusions,1,2},{I::ServerFolders,1,2},{I::SettingsContextMenu,2,0},{I::SettingsDuplicates,4,0},{I::QuickPreview,5,4},{I::SettingsAboutDiagnostics,3,0},{I::SettingsAutoUpdate,3,0},
 };
@@ -281,6 +282,10 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
             RestartLuling(s);
         } else if(hit.index==3) {
             ShellExecuteW(s.hwnd,L"open",app::kLulingReleasesPage,nullptr,nullptr,SW_SHOWNORMAL);
+        } else if(hit.index==4) {
+            ExportSettingsBackup(s);
+        } else if(hit.index==5) {
+            ImportSettingsBackup(s);
         }
         break;
     case H::SettingsReleaseNote: {

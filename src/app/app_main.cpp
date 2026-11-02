@@ -20,6 +20,8 @@
 #include "../ui/batch_rename_dialog.h"
 #include "../ui/quick_preview_window.h"
 #include "app_sidebar_refresh.h"
+#include "shortcut_map.h"
+#include "app_shortcuts.h"
 #include "operation_intent_ui.h"
 #include "../ui/typography.h"
 #include "../ui/preview_format_catalog.h"
@@ -120,6 +122,11 @@
 #pragma comment(lib, "uxtheme.lib")
 #pragma comment(lib, "psapi.lib")
 #include "app_internal.h"
+#include "app_tree.h"
+#include "ai_assistant.h"
+#include "ai_assistant_conn.h"
+#include "ai_settings_edits.h"
+#include "ai_broker.h"
 #include "app_messages.h"
 #include "host_routing.h"
 #include "host_window.h"
@@ -152,6 +159,7 @@ void UnregisterAssocChangeNotify() {
     g_assocNotify = 0;
 }
 } // namespace
+
 #include "group_wheel_ui.h"
 #include "duplicate_scan.h"
 #include "shell_tag_menu.h"
@@ -165,6 +173,7 @@ void UnregisterAssocChangeNotify() {
 #include <dbt.h> // WM_DEVICECHANGE / DEV_BROADCAST_HDR
 
 using namespace luling;
+
 
 uint64_t FileTimeValue(const FILETIME& value) {
     ULARGE_INTEGER result{};
@@ -425,6 +434,8 @@ static void TickSessionAutosave(AppState& s, HWND hwnd, ULONGLONG now) {
 // minimized or hidden to the tray (see ui_timer_pacer.h).
 static app::UiTimerPacer g_uiTimerPacer;
 
+// The process-wide MCP tool broker (null until the first window starts it).
+
 static void SyncUiTimerRate(HWND hwnd, bool visible) {
     UINT period = 0;
     if (g_uiTimerPacer.Update(visible, GetTickCount64(), period))
@@ -459,16 +470,30 @@ static bool WindowCloaked(HWND hwnd) {
 // A forwarded launch: a folder opens as a tab; a launch without a path (Win+E
 // through the shell integration) asks for another window at the current
 // folder, even when that folder is already visible.
+// A forwarded launch: a folder opens as a tab; --new-window (the Win+E verb)
+// asks for another window at the current folder; any other launch without a
+// path (taskbar, Start menu) brings the open window forward instead of
+// stacking a second one.
+static constexpr wchar_t kNewWindowRequest[] = L"luling:new-window";
+
 static void OpenForwardedLaunch(AppState& s, const std::wstring& path) {
-    if (!path.empty()) {
+    if (!path.empty() && path != kNewWindowRequest) {
         OpenFolderInNewTab(s, path);
         return;
+    }
+    if (path.empty()) {
+        if (AppState* target = s.core.windows.MostRecent()) {
+            HWND hwnd = target->hwnd;
+            if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+            SetForegroundWindow(hwnd);
+            return;
+        }
     }
     std::wstring current;
     if (const app::Tab* tab = ActiveTab(s);
         tab && !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path))
         current = tab->current_path;
-    OpenLulingWindow(s, WindowInit{current});
+    OpenWindowOrTab(s, WindowInit{current});
 }
 
 // WM_COPYDATA payloads: shell tag requests, an open request forwarded by a
@@ -580,6 +605,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->hwnd = hwnd;
         s->core.windows.Add(hwnd, s);
         if (!s->core.service_window) s->core.service_window = hwnd;
+        AiBrokerStart(*s);
         // Later windows skip the process-level setup below: services, saved
         // state and the tray already belong to the first window.
         const bool init_core = !s->core.started;
@@ -717,6 +743,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
         }
         s->appPrefs.Load();
+        // Must be in effect before any restored tab's first snapshot lands:
+        // otherwise the tree rows are built while the switch reads "on" but
+        // the view stays flat until the user toggles it twice.
+        app::SetTreeViewEnabled(s->appPrefs.tree_view);
+        fs::SetShowServerHiddenShares(s->appPrefs.show_hidden_shares);
         NoteRunningVersion(*s);
         if (!s->shot.active && s->appPrefs.theme_mode >= 0) {
             s->themeOverride = s->appPrefs.theme_mode == 1 ? ui::ThemeMode::Light :
@@ -957,9 +988,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             s->ops.SetShellMenuCallback([notify = ServiceWindow(*s)](uint32_t token,
                                                std::vector<ops::ShellMenuItem> items,
                                                bool partial,
-                                               std::vector<std::wstring> slow_clsids) {
+                                               ops::ShellMenuAnswer answer) {
                 auto* payload = new ShellCtxItemsPayload{
-                    std::move(items), partial, std::move(slow_clsids) };
+                    std::move(items), partial, std::move(answer.slow_clsids) };
                 if (!notify || !PostMessageW(notify, WM_SHELLCTX_ITEMS, token,
                                              reinterpret_cast<LPARAM>(payload)))
                     delete payload;
@@ -1104,7 +1135,12 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER |
             SWP_NOACTIVATE | SWP_FRAMECHANGED);
-        if (init_core) s->core.started = true;
+        if (init_core) {
+            s->core.started = true;
+            wchar_t ai_panel_on[8]{};
+            if (GetEnvironmentVariableW(L"LULING_AI_PANEL_ON_START", ai_panel_on, ARRAYSIZE(ai_panel_on)) > 0)
+                AiAssistantOpen(*s, false);
+        }
         if (init_core && !s->shot.active && !s->session_extra_windows.empty())
             PostMessageW(hwnd, WM_OPEN_SESSION_WINDOWS, 0, 0);
         return 0;
@@ -1246,6 +1282,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (s) { SuspendContentSearches(*s); s->globalSearchWindow.Hide(); }
         // Hiding to the tray is the last window's choice; closing one of
         // several windows really closes it.
+        if (s) AiAssistantDestroy(*s);
+        if (s) AiSettingsEditsDestroy(*s);
         const bool last_window = !s || s->core.windows.IsLastWindow(hwnd);
         if (last_window && s &&
             (s->appPrefs.keep_running_on_close || s->appPrefs.global_search_enabled)) {
@@ -1276,7 +1314,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         for (auto it = windows.rbegin(); it != windows.rend(); ++it) {
             WindowInit init;
             init.restore = &*it;
-            OpenLulingWindow(*s, init);
+            OpenWindowOrTab(*s, init);
         }
         return 0;
     }
@@ -1287,7 +1325,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (const app::Tab* tab = ActiveTab(*s);
             tab && !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path))
             path = tab->current_path;
-        OpenLulingWindow(*s, WindowInit{path});
+        OpenWindowOrTab(*s, WindowInit{path});
         return 0;
     }
 
@@ -1342,6 +1380,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (s->hwndTagRenameEdit) SendMessageW(s->hwndTagRenameEdit, WM_SETFONT, (WPARAM)s->editFont, TRUE);
         if (s->addressEditing) LayoutAddressEditor(*s);
         if (!s->tagRenameId.empty()) LayoutTagRenameOverlay(*s);
+        AiConnDpiChanged(*s);
         InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
     }
@@ -1444,7 +1483,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_PAINT: {
         PAINTSTRUCT ps;
         BeginPaint(hwnd, &ps);
-        if (s) Render(*s);
+        if (s) {
+            Render(*s);
+            AiAssistantLayout(*s);
+            AiSettingsEditsLayout(*s);
+        }
         EndPaint(hwnd, &ps);
         return 0;
     }
@@ -1454,8 +1497,11 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_CTLCOLOREDIT: {
         if (!s) break;
-        EnsureEditVisuals(*s);
         HDC hdc = reinterpret_cast<HDC>(wParam);
+        HWND edit = reinterpret_cast<HWND>(lParam);
+        if (HBRUSH brush = AiConnCtlColor(*s, hdc, edit)) return reinterpret_cast<LRESULT>(brush);
+        if (HBRUSH brush = AiAssistantCtlColor(*s, hdc, edit)) return reinterpret_cast<LRESULT>(brush);
+        EnsureEditVisuals(*s);
         SetTextColor(hdc, ui::EditTextColor(s->darkMode));
         SetBkColor(hdc, ui::EditBackColor(s->darkMode));
         SetBkMode(hdc, OPAQUE);
@@ -1529,6 +1575,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             if (folderSizeResortWaiting) folderSizeResortWaiting = ResortForFolderSizes(*s);
             DrainDirNotifies(*s);
             const ULONGLONG now = GetTickCount64();
+            // Inline file tree: expand-folders change poll (cheap directory
+            // stamps on a worker; nothing to do when no folder is open).
+            if (app::TreeViewEnabled() && s->treeStampToken == 0 &&
+                now - s->treeStampCheckedAt >= 2500) {
+                s->treeStampCheckedAt = now;
+                RefreshExpandedTreeFolders(*s);
+            }
             TickUpdates(*s, now);
             TickLaunchedSelection(*s, now);
             TickOperationReveal(*s, now);
@@ -1698,6 +1751,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         POINT pt{};
         GetCursorPos(&pt);
         ScreenToClient(hwnd, &pt);
+        if (AiAssistantSetCursor(*s, pt.x, pt.y)) return TRUE;
         if (s->sidebarResizing || SidebarResizeHit(*s, pt.x, pt.y)) {
             SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
             return TRUE;
@@ -1857,11 +1911,15 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         // shortcut HandleKeyDown owns that involves Alt has to be listed here or it
         // silently does nothing: that is how Alt+Enter, then Alt+Up/Left/Right, and
         // then Ctrl+Alt+C/X each went dead in turn. When adding an Alt shortcut,
-        // add its key here too.
+        // add its key here too. Rebinding is covered by the table lookup below.
+        if (s && s->shortcutCapture >= 0)
+            return HandleKeyDown(s, hwnd, msg, wParam, lParam);
         if (s && (GetKeyState(VK_MENU) & 0x8000) &&
             (wParam == VK_RETURN || wParam == VK_UP || wParam == VK_DOWN ||
              wParam == VK_LEFT || wParam == VK_RIGHT ||
-             wParam == L'C' || wParam == L'X'))
+             wParam == L'C' || wParam == L'X' || wParam == L'N' ||
+             app::FindShortcutCommand(s->appPrefs.shortcut_bindings,
+                 static_cast<uint32_t>(wParam), app::ModifierBits()) != app::ShortcutCommand::None))
             return HandleKeyDown(s, hwnd, msg, wParam, lParam);
         break;
 
@@ -2006,6 +2064,18 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         }
         return 0;
     }
+
+    case WM_SVN_STATUS:
+        if (s) InvalidateRect(hwnd, nullptr, FALSE);
+        return 0;
+
+    case WM_TREE_CHILDREN:
+        if (s) ApplyTreeChildren(*s, static_cast<UINT_PTR>(wParam));
+        return 0;
+
+    case WM_TREE_STAMPS:
+        if (s) ApplyTreeStamps(*s, static_cast<UINT_PTR>(wParam));
+        return 0;
 
     case WM_RECYCLE_INFO: {
         auto* info = reinterpret_cast<fs::RecycleBinInfo*>(lParam);
@@ -2563,6 +2633,10 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (state) RetireWindowState(*state);
         break;
     }
+
+    case kAiBrokerUiMessage:
+        if (s) AiBrokerHandleUiCall(*s, reinterpret_cast<app::ai::BrokerUiCall*>(lParam));
+        return 0;
     }
 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
@@ -2945,6 +3019,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     luling::crash::Initialize({luling::crash::ProcessRole::App, false, {}});
     diagnostics::InitializeDebugLog(app::GetLulingDataDir());
     diagnostics::DebugLog("app", L"wWinMain");
+    for (int i = 1; i < __argc; ++i)
     std::set_terminate([] {
         diagnostics::DebugLog("app", L"std::terminate");
         ExitProcess(3);
@@ -3135,6 +3210,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             i += 2;
         } else if (wcscmp(__wargv[i], L"--restart") == 0) {
             state.restart_launch = true;
+        } else if (wcscmp(__wargv[i], L"--new-window") == 0) {
+            state.new_window_launch = true;
         } else if (wcscmp(__wargv[i], L"--fps") == 0) {
             state.forceStatusPerformance = true;
             state.showFps = true;
@@ -3186,6 +3263,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     }
     // Launched by the HKCU Run value (app_prefs.cpp), not by the user.
     const bool startup_launch = app::HasStartupArgument(__argc, __wargv);
+    diagnostics::DebugLog("app", L"launch normalized");
     if (!SkipSingletonFromArgv()) {
         if (state.restart_launch) app::SingleInstanceCoordinator::WaitForPreviousInstance(10000);
         const auto result = state.single_instance.Acquire();
@@ -3200,7 +3278,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             bool forwarded = true;
             if (shell_tag) forwarded = app::ForwardShellTagRequest(*shell_tag);
             // A sign-in launch must not pop up the window that is already running.
-            else if (!startup_launch && !shell_tag_com) forwarded = state.single_instance.ForwardOpenPath(state.open_path, 5000);
+            else if (!startup_launch && !shell_tag_com) forwarded = state.single_instance.ForwardOpenPath(
+                state.new_window_launch && state.open_path.empty() ? std::wstring(kNewWindowRequest)
+                                                                  : state.open_path,
+                5000);
             if (!forwarded) {
                 // This process exits before WM_CREATE initializes localization.
                 // Read the preference without repairing startup registration.
@@ -3220,6 +3301,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
     }
 
     if (!state.isolatedTest && !state.shot.active) app::StartUpdateDownloadCleanup();
+    diagnostics::DebugLog("app", L"cleanup step");
 
     // Hidden host (multi-window): owns the single-instance endpoint and
     // forwards process-level notifications to the window used most recently.
@@ -3247,6 +3329,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         });
     if (!host_created) return 1;
     state.core.service_window = state.core.host.Hwnd();
+    diagnostics::DebugLog("app", L"host ready");
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);

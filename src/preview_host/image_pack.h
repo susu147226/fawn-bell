@@ -42,6 +42,10 @@ struct ImagePackFrame {
 // The picture scaled to fit `cap` x `cap` (never enlarged).
 bool ImagePackDecode(const std::wstring& path, UINT cap, bool grid, ImagePackFrame& frame);
 
+// Big still PNG / WebP through the pack. The acceleration ships with a newer
+// pack than this build hosts, so it answers false and WIC keeps the work.
+bool ImagePackAccelerate(const std::wstring& path, UINT cap, bool grid, ImagePackFrame& frame);
+
 // Details-pane rows (size, format, channels). Appends at most `max_rows`
 // rows not already present in `rows`.
 bool ImagePackProperties(const std::wstring& path, std::vector<PreviewPropertyValue>& rows,

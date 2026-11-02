@@ -810,9 +810,9 @@ bool TestStaticMenuIdentity() {
         operations.query = [](auto, HWND, bool, bool, auto) { return 17u; };
         operations.execute_command = [&](const auto& command, const auto&) { invoked = command; };
         controller.SetShellOperations(std::move(operations));
-        StaticVerb a{L"a", L"A", L"", L"cmd-a", {}};
-        StaticVerb b{L"b", L"B", L"", L"cmd-b", {}};
-        StaticVerb parent{L"parent", L"Parent", L"", L"", {a,b}};
+        StaticVerb a{L"a", L"A", L"", L"cmd-a", L"", {}};
+        StaticVerb b{L"b", L"B", L"", L"cmd-b", L"", {}};
+        StaticVerb parent{L"parent", L"Parent", L"", L"", L"", {a,b}};
         const bool cascade = scenario == 1;
         controller.CompleteStaticVerbs(L".txt", cascade ? std::vector<StaticVerb>{parent} :
             std::vector<StaticVerb>{a,b}, controller.cache_generation());

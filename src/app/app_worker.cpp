@@ -5,6 +5,7 @@
 #include "entry_group.h"
 #include "link_resolve.h"
 #include "../fs/fs_enum.h"
+#include "../fs/shell_namespace.h"
 #include "../fs/bounded_enumeration.h"
 #include "../fs/fs_recycle.h"
 #include "../fs/fs_net_cache.h"
@@ -45,7 +46,9 @@ void WorkerPool::Start(ResultCallback cb) {
     running_ = true;
     stopped_ = false;
     const unsigned hw = std::max(2u, std::thread::hardware_concurrency());
-    const unsigned count = std::min(4u, hw);
+    // Slow shares and a stalled phone hold a worker while they wait; a few
+    // spare workers keep local folders listing at the same time.
+    const unsigned count = std::min(6u, std::max(4u, hw));
     active_network_jobs_ = 0;
     max_network_jobs_ = count - 1;
     threads_.reserve(count);
@@ -227,7 +230,7 @@ WorkResult WorkerPool::Process(const WorkItem& item) {
                     if (!fs::IsVirtualPath(path) && !fs::IsUncPath(path))
                         result.git_root = FindGitRoot(path);
                     return result;
-                }, cancelled);
+                }, cancelled, std::chrono::seconds(15), item.path.starts_with(L"luling:shell:"));
             *entries = std::move(listing.entries);
             res.identity = listing.identity;
             res.git_root = std::move(listing.git_root);

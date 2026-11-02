@@ -162,6 +162,8 @@ function(luling_add_version_resource target description internal_name original_f
 endfunction()
 
 add_library(luling_runtime_log STATIC src/common/runtime_log.cpp)
+# Every later target that logs a runtime event links this by default.
+link_libraries(luling_runtime_log)
 target_include_directories(luling_runtime_log PUBLIC "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(luling_runtime_log PUBLIC psapi)
 
@@ -405,7 +407,7 @@ luling_enable_lumatext(luling_file_operation_authorization_dialog_test)
 add_executable(luling_file_picker_operations_test
     src/bench/file_picker_operations_test.cpp
     src/ui/folder_picker_operations.cpp ${LULING_PERMISSION_UI_SOURCES}
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp
     src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_file_picker_operations_test PRIVATE
     d3d11 d2d1 dwrite dxgi dcomp dwmapi shcore ole32 windowscodecs comctl32 uxtheme
@@ -465,7 +467,7 @@ if(LULING_APP_SOURCES)
         target_sources(luling PRIVATE src/bench/quick_preview_audit_test.cpp)
         target_sources(luling PRIVATE src/bench/tray_completion_test.cpp)
     endif()
-    target_sources(luling PRIVATE src/app/luling.rc src/common/ffmpeg_tool.cpp src/common/temp_files.cpp src/bench/file_picker_dialog_test.cpp src/bench/file_picker_operations_test.cpp)
+    target_sources(luling PRIVATE src/app/luling.rc src/common/ffmpeg_tool.cpp src/common/temp_files.cpp src/common/json_value.cpp src/bench/file_picker_dialog_test.cpp src/bench/file_picker_operations_test.cpp)
     include(cmake/release_notes.cmake)
     luling_embed_release_notes(luling)
     set_property(SOURCE src/app/luling.rc APPEND PROPERTY OBJECT_DEPENDS
@@ -556,30 +558,30 @@ add_executable(luling_cover_palette_test src/bench/cover_palette_test.cpp)
 add_executable(luling_ops_test
     src/bench/ops_test_main.cpp
     src/ops/duplicate_cleanup_guard.cpp
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp
     src/ops/file_lock_owner.cpp
     src/ops/clipboard.cpp
     src/ipc/shell_client.cpp)
 target_link_libraries(luling_ops_test PRIVATE ole32 shell32 uuid bcrypt luling_localization)
 add_executable(luling_authorization_flow_test src/bench/authorization_flow_test.cpp
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_authorization_flow_test PRIVATE ole32 shell32 uuid bcrypt advapi32 luling_localization)
 
 add_executable(luling_rename_ops_test src/bench/rename_ops_test.cpp
     src/app/batch_rename.cpp
     src/ops/duplicate_cleanup_guard.cpp
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_rename_ops_test PRIVATE ole32 shell32 uuid bcrypt luling_localization luling_fs_watch)
 
 add_executable(luling_create_rename_intent_test src/bench/create_rename_intent_test.cpp
     src/app/create_rename_intent.cpp src/ops/duplicate_cleanup_guard.cpp
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_create_rename_intent_test PRIVATE ole32 shell32 uuid bcrypt luling_localization luling_fs_watch)
 
 # Locked-item lookup (Restart Manager) + end-process-and-retry through OpsManager.
 add_executable(luling_file_lock_test src/bench/file_lock_owner_test.cpp
     src/ops/duplicate_cleanup_guard.cpp
-    src/ops/file_lock_owner.cpp src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ipc/shell_client.cpp)
+    src/ops/file_lock_owner.cpp src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_file_lock_test PRIVATE ole32 shell32 uuid bcrypt rstrtmgr luling_localization)
 
 # ---- Luling.Shell.exe: COM isolation process (stage 1: recycle bin / IFileOperation) ----
@@ -587,7 +589,7 @@ set(LULING_ELEVATED_HOST_SOURCES
     src/elevated_host/main.cpp
     src/ops/elevated_delete.cpp
     src/ipc/elevated_transfer_transport.cpp
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp
     src/ops/duplicate_cleanup_guard.cpp
     src/ops/file_lock_owner.cpp
     src/ipc/shell_client.cpp)
@@ -610,7 +612,7 @@ add_executable(luling_elevated_session_test src/bench/elevated_session_test.cpp
     src/ops/elevated_transfer_client.cpp src/ipc/elevated_transfer_transport.cpp)
 target_compile_definitions(luling_elevated_session_test PRIVATE LULING_ELEVATED_TEST_CLIENT=1)
 target_sources(luling_elevated_session_test PRIVATE src/bench/review_transfer_test.cpp
-    src/ops/ops_manager.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp
+    src/ops/ops_manager.cpp src/ops/transfer_engine.cpp src/ops/shortcut_launch.cpp src/common/ffmpeg_tool.cpp src/ops/duplicate_cleanup_guard.cpp
     src/ops/file_lock_owner.cpp src/ipc/shell_client.cpp)
 target_link_libraries(luling_elevated_session_test PRIVATE ole32 shell32 advapi32 bcrypt
     uuid rstrtmgr luling_localization)
@@ -623,6 +625,16 @@ target_link_libraries(luling_shell PRIVATE ole32 shell32 uuid advapi32 shlwapi v
     luling_add_version_resource(luling_shell "Luling Shell host" "luling_shell" "luling_shell.exe")
 endif()
 
+# ---- Luling.AI.exe: MCP over stdio. Permissions, confirmations, the five
+# tools and the activity log stay in luling.exe (src/app/ai_broker.cpp).
+add_executable(luling_ai src/ai_host/main.cpp src/common/json_value.cpp)
+target_link_libraries(luling_ai PRIVATE ole32 shell32 advapi32)
+set_target_properties(luling_ai PROPERTIES OUTPUT_NAME "Luling.AI")
+luling_add_version_resource(luling_ai "Luling AI host (MCP)" "Luling.AI" "Luling.AI.exe")
+if(TARGET luling)
+    add_dependencies(luling luling_ai)
+endif()
+
 # ---- Luling.Preview.exe: thumbnail decoding / Shell provider isolation ----
 add_executable(luling_preview WIN32 src/preview_host/main.cpp src/preview_host/video_codec.cpp
     src/preview_host/media_pack.cpp src/preview_host/image_pack.cpp
@@ -631,7 +643,7 @@ add_executable(luling_preview WIN32 src/preview_host/main.cpp src/preview_host/v
     src/preview_host/svg_raster.cpp src/preview_host/metafile_raster.cpp
     src/preview_host/pdf_raster.cpp src/preview_host/dwg_thumb.cpp
     src/preview_host/archive_listing.cpp src/preview_host/udf_listing.cpp src/preview_host/psd_raster.cpp
-    src/preview_host/font_raster.cpp src/preview_host/preview_decoders.cpp
+    src/preview_host/font_raster.cpp src/preview_host/preview_decoders.cpp src/preview_host/jpeg_dc_preview.cpp src/preview_host/jpeg_embedded_preview.cpp src/preview_host/tiff_reduce.cpp
     src/preview_host/preview_properties.cpp src/preview_host/preview_file_utils.cpp
     src/preview_host/zip_entry.cpp src/preview_host/office_model.cpp src/preview_host/office_sketch.cpp
     src/preview_host/folder_listing.cpp src/preview_host/markdown_document.cpp third_party/md4c/md4c.c
@@ -658,7 +670,7 @@ luling_add_version_resource(luling_preview "Luling preview host" "Luling.Preview
 
 # Preview protocol self test (console; drives Luling.Preview.exe over the pipe)
 add_executable(luling_preview_test src/bench/preview_test_main.cpp src/bench/preview_coverage.cpp
-    src/bench/thumbnail_cache_test.cpp src/ui/thumbnail_cache.cpp src/preview_host/video_codec.cpp
+    src/bench/thumbnail_cache_test.cpp src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp src/preview_host/video_codec.cpp
     src/preview_host/zip_entry.cpp src/preview_host/office_model.cpp
     src/preview_host/office_doc_model.cpp src/preview_host/office_slide_model.cpp
     src/preview_host/office_sheet_model.cpp
@@ -719,15 +731,17 @@ add_executable(luling_math_test src/bench/math_formula_test.cpp
     src/ui/math_macro.cpp src/ui/math_alphabet.cpp
     src/ui/math_font_metrics.cpp src/ui/math_font_face.cpp
     src/ui/markdown_view.cpp src/ui/syntax_highlight.cpp src/ui/typography.cpp
-    src/ui/thumbnail_cache.cpp src/ui/ui_compositor.cpp
+    src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp src/ui/ui_compositor.cpp
     src/preview_host/markdown_document.cpp third_party/md4c/md4c.c)
 target_compile_definitions(luling_math_test PRIVATE MD4C_USE_UTF16)
 target_link_libraries(luling_math_test PRIVATE dwrite d2d1 d3d11 dxgi dcomp dwmapi shcore
     windowscodecs ole32 shell32 shlwapi user32 gdi32 comctl32 luling_localization)
 luling_enable_lumatext(luling_math_test)
 
-add_executable(luling_shell_icons_test src/bench/shell_icons_test.cpp src/ui/shell_icons.cpp)
-target_link_libraries(luling_shell_icons_test PRIVATE ole32 shell32 comctl32 uuid)
+add_executable(luling_shell_icons_test src/bench/shell_icons_test.cpp src/ui/shell_icons.cpp
+    src/fs/fs_enum.cpp)
+target_link_libraries(luling_shell_icons_test PRIVATE ole32 shell32 comctl32 uuid shlwapi
+    netapi32 oleaut32 luling_localization luling_runtime_log)
 
 # Packaged (MSIX / sparse) File Explorer context-menu verbs (#48).
 add_executable(luling_packaged_ctx_test src/bench/packaged_ctx_test.cpp
@@ -804,6 +818,7 @@ add_executable(luling_search_history_test
 
 add_executable(luling_app_controllers_test
     src/bench/app_controllers_test.cpp
+    src/app/shell_verbs.cpp
     src/bench/localization_test.rc
     src/app/settings_controller.cpp
     src/app/pack_installer.cpp
@@ -830,12 +845,14 @@ add_executable(luling_app_controllers_test
     src/app/address_bar_command.cpp
     src/app/last_tab_close.cpp
     src/app/startup_launch.cpp
+    src/fs/fs_enum.cpp
     src/ui/view_layout.cpp
     src/index/index_client.cpp
     src/index/network_agent_client.cpp)
 target_include_directories(luling_app_controllers_test PRIVATE "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(luling_app_controllers_test PRIVATE
-    user32 shell32 ole32 uuid advapi32 shlwapi version luling_localization luling_runtime_log bcrypt winhttp)
+    user32 shell32 ole32 uuid advapi32 shlwapi version netapi32 oleaut32
+    luling_localization luling_runtime_log bcrypt winhttp)
 
 # Shell-only operations (recycle bin, Explorer verbs) go through luling_shell.exe.
 # Copy/move use the in-process scheduler plus CopyFile2.
@@ -1156,10 +1173,10 @@ add_executable(luling_folder_thumbnail_ipc_test src/bench/folder_thumbnail_ipc_t
 target_link_libraries(luling_folder_thumbnail_ipc_test PRIVATE ole32 windowscodecs uuid)
 add_dependencies(luling_folder_thumbnail_ipc_test luling_preview)
 add_executable(luling_folder_thumbnail_cache_test src/bench/folder_thumbnail_cache_test.cpp
-    src/ui/thumbnail_cache.cpp src/ui/folder_thumbnail_cache.cpp)
+    src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp src/ui/folder_thumbnail_cache.cpp)
 target_link_libraries(luling_folder_thumbnail_cache_test PRIVATE d2d1 d3d11 dxgi dwrite windowscodecs ole32 shell32 shlwapi uuid)
 add_executable(luling_thumbnail_cache_unit_test src/bench/thumbnail_cache_unit_main.cpp
-    src/bench/thumbnail_cache_test.cpp src/ui/thumbnail_cache.cpp)
+    src/bench/thumbnail_cache_test.cpp src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp)
 target_link_libraries(luling_thumbnail_cache_unit_test PRIVATE d2d1 d3d11 dxgi dwrite windowscodecs ole32 shell32 shlwapi uuid)
 target_link_libraries(luling_preview_command_test PRIVATE luling_localization)
 add_executable(luling_image_preview_integrity_test src/bench/image_preview_integrity_test.cpp
@@ -1240,7 +1257,7 @@ add_executable(luling_search_audit_test ${audit_content_sources} src/bench/searc
 target_link_libraries(luling_search_audit_test PRIVATE ${audit_content_libraries} shell32 mpr advapi32)
 target_sources(luling PRIVATE src/app/global_search_handoff_query.cpp)
 add_executable(luling_audit_preview_test src/bench/audit_preview_test.cpp
-    src/bench/thumbnail_cache_test.cpp src/ui/thumbnail_cache.cpp
+    src/bench/thumbnail_cache_test.cpp src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp
     src/preview_host/preview_properties.cpp src/preview_host/preview_file_utils.cpp
     src/preview_host/video_codec.cpp src/preview_host/media_pack.cpp
     src/preview_host/image_pack.cpp src/preview_host/raw_pack.cpp src/common/ffmpeg_tool.cpp)
@@ -1560,7 +1577,7 @@ add_executable(luling_preview_interaction_test src/bench/preview_interaction_tes
     src/ui/math_macro.cpp src/ui/math_alphabet.cpp
     src/ui/math_font_metrics.cpp src/ui/math_font_face.cpp
     src/ui/table_view.cpp src/ui/markdown_view.cpp src/ui/syntax_highlight.cpp src/ui/typography.cpp
-    src/ui/thumbnail_cache.cpp src/ui/ui_compositor.cpp
+    src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp src/ui/ui_compositor.cpp
     src/preview_host/markdown_document.cpp third_party/md4c/md4c.c)
 target_compile_definitions(luling_preview_interaction_test PRIVATE MD4C_USE_UTF16)
 target_link_libraries(luling_preview_interaction_test PRIVATE dwrite d2d1 d3d11 dxgi dcomp dwmapi shcore
@@ -1582,7 +1599,7 @@ target_link_libraries(luling_xml_subtree_copy_test PRIVATE xmllite dwrite d2d1 d
 luling_enable_lumatext(luling_xml_subtree_copy_test)
 add_dependencies(luling_xml_subtree_copy_test luling_preview)
 
-add_executable(luling_document_image_cache_test src/bench/document_image_cache_test.cpp src/ui/thumbnail_cache.cpp)
+add_executable(luling_document_image_cache_test src/bench/document_image_cache_test.cpp src/ui/thumbnail_cache.cpp src/ui/thumbnail_disk_cache.cpp)
 target_link_libraries(luling_document_image_cache_test PRIVATE d2d1 d3d11 dxgi dwrite windowscodecs ole32 shell32 shlwapi uuid)
 add_dependencies(luling_document_image_cache_test luling_preview)
 get_target_property(LULING_DOCUMENT_IMAGE_VIEW_SOURCES luling_preview_interaction_test SOURCES)
@@ -1709,3 +1726,13 @@ include(CTest)
 if(BUILD_TESTING)
     include(cmake/tests.cmake)
 endif()
+
+# Thumbnail cache logs failures through the runtime event log.
+target_link_libraries(luling_math_test PRIVATE luling_runtime_log)
+target_link_libraries(luling_preview_test PRIVATE luling_runtime_log)
+target_link_libraries(luling_folder_thumbnail_cache_test PRIVATE luling_runtime_log)
+target_link_libraries(luling_fs_audit_test PRIVATE luling_runtime_log)
+target_link_libraries(luling_thumbnail_cache_unit_test PRIVATE luling_runtime_log)
+target_link_libraries(luling_preview_view_audit_test PRIVATE luling_runtime_log)
+
+

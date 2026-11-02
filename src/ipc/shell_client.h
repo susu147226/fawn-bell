@@ -33,9 +33,16 @@ struct CtxMenuItem {
     std::wstring text;
     std::wstring clsid;
     std::wstring handler;
+    wchar_t mnemonic = 0;         // access key ("&X" of the raw label), 0 = none
     // The row's own menu bitmap from the handler (premultiplied BGRA); null
     // when the handler set none.
     common::MenuIconRef icon;
+};
+
+// The optional tail of an RSP_CTX_ITEMS payload.
+struct CtxItemsExtra {
+    std::vector<std::wstring> slow_clsids;
+    std::vector<CtxHandlerStatus> handlers;  // menu order; empty from an older host
 };
 
 class ShellClient {
@@ -46,7 +53,7 @@ public:
         std::function<void(uint32_t id, uint32_t hr, bool cancelled, std::wstring error)> done;
         // RSP_CTX_ITEMS for a REQ_CTX_QUERY; id is the query id (== session id).
         std::function<void(uint32_t id, std::vector<CtxMenuItem> items, bool partial,
-                           std::vector<std::wstring> slow_clsids)> ctx_items;
+                           CtxItemsExtra extra)> ctx_items;
     };
 
     // Invoked once after ID allocation, before any send or completion callback.
@@ -65,6 +72,15 @@ public:
     uint32_t Rename(const std::wstring& path, const std::wstring& new_name, const Accepted& accepted = {});
     uint32_t CreateFolder(const std::wstring& path, const Accepted& accepted = {});
     uint32_t CreateNewFile(const std::wstring& path, const Accepted& accepted = {});
+    // One of Explorer's verbs on shell items (REQ_SHELL_VERB); empty verb =
+    // the default one. Completes via Callbacks::done.
+    uint32_t ShellVerb(const std::vector<std::wstring>& paths, uint32_t owner_hwnd, bool background,
+                       const std::wstring& verb, const Accepted& accepted = {});
+    // One shell-side file operation (REQ_SHELL_TRANSFER, op = STO_*) on shell
+    // parsing names or paths: a phone's copy, move, new item or delete.
+    uint32_t ShellTransfer(uint32_t op, uint32_t flags, const std::wstring& dest,
+                           const std::vector<std::wstring>& sources,
+                           const std::vector<std::wstring>& names, const Accepted& accepted = {});
     void Cancel(uint32_t id);
     void Abort(uint32_t id);
     bool Ping();

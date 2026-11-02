@@ -283,6 +283,29 @@ uint32_t ShellClient::CreateNewFile(const std::wstring& path, const Accepted& ac
     return Submit(REQ_NEW_FILE, w.data(), accepted);
 }
 
+uint32_t ShellClient::ShellVerb(const std::vector<std::wstring>& paths, uint32_t owner_hwnd,
+                                bool background, const std::wstring& verb, const Accepted& accepted) {
+    if (paths.empty()) return 0;
+    PayloadWriter w;
+    w.PutU32(owner_hwnd);
+    w.PutU32(background ? SVF_BACKGROUND : 0u);
+    w.PutString(verb);
+    w.PutStringArray(paths);
+    return Submit(REQ_SHELL_VERB, w.data(), accepted);
+}
+
+uint32_t ShellClient::ShellTransfer(uint32_t op, uint32_t flags, const std::wstring& dest,
+                                    const std::vector<std::wstring>& sources,
+                                    const std::vector<std::wstring>& names, const Accepted& accepted) {
+    PayloadWriter w;
+    w.PutU32(op);
+    w.PutU32(flags);
+    w.PutString(dest);
+    w.PutStringArray(sources);
+    w.PutStringArray(names);
+    return Submit(REQ_SHELL_TRANSFER, w.data(), accepted);
+}
+
 void ShellClient::Cancel(uint32_t id) {
     std::lock_guard<std::mutex> lock(send_mutex_);
     if (!connection_ || connection_->retired) return;
@@ -456,10 +479,11 @@ void ShellClient::ReaderThread() {
                     it.separator_after = (flags & CTX_ITEM_SEPARATOR_AFTER) != 0;
                     it.has_children = (flags & CTX_ITEM_HAS_CHILDREN) != 0;
                     it.child = (flags & CTX_ITEM_CHILD) != 0;
+                    it.mnemonic = UnpackCtxItemMnemonic(flags);
                     if (ok) items.push_back(std::move(it));
                 }
-                std::vector<std::wstring> slow_clsids;
-                if (ok) r.TryStringArray(slow_clsids);
+                CtxItemsExtra extra;
+                if (ok) r.TryStringArray(extra.slow_clsids);
                 if (ok) luling::ipc::TryCtxItemIcons(r, items);
                 if (ok) {
                     bool pending = false;
@@ -473,7 +497,7 @@ void ShellClient::ReaderThread() {
                     }
                     if (pending && cb_.ctx_items)
                         cb_.ctx_items(h.request_id, std::move(items), partial,
-                                      std::move(slow_clsids));
+                                      std::move(extra));
                 }
             } else if (h.type == RSP_PONG) {
                 std::lock_guard<std::mutex> lock(pending_mutex_);

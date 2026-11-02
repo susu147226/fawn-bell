@@ -17,6 +17,14 @@ void HandleQuickPreviewCommand(AppState& s, const ui::QuickPreviewCommand& comma
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return;
     }
+    if (command.action == ui::QuickPreviewAction::OpenWith && !command.app_path.empty()) {
+        s.ops.OpenWithApp(command.app_path, command.target.path);
+        return;
+    }
+    if (command.action == ui::QuickPreviewAction::OpenWithDialog) {
+        s.ops.ExecuteVerb(command.target.path, L"openas");
+        return;
+    }
     const auto& target = command.target;
     const auto action = command.action;
     if (target.read_only && (action == ui::QuickPreviewAction::Cut ||

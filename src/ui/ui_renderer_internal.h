@@ -1,5 +1,6 @@
 // ui_renderer_internal.h — Draw + HitTest shared geometry (not a public API).
 #pragma once
+#include "ai_settings_view.h"
 #include "ui_renderer.h"
 #include "empty_state_layout.h"
 #include "bloom_accent_picker.h"
@@ -360,16 +361,33 @@ void ClearTextWidthCache() {
         entry.path = !source.full_path.empty() ? source.full_path
                      : (fs::IsVirtualPath(vm.path) ? L"" : JoinDirName(vm.path, source.name));
         entry.attrs = source.attrs;
+        if ((source.attrs & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0)
+            entry.cloud_state = 2;
+        else if ((source.attrs & FILE_ATTRIBUTE_PINNED) != 0)
+            entry.cloud_state = 3;
+        else if ((source.attrs & FILE_ATTRIBUTE_UNPINNED) != 0)
+            entry.cloud_state = 1;
         entry.size_value = source.size;
         entry.modified_value = (static_cast<uint64_t>(source.mtime.dwHighDateTime) << 32) |
                                source.mtime.dwLowDateTime;
         entry.is_dir = penetrated ? source.link_target_is_dir : source.is_dir;
+        entry.tree_depth = source.tree_depth;
+        entry.tree_expanded = source.tree_expanded;
+        entry.tree_has_children = source.tree_has_children && !penetrated;
         entry.is_reparse = source.is_reparse;
         entry.link_kind = fs::ClassifyLink(source.attrs, source.reparse_tag);
         entry.is_link = entry.link_kind != fs::LinkKind::None ||
             (!source.is_dir && IsShortcutName(source.name));
         entry.link_destination = source.link_destination;
         entry.cloud_recall = source.cloud_recall;
+        if (vm.svn_items && !vm.svn_items->empty()) {
+            std::wstring key = source.name;
+            for (wchar_t& c : key) {
+                if (c >= L'A' && c <= L'Z') c = static_cast<wchar_t>(c - L'A' + L'a');
+            }
+            const auto svn = vm.svn_items->find(key);
+            if (svn != vm.svn_items->end()) entry.svn_state = svn->second;
+        }
         if (vm.tag_catalog && source.attrs == 0 && !entry.path.empty()) {
             app::PlaceItemKind known_kind = app::PlaceItemKind::Unknown;
             if (const app::StarredItem* starred = vm.tag_catalog->FindStarred(entry.path))
@@ -1605,13 +1623,18 @@ float MeasureTextWidth(IDWriteFactory2* factory, IDWriteTextFormat* fmt, const s
 // Status-bar columns shared by DrawStatusBar and HitTest. Independent of the
 // global 4 DIP chrome margin so stats sit clear of the resize grip.
 constexpr float kStatusBarPadDip = 12.0f;
+constexpr float kAiChipMaxTextDip = 240.0f;
 
 struct StatusBarMetrics {
     D2D1_RECT_F bar{};
     D2D1_RECT_F task{};
     D2D1_RECT_F cancel_search{};
     D2D1_RECT_F hint_action{};   // empty unless the hint carries a clickable action
+    D2D1_RECT_F ai_chip{};       // the AI chip at the far left; empty when hidden
+    bool ai_chip_text = false;   // the chip has room for its words (else "✦ AI" only)
     float pad = 0.0f;
+    float content_left = 0.0f;   // where the status text starts (right of the chip)
+    float content_right = 0.0f;
     float right_reserved = 0.0f;
 };
 
@@ -1622,7 +1645,38 @@ StatusBarMetrics MakeStatusBarMetrics(const WindowViewModel& vm, const D2D1_RECT
     StatusBarMetrics m;
     m.bar = D2D1::RectF(rect.left, rect.bottom - status_height, rect.right, rect.bottom);
     m.pad = kStatusBarPadDip * scale;
+    m.content_left = rect.left + m.pad;
+    m.content_right = rect.right;
     m.right_reserved = m.pad;
+    // 鹿铃助手's chip takes the far left; the status text starts right of it.
+    if (vm.status.ai_state != StatusAiState::Hidden) {
+        // Widths measured in the small face, scaled to the chip's 12.5 DIP.
+        float k = 1.0f;
+        if (small_format && small_format->GetFontSize() > 0.0f) k = 12.5f * scale / small_format->GetFontSize();
+        const std::wstring label = vm.status.ai_label.empty() ? std::wstring(L"AI") : vm.status.ai_label;
+        const float label_w = factory && small_format
+            ? MeasureTextWidth(factory, small_format, label) * k * 1.06f + 1.0f : 14.0f * scale;
+        m.ai_chip_text = vm.status.ai_state != StatusAiState::Idle && !vm.status.ai_text.empty() &&
+                         rect.right - rect.left >= 640.0f * scale && factory && small_format;
+        const bool bold_text = vm.status.ai_state == StatusAiState::Waiting ||
+                               vm.status.ai_state == StatusAiState::Done ||
+                               vm.status.ai_state == StatusAiState::Error ||
+                               vm.status.ai_state == StatusAiState::Warn;
+        const float text_w = m.ai_chip_text
+            ? (std::min)(kAiChipMaxTextDip * scale,
+                         MeasureTextWidth(factory, small_format, vm.status.ai_text) * k *
+                                 (bold_text ? 1.06f : 1.0f) + 1.0f)
+            : 0.0f;
+        const float width = AiStatusChipWidth(label_w, text_w, m.ai_chip_text,
+                                              vm.status.ai_state == StatusAiState::Busy &&
+                                                  vm.status.ai_progress >= 0.0f,
+                                              scale);
+        const float h = 24.0f * scale;
+        const float top = std::round(m.bar.top + (status_height - h) * 0.5f);
+        const float left = rect.left + m.pad - 4.0f * scale;
+        m.ai_chip = D2D1::RectF(left, top, left + width, top + h);
+        m.content_left = m.ai_chip.right + 12.0f * scale;
+    }
     const std::wstring* trailing = nullptr;
     if (!centered_progress && !vm.status.performance_text.empty()) {
         trailing = rect.right < 1100.0f * scale
@@ -1816,7 +1870,37 @@ TitleChrome MakeTitleChrome(float window_w, float scale, float title_h) {
 }
 
 constexpr float kSettingsNavW = 200.0f;
-constexpr int kSettingsNavCount = 7;  // 5: 预览增强包, 6: 系统右键菜单
+constexpr int kSettingsNavCount = 7;  // pages: 5 packs, 6 shell menu
+
+// Settings navigation, grouped like the shell's own page: a small caption per
+// group, then its rows. About stays pinned above the version line.
+struct SettingsNavItem {
+    int page;
+    int group;
+};
+// Pulse 1.0.58's settings order: 个性化 / 浏览 / 系统 / 功能 / 工具, with 关于与诊断
+// pinned above the version line.
+inline constexpr SettingsNavItem kSettingsNav[] = {
+    {0, 0},   // 外观
+    {7, 1},   // 文件列表
+    {8, 1},   // 标签页与窗口
+    {9, 2},   // 启动与集成
+    {10, 2},  // 文件操作
+    {6, 2},   // 系统右键菜单
+    {1, 3},   // 搜索与索引
+    {5, 3},   // 快速预览
+    {14, 3},  // 增强包 (downloads only)
+    {12, 3},  // AI 助手
+    {11, 3},  // AI 与 MCP
+    {2, 3},   // 右键菜单
+    {13, 3},  // 快捷键
+    {4, 4},   // 重复文件
+};
+inline constexpr int kSettingsNavItemCount =
+    static_cast<int>(sizeof(kSettingsNav) / sizeof(kSettingsNav[0]));
+inline constexpr int kSettingsNavGroupCount = 5;
+// 关于与诊断 stays pinned at the bottom (its own row, page 3).
+inline constexpr int kSettingsPageAbout = 3;
 
 // System folder groups shown under Settings > Exclusions: 0-3 follow
 // index::kSystemExclusionGroups, 4-5 are always skipped by the index.
@@ -1978,7 +2062,7 @@ struct SettingsLayout {
     D2D1_RECT_F luling_card{}, luling_restore{}, luling_preset[4]{}, luling_tabs{}, luling_tab[3]{},
         luling_fixed[2]{}, luling_preview{}, luling_order_reset{}, context_other{};
     D2D1_RECT_F duplicate_options{};
-    D2D1_RECT_F section[4]{}, group[3]{}, footer{};
+    D2D1_RECT_F section[6]{}, group[3]{}, footer{};
     D2D1_RECT_F theme_row{}, theme_tile[3]{}, effect_choice{}, language_choice{};
     D2D1_RECT_F performance_row{}, disclosure[4]{}, filename_status{};
     D2D1_RECT_F integration_card{}, integration_status{}, integration_summary{}, integration_hint{};
@@ -2016,9 +2100,28 @@ struct SettingsLayout {
     D2D1_RECT_F body{};
     D2D1_RECT_F nav{};
     D2D1_RECT_F content{};
-    D2D1_RECT_F nav_row[kSettingsNavCount]{};
+    D2D1_RECT_F nav_row[kSettingsNavItemCount]{};
+    D2D1_RECT_F nav_about{};
+    D2D1_RECT_F nav_group[kSettingsNavGroupCount]{};
+    // 增强包 (page 11): the AI pack's MCP settings, see settings_ai_layout.h.
+    AiPageLayout ai;
+    // AI 助手 (page 12): the model service page, see settings_ai_model_layout.h.
+    AiModelLayout ai_model;
+    // 快捷键 (page 13): one card per group, its title, and its rows.
+    std::vector<D2D1_RECT_F> shortcut_cards;
+    std::vector<D2D1_RECT_F> shortcut_titles;
+    std::vector<D2D1_RECT_F> shortcut_rows;
+    D2D1_RECT_F shortcut_reset{};
+    // 增强包 (page 14): the bundled AI pack card above the downloads.
+    D2D1_RECT_F ai_section{}, ai_card{}, ai_badge{};
     D2D1_RECT_F accent_card{};
     D2D1_RECT_F accent_picker{};
+    D2D1_RECT_F accent_toggle_button{};
+    D2D1_RECT_F accent_custom_card{};
+    D2D1_RECT_F accent_custom_row[3]{};
+    D2D1_RECT_F accent_custom_cells[3][3]{};
+    D2D1_RECT_F accent_swatch{};
+    D2D1_RECT_F accent_hex_rect{};
     D2D1_RECT_F effect_card{};
     D2D1_RECT_F effect_row[kWindowEffectCount]{};
     D2D1_RECT_F density_card{};
@@ -2036,8 +2139,10 @@ struct SettingsLayout {
     D2D1_RECT_F new_tab_open_card{};
     D2D1_RECT_F new_tab_open_row[2]{};
     D2D1_RECT_F close_last_tab_row{};
+    D2D1_RECT_F single_window_row{};
     D2D1_RECT_F confirm_delete_row{};
     D2D1_RECT_F start_in_tray_row{};
+    D2D1_RECT_F explorer_fallback_row{};
     D2D1_RECT_F text_render_card{};
     D2D1_RECT_F text_render_row[3]{};
     D2D1_RECT_F ui_font_size_card{};
@@ -2059,12 +2164,28 @@ struct SettingsLayout {
     D2D1_RECT_F hidden_files_row{};
     D2D1_RECT_F protected_files_row{};
     D2D1_RECT_F pinned_names_row{};
+    D2D1_RECT_F tab_manage_card{};
+    D2D1_RECT_F mtime_style_card{}, mtime_days_card{}, mtime_palette_card{};
+    D2D1_RECT_F mtime_style_row[4]{}, mtime_days_row[4]{}, mtime_palette_row[6]{};
+    D2D1_RECT_F mtime_opt_row[5]{};
+    D2D1_RECT_F cloud_status_row{};
+    D2D1_RECT_F sticky_parent_row{};
+    D2D1_RECT_F tree_view_row{};
+    D2D1_RECT_F svn_status_row{};
+    D2D1_RECT_F thumb_cache_row{};
+    D2D1_RECT_F thumb_cache_button{};
+    std::vector<D2D1_RECT_F> tab_manage_rows;
     D2D1_RECT_F vertical_tabs_row{};
     D2D1_RECT_F hints_row{};
     D2D1_RECT_F hints_reset_row{};
     D2D1_RECT_F hints_reset_button{};
     D2D1_RECT_F blank_click_row{};
     D2D1_RECT_F blank_click_choice[3]{};
+    D2D1_RECT_F collision_row{};
+    D2D1_RECT_F collision_choice[3]{};
+    D2D1_RECT_F single_click_row{};
+    D2D1_RECT_F checkbox_row{};
+    D2D1_RECT_F hidden_shares_row{};
     D2D1_RECT_F win_e_row{};
     D2D1_RECT_F this_pc_row{};
     D2D1_RECT_F explorer_windows_row{};
@@ -2099,6 +2220,8 @@ struct SettingsLayout {
     D2D1_RECT_F update_action[2]{};
     D2D1_RECT_F update_auto_row{};  // empty when this build has no updater
     D2D1_RECT_F about_action[3]{};
+    // 备份与迁移 card (page 3).
+    D2D1_RECT_F backup_card{}, backup_export{}, backup_import{};
     D2D1_RECT_F release_card{};
     D2D1_RECT_F release_all{};
     std::vector<D2D1_RECT_F> release_rows;
@@ -2160,6 +2283,10 @@ float ReleaseLineHeight(const fluent::Painter* painter, const std::wstring& line
 #include "settings_sysctx_layout.h"
 
 
+#include "settings_ai_layout.h"
+#include "settings_ai_model_layout.h"
+#include "settings_pages_layout.h"
+
 SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& rect,
                                   float scale, float title_h, float status_h,
                                   const fluent::Painter* painter) {
@@ -2169,10 +2296,35 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         rect.right - rect.left < 1000 * scale ? 200.0f : 220.0f) * scale;
     l.nav = D2D1::RectF(l.body.left, l.body.top, l.body.left + nav_width, l.body.bottom);
     l.content = D2D1::RectF(l.nav.right, l.body.top, l.body.right, l.body.bottom);
-    for (int i = 0; i < kSettingsNavCount; ++i) {
-        const int position = i == 4 ? 3 : i == 5 ? 4 : i == 6 ? 5 : i;
-        const float top = i == 3 ? l.nav.bottom - 92*scale : l.nav.top + (20 + position*46)*scale;
-        l.nav_row[i] = D2D1::RectF(l.nav.left + 8*scale, top, l.nav.right - 8*scale, top + 40*scale);
+    // Rows keep Pulse's size; a short window hides the ones that would run
+    // into the pinned 关于 row instead of squeezing them (overflow is clipped).
+    const float nav_top = l.nav.top + 14 * scale;
+    const float caption_h = 24 * scale, row_h = 38 * scale, row_step = 40 * scale;
+    l.nav_about = D2D1::RectF(l.nav.left + 8*scale, l.nav.bottom - 96*scale, l.nav.right - 8*scale,
+                              l.nav.bottom - 58*scale);
+    const bool show_about = l.nav.bottom - l.nav.top >= 180 * scale;
+    if (!show_about) l.nav_about = D2D1_RECT_F{};
+    const float nav_limit =
+        show_about ? l.nav_about.top - 8 * scale : l.nav.bottom - 52 * scale;
+    const float nav_content_h = kSettingsNavGroupCount * caption_h + kSettingsNavItemCount * row_step;
+    const float nav_max_scroll = (std::max)(0.0f, nav_content_h - (nav_limit - nav_top));
+    const float nav_scroll = std::clamp(vm.settings_nav_scroll, 0.0f, nav_max_scroll);
+    float nav_y = nav_top - nav_scroll;
+    int nav_group = -1;
+    for (int i = 0; i < kSettingsNavItemCount; ++i) {
+        if (kSettingsNav[i].group != nav_group) {
+            nav_group = kSettingsNav[i].group;
+            const auto g = D2D1::RectF(l.nav.left + 20*scale, nav_y, l.nav.right - 12*scale,
+                                       nav_y + caption_h);
+            const bool shown = g.bottom <= nav_limit && g.top >= l.nav.top;
+            l.nav_group[nav_group] = shown ? g : D2D1_RECT_F{};
+            nav_y += caption_h;
+        }
+        const auto row = D2D1::RectF(l.nav.left + 8*scale, nav_y, l.nav.right - 8*scale,
+                                     nav_y + row_h);
+        const bool shown = row.bottom <= nav_limit && row.top >= l.nav.top;
+        l.nav_row[i] = shown ? row : D2D1_RECT_F{};
+        nav_y += row_step;
     }
     const float pad = 20.0f * scale;
     auto label_btn_w = [&](std::wstring_view label) {
@@ -2183,8 +2335,9 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
     float y = l.content_origin + pad;
     y += 36.0f * scale;
     y += 8.0f * scale;
-    if (vm.settings_page == 0) {
-        y = LayoutSettingsGeneral(l, vm, scale, y, painter);
+    if (vm.settings_page == 0 || (vm.settings_page >= 7 && vm.settings_page <= 10) ||
+        vm.settings_page == 13 || vm.settings_page == 14) {
+        y = LayoutSettingsPages(l, vm, scale, y, painter);
     } else if (vm.settings_page == 1) {
         const float card_left = l.content.left + pad;
         const float card_right = l.content.right - pad;
@@ -2426,6 +2579,19 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
             }
             l.about_card = D2D1::RectF(card_left, y, card_right, actions_y + 48.0f * scale);
             y = l.about_card.bottom + 12.0f * scale;
+
+            // 备份与迁移: export / import the settings files.
+            l.backup_card = D2D1::RectF(card_left, y, card_right, y + 96.0f * scale);
+            {
+                const float bx = card_left + 16.0f * scale;
+                const float by = y + 50.0f * scale;
+                const float ew = label_btn_w(L"导出设置…");
+                const float iw = label_btn_w(L"导入设置…");
+                l.backup_export = D2D1::RectF(bx, by, bx + ew, by + 32.0f * scale);
+                l.backup_import = D2D1::RectF(bx + ew + 8.0f * scale, by,
+                                              bx + ew + 8.0f * scale + iw, by + 32.0f * scale);
+            }
+            y = l.backup_card.bottom + 12.0f * scale;
         }
 
         const bool compact_diagnostics = card_right - card_left < 650.0f * scale;
@@ -2516,6 +2682,10 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         }
         l.release_card = D2D1::RectF(card_left, release_top, card_right, ry + 10.0f * scale);
         y = l.release_card.bottom + 24.0f * scale;
+    } else if (vm.settings_page == 11) {
+        y = LayoutSettingsAi(l, vm, scale, y, painter);
+    } else if (vm.settings_page == 12) {
+        y = LayoutSettingsAiModel(l, vm, scale, y, painter);
     } else if (vm.settings_page == 6) {
         y = LayoutSettingsSysCtx(l, vm, scale, y, painter);
     } else if (vm.settings_page == 5) {
@@ -2634,6 +2804,7 @@ HitTestResult::Region StatusBarHitRegion(const WindowViewModel& vm, const D2D1_R
     IDWriteTextFormat* fmt = compositor ? compositor->SmallFormat() : nullptr;
     const StatusBarMetrics sb = MakeStatusBarMetrics(
         vm, rect, scale, status_height, factory, fmt);
+    if (sb.ai_chip.right > sb.ai_chip.left && ContainsPt(sb.ai_chip, x, y)) return HitTestResult::StatusBarAi;
     if (vm.status.query_cancellable && ContainsPt(sb.cancel_search, x, y)) return HitTestResult::StatusBarCancelSearch;
     if (sb.hint_action.right > sb.hint_action.left && ContainsPt(sb.hint_action, x, y))
         return HitTestResult::StatusHintAction;

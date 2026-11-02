@@ -53,6 +53,16 @@ bool UsesThumbnails(ViewMode mode) noexcept {
            mode == ViewMode::Content;
 }
 
+bool ShowsRowCheckbox(ViewMode mode) noexcept {
+    return mode == ViewMode::Details || mode == ViewMode::List ||
+           mode == ViewMode::Tiles || mode == ViewMode::Content;
+}
+
+bool ShowsGridCheckbox(ViewMode mode) noexcept {
+    return mode == ViewMode::ExtraLargeIcons || mode == ViewMode::LargeIcons ||
+           mode == ViewMode::MediumIcons;
+}
+
 D2D1_RECT_F DetailsContentRect(D2D1_RECT_F bounds, float scale) noexcept {
     const float unit = std::max(0.5f, scale);
     const float width = std::max(0.0f, bounds.right - bounds.left);

@@ -24,6 +24,7 @@ struct ToolbarCustomizeRow {
     std::wstring value;     // app rows: the program path, returned untouched
     bool locked = false;    // shown checked and not changeable
     bool checked = false;
+    int group = 0;          // pins: which tab shows it (0 tools, 1 selection)
 };
 
 struct ToolbarCustomizeSpec {
@@ -35,6 +36,12 @@ struct ToolbarCustomizeSpec {
     std::wstring cancel_text;
     std::vector<ToolbarCustomizeRow> primary;   // one of them checked
     std::vector<ToolbarCustomizeRow> pins;
+    // The sheet's tabs (tools, selection-time, apps) and the filter box.
+    std::wstring tab_tools;
+    std::wstring tab_selection;
+    std::wstring tab_apps;
+    std::wstring search_hint;
+    std::wstring shortcut_hint;   // footer: the sheet's own shortcut
     // Pinned apps (checked) and suggestions (unchecked); at most max_apps checked.
     std::wstring app_heading;
     std::wstring app_hint;        // after the heading: 单击打开选中项 · 拖文件到图标上打开

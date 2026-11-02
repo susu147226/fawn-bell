@@ -37,6 +37,7 @@ enum class SettingsEffect : uint32_t {
     FolderSort = 1u << 11,
     TextRendering = 1u << 12,
     UiFontSize = 1u << 13,
+    TreeView = 1u << 14,
 };
 
 constexpr SettingsEffect operator|(SettingsEffect left, SettingsEffect right) noexcept {
@@ -121,6 +122,9 @@ public:
     float scroll() const noexcept { return scroll_; }
     void SetScroll(float value, float maximum) noexcept;
     void ScrollBy(float delta, float scale, float maximum) noexcept;
+    // The settings navigation column scrolls on its own when it overflows.
+    float nav_scroll() const noexcept { return nav_scroll_; }
+    void SetNavScroll(float value) noexcept { nav_scroll_ = value > 0.0f ? value : 0.0f; }
 
     // Settings > 预览增强包 (page 5). The disk is read at most every 2 s while
     // the page is shown; actions write packs.json and re-read at once.
@@ -225,6 +229,9 @@ public:
     void WindowEffect(std::wstring_view effect_id);
     void AccentChoice(bool system_choice, uint32_t rgb);
     void RowHeight(int index);
+    void MtimeStyle(int index);
+    void MtimeMarkDays(int index);
+    void MtimePalette(int index);
     void FolderSort(int index);
     // Optional Details columns (ui/details_column_set.h bits), every folder.
     void DetailsColumns(uint32_t mask);
@@ -232,6 +239,7 @@ public:
     void NotifyIcon(int index);
     void NewTabOpen(int index);
     void BlankClick(int index);   // 0 nothing, 1 back, 2 up
+    void Collision(int index);    // 0 keep both, 1 replace
     // 0 picks the default location's folder, 1 resets it to This PC.
     void HomeFolder(int action);
     void TextRendering(int index);
@@ -319,6 +327,7 @@ private:
     std::wstring global_search_error_;
     int page_ = 0;
     float scroll_ = 0.0f;
+    float nav_scroll_ = 0.0f;
     PackState packs_;
     uint64_t packs_checked_ = 0;
     // Set when a pack install succeeds; read once by TakePackRestartPrompt().

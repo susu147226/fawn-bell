@@ -551,7 +551,7 @@ void Pipe() {
     static PipeResult result;
     luling::ipc::ShellClient::Callbacks callbacks;
     callbacks.ctx_items = [](uint32_t id, std::vector<luling::ipc::CtxMenuItem> items, bool partial,
-                             std::vector<std::wstring>) {
+                             luling::ipc::CtxItemsExtra) {
         std::lock_guard<std::mutex> lock(result.mutex);
         if (id != result.id) return;
         result.items = std::move(items);

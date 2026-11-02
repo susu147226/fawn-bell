@@ -72,25 +72,39 @@ std::vector<HelpGroup> HelpGroups() {
 // always matches what is painted.
 constexpr float kPad = 24, kHeader = 86, kFooter = 40, kRowH = 28, kGroupH = 32,
                 kColumnGap = 32;
-float GroupHeightDip(const HelpGroup& g) {
-    return kGroupH + kRowH * static_cast<float>(g.rows.size());
+float GroupRowsHeight(const ShortcutGroupView& group) {
+    return kGroupH + kRowH * static_cast<float>(group.rows.size());
 }
-float ColumnHeightDip(const std::vector<HelpGroup>& groups, size_t first, size_t last) {
+float ColumnRowsHeight(const std::vector<ShortcutGroupView>& groups, size_t first, size_t last) {
     float h = 0;
-    for (size_t i = first; i < last && i < groups.size(); ++i) h += GroupHeightDip(groups[i]);
+    for (size_t i = first; i < last && i < groups.size(); ++i) h += GroupRowsHeight(groups[i]);
     return h;
 }
 }
 
-ShortcutHelpLayout LayoutShortcutHelp(float width, float height, float scale) {
+std::vector<ShortcutGroupView> ShortcutGroupsForSettings() {
+    std::vector<ShortcutGroupView> out;
+    for (const HelpGroup& group : HelpGroups()) {
+        ShortcutGroupView view;
+        view.title = l10n::Get(group.title);
+        for (const HelpRow& row : group.rows)
+            view.rows.push_back({l10n::Get(row.label), row.keys});
+        out.push_back(std::move(view));
+    }
+    return out;
+}
+
+ShortcutHelpLayout LayoutShortcutHelp(float width, float height, float scale,
+                                      const std::vector<ShortcutGroupView>* groups_arg) {
     ShortcutHelpLayout l;
+    const auto stock = ShortcutGroupsForSettings();
+    const auto& groups = groups_arg ? *groups_arg : stock;
     const float w = std::max(0.0f, std::min(820.0f * scale, width - 32 * scale));
     l.narrow = w < 640 * scale;
-    const auto groups = HelpGroups();
     const float content = l.narrow
-        ? ColumnHeightDip(groups, 0, groups.size())
-        : std::max(ColumnHeightDip(groups, 0, kLeftGroups),
-                   ColumnHeightDip(groups, kLeftGroups, groups.size()));
+        ? ColumnRowsHeight(groups, 0, groups.size())
+        : std::max(ColumnRowsHeight(groups, 0, kLeftGroups),
+                   ColumnRowsHeight(groups, kLeftGroups, groups.size()));
     l.content_height = content * scale;
     const float header = kHeader + (l.narrow ? 20.0f : 0.0f);
     // The card hugs its content and only scrolls when the window is short.
@@ -106,11 +120,12 @@ ShortcutHelpLayout LayoutShortcutHelp(float width, float height, float scale) {
 }
 
 void DrawShortcutHelp(Compositor& compositor, bool dark, D2D1_COLOR_F accent,
-                      float scale, float scroll, bool close_hover) {
+                      float scale, float scroll, bool close_hover,
+                      const std::vector<ShortcutGroupView>* groups_arg) {
     auto* dc = compositor.Dc();
     if (!dc) return;
     const auto l = LayoutShortcutHelp(static_cast<float>(compositor.Width()),
-                                      static_cast<float>(compositor.Height()), scale);
+                                      static_cast<float>(compositor.Height()), scale, groups_arg);
     const auto surface = dark ? HexColor(0x20242E) : HexColor(0xFFFFFF);
     const auto ink = dark ? HexColor(0xE7EAF5) : HexColor(0x303C54);
     const auto muted = dark ? HexColor(0xA7B3CA) : HexColor(0x71819D);
@@ -180,7 +195,8 @@ void DrawShortcutHelp(Compositor& compositor, bool dark, D2D1_COLOR_F accent,
     const float gap = kColumnGap*scale;
     const float column_w = l.narrow ? l.body.right-l.body.left
                                     : (l.body.right-l.body.left-gap)/2;
-    const auto groups = HelpGroups();
+    const auto stock_groups = ShortcutGroupsForSettings();
+    const auto& groups = groups_arg ? *groups_arg : stock_groups;
     float y = top;
     for (size_t gi = 0; gi < groups.size(); ++gi) {
         const bool right_column = !l.narrow && gi >= kLeftGroups;
@@ -188,14 +204,14 @@ void DrawShortcutHelp(Compositor& compositor, bool dark, D2D1_COLOR_F accent,
         const float x0 = right_column ? l.body.left+column_w+gap : l.body.left;
         const float x1 = x0 + column_w;
         const auto& group = groups[gi];
-        text(l10n::Get(group.title), D2D1::RectF(x0,y+8*scale,x1,y+kGroupH*scale),
+        text(group.title, D2D1::RectF(x0,y+8*scale,x1,y+kGroupH*scale),
              12, heading, true);
         y += kGroupH*scale;
         for (const auto& row : group.rows) {
             const float key_w = std::min(column_w*0.62f, text_width(row.keys)+14*scale);
             const auto key = D2D1::RectF(x1-key_w, y+(kRowH-22)/2*scale,
                                          x1, y+(kRowH+22)/2*scale);
-            text(l10n::Get(row.label), D2D1::RectF(x0,y+(kRowH-20)/2*scale,
+            text(row.action, D2D1::RectF(x0,y+(kRowH-20)/2*scale,
                  key.left-10*scale,y+(kRowH+20)/2*scale),13,ink);
             fill(key,dark?HexColor(0x282E3B):HexColor(0xF7F8FC),4);
             brush->SetColor(line);
@@ -228,12 +244,13 @@ struct HelpWindow {
     bool pressed=false;
     D2D1_COLOR_F accent{};
     float scale=1, scroll=0;
+    const std::vector<ShortcutGroupView>* groups=nullptr;
     void Render() {
         auto* dc=compositor.Dc();
         if (!dc) return;
         dc->BeginDraw();
         dc->Clear(D2D1::ColorF(0.12f,0.16f,0.23f,0.40f));
-        DrawShortcutHelp(compositor,dark,accent,scale,scroll,hover);
+        DrawShortcutHelp(compositor,dark,accent,scale,scroll,hover,groups);
         if (SUCCEEDED(dc->EndDraw())) compositor.Present();
     }
     static LRESULT CALLBACK Proc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
@@ -245,7 +262,7 @@ struct HelpWindow {
         }
         if (!self) return DefWindowProcW(hwnd,msg,wp,lp);
         const auto l=LayoutShortcutHelp(static_cast<float>(self->compositor.Width()),
-            static_cast<float>(self->compositor.Height()),self->scale);
+            static_cast<float>(self->compositor.Height()),self->scale,self->groups);
         auto inside=[&](D2D1_RECT_F r) {
             return GET_X_LPARAM(lp)>=r.left && GET_X_LPARAM(lp)<=r.right &&
                    GET_Y_LPARAM(lp)>=r.top && GET_Y_LPARAM(lp)<=r.bottom;
@@ -276,9 +293,10 @@ struct HelpWindow {
     }
 };
 }
-void ShowShortcutHelp(HWND owner,bool dark,D2D1_COLOR_F accent) {
+void ShowShortcutHelp(HWND owner,bool dark,D2D1_COLOR_F accent,
+                      const std::vector<ShortcutGroupView>* groups) {
     HelpWindow window;
-    window.dark=dark; window.accent=accent;
+    window.dark=dark; window.accent=accent; window.groups=groups;
     window.scale=static_cast<float>(compat::WindowDpi(owner))/96.0f;
     WNDCLASSW wc{};
     wc.hInstance=GetModuleHandleW(nullptr); wc.lpfnWndProc=HelpWindow::Proc;

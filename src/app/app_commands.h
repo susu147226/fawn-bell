@@ -11,6 +11,8 @@ void CopySelectedPath(AppState& s);
 void CreateNewItem(AppState& s, bool folder);
 void QueueTagAds(AppState& s, std::vector<app::TagAdsUpdate> updates);
 bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id);
+// 管理标签: every tag with its count, merge or delete the selected ones.
+void ShowTagManager(AppState& s);
 std::vector<app::TagAdsUpdate> BuildTagAdsUpdates(
         const app::PlacesCatalog& places, const std::vector<std::wstring>& paths,
         bool include_descendants = false);
@@ -158,6 +160,14 @@ void ApplyAccentFromPrefs(AppState& s, bool snap_picker);
 bool SelectedQuickPreviewItem(AppState& s, ui::QuickPreviewItem& item);
 bool QuickPreviewItemForRow(AppState& s, const app::Tab& tab, int index, ui::QuickPreviewItem& item);
 void ToggleQuickPreview(AppState& s);
+// Inline file tree: expand/collapse one folder row (children load lazily).
+void ToggleTreeExpansion(AppState& s, app::Tab& tab, int index);
+// WM_TREE_CHILDREN: install a finished child listing and rebuild the rows.
+void ApplyTreeChildren(AppState& s, UINT_PTR token);
+// Periodic check: expanded folders whose directory stamp changed are
+// re-enumerated so external changes show up without collapsing the tree.
+void RefreshExpandedTreeFolders(AppState& s);
+void ApplyTreeStamps(AppState& s, UINT_PTR token);
 void NavigateQuickPreview(AppState& s, int direction);
 // File verb requested from inside the quick preview (WM_QUICK_PREVIEW_COMMAND).
 void HandleQuickPreviewCommand(AppState& s, const ui::QuickPreviewCommand& command);

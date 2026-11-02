@@ -95,6 +95,7 @@ Section "鹿铃" SecMain
   ExecWait 'taskkill /f /im "Luling.Index.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Preview.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Document.exe"' $0
+  ExecWait 'taskkill /f /im "Luling.AI.exe"' $0
   ExecWait 'taskkill /f /im luling_shell.exe' $0
   ExecWait 'taskkill /f /im luling_integration.exe' $0
   ; sc stop only signals, and an image takes a moment to unload: give the files
@@ -135,6 +136,7 @@ Section "鹿铃" SecMain
   File "${BUILDDIR}\Luling.Index.exe"
   File "${BUILDDIR}\Luling.Preview.exe"
   File "${BUILDDIR}\Luling.Document.exe"
+  File "${BUILDDIR}\Luling.AI.exe"
   File "${BUILDDIR}\luling_shell.exe"
   File "${BUILDDIR}\luling_elevated.exe"
   File "${BUILDDIR}\luling_integration.exe"
@@ -195,6 +197,7 @@ Section "Uninstall"
   ExecWait 'taskkill /f /im "Luling.Index.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Preview.exe"' $0
   ExecWait 'taskkill /f /im "Luling.Document.exe"' $0
+  ExecWait 'taskkill /f /im "Luling.AI.exe"' $0
   ExecWait 'taskkill /f /im luling_shell.exe' $0
   ExecWait 'sc stop LulingIndex' $0
   ExecWait 'sc delete LulingIndex' $0

@@ -42,6 +42,10 @@ void MainRenderer::SetCompositor(Compositor* comp) {
     compositor_ = comp;
     material_.SetCompositor(comp);
     painter_.SetCompositor(comp);
+    // This renderer owns its grid cache (not the shared RenderCaches), so it
+    // has to configure the parallel decode lanes itself. Without this the
+    // cache ran one host, one request at a time.
+    thumbnail_cache_.SetParallelism(0);
     if (!comp) {
         icon_cache_.Reset();
         open_with_icons_.Reset();
@@ -112,11 +116,30 @@ void MainRenderer::SetEmbedded(float top_dip, float bottom_dip) {
 }
 
 float MainRenderer::EffectiveSidebarWidth(float window_width) const {
+    const float ai = AiDockWidth(window_width);
     const float window_dip = window_width / scale_;
     const float rail = kSidebarRailWidthDip * scale_;
-    if (window_dip < kSidebarRailWindowDip || collapse_value_ >= 1.0f) return rail;
+    if (window_dip < kSidebarRailWindowDip || collapse_value_ >= 1.0f) return rail + ai;
     const float full = SidebarFullWidth(window_width);
-    return collapse_value_ <= 0.0f ? full : full + (rail - full) * collapse_value_;
+    return (collapse_value_ <= 0.0f ? full : full + (rail - full) * collapse_value_) + ai;
+}
+
+float MainRenderer::AiDockWidth(float window_width) const {
+    return ai_panel_.DockWidth(window_width, kSidebarRailWidthDip * scale_, scale_);
+}
+
+D2D1_RECT_F MainRenderer::AiColumnRect(float w, float h) const {
+    const float ai = AiDockWidth(w);
+    const float left = EffectiveSidebarWidth(w) - ai;
+    return D2D1::RectF(left, title_bar_height_, left + ai, h - status_height_);
+}
+
+D2D1_RECT_F MainRenderer::AiFloatingArea(float w, float h) const {
+    return D2D1::RectF(0.0f, title_bar_height_, w, h - status_height_);
+}
+
+void MainRenderer::SetAiPanel(bool open, AiPanelMode mode, bool animate) {
+    ai_panel_.SetState(open, mode, animate);
 }
 
 void MainRenderer::SetSidebarCollapsed(bool on, bool animate) {
@@ -168,7 +191,7 @@ D2D1_RECT_F MainRenderer::ContentRect(float w, float h) const {
     float left = EffectiveSidebarWidth(w) + margin_;
     float top = title_bar_height_ + toolbar_height_ + margin_;
     float bottom = h - status_height_ - margin_;
-    return D2D1::RectF(left, top, w - margin_ - DetailsPanelWidth(w), bottom);
+    return D2D1::RectF(left, top, w - margin_ - DetailsPanelWidth(w) - ai_width_px_, bottom);
 }
 D2D1_RECT_F MainRenderer::TitleBarRect(float w) const {
     return D2D1::RectF(0, 0, w, title_bar_height_);
@@ -279,7 +302,9 @@ D2D1_RECT_F MainRenderer::SidebarToggleRect(float w) const {
         const float left = (kSidebarRailWidthDip * scale_ - size) * 0.5f;
         return D2D1::RectF(left, top, left + size, top + size);
     }
-    const float right = EffectiveSidebarWidth(w) - 8.0f * scale_;
+    // The docked assistant sits beside the sidebar, not inside it: the
+    // collapse button stays at the sidebar's own edge.
+    const float right = EffectiveSidebarWidth(w) - AiDockWidth(w) - 8.0f * scale_;
     return D2D1::RectF(right - size, top, right, top + size);
 }
 
@@ -597,6 +622,9 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
                           const Theme& theme) {
     if (!compositor_ || !compositor_->Dc()) return;
     ++motion_frame_;
+    // What this frame asks for goes ahead of requests earlier frames dropped;
+    // without this, off-screen requests kept their older rank and decoded first.
+    thumbnail_cache_.AdvanceFrame();
     folder_thumbnail_cache_.BeginFrame();
     struct FolderFrameScope {
         FolderThumbnailCache& cache;
@@ -604,6 +632,7 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
     } folder_frame{folder_thumbnail_cache_};
     // One timestamp per frame: every glide and the sidebar width agree.
     motion_now_ = motion::NowMs();
+    ai_panel_.Tick(motion_now_);
     list_loading_active_ = false;
     folder_size_anim_active_ = false;
     if (collapse_anim_) {
@@ -680,6 +709,12 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
         if (vm.details_visible) DrawDetailsPanel(vm, rect, theme);
         else preview_handler_.Sync(notify_hwnd_, {}, L"", 0, 0, 0, 0, vm.dark,
                                    theme.bg, theme.text, false);
+        // The floating card may sit over the details pane: draw it after it.
+        if (ai_panel_.Visible()) {
+            ai_panel_.Draw(compositor_, vm.ai_panel, theme, AiColumnRect(rect.right, rect.bottom),
+                           AiPanelView::DockTargetWidth(rect.right, kSidebarRailWidthDip * scale_, scale_),
+                           AiFloatingArea(rect.right, rect.bottom), scale_, motion_now_);
+        }
         if (peek) DrawSidebarPeek(vm, rect, theme);
         if (!embedded_) DrawStatusBar(vm, rect, theme);
     }
@@ -1279,13 +1314,38 @@ void MainRenderer::DrawStatusBar(const WindowViewModel& vm, const D2D1_RECT_F& r
     // Sits on the shared sheet painted by Render(); no own fill or top rule.
     MakeBrush(dc, theme.text_secondary, brTextSecondary_);
     const float gap = 16.0f * scale_;
+    if (sb.ai_chip.right > sb.ai_chip.left) {
+        // The AI chip (ai_panel_view.h): "✦ AI", what the assistant is doing,
+        // and whether 鹿铃助手 is open.
+        AiStatusChipView chip;
+        chip.label = vm.status.ai_label;
+        chip.text = vm.status.ai_text;
+        chip.words = sb.ai_chip_text;
+        switch (vm.status.ai_state) {
+        case StatusAiState::Busy: chip.state = AiChipState::Busy; break;
+        case StatusAiState::Waiting: chip.state = AiChipState::Waiting; break;
+        case StatusAiState::Done: chip.state = AiChipState::Done; break;
+        case StatusAiState::Error: chip.state = AiChipState::Error; break;
+        case StatusAiState::Warn: chip.state = AiChipState::Warn; break;
+        default: chip.state = AiChipState::Idle; break;
+        }
+        chip.progress = vm.status.ai_progress;
+        chip.open = vm.status.ai_open;
+        chip.unread = vm.status.ai_unread;
+        chip.hover = IsHovered(vm, HitTestResult::StatusBarAi);
+        chip.pressed = chip.hover && vm.status.ai_pressed;
+        chip.dark = vm.dark;
+        ai_panel_.DrawStatusChip(compositor_, theme, chip, sb.ai_chip, scale_, motion_now_);
+        // 鹿铃助手 closed and done: the bubble over the chip (.peek).
+        ai_panel_.DrawPeek(compositor_, vm.ai_panel, theme, sb.ai_chip, scale_, motion_now_);
+    }
     const float statusLimit = centered_progress ? std::min(rect.right * 0.30f, sb.task.left - gap) : rect.right * 0.30f;
     const std::wstring status_text = path::FriendlyPathText(vm.status.status_text);
-    const float statusWidth = std::min(std::max(0.0f, statusLimit - sb.pad),
+    const float statusWidth = std::min(std::max(0.0f, statusLimit - sb.content_left),
         MeasureTextWidth(factory, small_fmt, status_text));
     DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), status_text,
-        sb.pad, y, statusWidth, status_height_);
-    const float selectionLeft = sb.pad + statusWidth + gap;
+        sb.content_left, y, statusWidth, status_height_);
+    const float selectionLeft = sb.content_left + statusWidth + gap;
     const bool hasTask = vm.status.query_active || !vm.status.task_text.empty() || vm.status.task_progress >= 0.0f;
     const float selectionRight = hasTask ? sb.task.left - gap : rect.right - sb.right_reserved - gap;
     DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), vm.status.selection_text,
@@ -1494,7 +1554,9 @@ MainRenderer::TabStripMetrics MainRenderer::ComputeTabStrip(
     TabStripMetrics m;
 
     const TitleChrome chrome = MakeTitleChrome(window_w, scale_, title_bar_height_);
-    m.x0 = EffectiveSidebarWidth(window_w) + margin_;
+    // The docked assistant lives below the title bar; its column must not push
+    // the window tabs to the right.
+    m.x0 = EffectiveSidebarWidth(window_w) - AiDockWidth(window_w) + margin_;
     const float tabsRight = chrome.settings_left - 8.0f * scale_;
 
     // Group chips: one at the start of each consecutive same-group run. Their

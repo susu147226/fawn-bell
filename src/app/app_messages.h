@@ -57,6 +57,8 @@ constexpr UINT WM_SHELL_COPY_DONE = WM_APP + 77;
 constexpr UINT WM_DRIVE_VERB = WM_APP + 78;
 // The BitLocker prompt finished: lParam owns app::BitLockerUnlockResult.
 constexpr UINT WM_BITLOCKER_UNLOCK = WM_APP + 79;
+// A background svn status probe finished; the list only needs a repaint.
+constexpr UINT WM_SVN_STATUS = WM_APP + 87;
 
 // Multi-window (M2/M4/M6): values above the single-window range, since the
 // upstream 76-79 collide with the ids this build already ships.
@@ -67,5 +69,7 @@ constexpr UINT WM_BEGIN_TAB_DETACH = WM_APP + 83;       // a tab dragged off the
 constexpr UINT WM_OPEN_EXTERNAL = WM_APP + 84;          // host: lParam std::wstring*, a forwarded launch
 constexpr UINT WM_UNDO_WINDOW_MERGE = WM_APP + 85;      // merge toast clicked: reopen the merged windows
 constexpr UINT WM_MERGE_WINDOW = WM_APP + 86;           // wParam target HWND, lParam tab index: a window was dropped on a strip
+constexpr UINT WM_TREE_CHILDREN = WM_APP + 88;          // wParam token: a folder's children finished enumerating
+constexpr UINT WM_TREE_STAMPS = WM_APP + 89;            // wParam token: expanded folders' directory stamps were checked
 
 } // namespace luling

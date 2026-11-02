@@ -40,7 +40,9 @@ void DrawSidebarInsertionLine(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* brus
 D2D1_RECT_F MainRenderer::SidebarRect(float w, float h) const {
     float top = title_bar_height_ + margin_;
     float bottom = h - status_height_ - margin_;
-    const float right = SidebarPeekVisible(w) ? SidebarFullWidth(w) : EffectiveSidebarWidth(w);
+    // Docked AI sits right of the sidebar; the sidebar stops before it.
+    const float right = SidebarPeekVisible(w) ? SidebarFullWidth(w)
+                                              : EffectiveSidebarWidth(w) - AiDockWidth(w);
     return D2D1::RectF(0.0f, top, right, bottom);
 }
 
@@ -596,7 +598,7 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
             fluent::SidebarItemSpec row;
             row.bounds = slot.rc;
             row.text = item.label;
-            if (item.path == L"luling:recycle") row.detail = item.detail;
+            if (!item.detail.empty()) row.detail = item.detail;
             row.glyph = item.icon_glyph;
             row.badge_text = item.badge;
             row.badge_color = item.badge_color;

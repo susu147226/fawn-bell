@@ -12,6 +12,7 @@
 #include "video_preview.h"
 #include "audio_waveform.h"
 #include "quick_preview_command.h"
+#include "open_with_icons.h"
 
 #include <string>
 #include <vector>
@@ -60,7 +61,9 @@ private:
     friend struct PreviewDeadlineProbe;
     // Pages: multi-page PDF / AI read as a continuous scroll (quick_preview_pages.cpp).
     enum class NativeKind { None, Bitmap, Text, Hex, Archive, Pages, Markdown, Table, Tree };
-    enum class ChromeButton { None, Prev, Next, More };
+    enum class ChromeButton { None, Copy, Prev, Next, More, Open };
+    // Image footer chips, numbered for hit testing (0 = none).
+    enum FooterChip { kChipZoom = 1, kChipBackdrop = 2, kChipInfo = 3, kChipRotate = 4 };
 
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
     LRESULT HandleMessage(UINT message, WPARAM wparam, LPARAM lparam);
@@ -189,11 +192,44 @@ private:
     uint32_t RequestedPixelSize(const D2D1_RECT_F& content) const;
     void DrawHud(ID2D1DeviceContext* dc, const D2D1_RECT_F& content,
                  ID2D1SolidColorBrush* text_brush);
+    // Images: a quarter-turn clockwise (R) and the info card (I).
+    void RotateImage();
+    // The header's meta line ("JPEG · 1920 × 1080 · 2.4 MB") and the open
+    // button's label (the shell's friendly app name for this extension).
+    void RefreshItemFacts();
+    std::wstring MetaLine() const;
+    std::wstring OpenLabel() const;
+    float TextWidthDip(const std::wstring& text) const;
+    float OpenButtonWidth() const;
+    D2D1_RECT_F OpenButtonRect() const;
+    D2D1_RECT_F CounterRect() const;
+    // The image footer: facts on the left, zoom / backdrop / info / rotate
+    // chips on the right.
+    bool ShowsImageFooter() const noexcept;
+    float FooterHeight() const noexcept;
+    D2D1_RECT_F FooterRect() const;
+    int HitFooterChip(POINT client) const;
+    void ActivateFooterChip(int chip);
+    void DrawImageFooter(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* text_brush,
+                         ID2D1SolidColorBrush* secondary_brush);
+    // A checkerboard behind translucent pictures (0 auto, 1 light, 2 dark,
+    // 3 checkerboard).
+    void DrawImageBackdrop(ID2D1DeviceContext* dc, const D2D1_RECT_F& draw);
+    // The right-hand information drawer: rows plus an RGB histogram.
+    float InfoDrawerWidth() const noexcept;
+    void DrawInfoDrawer(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* text_brush,
+                        ID2D1SolidColorBrush* secondary_brush);
+    // Video: 1 while the pointer is active or playback is paused; fades to 0
+    // after the pointer rests for two seconds while playing.
+    float PlaybackBarOpacity();
     void DrawFindBar(ID2D1DeviceContext* dc, const D2D1_RECT_F& bar);
     Theme CurrentTheme() const;
     void EnsureTextLayout(const std::wstring& text, bool hex, float width);
     bool HitTestText(float x, float y, uint32_t& index);
     void CopyTextSelection(bool require_selection) const;
+    // The header copy button: whole text, then "copied" feedback.
+    bool ShowsCopyButton() const noexcept;
+    void CopyAllText();
     void SelectAllText();
     void OpenFind();
     bool OpenListingSelection();
@@ -213,7 +249,8 @@ private:
     LRESULT ForwardFindEditKeepLuma(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
     void ShowContextMenu(POINT screen);
     QuickPreviewItem ActionTarget() const;
-    void PostAction(QuickPreviewAction action, const QuickPreviewItem* target = nullptr);
+    void PostAction(QuickPreviewAction action, const QuickPreviewItem* target = nullptr,
+                    const std::wstring& app_path = {});
     D2D1_RECT_F ChromeButtonRect(ChromeButton button) const;
     // "Rendered | Source" pill left of the chrome buttons; segment -1 = whole pill.
     D2D1_RECT_F MarkdownToggleRect(int segment) const;
@@ -221,6 +258,9 @@ private:
     void DrawMarkdownToggle(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* text_brush);
     ChromeButton HitChromeButton(POINT client) const;
     void ActivateChromeButton(ChromeButton button);
+    // Header open button: default app first, the OpenWithList MRU below it,
+    // then the shell's "choose another app" dialog.
+    void ShowOpenWithMenu();
     void DrawChromeButtons(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* text_brush);
     static LRESULT CALLBACK FindEditProc(HWND hwnd, UINT message, WPARAM wparam,
                                          LPARAM lparam, UINT_PTR id, DWORD_PTR data);
@@ -235,6 +275,7 @@ private:
     // Room for every visible PDF page at full size plus the thumbnail strip;
     // a smaller budget would evict an on-screen page and re-request it forever.
     ThumbnailCache thumbnails_{48ull * 1024ull * 1024ull, 192};
+    OpenWithIconCache open_icons_;   // the open button's app icon
     PreviewHandlerHost handler_;
     VideoPreview video_;
     AudioWaveform waveform_;
@@ -301,6 +342,23 @@ private:
     uint32_t decoded_h_ = 0;
     uint32_t source_w_ = 0;
     uint32_t source_h_ = 0;
+    int image_turns_ = 0;            // quarter turns clockwise; reset per item
+    bool image_info_ = false;        // the information drawer (I)
+    int image_backdrop_ = 0;         // 0 auto, 1 light, 2 dark, 3 checkerboard
+    std::wstring open_label_;        // "用照片打开" resolved per item; empty = hidden
+    std::wstring type_name_;         // shell type name for the meta line
+    float open_label_width_ = 0.0f;  // measured with the header font, DIP
+    int footer_hover_ = 0;           // FooterChip under the pointer, 0 = none
+    D2D1_RECT_F footer_chip_rect_[5]{};  // [FooterChip] laid out by DrawImageFooter
+    // The picture's size as shown, i.e. after image_turns_.
+    float TurnedW() const noexcept {
+        return static_cast<float>((image_turns_ & 1) ? decoded_h_ : decoded_w_);
+    }
+    float TurnedH() const noexcept {
+        return static_cast<float>((image_turns_ & 1) ? decoded_w_ : decoded_h_);
+    }
+    // Video transport bar: the tick of the last pointer movement.
+    uint64_t pointer_tick_ = 0;
     NativeKind native_kind_ = NativeKind::None;
     ArchivePreview archive_;
     MarkdownView markdown_;
@@ -371,6 +429,8 @@ private:
     void DrawLineNumbers(ID2D1DeviceContext* dc, const D2D1_RECT_F& content, float origin_y);
     uint32_t sel_anchor_ = 0;
     uint32_t sel_focus_ = 0;
+    // The header copy button also shows "copied" until its timer clears it.
+    bool copy_feedback_ = false;
     bool selecting_ = false;
     bool find_open_ = false;
     std::wstring find_query_;

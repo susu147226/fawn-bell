@@ -1,11 +1,14 @@
 #include "thumbnail_cache.h"
+#include "../fs/cloud_state.h"
 #include "../common/utf8_file.h"
 #include "../fs/shell_namespace.h"
+#include "../common/runtime_log.h"
 #include "thumbnail_artwork_layout.h"
 #include <algorithm>
 #include <cwctype>
 #include <iterator>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <psapi.h>
 
@@ -18,6 +21,7 @@ uint64_t ThumbnailCache::TakeRetryDeadline() {
 }
 namespace {
 std::atomic<uint32_t> g_preview_cache_sequence{1};
+std::atomic<ThumbnailStore*> g_grid_store{nullptr};
 
 // Transport failures retry after 1 s, 4 s, then 15 s; the fourth in a row is
 // kept as a real failure so a file that always hangs its provider settles.
@@ -36,10 +40,27 @@ bool UploadBitmap(ID2D1DeviceContext* dc, ComPtr<ID2D1Bitmap>& bitmap,
     return true;
 }
 
+// Set by DrawWallThumbnail around its Draw: DrawContained fills instead.
+thread_local bool t_cover_fill = false;
+
 // Aspect-fit (contain), optionally placing the visible artwork at dest.bottom.
 void DrawContained(ID2D1DeviceContext* dc, ID2D1Bitmap* bitmap, uint32_t w, uint32_t h,
                    const D2D1_RECT_F& dest, float opacity, const IconArtworkBounds& bounds,
                    bool align_artwork_bottom, D2D1_RECT_F* artwork_rect) {
+    if (t_cover_fill && w > 0 && h > 0) {
+        // Photo wall: fill the tile, centred, cropping what overflows.
+        const float dw = dest.right - dest.left, dh = dest.bottom - dest.top;
+        const float k = std::max(dw / static_cast<float>(w), dh / static_cast<float>(h));
+        const float cw = static_cast<float>(w) * k, ch = static_cast<float>(h) * k;
+        const D2D1_RECT_F fitted = D2D1::RectF(dest.left + (dw - cw) * 0.5f, dest.top + (dh - ch) * 0.5f,
+                                               dest.left + (dw + cw) * 0.5f, dest.top + (dh + ch) * 0.5f);
+        if (artwork_rect) *artwork_rect = dest;
+        dc->PushAxisAlignedClip(dest, D2D1_ANTIALIAS_MODE_ALIASED);
+        dc->DrawBitmap(bitmap, &fitted, std::clamp(opacity, 0.0f, 1.0f),
+            D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC);
+        dc->PopAxisAlignedClip();
+        return;
+    }
     const auto fitted = ContainedThumbnailRect(dest, w, h, bounds, align_artwork_bottom);
     if (artwork_rect) *artwork_rect = ThumbnailArtworkRect(fitted, bounds);
     dc->DrawBitmap(bitmap, &fitted, std::clamp(opacity, 0.0f, 1.0f),
@@ -50,9 +71,40 @@ void DrawContained(ID2D1DeviceContext* dc, ID2D1Bitmap* bitmap, uint32_t w, uint
 // Shell thumbnail providers (Office, CAD, video) routinely need a few seconds
 // on a cold start; direct decoders answer well inside the short budget. A
 // timeout restarts the host, so the heavy formats get room to finish.
+namespace {
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+// One poll step while the host works on a request. Sleep(10) really sleeps
+// a whole 15.6 ms scheduler tick, which put a floor under every preview (a
+// text file took ~22 ms, most of it this wait). The first 250 ms - when
+// nearly every answer arrives - poll each millisecond through a
+// high-resolution timer; slow decodes then back off to the old step.
+struct HostWaitTimer {
+    HANDLE handle = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                           TIMER_ALL_ACCESS);
+    ~HostWaitTimer() { if (handle) CloseHandle(handle); }
+};
+
+void WaitForHost(ULONGLONG waited_ms) {
+    if (waited_ms >= 250) { Sleep(10); return; }
+    thread_local HostWaitTimer timer;
+    LARGE_INTEGER due{};
+    due.QuadPart = -10000;  // 1 ms
+    if (timer.handle && SetWaitableTimer(timer.handle, &due, 0, nullptr, nullptr, FALSE))
+        WaitForSingleObject(timer.handle, 20);
+    else
+        Sleep(1);
+}
+}  // namespace
+
 uint32_t ThumbnailCache::ResponseTimeoutMs(const std::wstring& path,
                                            ipc::PreviewRequestKind kind) {
     if (kind == ipc::PreviewRequestKind::Properties) return 4000;
+    // Phone items travel over MTP: the shell has to fetch the file before it
+    // can decode it. Eight seconds only covers small pictures.
+    if (path.starts_with(L"luling:shell:")) return 30000;
     const size_t slash = path.find_last_of(L"\\/");
     const size_t dot = path.find_last_of(L'.');
     std::wstring ext = dot == std::wstring::npos || (slash != std::wstring::npos && dot < slash)
@@ -77,12 +129,174 @@ ThumbnailCache::ThumbnailCache(size_t budget_bytes, size_t max_items)
     const uint32_t sequence = g_preview_cache_sequence.fetch_add(1);
     pipe_token_ = GetCurrentProcessId() ^ (sequence * 0x9E3779B9u);
     if (!pipe_token_) pipe_token_ = sequence ? sequence : 1;
+    for (uint32_t lane = 1; lane < kMaxLanes; ++lane) {
+        uint32_t token = pipe_token_ ^ (lane * 0x85EBCA6Bu);
+        if (!token || token == pipe_token_) token = pipe_token_ + lane;
+        extra_lanes_[lane - 1].token = token;
+    }
+}
+
+void ThumbnailCache::SetGridStore(ThumbnailStore* store) {
+    g_grid_store.store(store, std::memory_order_release);
+}
+
+bool ThumbnailCache::Prefetch(const std::wstring& path, DWORD attrs, uint32_t pixel_size,
+                              uint64_t generation, uint64_t modified, uint64_t size) {
+    if (path.empty() || pixel_size < 24) return true;
+    // Room left for whatever the next frames draw.
+    constexpr size_t kPrefetchQueueLimit = 32;
+    const std::wstring key = Key(path, pixel_size, modified, size);
+    std::lock_guard lock(mutex_);
+    if (!visible_order_ || items_.contains(key) || pending_.contains(key)) return true;
+    if (queue_.size() >= kPrefetchQueueLimit) return false;
+    Request request;
+    request.kind = ipc::PreviewRequestKind::Content;
+    request.timeout_ms = ResponseTimeoutMs(path, request.kind);
+    // A video poster ahead of time would hold a lane for seconds.
+    if (IsSlowRequest(request)) return true;
+    request.id = next_id_++; request.generation = generation;
+    request.pixels = pixel_size; request.attrs = attrs;
+    request.epoch = epoch_.load(std::memory_order_relaxed);
+    request.path = path; request.key = key; request.identity = Key(path, 0, modified, size);
+    request.modified = modified; request.size = size;
+    // Frame 0 ranks behind every drawn request and is dropped first.
+    wanted_[key] = {0, ++draw_sequence_};
+    pending_.insert(key);
+    queue_.push_back(std::move(request));
+    DropOverflowLocked();
+    StartWorkersLocked();
+    cv_.notify_one();
+    return true;
+}
+
+void ThumbnailCache::Warm() {
+    std::lock_guard lock(mutex_);
+    if (!visible_order_ || running_) return;
+    warm_ = true;
+    StartWorkersLocked();
+}
+
+uint32_t ThumbnailCache::DefaultParallelism() {
+    // LULING_THUMBNAIL_LANES=1..32 pins the count for measurements.
+    wchar_t forced[8]{};
+    if (GetEnvironmentVariableW(L"LULING_THUMBNAIL_LANES", forced, 8) > 0 && _wtoi(forced) > 0)
+        return (std::min)(static_cast<uint32_t>(_wtoi(forced)), kMaxLanes);
+    // The ceiling follows the machine, not a constant: one host lane per core
+    // up to 32. Beyond that the bottleneck is the share or the disk, while
+    // every extra lane costs a resident host process (~15 MB) and another
+    // ffmpeg slot for videos. Active lanes still follow the amount of work:
+    // a folder with three pictures uses three, a wall of photos uses all.
+    const DWORD processors = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    return std::clamp<uint32_t>(processors, 3, kMaxLanes);
+}
+
+void ThumbnailCache::SetParallelism(uint32_t lanes) {
+    std::lock_guard lock(mutex_);
+    if (running_) return;
+    lane_count_ = std::clamp<uint32_t>(lanes ? lanes : DefaultParallelism(), 1, kMaxLanes);
+    visible_order_ = true;
+    // Other programs busy on every core halve the grid's speed: hosts at
+    // normal priority get a fair share at best. On screen thumbnails raise
+    // their host a step, but only while two cores stay free for the UI.
+    // LULING_THUMBNAIL_BOOST=0 turns it off for measurements.
+    wchar_t boost[4]{};
+    boost_hosts_ = !folder_thumbnail_ &&
+        GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) >= lane_count_ + 2 &&
+        !(GetEnvironmentVariableW(L"LULING_THUMBNAIL_BOOST", boost, 4) > 0 && boost[0] == L'0');
+}
+
+void ThumbnailCache::AdvanceFrame() {
+    std::lock_guard lock(mutex_);
+    ++frame_;
+    draw_sequence_ = 0;
+    // Keys drawn while their decode was already running stay behind; keep
+    // only what is still queued.
+    if (wanted_.size() > 256) {
+        std::unordered_map<std::wstring, std::pair<uint64_t, uint64_t>> queued;
+        for (const auto& request : queue_)
+            if (const auto it = wanted_.find(request.key); it != wanted_.end()) queued.insert(*it);
+        wanted_.swap(queued);
+    }
+}
+
+ThumbnailCache::LaneRef ThumbnailCache::LaneAt(uint32_t lane) {
+    if (lane == 0 || lane >= kMaxLanes) return {pipe_, child_, pipe_token_};
+    ExtraLane& extra = extra_lanes_[lane - 1];
+    return {extra.pipe, extra.child, extra.token};
+}
+
+void ThumbnailCache::StartWorkersLocked() {
+    if (running_.exchange(true)) return;
+    worker_ = std::thread([this] { Worker(0); });
+    for (uint32_t lane = 1; lane < lane_count_; ++lane)
+        extra_lanes_[lane - 1].worker = std::thread([this, lane] { Worker(lane); });
+}
+
+// Formats outside the light list (video posters, shell providers, Office,
+// CAD) can take seconds; they may hold every lane but one.
+bool ThumbnailCache::IsSlowRequest(const Request& request) noexcept {
+    return request.kind == ipc::PreviewRequestKind::Content && request.timeout_ms > 2500;
+}
+
+bool ThumbnailCache::TakeRequestLocked(Request& out, bool& slow) {
+    if (queue_.empty()) return false;
+    const uint32_t slow_cap = lane_count_ > 1 ? lane_count_ - 1 : 1;
+    auto pick = queue_.end();
+    std::pair<uint64_t, uint64_t> best{0, 0};
+    for (auto it = queue_.begin(); it != queue_.end(); ++it) {
+        if (slow_in_flight_ >= slow_cap && IsSlowRequest(*it)) continue;
+        if (!visible_order_) { pick = it; break; }
+        // Latest frame first, then paint order (top-left first).
+        std::pair<uint64_t, uint64_t> rank{0, UINT64_MAX};
+        if (it->details) rank = {UINT64_MAX, 0};
+        else if (const auto wanted = wanted_.find(it->key); wanted != wanted_.end()) rank = wanted->second;
+        if (pick == queue_.end() || rank.first > best.first ||
+            (rank.first == best.first && rank.second < best.second)) {
+            pick = it;
+            best = rank;
+        }
+    }
+    if (pick == queue_.end()) return false;
+    slow = IsSlowRequest(*pick);
+    // Drawn by a frame (prefetch ranks 0) and quick: worth a priority step.
+    pick->urgent = boost_hosts_ && !slow && (pick->details || best.first > 0);
+    if (slow) ++slow_in_flight_;
+    wanted_.erase(pick->key);
+    out = std::move(*pick);
+    queue_.erase(pick);
+    return true;
+}
+
+// Over the queue limit: drop what the oldest frame asked for (grid order) or
+// the back of the queue (newest-first order).
+void ThumbnailCache::DropOverflowLocked() {
+    while (queue_.size() > 128) {
+        auto victim = std::prev(queue_.end());
+        if (visible_order_) {
+            std::pair<uint64_t, uint64_t> worst{UINT64_MAX, 0};
+            for (auto it = queue_.begin(); it != queue_.end(); ++it) {
+                if (it->details) continue;
+                const auto wanted = wanted_.find(it->key);
+                const std::pair<uint64_t, uint64_t> rank = wanted == wanted_.end()
+                    ? std::pair<uint64_t, uint64_t>{0, UINT64_MAX} : wanted->second;
+                if (rank.first < worst.first || (rank.first == worst.first && rank.second > worst.second)) {
+                    worst = rank;
+                    victim = it;
+                }
+            }
+        }
+        pending_.erase(victim->key);
+        wanted_.erase(victim->key);
+        queue_.erase(victim);
+    }
 }
 
 ThumbnailCache::~ThumbnailCache() { Reset(); }
 void ThumbnailCache::SetDeviceContext(ID2D1DeviceContext* dc) {
-    if (dc_ == dc) return;
-    std::lock_guard lock(mutex_); dc_ = dc;
+    // Another window's context on the same device keeps every bitmap.
+    std::lock_guard lock(mutex_);
+    if (!device_binding_.Bind(dc)) return;
+    dc_ = device_binding_.Dc();
     for (auto& [_, item] : items_) item.bitmap.reset();
 }
 std::wstring ThumbnailCache::Key(const std::wstring& path, uint32_t pixels,
@@ -91,18 +305,36 @@ std::wstring ThumbnailCache::Key(const std::wstring& path, uint32_t pixels,
     return path + L"\n" + std::to_wstring(pixels) + L":" + std::to_wstring(modified) +
            L":" + std::to_wstring(size) + L":" + std::to_wstring(frame_index);
 }
-void ThumbnailCache::StopChild() {
-    if (pipe_ != INVALID_HANDLE_VALUE) { CancelIoEx(pipe_, nullptr); CloseHandle(pipe_); pipe_ = INVALID_HANDLE_VALUE; }
-    if (child_.hProcess) { TerminateProcess(child_.hProcess, 0); CloseHandle(child_.hProcess); CloseHandle(child_.hThread); child_ = {}; }
+void ThumbnailCache::StopChildren() {
+    for (uint32_t lane = 0; lane < kMaxLanes; ++lane) StopChild(lane);
+}
+void ThumbnailCache::StopChild(uint32_t lane) {
+    LaneRef io = LaneAt(lane);
+    HANDLE& lane_pipe = io.pipe;
+    PROCESS_INFORMATION& lane_child = io.child;
+    if (lane_pipe != INVALID_HANDLE_VALUE) { CancelIoEx(lane_pipe, nullptr); CloseHandle(lane_pipe); lane_pipe = INVALID_HANDLE_VALUE; }
+    if (lane_child.hProcess) {
+        TerminateProcess(lane_child.hProcess, 0);
+        // Termination is asynchronous: until the old host is gone its pipe
+        // instance exists, the next host's CreateNamedPipe (first instance
+        // only) fails, and the request after a restart cost a 1 s retry.
+        WaitForSingleObject(lane_child.hProcess, 2000);
+        CloseHandle(lane_child.hProcess); CloseHandle(lane_child.hThread); lane_child = {};
+    }
 }
 void ThumbnailCache::Reset() {
     running_ = false; cv_.notify_all();
     if (worker_.joinable()) CancelSynchronousIo(worker_.native_handle());
+    for (auto& lane : extra_lanes_)
+        if (lane.worker.joinable()) CancelSynchronousIo(lane.worker.native_handle());
     if (worker_.joinable()) worker_.join();
-    StopChild();
+    for (auto& lane : extra_lanes_)
+        if (lane.worker.joinable()) lane.worker.join();
+    StopChildren();
     std::lock_guard lock(mutex_); queue_.clear(); pending_.clear(); items_.clear(); lru_.clear(); folder_requests_.clear();
+    wanted_.clear(); slow_in_flight_ = 0;
     still_by_identity_.clear(); transient_failures_.clear(); retry_interest_.clear();
-    cache_bytes_ = 0; dc_ = nullptr; latest_details_identity_.clear();
+    cache_bytes_ = 0; device_binding_.Bind(nullptr); dc_ = nullptr; latest_details_identity_.clear();
     draw_retry_deadline_ = 0;
     epoch_.fetch_add(1, std::memory_order_relaxed);
 }
@@ -130,6 +362,7 @@ void ThumbnailCache::Evict() {
     std::lock_guard lock(mutex_);
     queue_.clear(); pending_.clear(); items_.clear(); lru_.clear(); folder_requests_.clear();
     still_by_identity_.clear(); transient_failures_.clear(); retry_interest_.clear();
+    wanted_.clear();
     cache_bytes_ = 0;
     latest_details_identity_.clear();
     draw_retry_deadline_ = 0;
@@ -148,6 +381,19 @@ bool ThumbnailCache::Palette(const std::wstring& path, uint32_t pixel_size, uint
     return true;
 }
 
+bool ThumbnailCache::Stats(const std::wstring& path, uint32_t pixel_size, uint64_t modified,
+                           uint64_t size, ImageStats& stats) {
+    std::lock_guard lock(mutex_);
+    auto it = items_.find(Key(path, pixel_size, modified, size, 0));
+    if (it == items_.end() || it->second.failed) {
+        const auto link = still_by_identity_.find(Key(path, 0, modified, size));
+        it = link == still_by_identity_.end() ? items_.end() : items_.find(link->second);
+    }
+    if (it == items_.end() || it->second.failed || !it->second.stats.valid) return false;
+    stats = it->second.stats;
+    return true;
+}
+
 ThumbnailCache::Item* ThumbnailCache::StaleBitmap(const std::wstring& identity,
                                                   const std::wstring& except_key) {
     const auto link = still_by_identity_.find(identity);
@@ -163,34 +409,72 @@ ThumbnailCache::Item* ThumbnailCache::StaleBitmap(const std::wstring& identity,
     Touch(item);
     return &item;
 }
-bool ThumbnailCache::Connect() {
-    if (pipe_ != INVALID_HANDLE_VALUE) return true;
-    const std::wstring pipeName = ipc::PreviewPipeName(pipe_token_);
+// Stage values are stable diagnostics identifiers: launch=1, connect=2, send=3,
+// wait=4, timeout=5, exited=6, response=7, mapping-open=8, mapping-view=9,
+// ack=10, host-status=11, store=12, cancelled=13.
+void ThumbnailCache::LogFailure(uint32_t lane, const Request& req, uint64_t started, uint32_t stage,
+                                DWORD error, bool cancelled) {
+    LaneRef io = LaneAt(lane);
+    const PROCESS_INFORMATION& lane_child = io.child;
+    const uint32_t lane_token = io.token;
+    {
+        std::lock_guard lock(mutex_);
+        cancelled = cancelled || req.epoch != epoch_.load(std::memory_order_relaxed) ||
+            (req.details && req.identity != latest_details_identity_) ||
+            (req.document && !req.document->active.load());
+    }
+    DWORD exit_code = 0;
+    const bool exit_known = lane_child.hProcess && GetExitCodeProcess(lane_child.hProcess, &exit_code);
+    diagnostics::runtime::Event(cancelled ? "preview_client_cancelled" : "preview_client_failure", {
+        {"stage", stage}, {"error", error}, {"elapsed_ms", GetTickCount64() - started},
+        {"request", req.id}, {"generation", req.generation}, {"host_pid", lane_child.dwProcessId},
+        {"exit_known", exit_known}, {"exit_code", exit_code}, {"cache", lane_token},
+        {"kind", static_cast<uint32_t>(req.kind)}, {"flags", req.flags}},
+        cancelled ? diagnostics::runtime::Level::Info : diagnostics::runtime::Level::Error);
+}
+bool ThumbnailCache::Connect(uint32_t lane, const Request& req, uint64_t started) {
+    LaneRef io = LaneAt(lane);
+    HANDLE& lane_pipe = io.pipe;
+    PROCESS_INFORMATION& lane_child = io.child;
+    const uint32_t lane_token = io.token;
+    if (lane_pipe != INVALID_HANDLE_VALUE) return true;
+    const std::wstring pipeName = ipc::PreviewPipeName(lane_token);
     wchar_t exe[MAX_PATH]{}; GetModuleFileNameW(nullptr, exe, ARRAYSIZE(exe));
-    wchar_t* slash = wcsrchr(exe, L'\\'); if (!slash) return false; *(slash + 1) = 0;
+    wchar_t* slash = wcsrchr(exe, L'\\');
+    if (!slash) { LogFailure(lane, req, started, 1, ERROR_BAD_PATHNAME); return false; }
+    *(slash + 1) = 0;
     std::wstring cmd = L"\"" + std::wstring(exe) + L"Luling.Preview.exe\" " +
-        std::to_wstring(pipe_token_);
+        std::to_wstring(lane_token);
     STARTUPINFOW si{sizeof(si)};
     si.dwFlags = STARTF_FORCEOFFFEEDBACK; // background helper: no AppStarting cursor
     if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW | (folder_thumbnail_ ? BELOW_NORMAL_PRIORITY_CLASS : 0),
-                        nullptr, nullptr, &si, &child_)) return false;
+                        nullptr, nullptr, &si, &lane_child)) {
+        const DWORD error = GetLastError();
+        LogFailure(lane, req, started, 1, error, !running_);
+        return false;
+    }
     const ULONGLONG deadline = GetTickCount64() + 3000;
+    DWORD connect_error = ERROR_SUCCESS;
     do {
-        pipe_ = CreateFileW(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+        lane_pipe = CreateFileW(pipeName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
                             OPEN_EXISTING, 0, nullptr);
-        if (pipe_ != INVALID_HANDLE_VALUE) {
+        if (lane_pipe != INVALID_HANDLE_VALUE) {
             ULONG server_pid = 0;
-            if (GetNamedPipeServerProcessId(pipe_, &server_pid) &&
-                server_pid == child_.dwProcessId)
-                return true;
-            CloseHandle(pipe_);
-            pipe_ = INVALID_HANDLE_VALUE;
-            StopChild();
+            const bool got_pid = GetNamedPipeServerProcessId(lane_pipe, &server_pid) != FALSE;
+            const DWORD error = got_pid ? ERROR_ACCESS_DENIED : GetLastError();
+            if (got_pid && server_pid == lane_child.dwProcessId) return true;
+            LogFailure(lane, req, started, 2, error, !running_);
+            CloseHandle(lane_pipe);
+            lane_pipe = INVALID_HANDLE_VALUE;
+            StopChild(lane);
             return false;
         }
+        connect_error = GetLastError();
+        if (WaitForSingleObject(lane_child.hProcess, 0) == WAIT_OBJECT_0) break;
         Sleep(25);
     } while (running_ && GetTickCount64() < deadline);
-    StopChild(); return false;
+    LogFailure(lane, req, started, 2, connect_error, !running_);
+    StopChild(lane); return false;
 }
 PreviewDrawResult ThumbnailCache::Draw(ID2D1DeviceContext* dc, const D2D1_RECT_F& dest,
                                        const std::wstring& path, DWORD attrs, uint32_t pixels,
@@ -214,38 +498,25 @@ PreviewDrawResult ThumbnailCache::Draw(ID2D1DeviceContext* dc, const D2D1_RECT_F
     if (media_duration_ms) *media_duration_ms = 0;
     if (!dc || path.empty() || pixels < 24) return PreviewDrawResult::Failed;
     if (document && !document->active.load()) return PreviewDrawResult::Failed;
-    const std::wstring document_key = document ? L":document:" + std::to_wstring(document->identity) : L"";
+    std::wstring document_key = document ? L":document:" + std::to_wstring(document->identity) : L"";
+    // A placeholder's answer (Explorer's cached thumbnail, or nothing) is not
+    // the file's: once it is downloaded the attributes change and so does the
+    // key, so the real preview is fetched instead of the cached refusal.
+    if (luling::fs::IsCloudPlaceholder(attrs)) document_key += L":cloud";
     const std::wstring key = Key(path, pixels, modified, size, frame_index) + document_key;
     {
         std::lock_guard lock(mutex_);
         if (track_retry_interest_) retry_interest_.insert(key);
         const std::wstring identity = Key(path, 0, modified, size) + document_key;
         if (direct_preview) SelectDetailsLocked(identity);
+        const bool visible_order = visible_order_ && !direct_preview;
         auto queue_request = [&] {
+            if (visible_order) wanted_[key] = {frame_, ++draw_sequence_};
             if (pending_.contains(key)) return;
             const ULONGLONG now_tick = GetTickCount64();
             if (const auto skip = recent_write_skip_.find(key); skip != recent_write_skip_.end()) {
                 if (now_tick < skip->second) return;
                 recent_write_skip_.erase(skip);
-            }
-            if (!luling::fs::IsShellPath(path)) {
-                WIN32_FILE_ATTRIBUTE_DATA data{};
-                if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) {
-                    ULARGE_INTEGER modified{};
-                    modified.LowPart = data.ftLastWriteTime.dwLowDateTime;
-                    modified.HighPart = data.ftLastWriteTime.dwHighDateTime;
-                    FILETIME current{};
-                    GetSystemTimeAsFileTime(&current);
-                    ULARGE_INTEGER now_filetime{};
-                    now_filetime.LowPart = current.dwLowDateTime;
-                    now_filetime.HighPart = current.dwHighDateTime;
-                    if (now_filetime.QuadPart > modified.QuadPart &&
-                        now_filetime.QuadPart - modified.QuadPart < 30ull * 1000 * 10000) {
-                        if (recent_write_skip_.size() >= 512) recent_write_skip_.clear();
-                        recent_write_skip_[key] = now_tick + 10000;
-                        return;
-                    }
-                }
             }
             for (auto old = queue_.begin(); old != queue_.end();) {
                 if (old->document && !old->document->active.load()) {
@@ -277,9 +548,11 @@ PreviewDrawResult ThumbnailCache::Draw(ID2D1DeviceContext* dc, const D2D1_RECT_F
             request.epoch = epoch_.load(std::memory_order_relaxed);
             request.timeout_ms = ResponseTimeoutMs(path, request.kind);
             request.path = path; request.key = key; request.identity = identity;
-            queue_.push_front(std::move(request));
-            if (queue_.size() > 128) { pending_.erase(queue_.back().key); queue_.pop_back(); }
-            if (!running_.exchange(true)) worker_ = std::thread([this]{ Worker(); });
+            request.modified = modified; request.size = size;
+            if (visible_order) queue_.push_back(std::move(request));
+            else queue_.push_front(std::move(request));
+            DropOverflowLocked();
+            StartWorkersLocked();
             cv_.notify_one();
         };
         auto it = items_.find(key);
@@ -411,6 +684,22 @@ PreviewDrawResult ThumbnailCache::DrawGridThumbnail(ID2D1DeviceContext* dc,
         media_duration_ms);
 }
 
+PreviewDrawResult ThumbnailCache::DrawWallThumbnail(ID2D1DeviceContext* dc,
+    const D2D1_RECT_F& dest, const std::wstring& path, DWORD attrs, uint32_t pixel_size,
+    uint64_t generation, uint64_t modified, uint64_t size, float opacity, float* aspect,
+    uint32_t* media_duration_ms) {
+    uint32_t w = 0, h = 0;
+    t_cover_fill = true;
+    const PreviewDrawResult result = Draw(dc, dest, path, attrs, pixel_size, generation, modified, size,
+        opacity, nullptr, nullptr, nullptr, false, nullptr,
+        nullptr, nullptr, nullptr, nullptr, 0, nullptr, nullptr, nullptr,
+        &w, &h, nullptr, nullptr, nullptr, nullptr, false, nullptr, media_duration_ms);
+    t_cover_fill = false;
+    if (aspect) *aspect = result == PreviewDrawResult::Bitmap && w > 0 && h > 0
+        ? static_cast<float>(w) / static_cast<float>(h) : 0.0f;
+    return result;
+}
+
 void ThumbnailCache::SelectDetailsLocked(const std::wstring& identity) {
     if (identity == latest_details_identity_) return;
     latest_details_identity_ = identity;
@@ -428,7 +717,8 @@ bool ThumbnailCache::Properties(const std::wstring& path, DWORD attrs, uint64_t 
                                 uint64_t modified, uint64_t size,
                                 std::vector<PreviewProperty>& properties) {
     if (path.empty()) return false;
-    const std::wstring identity = Key(path, 0, modified, size);
+    const std::wstring identity = Key(path, 0, modified, size) +
+        (luling::fs::IsCloudPlaceholder(attrs) ? L":cloud" : L"");
     const std::wstring key = identity + L":properties";
     std::lock_guard lock(mutex_);
     SelectDetailsLocked(identity);
@@ -448,7 +738,7 @@ bool ThumbnailCache::Properties(const std::wstring& path, DWORD attrs, uint64_t 
         request.timeout_ms = ResponseTimeoutMs(path, request.kind);
         request.epoch = epoch_.load(std::memory_order_relaxed);
         queue_.push_back(std::move(request));
-        if (!running_.exchange(true)) worker_ = std::thread([this]{ Worker(); });
+        StartWorkersLocked();
         cv_.notify_one();
     }
     return false;
@@ -613,7 +903,14 @@ bool ThumbnailCache::FolderRequestCurrent(const Request& request) {
         request.epoch == epoch_.load(std::memory_order_relaxed);
 }
 
-void ThumbnailCache::Worker() {
+void ThumbnailCache::Worker(uint32_t lane) {
+    LaneRef io = LaneAt(lane);
+    HANDLE& lane_pipe = io.pipe;
+    PROCESS_INFORMATION& lane_child = io.child;
+    const uint32_t lane_token = io.token;
+    // The host's priority class as last set (a new host starts at normal).
+    DWORD boosted_pid = 0;
+    DWORD boosted_class = NORMAL_PRIORITY_CLASS;
     // Explicit isolated-probe tracing; no file is opened in ordinary sessions.
     FILE* trace_file = nullptr;
     wchar_t trace_path[1024]{};
@@ -621,15 +918,34 @@ void ThumbnailCache::Worker() {
         ARRAYSIZE(trace_path)) > 0;
     if (general_trace) {
         const auto file = std::wstring(trace_path) + (folder_thumbnail_ ? L".folder-" : L".ordinary-") +
-            std::to_wstring(pipe_token_) + L".log";
+            std::to_wstring(lane_token) + L".log";
         _wfopen_s(&trace_file, file.c_str(), L"a");
     } else if (folder_thumbnail_ && GetEnvironmentVariableW(L"LULING_TEST_FOLDER_THUMB_TRACE", trace_path,
         ARRAYSIZE(trace_path)) > 0) _wfopen_s(&trace_file, trace_path, L"a");
     std::unique_ptr<FILE, decltype(&std::fclose)> trace(trace_file, &std::fclose);
+    if (warm_) {
+        // Warm(): start the floor (three hosts) now so the first screen is not
+        // waiting on process startup. The rest start on their first request.
+        if (lane < 3) {
+            Request probe;
+            Connect(lane, probe, GetTickCount64());
+        }
+    }
     while (running_) {
         Request req;
-        { std::unique_lock lock(mutex_); cv_.wait(lock, [&]{return !running_ || !queue_.empty();});
-          if (!running_) break; req = std::move(queue_.front()); queue_.pop_front(); }
+        bool slow = false;
+        { std::unique_lock lock(mutex_); cv_.wait(lock, [&]{return !running_ || TakeRequestLocked(req, slow);});
+          if (!running_) break; }
+        // A slow request gives its slot back however this iteration ends.
+        struct SlowSlot {
+            ThumbnailCache* cache;
+            bool held;
+            ~SlowSlot() {
+                if (!held) return;
+                { std::lock_guard lock(cache->mutex_); if (cache->slow_in_flight_) --cache->slow_in_flight_; }
+                cache->cv_.notify_all();
+            }
+        } slow_slot{this, slow};
         if (!FolderRequestCurrent(req)) continue;
         const auto request_start = GetTickCount64();
         std::vector<uint8_t> trace_path_bytes;
@@ -639,54 +955,168 @@ void ThumbnailCache::Worker() {
             if (!trace) return;
             PROCESS_MEMORY_COUNTERS_EX memory{};
             memory.cb = sizeof(memory);
-            const bool memory_ok = child_.hProcess && GetProcessMemoryInfo(child_.hProcess,
+            const bool memory_ok = lane_child.hProcess && GetProcessMemoryInfo(lane_child.hProcess,
                 reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory));
-            std::fprintf(trace.get(), "pid=%lu id=%u stage=%s elapsed=%llu ok=%d status=%u host=%lu kind=%u flags=%u pixels=%u timeout=%u memory_ok=%d private=%zu working=%zu path=%s\n",
+            std::fprintf(trace.get(), "pid=%lu id=%u stage=%s elapsed=%llu tick=%llu ok=%d status=%u host=%lu kind=%u flags=%u pixels=%u timeout=%u urgent=%d class=%lu memory_ok=%d private=%zu working=%zu path=%s\n",
                 GetCurrentProcessId(), req.id, stage,
-                static_cast<unsigned long long>(GetTickCount64() - request_start), success, status, child_.dwProcessId,
-                static_cast<unsigned>(req.kind), req.flags, req.pixels, req.timeout_ms, memory_ok,
+                static_cast<unsigned long long>(GetTickCount64() - request_start),
+                static_cast<unsigned long long>(GetTickCount64()), success, status, lane_child.dwProcessId,
+                static_cast<unsigned>(req.kind), req.flags, req.pixels, req.timeout_ms, req.urgent ? 1 : 0,
+                lane_child.hProcess ? GetPriorityClass(lane_child.hProcess) : 0ul, memory_ok,
                 memory.PrivateUsage, memory.WorkingSetSize, trace_request_path.c_str());
             std::fflush(trace.get());
         };
         mark("begin", true);
-        Item result; bool ok = Connect();
+        // Grid thumbnails of single files may come from the disk store,
+        // which needs no host at all.
+        ThumbnailStore* const store = visible_order_ && !req.details && !req.document &&
+            req.kind == ipc::PreviewRequestKind::Content && req.frame_index == 0 &&
+            !folder_thumbnail_ && !(req.flags & ipc::kPreviewRequestFlagFolderThumbnail) &&
+            !(req.attrs & FILE_ATTRIBUTE_DIRECTORY) ? g_grid_store.load(std::memory_order_acquire) : nullptr;
+        const ThumbnailStoreKey store_key{req.path, req.attrs, req.pixels, req.modified, req.size};
+        // Folder composites: the stored one shows at once and the host is
+        // still asked, since a child can change without touching the
+        // folder's own time.
+        const bool folder_request = folder_thumbnail_ && (req.flags & ipc::kPreviewRequestFlagFolderThumbnail);
+        ThumbnailStore* const folder_store = folder_request ? g_grid_store.load(std::memory_order_acquire) : nullptr;
+        const ThumbnailStoreKey folder_key{req.identity, req.attrs, req.pixels, req.modified, req.size, true};
+        std::vector<uint8_t> folder_shown;
+        if (folder_store && !(req.flags & ipc::kPreviewRequestFlagFolderRefresh)) {
+            bool fresh = false;
+            { std::lock_guard lock(mutex_); fresh = !items_.contains(req.key); }
+            StoredThumbnail kept;
+            if (fresh && folder_store->Load(folder_key, kept)) {
+                folder_shown = kept.pixels;
+                Item hit;
+                hit.kind = ipc::PreviewContentKind::Bitmap;
+                hit.w = kept.width; hit.h = kept.height; hit.stride = kept.width * 4;
+                hit.pixels = std::move(kept.pixels);
+                hit.artwork_bounds = ThumbnailArtworkBounds(req.path, hit.pixels, hit.w, hit.h, hit.stride);
+                hit.frame_count = 1;
+                hit.integrity.state = preview::IntegrityState::Complete;
+                hit.cost = hit.pixels.size();
+                const bool shown = StoreResult(req, std::move(hit));
+                mark("disk-hit", shown);
+                if (shown) {
+                    repaint_.InvalidateAll();
+                    std::lock_guard lock(mutex_);
+                    folder_requests_[req.key] = req.id;
+                    pending_.insert(req.key);
+                }
+            }
+        }
+        if (store) {
+            StoredThumbnail kept;
+            if (store->Load(store_key, kept)) {
+                Item hit;
+                hit.kind = ipc::PreviewContentKind::Bitmap;
+                hit.w = kept.width; hit.h = kept.height; hit.stride = kept.width * 4;
+                hit.pixels = std::move(kept.pixels);
+                hit.artwork_bounds = ThumbnailArtworkBounds(req.path, hit.pixels, hit.w, hit.h, hit.stride);
+                hit.source_width = kept.source_width;
+                hit.source_height = kept.source_height;
+                hit.duration_ms = kept.duration_ms;
+                hit.frame_count = 1;
+                hit.integrity.state = preview::IntegrityState::Complete;
+                hit.animation_identity = req.identity;
+                hit.cost = hit.pixels.size();
+                const bool kept_stored = StoreResult(req, std::move(hit));
+                mark("disk-hit", kept_stored);
+                if (kept_stored) repaint_.InvalidateAll();
+                continue;
+            }
+        }
+        uint32_t failure_stage = 0;
+        DWORD failure_error = ERROR_SUCCESS;
+        const auto fail = [&](uint32_t stage, DWORD error) {
+            if (!failure_stage) { failure_stage = stage; failure_error = error; }
+        };
+        Item result; bool ok = Connect(lane, req, request_start);
+        const bool connected = ok;
+        if (ok && boost_hosts_) {
+            const DWORD wanted_class = req.urgent ? ABOVE_NORMAL_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS;
+            if (lane_child.dwProcessId != boosted_pid || wanted_class != boosted_class) {
+                SetPriorityClass(lane_child.hProcess, wanted_class);
+                boosted_pid = lane_child.dwProcessId;
+                boosted_class = wanted_class;
+            }
+        }
         mark("connected", ok);
         ipc::PreviewRequest wire; wire.request_id=req.id; wire.generation=req.generation;
         wire.kind=req.kind; wire.pixel_size=req.pixels; wire.attrs=req.attrs;
         wire.frame_index = req.frame_index;
-        wire.flags |= req.flags;
+        wire.flags |= req.flags | extra_flags_.load(std::memory_order_relaxed);
         if (!req.details) wire.flags |= ipc::kPreviewRequestFlagGrid;
         else if (quick_look_content_)
             wire.flags |= (req.attrs & FILE_ATTRIBUTE_DIRECTORY) ? ipc::kPreviewRequestFlagFolderListing
                                                                  : ipc::kPreviewRequestFlagRichText;
         wire.path_chars=(uint32_t)req.path.size();
-        if (ok) ok = ipc::WriteAll(pipe_, &wire, sizeof(wire)) &&
-                     ipc::WriteAll(pipe_, req.path.data(), wire.path_chars * sizeof(wchar_t));
+        if (ok) ok = ipc::WriteAll(lane_pipe, &wire, sizeof(wire)) &&
+                     ipc::WriteAll(lane_pipe, req.path.data(), wire.path_chars * sizeof(wchar_t));
+        if (connected && !ok) fail(3, GetLastError());
         mark("sent", ok);
+        const auto sent_at = GetTickCount64();
         ipc::PreviewResponse response{};
+        // A slow decode (48 MP HEIC, a video poster through the shell) is not
+        // finished once the pointer has moved on to another file: restarting
+        // the host costs far less than the rest of the decode would.
+        const uint32_t abandon_ms = abandon_stale_ms_.load(std::memory_order_relaxed);
+        // Facts (Properties) are left to finish: they rarely take long, and a
+        // restart would also drop the codecs the host has warmed up.
+        const auto superseded = [&] {
+            if (!abandon_ms || req.kind != ipc::PreviewRequestKind::Content ||
+                GetTickCount64() - request_start < abandon_ms) return false;
+            std::lock_guard lock(mutex_);
+            return !queue_.empty() && queue_.front().path != req.path;
+        };
+        bool abandoned = false;
         if (ok) {
             const ULONGLONG deadline = GetTickCount64() + (req.timeout_ms ? req.timeout_ms : 1000);
             ULONGLONG last_trace = GetTickCount64();
             DWORD available = 0;
             while (running_ && GetTickCount64() < deadline) {
-                if (!FolderRequestCurrent(req)) { ok = false; break; }
-                if (!PeekNamedPipe(pipe_, nullptr, 0, nullptr, &available, nullptr)) { ok=false; break; }
+                if (!FolderRequestCurrent(req)) { fail(13, ERROR_CANCELLED); ok = false; break; }
+                if (!PeekNamedPipe(lane_pipe, nullptr, 0, nullptr, &available, nullptr)) { fail(4, GetLastError()); ok=false; break; }
                 if (available >= sizeof(response)) break;
-                if (child_.hProcess && WaitForSingleObject(child_.hProcess, 0) == WAIT_OBJECT_0) { ok=false; break; }
+                if (superseded()) { abandoned = true; fail(13, ERROR_CANCELLED); ok = false; break; }
+                if (lane_child.hProcess && WaitForSingleObject(lane_child.hProcess, 0) == WAIT_OBJECT_0) { fail(6, ERROR_PROCESS_ABORTED); ok=false; break; }
                 if (trace && GetTickCount64() - last_trace >= 250) {
                     mark("waiting", true);
                     last_trace = GetTickCount64();
                 }
-                Sleep(10);
+                WaitForHost(GetTickCount64() - request_start);
             }
-            if (available < sizeof(response)) ok=false;
+            if (available < sizeof(response)) {
+                fail(running_ ? 5 : 13, running_ ? ERROR_TIMEOUT : ERROR_CANCELLED);
+                ok=false;
+            }
         }
         mark("header-ready", ok);
-        if (ok) ok = ipc::ReadAll(pipe_, &response, sizeof(response)) &&
-                     response.magic == ipc::kPreviewMagic && response.request_id == req.id;
+        const auto decode_ms = static_cast<uint32_t>(GetTickCount64() - sent_at);
+        if (abandoned) {
+            // Nothing is remembered about the file: coming back to it asks
+            // again at once, without the transient-failure back-off.
+            { std::lock_guard lock(mutex_); pending_.erase(req.key); }
+            LogFailure(lane, req, request_start, failure_stage, failure_error, true);
+            StopChild(lane);
+            continue;
+        }
+        const auto read = [&](void* data, DWORD bytes) {
+            if (ipc::ReadAll(lane_pipe, data, bytes)) return true;
+            fail(7, GetLastError());
+            return false;
+        };
+        if (ok) {
+            ok = read(&response, sizeof(response));
+            if (ok && (response.magic != ipc::kPreviewMagic || response.request_id != req.id ||
+                       response.generation != req.generation || response.mapping_chars > 512 ||
+                       response.property_count > 16)) {
+                fail(7, ERROR_INVALID_DATA); ok = false;
+            }
+        }
         std::wstring mapping;
         if (ok && response.mapping_chars) { mapping.resize(response.mapping_chars);
-            ok = ipc::ReadAll(pipe_, mapping.data(), response.mapping_chars * sizeof(wchar_t)); }
+            ok = read(mapping.data(), response.mapping_chars * sizeof(wchar_t)); }
         std::wstring previewText;
         if (ok && response.text_chars) {
             const uint32_t limit = response.kind == ipc::PreviewContentKind::Table ||
@@ -696,38 +1126,39 @@ void ThumbnailCache::Worker() {
                 ? ipc::kPreviewMaxTableChars  // DOCX / EPUB payloads run up to 2M
                 : response.kind == ipc::PreviewContentKind::Archive
                 ? ipc::kPreviewMaxArchiveChars : ipc::kPreviewMaxTextChars;
-            if (response.text_chars > limit) ok = false;
+            if (response.text_chars > limit) { fail(7, ERROR_INVALID_DATA); ok = false; }
             else {
                 previewText.resize(response.text_chars);
-                ok = ipc::ReadAll(pipe_, previewText.data(),
+                ok = read(previewText.data(),
                                   response.text_chars * sizeof(wchar_t));
             }
         }
         std::wstring errorText;
         if (ok && response.error_chars) {
-            if (response.error_chars > 512) ok = false;
+            if (response.error_chars > 512) { fail(7, ERROR_INVALID_DATA); ok = false; }
             else {
                 errorText.resize(response.error_chars);
-                ok = ipc::ReadAll(pipe_, errorText.data(),
+                ok = read(errorText.data(),
                                   response.error_chars * sizeof(wchar_t));
             }
         }
         std::vector<PreviewProperty> properties;
         for (uint32_t i = 0; ok && i < response.property_count && i < 16; ++i) {
             uint32_t labelChars = 0, valueChars = 0;
-            ok = ipc::ReadAll(pipe_, &labelChars, sizeof(labelChars)) && labelChars <= 128;
+            ok = read(&labelChars, sizeof(labelChars)) && labelChars <= 128;
             PreviewProperty property;
             if (ok && labelChars) {
                 property.label.resize(labelChars);
-                ok = ipc::ReadAll(pipe_, property.label.data(), labelChars * sizeof(wchar_t));
+                ok = read(property.label.data(), labelChars * sizeof(wchar_t));
             }
-            if (ok) ok = ipc::ReadAll(pipe_, &valueChars, sizeof(valueChars)) && valueChars <= 1024;
+            if (ok) ok = read(&valueChars, sizeof(valueChars)) && valueChars <= 1024;
             if (ok && valueChars) {
                 property.value.resize(valueChars);
-                ok = ipc::ReadAll(pipe_, property.value.data(), valueChars * sizeof(wchar_t));
+                ok = read(property.value.data(), valueChars * sizeof(wchar_t));
             }
             if (ok) properties.push_back(std::move(property));
         }
+        if (connected && !ok && !failure_stage) fail(7, ERROR_INVALID_DATA);
         mark("payload-read", ok, response.status);
         if (ok && response.status == 0 && !mapping.empty()) {
             HANDLE map = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping.c_str());
@@ -735,17 +1166,25 @@ void ThumbnailCache::Worker() {
                 if (void* p=MapViewOfFile(map, FILE_MAP_READ,0,0,bytes)) {
                     result.pixels.assign((uint8_t*)p,(uint8_t*)p+bytes); UnmapViewOfFile(p);
                     result.w=response.width; result.h=response.height; result.stride=response.stride;
-                    result.artwork_bounds = MeasureIconArtwork(result.pixels,
+                    result.artwork_bounds = ThumbnailArtworkBounds(req.path, result.pixels,
                         result.w, result.h, result.stride);
                     // Audio covers tint Quick Look's waveform. The pixels
                     // are freed on upload, so measure them here, off the UI
                     // thread; at most 48 x 48 samples.
-                    if (quick_look_content_ && response.kind == ipc::PreviewContentKind::Bitmap)
+                    if (quick_look_content_ && response.kind == ipc::PreviewContentKind::Bitmap) {
                         result.palette = ComputeCoverPalette(result.pixels.data(),
                             result.w, result.h, result.stride);
-                } CloseHandle(map); }
+                        result.stats = ComputeImageStats(result.pixels.data(),
+                            result.w, result.h, result.stride);
+                    }
+                } else fail(9, GetLastError());
+                CloseHandle(map);
+            } else fail(8, GetLastError());
         }
-        if (ok && response.mapping_chars) { const unsigned char ack=1; ok=ipc::WriteAll(pipe_,&ack,1); }
+        if (ok && response.mapping_chars) {
+            const unsigned char ack=1; ok=ipc::WriteAll(lane_pipe,&ack,1);
+            if (!ok) fail(10, GetLastError());
+        }
         if (ok) {
             result.kind = response.kind;
             result.text = std::move(previewText);
@@ -782,12 +1221,37 @@ void ThumbnailCache::Worker() {
             result.integrity.state = preview::IntegrityState::Failed;
             result.integrity.reason = preview::IntegrityReason::Unavailable;
         }
+        // A grid entry without a provider is expected; transport/mapping faults
+        // and explicit preview failures still carry a terminal diagnostic.
+        const bool ordinary_unsupported = !req.details && ok && response.status == 1 &&
+            response.kind == ipc::PreviewContentKind::Unsupported;
+        if (ok && response.status != 0 && !ordinary_unsupported)
+            fail(11, static_cast<DWORD>(response.status));
+        if (result.failed && !failure_stage && connected && !ordinary_unsupported)
+            fail(12, ERROR_INVALID_DATA);
+        if (failure_stage) LogFailure(lane, req, request_start, failure_stage, failure_error,
+            failure_stage == 13 || !running_ || !FolderRequestCurrent(req));
         mark("store-begin", ok, response.status);
+        // Copied before the item is handed over; written once it is on screen.
+        StoredThumbnail keep;
+        ThumbnailStore* const saver = store ? store : folder_store;
+        const bool keepable = saver && !result.failed && !result.transient &&
+            result.kind == ipc::PreviewContentKind::Bitmap && result.frame_count == 1 &&
+            result.stride == result.w * 4 && result.integrity.state != preview::IntegrityState::Partial;
+        if (keepable) {
+            keep.pixels = result.pixels;
+            keep.width = result.w; keep.height = result.h;
+            keep.source_width = result.source_width;
+            keep.source_height = result.source_height;
+            keep.duration_ms = result.duration_ms;
+        }
         const bool stored = StoreResult(req, std::move(result));
         mark("stored", stored, response.status);
-        if (const HWND hwnd = hwnd_.load(); stored && hwnd)
-            InvalidateRect(hwnd, nullptr, FALSE);
-        if (!ok) StopChild();
+        if (!stored) LogFailure(lane, req, request_start, 12, ERROR_CANCELLED, true);
+        if (stored) repaint_.InvalidateAll();
+        if (!ok) StopChild(lane);
+        if (keepable && stored && !(folder_store && keep.pixels == folder_shown))
+            saver->Save(folder_store ? folder_key : store_key, decode_ms, keep);
     }
 }
 } // namespace luling::ui

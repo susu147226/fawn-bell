@@ -50,6 +50,12 @@ struct DirEntry {
     uint64_t drive_total = 0;
     uint64_t drive_free = 0;
     bool drive_locked = false; // "This PC" rows: BitLocker volume not unlocked yet
+    // Flattened tree view (details list with expanded folders): indent level,
+    // whether this folder is expanded, and whether a chevron belongs on it.
+    // Zero/false for ordinary listings.
+    int tree_depth = 0;
+    bool tree_expanded = false;
+    bool tree_has_children = false;
 };
 
 // luling:tag: / luling:search: / luling:workspace: — not filesystem paths.
@@ -67,6 +73,11 @@ std::wstring StripLnkSuffix(const std::wstring& name);
 
 // Enumerate a directory into out. Throws std::runtime_error on failure.
 void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>& out, const std::atomic_bool* cancelled = nullptr);
+// Server roots (\\server) list their disk shares; hidden admin shares (a name
+// ending in '$') are left out unless this is on. Process-wide because the
+// app's fast path has no per-call options.
+void SetShowServerHiddenShares(bool on) noexcept;
+bool ShowServerHiddenShares() noexcept;
 struct EnumerationOptions {
     std::function<bool()> cancelled;
     DWORD timeout_ms = 15000;

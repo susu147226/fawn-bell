@@ -2,6 +2,8 @@
 #include "window_factory.h"
 
 #include "app_messages.h"
+#include "app_navigation.h"
+#include "app_runtime.h"
 #include "app_state.h"
 #include "single_instance_coordinator.h"
 #include "window_placement.h"
@@ -112,6 +114,44 @@ HWND OpenLulingWindow(AppState& from, const WindowInit& init) {
     }
     ShowWindow(hwnd, maximize ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
     return hwnd;
+}
+
+namespace {
+
+// A session window folded into the single window: every layout tab becomes a
+// tab here (the focused pane's folder; split layouts collapse).
+void OpenSnapshotTabs(AppState& s, const app::WindowSessionSnapshot& snapshot) {
+    for (const auto& layout_tab : snapshot.layout_tabs) {
+        if (layout_tab.panes.empty()) {
+            OpenNewTab(s);
+            continue;
+        }
+        const int focus = std::clamp(layout_tab.focused, 0,
+                                     static_cast<int>(layout_tab.panes.size()) - 1);
+        const std::wstring& path = layout_tab.panes[static_cast<size_t>(focus)].path;
+        if (path.empty()) OpenNewTab(s);
+        else OpenFolderInNewTab(s, path);
+    }
+}
+
+} // namespace
+
+HWND OpenWindowOrTab(AppState& from, const WindowInit& init) {
+    // A tab moving in alive keeps the window path: detaching is disabled in
+    // single-window mode, but a stale gesture must not lose the tab.
+    if (!from.appPrefs.single_window || init.adopt_from) return OpenLulingWindow(from, init);
+    if (init.restore) {
+        OpenSnapshotTabs(from, *init.restore);
+        return from.hwnd;
+    }
+    std::wstring path = init.path;
+    if (path.empty()) {
+        if (const app::Tab* tab = ActiveTab(from);
+            tab && !tab->current_path.empty()) path = tab->current_path;
+    }
+    if (path.empty()) OpenNewTab(from);
+    else OpenFolderInNewTab(from, path);
+    return from.hwnd;
 }
 
 app::WindowLayoutSnapshot CaptureWindowLayout(const AppState& s) {

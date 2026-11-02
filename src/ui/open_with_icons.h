@@ -3,6 +3,7 @@
 // video frame no longer looks like a photo.
 #pragma once
 #include "ui_compositor.h"
+#include "../common/menu_icon.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -39,9 +40,14 @@ public:
     // Images have no badge. Initial requests and types without a program return
     // empty; association refreshes retain the previous icon. Cheap per frame.
     Badge BadgeFor(const std::wstring& name, uint32_t pixels);
+    // The same icon for every type, images included — the quick preview's
+    // "open with <app>" button. A separate cache key, so grid badges stay bare.
+    Badge AppIconFor(const std::wstring& name, uint32_t pixels);
 
 private:
     friend struct OpenWithIconCacheTest;
+    Badge BadgeForExtension(const std::wstring& extension, uint32_t pixels,
+                            const std::wstring& key_prefix);
     struct Pixels {
         UINT width = 0;
         UINT height = 0;
@@ -76,5 +82,9 @@ private:
     std::thread worker_;
     std::atomic<bool> running_{false};
 };
+
+// Load a PNG/ICO on disk as menu-row icon pixels (the UWP app logo a shell
+// DefaultIcon reference resolves to). Null when the file cannot be decoded.
+common::MenuIconRef LoadAppIconPixels(const std::wstring& file, uint32_t pixels);
 
 } // namespace luling::ui

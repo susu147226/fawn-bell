@@ -13,7 +13,7 @@ namespace sysctx_text {
 inline const wchar_t* Title() { return l10n::Pick(L"系统右键菜单", L"System context menu"); }
 // One sidebar entry for both context-menu pages; the layer cards under the intro
 // switch between Pulse's own menu (page 2) and the system handlers (page 6).
-inline const wchar_t* PageTitle() { return l10n::Pick(L"右键菜单", L"Context menu"); }
+inline const wchar_t* PageTitle() { return l10n::Pick(L"系统右键菜单", L"System context menu"); }
 inline const wchar_t* Intro() { return l10n::Pick(
     L"改动作用于资源管理器和所有应用的右键菜单。开关先记下，点“应用更改”才写入注册表；写入前自动导出 .reg 备份，随时可以撤销或全部还原。",
     L"Changes apply to the context menu in File Explorer and every app. Switches are only noted until you choose "

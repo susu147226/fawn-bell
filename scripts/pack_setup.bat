@@ -34,7 +34,7 @@ if not defined LULING_VERSION (
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%CD%\scripts\check_release_payload.ps1" -BuildDir "%LULING_BUILD_DIR%" || exit /b 1
 
-for %%F in (luling.exe Luling.Index.exe Luling.Document.exe Luling.Preview.exe luling_shell.exe luling_elevated.exe luling_integration.exe lumatext.dll pdfium.dll) do (
+for %%F in (luling.exe Luling.Index.exe Luling.Document.exe Luling.Preview.exe Luling.AI.exe luling_shell.exe luling_elevated.exe luling_integration.exe lumatext.dll pdfium.dll) do (
     if not exist "%LULING_BUILD_DIR%\%%F" (
         echo Missing build output: %LULING_BUILD_DIR%\%%F
         exit /b 1

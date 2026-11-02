@@ -113,6 +113,7 @@ void Compositor::Shutdown() {
     typography::InvalidateCaches();
     textFormat_.reset();
     fileNameFormat_.reset();
+    boldFileNameFormat_.reset();
     smallFormat_.reset();
     headerFormat_.reset();
     tabFormat_.reset();
@@ -561,6 +562,7 @@ void Compositor::RecreateTextFormats(float scale) {
         ? MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST) : nullptr);
     textFormat_.reset();
     fileNameFormat_.reset();
+    boldFileNameFormat_.reset();
     smallFormat_.reset();
     headerFormat_.reset();
     tabFormat_.reset();
@@ -572,6 +574,10 @@ void Compositor::RecreateTextFormats(float scale) {
     CreateFormat(dwriteFactory_.get(), 13.0f * scale, DWRITE_FONT_WEIGHT_NORMAL,
         typography::FontRole::Text, fileNameFormat_);
     if (fileNameFormat_.get()) fileNameFormat_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+    CreateFormat(dwriteFactory_.get(), 13.0f * scale, DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        typography::FontRole::Text, boldFileNameFormat_);
+    if (boldFileNameFormat_.get())
+        boldFileNameFormat_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
     CreateFormat(dwriteFactory_.get(), 12.0f * scale, DWRITE_FONT_WEIGHT_NORMAL,
         typography::FontRole::Text, smallFormat_);
     if (smallFormat_.get()) smallFormat_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
@@ -593,6 +599,12 @@ void Compositor::RecreateTextFormats(float scale) {
         iconFormat_->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
         iconFormat_->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     }
+}
+
+void Compositor::DrawTextLayout(D2D1_POINT_2F origin, IDWriteTextLayout* layout,
+                                ID2D1SolidColorBrush* brush, D2D1_DRAW_TEXT_OPTIONS options) {
+    if (!dc_.get() || !layout || !brush) return;
+    dc_->DrawTextLayout(origin, layout, brush, options);
 }
 
 } // namespace luling::ui

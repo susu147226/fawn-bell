@@ -16,6 +16,7 @@
 #include "../common/current_user_security.h"
 #include "../common/path_utils.h"
 #include "../common/recycle_index.h"
+#include "../common/shell_id.h"
 #include "../common/crash_reporter.h"
 #include <windows.h>
 #include <shellapi.h>
@@ -59,8 +60,13 @@ void PostCtxMessage(uint32_t session_id, UINT message, WPARAM wParam, LPARAM lPa
 struct Request {
     uint32_t type = 0;
     uint32_t id = 0;
-    std::wstring new_name;
+    std::wstring new_name;  // REQ_RENAME: the name; REQ_SHELL_VERB: the verb
     std::vector<std::wstring> sources;
+    uint32_t owner = 0;     // REQ_SHELL_VERB: owner window for the shell's dialogs
+    uint32_t flags = 0;     // REQ_SHELL_VERB: SVF_*; REQ_SHELL_TRANSFER: STF_*
+    uint32_t op = 0;        // REQ_SHELL_TRANSFER: STO_*
+    std::wstring dest;      // REQ_SHELL_TRANSFER: target folder
+    std::vector<std::wstring> names;  // REQ_SHELL_TRANSFER: new leaf names
 };
 
 struct HostState {
@@ -207,6 +213,9 @@ public:
     const std::wstring& last_failed_item() const { return last_failed_item_; }
     HRESULT item_failure() const { return item_failure_; }
     void NoteSetupFailure(const std::wstring& src) { last_failed_item_ = src; }
+    // Work-progress reporting is already what UpdateProgress publishes; the
+    // transfer path only needs the sink to accept the call.
+    void set_work_progress(bool) {}
 
 private:
     HRESULT CheckCancel() {
@@ -444,7 +453,318 @@ HRESULT ExecuteRestore(const std::vector<std::wstring>& paths, std::wstring& err
     return HRESULT_FROM_WIN32(ERROR_PARTIAL_COPY);
 }
 
+std::wstring DescribeHresult(HRESULT hr) {
+    std::wstring text;
+    LPWSTR msg = nullptr;
+    const DWORD win_error = HRESULT_FACILITY(hr) == FACILITY_WIN32
+        ? HRESULT_CODE(hr) : static_cast<DWORD>(hr);
+    if (FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                       nullptr, win_error, 0, (LPWSTR)&msg, 0, nullptr) && msg) {
+        text = msg;
+        LocalFree(msg);
+        while (!text.empty() && (text.back() == L'\r' || text.back() == L'\n')) text.pop_back();
+    }
+    return text;
+}
+
+HRESULT ShellVerbMenu(const std::vector<std::wstring>& paths, bool background, HWND owner,
+                      IContextMenu** out) {
+    *out = nullptr;
+    if (paths.empty()) return E_INVALIDARG;
+    HRESULT hr = S_OK;
+    if (background) {
+        IShellItem* folder = nullptr;
+        IShellFolder* sf = nullptr;
+        hr = MakeItem(paths.front(), &folder);
+        if (SUCCEEDED(hr)) hr = folder->BindToHandler(nullptr, BHID_SFObject, IID_PPV_ARGS(&sf));
+        if (SUCCEEDED(hr))
+            hr = sf->CreateViewObject(owner, IID_IContextMenu, reinterpret_cast<void**>(out));
+        if (sf) sf->Release();
+        if (folder) folder->Release();
+        return SUCCEEDED(hr) && !*out ? E_FAIL : hr;
+    }
+    std::vector<PIDLIST_ABSOLUTE> pidls;
+    for (const auto& p : paths) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        hr = luling::shell_id::ParseId(ToParsingPath(p), &pidl);
+        if (FAILED(hr) || !pidl) {
+            if (SUCCEEDED(hr)) hr = HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+            break;
+        }
+        pidls.push_back(pidl);
+    }
+    if (SUCCEEDED(hr)) {
+        IShellItemArray* array = nullptr;
+        hr = SHCreateShellItemArrayFromIDLists(static_cast<UINT>(pidls.size()),
+            const_cast<PCIDLIST_ABSOLUTE_ARRAY>(pidls.data()), &array);
+        if (SUCCEEDED(hr)) {
+            hr = array->BindToHandler(nullptr, BHID_SFUIObject, IID_PPV_ARGS(out));
+            array->Release();
+        }
+    }
+    for (auto pidl : pidls) CoTaskMemFree(pidl);
+    return SUCCEEDED(hr) && !*out ? E_FAIL : hr;
+}
+
+// Drops `data` on the folder `dir` the way Explorer would: the folder's own
+// drop target runs the transfer (an MTP phone copies over WPD).
+HRESULT DropDataInto(IDataObject* data, const std::wstring& dir, DWORD wanted) {
+    IShellItem* folder = nullptr;
+    IDropTarget* drop = nullptr;
+    HRESULT hr = MakeItem(dir, &folder);
+    if (SUCCEEDED(hr)) hr = folder->BindToHandler(nullptr, BHID_SFUIObject, IID_PPV_ARGS(&drop));
+    if (folder) folder->Release();
+    if (SUCCEEDED(hr) && drop) {
+        POINTL pt{0, 0};
+        DWORD effect = DROPEFFECT_COPY | DROPEFFECT_MOVE;
+        const DWORD keys = wanted == DROPEFFECT_MOVE ? MK_LBUTTON | MK_SHIFT
+                         : wanted == DROPEFFECT_COPY ? MK_LBUTTON | MK_CONTROL : MK_LBUTTON;
+        hr = drop->DragEnter(data, keys, pt, &effect);
+        if (SUCCEEDED(hr) && !(effect & wanted)) wanted = effect & DROPEFFECT_COPY;
+        if (SUCCEEDED(hr) && wanted) {
+            effect = wanted;
+            hr = drop->Drop(data, wanted == DROPEFFECT_MOVE ? MK_LBUTTON | MK_SHIFT : MK_LBUTTON | MK_CONTROL,
+                            pt, &effect);
+        } else {
+            drop->DragLeave();
+            if (SUCCEEDED(hr)) hr = HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+        }
+    } else if (SUCCEEDED(hr)) {
+        hr = E_NOINTERFACE;
+    }
+    if (drop) drop->Release();
+    return hr;
+}
+
+HRESULT PasteClipboardInto(const std::wstring& dir) {
+    IDataObject* data = nullptr;
+    HRESULT hr = OleGetClipboard(&data);
+    if (FAILED(hr) || !data) return FAILED(hr) ? hr : E_FAIL;
+    DWORD wanted = DROPEFFECT_COPY;  // a cut moves, anything else copies
+    FORMATETC fmt{static_cast<CLIPFORMAT>(RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT)),
+                  nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+    STGMEDIUM medium{};
+    if (SUCCEEDED(data->GetData(&fmt, &medium))) {
+        if (const DWORD* preferred = static_cast<const DWORD*>(GlobalLock(medium.hGlobal))) {
+            if (*preferred & DROPEFFECT_MOVE) wanted = DROPEFFECT_MOVE;
+            GlobalUnlock(medium.hGlobal);
+        }
+        ReleaseStgMedium(&medium);
+    }
+    hr = DropDataInto(data, dir, wanted);
+    data->Release();
+    return hr;
+}
+
+HRESULT DropItemsInto(const std::wstring& dir, const std::vector<std::wstring>& items, bool move) {
+    if (items.empty()) return E_INVALIDARG;
+    std::vector<PIDLIST_ABSOLUTE> pidls;
+    HRESULT hr = S_OK;
+    for (const auto& item : items) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        hr = luling::shell_id::ParseId(ToParsingPath(item), &pidl);
+        if (FAILED(hr) || !pidl) {
+            if (SUCCEEDED(hr)) hr = HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+            break;
+        }
+        pidls.push_back(pidl);
+    }
+    IShellItemArray* array = nullptr;
+    IDataObject* data = nullptr;
+    if (SUCCEEDED(hr))
+        hr = SHCreateShellItemArrayFromIDLists(static_cast<UINT>(pidls.size()),
+                                               const_cast<PCIDLIST_ABSOLUTE_ARRAY>(pidls.data()), &array);
+    for (auto* pidl : pidls) CoTaskMemFree(pidl);
+    if (SUCCEEDED(hr) && array) hr = array->BindToHandler(nullptr, BHID_DataObject, IID_PPV_ARGS(&data));
+    if (array) array->Release();
+    if (SUCCEEDED(hr) && data) hr = DropDataInto(data, dir, move ? DROPEFFECT_MOVE : DROPEFFECT_COPY);
+    else if (SUCCEEDED(hr)) hr = E_NOINTERFACE;
+    if (data) data->Release();
+    return hr;
+}
+
+void ExecuteShellVerb(Request* req) {
+    // Copy / cut / paste go through the OLE clipboard, which needs OLE (not
+    // just COM) on this thread. Kept for the process: the clipboard data a
+    // copy leaves must outlive the request.
+    static const HRESULT ole = OleInitialize(nullptr);
+    const bool background = (req->flags & SVF_BACKGROUND) != 0;
+    const HWND owner = reinterpret_cast<HWND>(static_cast<uintptr_t>(req->owner));
+    const std::wstring& verb = req->new_name;
+    HRESULT hr = FAILED(ole) ? ole : S_OK;
+    if (SUCCEEDED(hr) && req->sources.empty()) hr = E_INVALIDARG;
+    const bool drop_copy = _wcsicmp(verb.c_str(), L"drop:copy") == 0;
+    const bool drop_move = _wcsicmp(verb.c_str(), L"drop:move") == 0;
+    if (SUCCEEDED(hr) && background && _wcsicmp(verb.c_str(), L"paste") == 0) {
+        hr = PasteClipboardInto(req->sources.front());
+    } else if (SUCCEEDED(hr) && background && (drop_copy || drop_move)) {
+        hr = DropItemsInto(req->sources.front(),
+                           std::vector<std::wstring>(req->sources.begin() + 1, req->sources.end()),
+                           drop_move);
+    } else if (SUCCEEDED(hr)) {
+        IContextMenu* menu = nullptr;
+        hr = ShellVerbMenu(req->sources, background, owner, &menu);
+        HMENU hmenu = SUCCEEDED(hr) ? CreatePopupMenu() : nullptr;
+        if (SUCCEEDED(hr) && !hmenu) hr = HRESULT_FROM_WIN32(GetLastError());
+        constexpr UINT kFirst = 1;
+        constexpr UINT kLast = 0x7FFF;
+        if (SUCCEEDED(hr)) {
+            UINT flags = verb.empty() ? CMF_DEFAULTONLY : CMF_NORMAL;
+            if (!background) flags |= CMF_ITEMMENU;
+            hr = menu->QueryContextMenu(hmenu, 0, kFirst, kLast, flags);
+        }
+        std::string verb_a;
+        UINT default_id = 0;
+        if (SUCCEEDED(hr) && verb.empty()) {
+            const UINT id = GetMenuDefaultItem(hmenu, FALSE, 0);
+            if (id == static_cast<UINT>(-1) || id < kFirst || id > kLast)
+                hr = HRESULT_FROM_WIN32(ERROR_NO_ASSOCIATION);
+            else default_id = id - kFirst;
+        } else if (SUCCEEDED(hr)) {
+            for (wchar_t c : verb) verb_a.push_back(c < 0x80 ? static_cast<char>(c) : '?');
+        }
+        if (SUCCEEDED(hr)) {
+            CMINVOKECOMMANDINFOEX info{};
+            info.cbSize = sizeof(info);
+            info.fMask = CMIC_MASK_UNICODE;
+            info.hwnd = owner;
+            if (verb.empty()) {
+                info.lpVerb = MAKEINTRESOURCEA(default_id);
+                info.lpVerbW = MAKEINTRESOURCEW(default_id);
+            } else {
+                info.lpVerb = verb_a.c_str();
+                info.lpVerbW = verb.c_str();
+            }
+            info.nShow = SW_SHOWNORMAL;
+            hr = menu->InvokeCommand(reinterpret_cast<CMINVOKECOMMANDINFO*>(&info));
+        }
+        if (hmenu) DestroyMenu(hmenu);
+        if (menu) menu->Release();
+    }
+    const bool cancelled = hr == HRESULT_FROM_WIN32(ERROR_CANCELLED);
+    if (FAILED(hr) && !cancelled) {
+        wchar_t line[160];
+        _snwprintf_s(line, _TRUNCATE, L"shell verb '%.64ls' failed hr=0x%08lX",
+                     verb.empty() ? L"(default)" : verb.c_str(), static_cast<unsigned long>(hr));
+        HostLog(line);
+    }
+    SendDone(req->id, cancelled ? S_OK : hr, cancelled, FAILED(hr) && !cancelled ? DescribeHresult(hr) : L"");
+    delete req;
+}
+
+// REQ_SHELL_TRANSFER: one IFileOperation on its own STA thread. Explorer's
+// own engine: the same WPD path, the same speed.
+void ExecuteShellTransfer(const Request& req) {
+    const bool create = req.op == STO_NEW_FOLDER || req.op == STO_NEW_FILE;
+    const bool remove = req.op == STO_DELETE;
+    HRESULT hr = S_OK;
+    IShellItem* dest = nullptr;
+    if (!remove) hr = req.dest.empty() ? E_INVALIDARG : MakeItem(req.dest, &dest);
+    if (SUCCEEDED(hr) && !create && req.sources.empty()) hr = E_INVALIDARG;
+    if (SUCCEEDED(hr) && create && (req.names.empty() || req.names.front().empty())) hr = E_INVALIDARG;
+    IFileOperation* op = nullptr;
+    if (SUCCEEDED(hr))
+        hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&op));
+    ProgressSink sink(req.id, create ? 1 : req.sources.size());
+    sink.set_work_progress(true);
+    DWORD sink_cookie = 0;
+    if (SUCCEEDED(hr)) {
+        DWORD flags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NOCONFIRMMKDIR;
+        if (req.flags & STF_RENAME_ON_COLLISION) flags |= FOF_RENAMEONCOLLISION;
+        hr = op->SetOperationFlags(flags);
+        if (SUCCEEDED(hr)) op->Advise(&sink, &sink_cookie);
+    }
+    bool setup_failed = FAILED(hr);
+    if (SUCCEEDED(hr) && create) {
+        hr = op->NewItem(dest, req.op == STO_NEW_FOLDER ? FILE_ATTRIBUTE_DIRECTORY : FILE_ATTRIBUTE_NORMAL,
+                         req.names.front().c_str(), nullptr, nullptr);
+        setup_failed = FAILED(hr);
+    } else if (SUCCEEDED(hr)) {
+        for (size_t i = 0; i < req.sources.size(); ++i) {
+            IShellItem* item = nullptr;
+            hr = MakeItem(req.sources[i], &item);
+            if (FAILED(hr)) {
+                sink.NoteSetupFailure(req.sources[i]);
+                break;
+            }
+            const wchar_t* name = i < req.names.size() && !req.names[i].empty() ? req.names[i].c_str() : nullptr;
+            switch (req.op) {
+            case STO_COPY: hr = op->CopyItem(item, dest, name, nullptr); break;
+            case STO_MOVE: hr = op->MoveItem(item, dest, name, nullptr); break;
+            case STO_DELETE: hr = op->DeleteItem(item, nullptr); break;
+            default: hr = E_INVALIDARG; break;
+            }
+            item->Release();
+            if (FAILED(hr)) break;
+        }
+        setup_failed = FAILED(hr);
+    }
+    bool cancelled = false;
+    if (SUCCEEDED(hr)) {
+        hr = op->PerformOperations();
+        BOOL aborted = FALSE;
+        op->GetAnyOperationsAborted(&aborted);
+        cancelled = g.cancel_id.load() == req.id || hr == HRESULT_FROM_WIN32(ERROR_CANCELLED) ||
+                    (aborted && SUCCEEDED(hr) && SUCCEEDED(sink.item_failure()));
+        if (SUCCEEDED(hr) && FAILED(sink.item_failure())) hr = sink.item_failure();
+    }
+    if (op) {
+        if (sink_cookie) op->Unadvise(sink_cookie);
+        op->Release();
+    }
+    if (dest) dest->Release();
+    std::wstring error;
+    if (FAILED(hr) && !cancelled) {
+        error = DescribeHresult(hr);
+        if (!sink.last_failed_item().empty()) {
+            if (!error.empty()) error += L" | ";
+            error += sink.last_failed_item();
+        }
+        wchar_t line[160];
+        swprintf_s(line, L"shell transfer op=%u items=%zu failed hr=0x%08lX setup=%d", req.op,
+                   req.sources.size(), static_cast<unsigned long>(hr), setup_failed ? 1 : 0);
+        HostLog(line);
+    }
+    SendDone(req.id, cancelled ? S_OK : hr, cancelled, error);
+}
+
+DWORD WINAPI ShellTransferThread(LPVOID param) {
+    std::unique_ptr<Request> req(static_cast<Request*>(param));
+    const HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    ExecuteShellTransfer(*req);
+    if (SUCCEEDED(co)) CoUninitialize();
+    g.requests_in_flight.fetch_sub(1);
+    PostMessageW(g.hwnd_msg, WM_RECYCLE_CHECK, 0, 0);
+    return 0;
+}
+
+void StartShellTransfer(uint32_t id, const uint8_t* payload, size_t size) {
+    auto req = std::make_unique<Request>();
+    req->type = REQ_SHELL_TRANSFER;
+    req->id = id;
+    PayloadReader r(payload, size);
+    if (!r.GetU32(req->op) || !r.GetU32(req->flags) || !r.GetString(req->dest) ||
+        !r.GetStringArray(req->sources) || !r.GetStringArray(req->names) || req->op > STO_DELETE) {
+        SendDone(id, E_INVALIDARG, false, L"malformed transfer request");
+        return;
+    }
+    g.requests_in_flight.fetch_add(1);
+    HANDLE thread = CreateThread(nullptr, 0, ShellTransferThread, req.get(), 0, nullptr);
+    if (!thread) {
+        const HRESULT hr = HRESULT_FROM_WIN32(GetLastError());
+        g.requests_in_flight.fetch_sub(1);
+        SendDone(id, hr, false, DescribeHresult(hr));
+        return;
+    }
+    req.release();  // the thread owns it now
+    CloseHandle(thread);
+}
+
 void ExecuteRequest(Request* req) {
+    if (req->type == REQ_SHELL_VERB) {
+        ExecuteShellVerb(req);
+        return;
+    }
     if (req->type == REQ_NEW_FOLDER || req->type == REQ_NEW_FILE) {
         HRESULT hr = req->sources.empty() ? E_INVALIDARG
                                           : ExecuteCreate(req->type, req->sources.front());
@@ -700,6 +1020,30 @@ DWORD WINAPI ReaderThreadImpl() {
                     PostCtxMessage(session, WM_CTX_CLOSE, 0, 0);
                 break;
             }
+            case REQ_SHELL_VERB: {
+                auto* req = new Request();
+                req->type = h.type;
+                req->id = h.request_id;
+                PayloadReader r(payload.data(), payload.size());
+                if (!r.GetU32(req->owner) || !r.GetU32(req->flags) ||
+                    !r.GetString(req->new_name) || !r.GetStringArray(req->sources)) {
+                    SendDone(req->id, E_INVALIDARG, false, L"malformed shell verb payload");
+                    delete req;
+                    break;
+                }
+                g.requests_in_flight.fetch_add(1);
+                if (!PostMessageW(g.hwnd_msg, WM_EXEC_REQUEST, 0,
+                                  reinterpret_cast<LPARAM>(req))) {
+                    g.requests_in_flight.fetch_sub(1);
+                    SendDone(req->id, HRESULT_FROM_WIN32(GetLastError()), false,
+                             L"host message queue unavailable");
+                    delete req;
+                }
+                break;
+            }
+            case REQ_SHELL_TRANSFER:
+                StartShellTransfer(h.request_id, payload.data(), payload.size());
+                break;
             case REQ_DELETE_RECYCLE:
             case REQ_REALDELETE:
             case REQ_RENAME:

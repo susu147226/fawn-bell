@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <d2d1.h>
 #include <windows.h>
 
@@ -32,6 +33,9 @@ struct ConfirmDialogSpec {
     // The button Enter presses at first. Destructive questions start on
     // Cancel, like MB_DEFBUTTON2, so Enter alone never confirms them.
     ConfirmChoice default_choice = ConfirmChoice::Confirm;
+    // Polled by the dialog's message loop; set when the caller no longer needs
+    // an answer (the AI broker's client hung up). Null means "wait for a person".
+    const std::atomic<bool>* cancel = nullptr;
 };
 
 ConfirmChoice ShowConfirmDialogEx(HWND owner, const ConfirmDialogSpec& spec, bool dark,

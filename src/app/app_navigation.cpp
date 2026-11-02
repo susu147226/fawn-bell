@@ -1,6 +1,7 @@
 #include <thread>
 // app_navigation.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "app_commands.h"
 #include "window_registry.h"
 #include "window_factory.h"
 #include "../fs/bitlocker_volume.h"
@@ -1578,6 +1579,8 @@ void DropSizePatches(AppState& s, const std::wstring& path) {
 
 void QueueSizePatch(AppState& s, const std::wstring& path, const std::wstring& name,
                            ULONGLONG due) {
+    if (s.appPrefs.mtime_flash && s.appPrefs.mtime_style != 0)
+        s.renderer.FlashRowAnyPane(name);
     for (auto& patch : s.size_patches) {
         if (patch.path == path && _wcsicmp(patch.name.c_str(), name.c_str()) == 0) {
             patch.due = due;
@@ -1714,11 +1717,15 @@ void DrainDirNotifies(AppState& s) {
         changed = true;
     }
 
-    if (now - s.last_unc_poll >= 1000) {
+    // A share's change notifications are not dependable: some servers accept
+    // the subscription and never push (Explorer refreshes because it polls).
+    // Give every visible network folder a fresh listing on a slow cadence even
+    // when the watch says it is armed.
+    if (now - s.last_unc_poll >= 5000) {
         s.last_unc_poll = now;
         for (const auto& path : VisibleFolderPaths(s)) {
             if (!fs::IsUncPath(path)) continue;
-            if (s.watches.Armed(path) || PathHasPendingRefresh(s, path)) continue;
+            if (PathHasPendingRefresh(s, path)) continue;
             RefreshPath(s, path);
             changed = true;
         }
@@ -1751,6 +1758,10 @@ void RestoreNavigationReturnSelection(AppState& s, app::Tab& tab,
 }
 
 void NavigateTo(AppState& s, const std::wstring& path) {
+    if (path == L"luling:all-tags") {
+        ShowTagManager(s);
+        return;
+    }
     if (OpenSystemNetworkShortcut(s, path)) return;
     app::Tab* tab = ActiveTab(s);
     if (!tab) return;
@@ -2139,7 +2150,7 @@ void OpenSelected(AppState& s, bool folder_in_new_window) {
     // Shift+double-click opens a folder (or a folder shortcut) in a window of
     // its own, the way Explorer does.
     const auto open_folder = [&](const std::wstring& path) {
-        if (folder_in_new_window) OpenLulingWindow(s, WindowInit{path});
+        if (folder_in_new_window) OpenWindowOrTab(s, WindowInit{path});
         else NavigateTo(s, path);
     };
     if (indices.size() == 1) {
@@ -2472,6 +2483,10 @@ void CloseActiveTab(AppState& s) {
 
 void SwitchTab(AppState& s, size_t idx) {
     if (idx >= s.window_tabs.items.size()) return;
+    if (s.shortcutCapture >= 0) {
+        s.shortcutCapture = -1;
+        s.shortcutCaptureHint.clear();
+    }
     if (s.addressSearching) HideAddressEditor(s, false);
     RememberLayoutFocus(s);
     s.window_tabs.SwitchTab(idx);

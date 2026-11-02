@@ -81,6 +81,11 @@ enum MsgType : uint32_t {
     REQ_CTX_QUERY = 12,
     REQ_CTX_INVOKE = 13,
     REQ_CTX_CLOSE = 14,
+    // One of Explorer's own verbs (ShellVerbFlags) / one shell-side file
+    // operation (ShellTransferOp) on shell items; see ExecuteShellVerb and
+    // ExecuteShellTransfer in shell_host.
+    REQ_SHELL_VERB = 15,
+    REQ_SHELL_TRANSFER = 16,
     RSP_PROGRESS = 100,
     RSP_DONE = 101,
     RSP_PONG = 102,
@@ -93,6 +98,23 @@ enum CtxQueryFlags : uint32_t {
     CTXF_BACKGROUND = 2,  // paths[0] is a folder; build its background menu
 };
 
+// REQ_SHELL_VERB flags.
+enum ShellVerbFlags : uint32_t {
+    SVF_BACKGROUND = 1,   // paths[0] is a folder; the verb is its background verb
+};
+
+// REQ_SHELL_TRANSFER operations and flags.
+enum ShellTransferOp : uint32_t {
+    STO_COPY = 0,
+    STO_MOVE = 1,
+    STO_NEW_FOLDER = 2,
+    STO_NEW_FILE = 3,
+    STO_DELETE = 4,
+};
+enum ShellTransferFlags : uint32_t {
+    STF_RENAME_ON_COLLISION = 1,  // the shell names a colliding copy "a (2).jpg"
+};
+
 // RSP_CTX_ITEMS per-item flags. Software-owned submenus keep one level of
 // hierarchy: a HAS_CHILDREN row is followed by its CHILD rows in order
 // (children never nest further; deeper levels are cut on the host).
@@ -102,6 +124,28 @@ enum CtxItemFlags : uint32_t {
     CTX_ITEM_HAS_CHILDREN = 4,  // submenu header; item_id is not invokable
     CTX_ITEM_CHILD = 8,         // belongs to the nearest preceding header
 };
+// Bits 16..31 of the per-item flags carry the row's access key (UTF-16 code
+// unit of the raw label's "&X", upper-cased; 0 = none).
+constexpr uint32_t CTX_ITEM_MNEMONIC_SHIFT = 16;
+inline uint32_t PackCtxItemMnemonic(wchar_t key) {
+    return static_cast<uint32_t>(static_cast<uint16_t>(key)) << CTX_ITEM_MNEMONIC_SHIFT;
+}
+inline wchar_t UnpackCtxItemMnemonic(uint32_t flags) {
+    return static_cast<wchar_t>(flags >> CTX_ITEM_MNEMONIC_SHIFT);
+}
+
+// State of each handler the host queried for one RSP_CTX_ITEMS payload.
+enum CtxHandlerFlags : uint32_t {
+    CTX_HANDLER_DONE = 1,
+    CTX_HANDLER_DUPLICATE = 2,
+};
+struct CtxHandlerStatus {
+    std::wstring clsid;
+    uint32_t flags = 0;
+    uint32_t elapsed_ms = 0;
+    uint32_t rows = 0;
+};
+constexpr uint32_t kMaxCtxHandlerStatuses = 256;
 
 // RSP_CTX_ITEMS message flags (after session_id).
 enum CtxItemsMsgFlags : uint32_t {
@@ -216,6 +260,26 @@ private:
     size_t size_ = 0;
     size_t off_ = 0;
 };
+
+// Optional field between the slow CLSIDs and the icons: one status per
+// handler the host queried. Absent (older host) reads as an empty list.
+inline bool TryCtxHandlerStatuses(PayloadReader& r, std::vector<CtxHandlerStatus>& v) {
+    v.clear();
+    if (r.remaining() == 0) return true;
+    uint32_t n = 0;
+    if (!r.GetU32(n) || n > kMaxCtxHandlerStatuses) return false;
+    std::vector<CtxHandlerStatus> out;
+    out.reserve(n);
+    for (uint32_t i = 0; i < n; ++i) {
+        CtxHandlerStatus h;
+        if (!r.GetString(h.clsid) || !r.GetU32(h.flags) || !r.GetU32(h.elapsed_ms) ||
+            !r.GetU32(h.rows))
+            return false;
+        out.push_back(std::move(h));
+    }
+    v = std::move(out);
+    return true;
+}
 
 // Optional trailing field after the context-menu rows: the app icons Explorer
 // shows next to them (the rows' MIIM_BITMAP pixels, premultiplied BGRA).

@@ -43,6 +43,10 @@ struct WindowInit {
 // window, or nullptr when it could not be created.
 HWND OpenLulingWindow(AppState& from, const WindowInit& init);
 
+// Entry points that used to open a window: in single-window mode they open a
+// tab here instead, and a session window's tabs come back into this window.
+HWND OpenWindowOrTab(AppState& from, const WindowInit& init);
+
 // A window's sidebar and details pane, for the session.
 app::WindowLayoutSnapshot CaptureWindowLayout(const AppState& s);
 void ApplyWindowLayout(AppState& s, const app::WindowLayoutSnapshot& layout);

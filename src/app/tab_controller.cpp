@@ -311,26 +311,7 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
         OpenCreatedTab(tabs, static_cast<size_t>(tab_index) + 1,
                        current ? current->current_path : L"C:\\");
     } else if (command == CmdTabRename) {
-        std::wstring draft = LayoutTabTitle(tab);
-        menu.SetFilterPlaceholder(luling::l10n::Get(luling::l10n::StringId::TabNameHint));
-        menu.SetInitialFilterText(draft);
-        menu.SetFilterMinWidth(320.0f);
-        const auto build = [&](const std::wstring& query) {
-            draft = query;
-            return std::vector<ui::FluentMenuItem>{
-                MenuItem(CmdTabNameSave, luling::l10n::Get(luling::l10n::StringId::TabNameSave).c_str()),
-                MenuItem(CmdTabNameReset, luling::l10n::Get(luling::l10n::StringId::TabNameReset).c_str())};
-        };
-        const int choice = menu.TrackPopup(screen_pt, build(draft), build);
-        menu.SetFilterPlaceholder(TabText(Text::TabMenuSearch));
-        menu.SetFilterMinWidth(0.0f);
-        if (choice == CmdTabNameSave) {
-            const size_t first = draft.find_first_not_of(L" \t\r\n");
-            tab.title = first == std::wstring::npos ? L""
-                : draft.substr(first, draft.find_last_not_of(L" \t\r\n") - first + 1);
-        } else if (choice == CmdTabNameReset) {
-            tab.title.clear();
-        }
+        ShowTabRenameMenu(tabs, tab_index, screen_pt, menu);
     } else if (command >= CmdTabColorBase && command < CmdTabColorBase + static_cast<int>(std::size(kPalette))) {
         tab.marker_rgb = kPalette[command - CmdTabColorBase];
     } else if (command == CmdTabColorNone) {
@@ -358,6 +339,32 @@ void TabController::ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt
                     tabs.tab_groups[static_cast<size_t>(command - CmdTabJoinGroupBase)].id);
     }
     Changed();
+}
+
+void TabController::ShowTabRenameMenu(WindowTabs& tabs, int tab_index, POINT screen_pt,
+                                      ui::FluentMenu& menu) {
+    if (tab_index < 0 || tab_index >= static_cast<int>(tabs.items.size())) return;
+    LayoutTab& tab = *tabs.items[static_cast<size_t>(tab_index)];
+    std::wstring draft = LayoutTabTitle(tab);
+    menu.SetFilterPlaceholder(luling::l10n::Get(luling::l10n::StringId::TabNameHint));
+    menu.SetInitialFilterText(draft);
+    menu.SetFilterMinWidth(320.0f);
+    const auto build = [&](const std::wstring& query) {
+        draft = query;
+        return std::vector<ui::FluentMenuItem>{
+            MenuItem(CmdTabNameSave, luling::l10n::Get(luling::l10n::StringId::TabNameSave).c_str()),
+            MenuItem(CmdTabNameReset, luling::l10n::Get(luling::l10n::StringId::TabNameReset).c_str())};
+    };
+    const int choice = menu.TrackPopup(screen_pt, build(draft), build);
+    menu.SetFilterPlaceholder(TabText(Text::TabMenuSearch));
+    menu.SetFilterMinWidth(0.0f);
+    if (choice == CmdTabNameSave) {
+        const size_t first = draft.find_first_not_of(L" \t\r\n");
+        tab.title = first == std::wstring::npos ? L""
+            : draft.substr(first, draft.find_last_not_of(L" \t\r\n") - first + 1);
+    } else if (choice == CmdTabNameReset) {
+        tab.title.clear();
+    }
 }
 
 } // namespace luling::app

@@ -2,6 +2,11 @@
 #pragma once
 #include "../index/content_result_store.h"
 #include "ui_compositor.h"
+#include <d2d1svg.h>
+#include "ai_panel_view.h"
+#include "ai_settings_view.h"
+#include "ai_model_view.h"
+#include "shortcut_help.h"
 #include "window_material.h"
 #include "fluent_components.h"
 #include "release_note_view.h"
@@ -103,6 +108,11 @@ struct ListEntryView {
     bool is_reparse = false;
     fs::LinkKind link_kind = fs::LinkKind::None;
     bool cloud_recall = false;
+    // OneDrive Files On-Demand: 1 local, 2 online only, 3 always keep.
+    uint8_t cloud_state = 0;
+    // SVN wc-status item: 0 none, 1 modified, 2 added, 3 deleted, 4 unversioned,
+    // 5 conflicted, 6 ignored, 7 replaced, 8 missing.
+    uint8_t svn_state = 0;
     bool record_only = false;
     bool cut = false;
     bool starred = false;
@@ -114,6 +124,10 @@ struct ListEntryView {
     // This PC tiles: used fraction (-1 = unknown) and "X free of Y".
     float drive_used = -1.0f;
     std::wstring drive_space_text;
+    // Inline file tree: indent level and this folder's chevron state.
+    int tree_depth = 0;
+    bool tree_expanded = false;
+    bool tree_has_children = false;
 };
 
 struct RowPresentationCache {
@@ -251,6 +265,22 @@ struct PaneViewModel {
     bool header_drop = false;     // pane title bar is a navigate-to-folder target
     int rename_index = -1;        // name column is in edit mode; do not draw the label
     bool focus_first_hint = false; // first view row has keyboard focus but no selection
+    bool list_checkboxes = false;  // a selection checkbox leads each row (gutter reserved)
+    bool cloud_status = true;      // OneDrive placeholder state after the name
+    // A pinned parent row (the folder above) at the top of a scrolled list.
+    bool sticky_parent = true;
+    std::wstring sticky_parent_label;
+    // SVN status by lowercase file name (empty when the feature is off).
+    std::shared_ptr<const std::unordered_map<std::wstring, uint8_t>> svn_items;
+    // 修改时间提示 (Settings > 文件列表): 0 off, 1 dot, 2 bar, 3 text only.
+    bool mtime_marks = false;
+    int mtime_style = 0;
+    int mtime_days = 7;
+    int mtime_palette = 0;
+    bool mtime_dim_old = true;
+    bool mtime_bold_today = true;
+    bool mtime_in_icons = true;
+    bool mtime_folders = false;
     float scroll_y = 0.0f;
     float scroll_x = 0.0f;
     ViewMode view_mode = ViewMode::Details;
@@ -520,6 +550,14 @@ struct StatusBarView {
     bool task_failed = false;      // last operation ended with an error: no success check
     std::wstring performance_text; // development diagnostics; empty hides it
     std::wstring performance_compact_text;
+    // 鹿铃助手's chip at the far left.
+    StatusAiState ai_state = StatusAiState::Hidden;
+    std::wstring ai_label;
+    std::wstring ai_text;
+    float ai_progress = -1.0f;
+    bool ai_open = false;
+    bool ai_unread = false;
+    bool ai_pressed = false;
 };
 
 struct PaneSlotView {
@@ -631,6 +669,17 @@ struct HoverPreviewView {
     int size_step = 1;            // 0 small, 1 medium, 2 large
     bool zoom = false;            // Ctrl held: much larger, for a closer look
     bool instant = false;         // --shot: no size easing between frames
+};
+
+// Settings > 标签页与窗口: one row per window tab.
+struct TabManageRow {
+    std::wstring title;
+    std::wstring path;
+    std::wstring group_name;
+    uint32_t color = 0;
+    int group_id = 0;
+    bool active = false;
+    bool pinned = false;
 };
 
 struct WindowViewModel {
@@ -809,7 +858,18 @@ struct WindowViewModel {
     int settings_theme = 0; // system, light, dark
     bool settings_open = false;
     int settings_page = 0; // 0 general, 1 search/index, 2 context menu, 3 about, 4 duplicates
+    // Settings > AI 助手 (page 12): the MCP page view (ai_settings_ui.cpp).
+    std::shared_ptr<const AiPageView> settings_ai;
+    // Settings > AI 助手 (page 12): the model service page view.
+    std::shared_ptr<const AiModelPageView> settings_ai_model;
+    // Settings > 快捷键 (page 13): the same groups as the help dialog.
+    std::shared_ptr<const std::vector<ShortcutGroupView>> settings_shortcuts;
+    // Luling.AI.exe is beside the app (设置 › 增强包 › AI 增强包).
+    bool settings_ai_host = false;
     float settings_scroll = 0.0f;
+    // The navigation column's own scroll (a short window hides its overflow
+    // until the wheel moves this).
+    float settings_nav_scroll = 0.0f;
     bool settings_launch_on_startup = false;
     bool settings_start_in_tray = false;
     bool settings_keep_running = false;
@@ -823,6 +883,21 @@ struct WindowViewModel {
     bool settings_list_selection_outline = false;
     bool settings_list_thumbnail_badges = true;
     bool settings_vertical_tabs = false;
+    std::wstring settings_thumb_cache_text;
+    int settings_mtime_style = 0;
+    int settings_mtime_days = 7;
+    int settings_mtime_palette = 0;
+    bool settings_mtime_dim_old = true;
+    bool settings_mtime_bold_today = true;
+    bool settings_mtime_icons = true;
+    bool settings_mtime_folders = false;
+    bool settings_mtime_flash = true;
+    bool settings_cloud_status = true;
+    bool settings_sticky_parent = true;
+    bool settings_tree_view = false;
+    bool settings_svn_status = false;
+    bool settings_svn_available = false;
+    std::vector<TabManageRow> settings_tab_manage;
     bool settings_show_hints = true;
     bool settings_tips_seen = false;   // any teaching bubble already shown
     int settings_folder_sort = 0; // 0 folders first, 1 follow direction, 2 mixed
@@ -830,6 +905,7 @@ struct WindowViewModel {
     int settings_notify_icon = 0;  // 0 always, 1 in the background, 2 never (#57)
     int settings_new_tab_open = 0; // 0 current folder, 1 default location
     bool settings_close_last_tab = false;
+    bool settings_single_window = false;
     bool settings_confirm_delete = false;
     std::wstring settings_home_folder; // default location; empty = This PC
     int settings_text_render = 0; // 0 auto, 1 sharp, 2 smooth
@@ -852,6 +928,15 @@ struct WindowViewModel {
     bool settings_integration_can_restore = false;
     bool settings_shell_tags = false;
     int settings_blank_click_action = 0;   // app/blank_pane_click.h
+    int settings_collision_policy = 0;     // 0 keep both, 1 replace
+    bool settings_single_click_open = false;
+    bool settings_list_checkboxes = false;
+    // Settings > 快捷键: the command row waiting for a key (-1 none) and any
+    // conflict message.
+    int settings_shortcut_capture = -1;
+    std::wstring settings_shortcut_hint;
+    bool settings_show_hidden_shares = false;
+    bool settings_explorer_fallback = true;
     bool settings_change_tracking = false;
     int settings_change_days = 3;
     int settings_row_height = 34; // current row-height pref (DIPs) for density radios
@@ -859,6 +944,13 @@ struct WindowViewModel {
     bool settings_staging_tray = false;  // staging tray enabled (issue #126)
     int settings_language = 0;    // 0 system, 1 zh-CN, 2 zh-TW, 3 en-US
     BloomAccentPicker* settings_bloom = nullptr;
+    bool settings_accent_editor_open = false;
+    int settings_accent_h = 206;
+    int settings_accent_s = 100;
+    int settings_accent_l = 38;
+    std::wstring settings_accent_hex;
+    uint32_t settings_accent_rgb = 0;
+    bool settings_accent_valid = false;
     bool settings_group_on[5] = { true, true, false, false, true };
     // 本地右键菜单 › Luling 菜单 card: selected tab (0 on a file, 1 blank area,
     // 2 row buttons), the hidden-item mask, and where BuiltinMenuItem 0 sits
@@ -891,6 +983,9 @@ struct WindowViewModel {
     uint32_t settings_index_system_groups = 0;  // bit i = index::kSystemExclusionGroups[i]
     bool settings_index_system_expanded = false;
     std::vector<NetworkRootRowView> settings_network_roots;
+    // 鹿铃助手 (ai_panel_view.h): the docked column or floating card.
+    AiPanelViewModel ai_panel;
+
     std::wstring settings_version;
     std::wstring settings_build_id;
     std::vector<std::pair<std::wstring, std::wstring>> settings_about_rows; // label, value
@@ -973,6 +1068,21 @@ struct HitTestResult {
         NetworkDiscoverySettings,
         SettingsContentIndex,
         SettingsFind, SettingsDisclosure, SettingsTheme, SettingsDropdown,
+        SettingsShortcutRow,  // Settings > 快捷键: index = app::ShortcutCommand
+        SettingsShortcutReset,
+        SettingsTabRow,     // Settings > 标签页管理: index = window tab
+        SettingsTabColor,
+        SettingsTabRename,
+        SettingsTabGroup,
+        SettingsTabClose,
+        SettingsThumbCacheClear,
+        SettingsMtimeStyle,
+        SettingsMtimeDays,
+        SettingsMtimePalette,
+        SettingsAccentToggle,
+        SettingsAccentHue,
+        SettingsAccentSaturation,
+        SettingsAccentLightness,
         SettingsSysCtx,        // Settings > 系统右键菜单: index = SysCtxHit
         SettingsContentAction,
         AddressSearchClear,
@@ -984,7 +1094,10 @@ struct HitTestResult {
         FilterClear,
         Splitter,
         Scrollbar,
-        Row,
+        Row,                // add a new value only at the end
+        StickyParent,       // pinned parent-folder row at the top of a scrolled list
+        RowCheck,   // selection checkbox in the row's leading gutter
+        RowSelectAll, // the same checkbox in the details header
         ChangeBadge,
         ChangeOpen,
         ChangeTimeFilter,
@@ -1031,7 +1144,9 @@ struct HitTestResult {
         StatusBar,
         StatusBarTask,
         StatusBarCancelSearch,
+        StatusBarAi,
         SettingsNav,
+        SettingsAiAction,    // Settings > AI 助手: see kAiAction* in ui_settings_ai.cpp
         SettingsToggle,
         SettingsIntegration, // 0 master, 1 folders, 2 Win+E, 3 This PC, 4 experimental, 5 retry, 6 restore
         SettingsGlobalSearchHotkey,
@@ -1046,6 +1161,7 @@ struct HitTestResult {
         SettingsNotifyIcon,
         SettingsNewTabOpen,
         SettingsBlankClick,
+        SettingsCollision,
         SettingsHomeFolder,
         SettingsTextRender,
         SettingsUiFontSize,
@@ -1099,6 +1215,7 @@ struct HitTestResult {
         SettingsPreviewStore,  // Settings > Quick Look formats: get a missing system extension (index = row)
         SettingsPackAction,    // Settings > 预览增强包: index = PackAction
         TabScroll,             // overflowing tab strip arrows: index -1 = left, 1 = right
+        TreeChevron,           // inline file tree: index = source row of the folder
     } region = None;
     SidebarAddAction sidebar_action = SidebarAddAction::None;
     int index = -1;          // tab/row/sidebar item/tray batch/tray item.
@@ -1125,6 +1242,9 @@ class MainRenderer {
 public:
     MainRenderer();
 
+    // 修改时间提示: the file behind this row just changed; flash it briefly.
+    void FlashRowAnyPane(const std::wstring& name);
+
     void SetScale(float scale);
     void SetCompositor(Compositor* comp);
     void InvalidateTypography();
@@ -1136,6 +1256,13 @@ public:
     float TitleBarHeight() const { return title_bar_height_; }
     float ToolbarHeight() const { return toolbar_height_; }
     float EffectiveSidebarWidth(float window_width) const;
+    // 鹿铃助手: open/close and place it; the docked column sits right of the sidebar.
+    void SetAiPanel(bool open, AiPanelMode mode, bool animate);
+    AiPanelView& AiPanel() { return ai_panel_; }
+    const AiPanelView& AiPanel() const { return ai_panel_; }
+    float AiDockWidth(float window_width) const;
+    D2D1_RECT_F AiColumnRect(float w, float h) const;
+    D2D1_RECT_F AiFloatingArea(float w, float h) const;
     void SetSidebarWidthDip(float width) {
         sidebar_width_dip_ = std::clamp(width, kSidebarMinWidthDip, kPanelWidthMaxDip);
         sidebar_width_ = sidebar_width_dip_ * scale_;
@@ -1252,6 +1379,14 @@ public:
     }
     // Preferred width, capped by the window so the file list keeps a usable width.
     float DetailsPanelWidth(float window_w) const;
+    // The docked AI assistant reserves its width on the far right, left of
+    // nothing and right of the details panel. 0 = closed.
+    void SetAiAssistantWidth(float pixels) { ai_width_px_ = (std::max)(0.0f, pixels); }
+    float AiAssistantWidth() const noexcept { return ai_width_px_; }
+    float TitleBarHeightPx() const noexcept { return title_bar_height_; }
+    float StatusBarHeightPx() const noexcept { return status_height_; }
+    float AiPanelTopPx() const noexcept { return title_bar_height_ + toolbar_height_ + margin_; }
+    float AiPanelBottomInsetPx() const noexcept { return status_height_ + margin_; }
     void SetDetailsPanelWidth(float width_dip) {
         details_width_ = std::clamp(width_dip, kDetailsMinWidthDip, kPanelWidthMaxDip);
     }
@@ -1269,7 +1404,8 @@ public:
 
     D2D1_RECT_F ContentRect(float w, float h) const;
     D2D1_RECT_F PaneListRect(const D2D1_RECT_F& pane_bounds, float extra_top = 0.0f,
-                             ViewMode mode = ViewMode::Details) const;
+                             ViewMode mode = ViewMode::Details,
+                             bool checkbox_gutter = false) const;
     D2D1_RECT_F PaneListRect(const PaneViewModel& vm, const D2D1_RECT_F& pane_bounds) const;
     D2D1_RECT_F FilterBoxRect(const D2D1_RECT_F& pane_bounds,
                               float expand = 1.0f) const;
@@ -1466,7 +1602,8 @@ public:
                              const DetailsColumnWidths& column_dividers = {},
                              bool search_view = false,
                              const std::array<float, 4>& search_dividers = {},
-                             float row_height_px = 0.0f) const;
+                             float row_height_px = 0.0f,
+                             bool checkbox_gutter = false) const;
     bool PointInItemName(const PaneViewModel& vm, const D2D1_RECT_F& pane_bounds,
                          int source_index, float x, float y) const;
     // Exact geometry of the Fluent frame drawn for the rename row; the hosted
@@ -1559,7 +1696,15 @@ public:
     void FreezeTabWidths(const WindowViewModel& vm, float window_w);
     bool ReleaseTabWidths();
     float SettingsMaxScroll(const WindowViewModel& vm, float window_w, float window_h) const;
+    // The navigation column: its own overflow scroll, and whether a point is
+    // over it (the wheel then moves the nav, not the page).
+    float SettingsNavMaxScroll(const WindowViewModel& vm, float window_w, float window_h) const;
+    bool InSettingsNav(const WindowViewModel& vm, float window_w, float window_h, float x,
+                       float y) const;
     D2D1_RECT_F SettingsDropdownBounds(const WindowViewModel& vm, int index, float window_w, float window_h) const;
+    // Settings > AI 助手 (page 12): where the key and address EDITs go, taken
+    // from the last drawn frame. False: the page is not showing a service.
+    bool AiModelFieldRects(D2D1_RECT_F& key, D2D1_RECT_F& base) const;
     // Settings scrollbar track and thumb. The same maths drives drawing, hit
     // testing and the drag, so they cannot drift apart (issues #166/#196).
     bool SettingsScrollbarGeometry(const WindowViewModel& vm, float window_w, float window_h,
@@ -1634,6 +1779,15 @@ private:
     void DrawSettingsLulingMenu(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    // 增强包 (page 14): the downloadable packs only.
+    void DrawSettingsEnhance(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    void DrawSettingsAi(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    void DrawSettingsAiModel(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    // Pages 0 and 7-10 plus the shortcut list (page 13).
+    void DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    // One model service's mark; false when it has none or it could not load.
+    bool DrawProviderLogo(std::string_view provider_id, const D2D1_RECT_F& bounds,
+                          const D2D1_COLOR_F& color);
     void DrawSettingsSysCtx(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     // 右键菜单 layer cards, the same on pages 2 and 6.
     void DrawCtxLayerCards(const D2D1_RECT_F& pulse, const D2D1_RECT_F& system, bool system_current,
@@ -1711,7 +1865,8 @@ private:
                        const D2D1_COLOR_F* foreground = nullptr, bool colorful = false);
     // Returns true when the name had to be shortened with an ellipsis.
     bool DrawTruncatedName(const std::wstring& name, float x, float y, float w, float h,
-                           const Theme& theme, bool selected, const std::vector<NameMatchRange>& matches, bool dim_extension = false);
+                           const Theme& theme, bool selected, const std::vector<NameMatchRange>& matches,
+                           bool dim_extension = false, bool bold = false);
     // `truncated` (optional, costs one extra layout): the wrapped name did not fit.
     void DrawCenteredIconName(const std::wstring& name, const D2D1_RECT_F& bounds,
                               const D2D1_COLOR_F& color, const Theme& theme,
@@ -1799,6 +1954,7 @@ private:
     // Motion state: highlight plates glide between items (ui_motion.h).
     uint64_t motion_frame_ = 0;
     uint64_t motion_now_ = 0;  // motion::NowMs() sampled once per Render
+    AiPanelView ai_panel_;
     motion::RectMotion sidebar_pill_;
     motion::RectMotion settings_nav_pill_;
     motion::RectMotion settings_nav_hover_;
@@ -1846,6 +2002,16 @@ private:
     float card_alpha_ = 1.0f;
     bool details_visible_ = false;
     float details_width_ = 340.0f;
+    float ai_width_px_ = 0.0f;
+    // Settings > AI 助手 (page 12): the key/address field rects of the last
+    // drawn frame, for the EDITs (AiModelFieldRects).
+    D2D1_RECT_F ai_model_key_rect_{};
+    D2D1_RECT_F ai_model_base_rect_{};
+    bool ai_model_fields_valid_ = false;
+    // Model service marks (provider_logos.cpp), one SVG per service, the brand
+    // colour baked in at creation.
+    std::unordered_map<std::string, ComPtr<ID2D1SvgDocument>> provider_logos_;
+    std::unordered_set<std::string> provider_logo_failed_;
     PreviewViewport details_viewport_;
     std::wstring details_preview_identity_;
     bool details_preview_ready_ = false;

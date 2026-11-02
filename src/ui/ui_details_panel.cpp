@@ -26,7 +26,7 @@ D2D1_RECT_F MainRenderer::DetailsPanelRect(float w, float h) const {
     const float pw = details_width_ * scale_;
     const float top = title_bar_height_ + toolbar_height_ + margin_;
     const float bottom = h - status_height_ - margin_;
-    return D2D1::RectF(w - margin_ - pw, top, w - margin_, bottom);
+    return D2D1::RectF(w - margin_ - AiAssistantWidth() - pw, top, w - margin_ - AiAssistantWidth(), bottom);
 }
 void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F& rect,
                                     const Theme& theme) {

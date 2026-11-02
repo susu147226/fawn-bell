@@ -113,6 +113,23 @@ bool QuickPreviewWindow::HasPlayback() const noexcept {
 float QuickPreviewWindow::PlaybackHeight() const noexcept {
     return HasPlayback() ? (kVideoChrome ? kChromeBarHeight : kPlaybackHeight) * scale_ : 0.0f;
 }
+float QuickPreviewWindow::PlaybackBarOpacity() {
+    if (!video_.active()) return 1.0f;           // image animation keeps its bar
+    const auto state = video_.Snapshot();
+    if (!state.playing) return 1.0f;             // paused: the bar stays
+    // The pointer over the bar keeps it up; elsewhere two seconds of rest
+    // fade it out, a short nudge back fades it in.
+    POINT cursor{};
+    if (GetCursorPos(&cursor) && ScreenToClient(hwnd_, &cursor)) {
+        const auto bar = PlaybackRect();
+        if (cursor.x >= bar.left && cursor.x < bar.right &&
+            cursor.y >= bar.top && cursor.y < bar.bottom) return 1.0f;
+    }
+    const uint64_t now = GetTickCount64();
+    const uint64_t idle = now > pointer_tick_ ? now - pointer_tick_ : 0;
+    if (idle <= 2000) return 1.0f;
+    return std::clamp(1.0f - static_cast<float>(idle - 2000) / 400.0f, 0.0f, 1.0f);
+}
 D2D1_RECT_F QuickPreviewWindow::PlaybackRect() const {
     const float height = static_cast<float>(compositor_.Height());
     return D2D1::RectF(0, height - PlaybackHeight(),
@@ -258,21 +275,18 @@ void QuickPreviewWindow::DrawFfmpegFrame(ID2D1DeviceContext* dc, const D2D1_RECT
         ffmpeg_serial_ = serial;
     }
     if (!ffmpeg_brush_.get() && FAILED(dc->CreateBitmapBrush(ffmpeg_bitmap_.get(), &ffmpeg_brush_))) return;
-    // The frame was decoded at `picture->zoom`; show it at the zoom the user is
-    // asking for now. While the decoder is still catching up (a restart takes a
-    // moment) the old frame is scaled rather than frozen, so the wheel feels
-    // immediate and sharpens on its own.
+    // The frame was decoded at `picture->zoom`; show it filling the canvas.
+    // Stretching the bitmap over the whole canvas (instead of centring it at
+    // its decoded size) keeps a decoded-size/zoom mismatch from leaving a gap
+    // on each side that the brush's edge clamp turns into horizontal streaks
+    // after the decoder restarts at a new pane size.
     const float pane_w = canvas.right - canvas.left;
     const float pane_h = canvas.bottom - canvas.top;
-    const double decoded_zoom = picture->zoom > 0.01 ? picture->zoom : 1.0;
-    const float visual = static_cast<float>(video_.zoom() / decoded_zoom);
-    const float draw_w = static_cast<float>(size.width) * visual;
-    const float draw_h = static_cast<float>(size.height) * visual;
-    const float left = canvas.left + (pane_w - draw_w) / 2.0f;
-    const float top = canvas.top + (pane_h - draw_h) / 2.0f;
+    if (pane_w < 1.0f || pane_h < 1.0f) return;
     ffmpeg_brush_->SetInterpolationMode(D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
-    ffmpeg_brush_->SetTransform(D2D1::Matrix3x2F::Scale(visual, visual) *
-                                D2D1::Matrix3x2F::Translation(left, top));
+    ffmpeg_brush_->SetTransform(D2D1::Matrix3x2F::Scale(pane_w / static_cast<float>(size.width),
+                                                       pane_h / static_cast<float>(size.height)) *
+                                D2D1::Matrix3x2F::Translation(canvas.left, canvas.top));
     // A magnified canvas overflows the content area: clip it there, not to the
     // canvas, or the picture would be cut back to the fitted rect.
     const D2D1_RECT_F content = ContentRect();
@@ -282,7 +296,7 @@ void QuickPreviewWindow::DrawFfmpegFrame(ID2D1DeviceContext* dc, const D2D1_RECT
     if (radius > 0.0f) {
         dc->FillRoundedRectangle(D2D1::RoundedRect(canvas, radius, radius), ffmpeg_brush_.get());
     } else {
-        dc->FillRectangle(D2D1::RectF(left, top, left + draw_w, top + draw_h), ffmpeg_brush_.get());
+        dc->FillRectangle(canvas, ffmpeg_brush_.get());
     }
     if (clipped) dc->PopAxisAlignedClip();
 }
@@ -648,10 +662,12 @@ void QuickPreviewWindow::DrawPlaybackChrome(ID2D1DeviceContext* dc, ID2D1SolidCo
     const bool enabled = !video || (state.ready && SUCCEEDED(state.error));
     const bool playing = video ? state.playing : animation_active_;
     const bool seekable = enabled && (!video || state.can_seek);
+    const float bar_opacity = PlaybackBarOpacity();
+    if (bar_opacity <= 0.01f) return;   // pointer rested while playing: hidden
     const auto original = brush->GetColor();
     const auto tint = [&](float alpha) {
         auto color = original;
-        color.a = original.a * alpha;
+        color.a = original.a * alpha * bar_opacity;
         brush->SetColor(color);
         return brush;
     };

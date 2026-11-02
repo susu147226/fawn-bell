@@ -7,6 +7,7 @@
 #include "../common/display_path.h"
 #include "../fs/fs_enum.h"
 #include "../ipc/ctx_menu_util.h"
+#include "../ui/shell_file_icon.h"
 #include <windows.h>
 #include <algorithm>
 #include <cwctype>
@@ -456,16 +457,128 @@ void AppendBackgroundViewCommands(std::vector<ui::FluentMenuItem>& items,
     }
 }
 
-std::vector<ui::FluentMenuItem> BuildNewMenu() {
+namespace {
+// Icons that match what the resulting file will look like in the list.
+const wchar_t* NewItemGlyph(const std::wstring& extension) {
+    if (extension == L".xls" || extension == L".xlsx" || extension == L".xlsm" ||
+        extension == L".csv" || extension == L".ods")
+        return L"\xE80A";   // grid
+    if (extension == L".ppt" || extension == L".pptx" || extension == L".pps" ||
+        extension == L".odp")
+        return L"\xE7C3";   // slide deck
+    if (extension == L".psd" || extension == L".ai" || extension == L".png" ||
+        extension == L".jpg" || extension == L".jpeg" || extension == L".gif" ||
+        extension == L".webp" || extension == L".bmp" || extension == L".svg")
+        return L"\xE91B";   // picture
+    if (extension == L".zip" || extension == L".7z" || extension == L".rar" ||
+        extension == L".tar" || extension == L".gz")
+        return L"\xE7B8";   // zipped folder
+    if (extension == L".contact" || extension == L".vcf") return L"\xE77B";
+    if (extension == L".md" || extension == L".markdown") return L"\xE8A5";
+    return L"\xE8A5";       // document
+}
+} // namespace
+
+namespace {
+struct BuiltinNewDef {
+    const wchar_t* extension;
+    l10n::StringId label;
+};
+constexpr BuiltinNewDef kBuiltinNewDefs[] = {
+    {L".doc", l10n::StringId::NewWordDocument},
+    {L".docx", l10n::StringId::NewWordDocument},
+    {L".xls", l10n::StringId::NewExcelWorkbook},
+    {L".xlsx", l10n::StringId::NewExcelWorkbook},
+    {L".ppt", l10n::StringId::NewPowerPoint},
+    {L".pptx", l10n::StringId::NewPowerPoint},
+    {L".rtf", l10n::StringId::NewRtfDocument},
+    {L".csv", l10n::StringId::NewCsvTable},
+    {L".psd", l10n::StringId::NewPsdFile},
+    {L".contact", l10n::StringId::NewContact},
+    {L".zip", l10n::StringId::NewZipArchive},
+};
+} // namespace
+
+int BuiltinNewItemCount() { return static_cast<int>(std::size(kBuiltinNewDefs)); }
+const wchar_t* BuiltinNewItemExtension(int index) {
+    return index >= 0 && index < BuiltinNewItemCount() ? kBuiltinNewDefs[index].extension : L"";
+}
+l10n::StringId BuiltinNewItemLabel(int index) {
+    return index >= 0 && index < BuiltinNewItemCount() ? kBuiltinNewDefs[index].label
+                                                       : l10n::StringId::NewTextDocument;
+}
+
+std::vector<ui::FluentMenuItem> BuildNewMenu(int new_primary) {
     std::vector<ui::FluentMenuItem> items;
-    items.push_back(Item(CmdNewFolder, l10n::Get(l10n::StringId::Folder).c_str(), kGlyphNewFolder, L"F7"));
-    items.push_back(Item(CmdNewTextFile, l10n::Get(l10n::StringId::TextDocument).c_str(), kGlyphNewFile));
-    // Everything else Explorer offers comes from HKCR\<ext>\ShellNew.
+    {
+        auto folder = Item(CmdNewFolder, l10n::Get(l10n::StringId::Folder).c_str(), kGlyphNewFolder, L"F7");
+        folder.icon = ui::FileTypeIcon(L"", true);
+        items.push_back(std::move(folder));
+    }
+    {
+        auto text = Item(CmdNewTextFile, l10n::Get(l10n::StringId::TextDocument).c_str(), kGlyphNewFile);
+        text.icon = ui::FileTypeIcon(L".txt");
+        items.push_back(std::move(text));
+    }
+    {
+        auto md = Item(CmdNewMarkdown, l10n::Get(l10n::StringId::NewMarkdownDocument).c_str(), L"\xE8A5");
+        md.icon = ui::FileTypeIcon(L".md");
+        items.push_back(std::move(md));
+    }
+    {
+        auto lnk = Item(CmdNewShortcut, l10n::Get(l10n::StringId::NewShortcut).c_str(), L"\xE71B");
+        lnk.icon = ui::FileTypeIcon(L".lnk");
+        items.push_back(std::move(lnk));
+    }
+    // Everything else Explorer offers comes from HKCR\<ext>\ShellNew; each row
+    // shows the icon of the program that will open the new file, as Pulse and
+    // Explorer do (Word for .docx, the packer for .zip, ...).
     const auto& shell_new = ShellNewItems();
+    // Office/document types Pulse offers even when HKCR has no ShellNew entry
+    // for them. An entry the registry already provides is not repeated.
+    for (int i = 0; i < BuiltinNewItemCount(); ++i) {
+        const std::wstring extension = BuiltinNewItemExtension(i);
+        bool registered = false;
+        for (const auto& entry : shell_new) {
+            if (_wcsicmp(entry.extension.c_str(), extension.c_str()) == 0) {
+                registered = true;
+                break;
+            }
+        }
+        if (registered) continue;
+        std::wstring label = l10n::Get(BuiltinNewItemLabel(i));
+        std::wstring upper = extension.substr(1);
+        for (wchar_t& c : upper) c = static_cast<wchar_t>(towupper(c));
+        label += L" (" + upper + L")";
+        auto row = Item(CmdNewBuiltinBase + i, label.c_str(), L"");
+        row.icon = ui::FileTypeIcon(extension);
+        items.push_back(std::move(row));
+    }
     const size_t limit = (std::min)(shell_new.size(), static_cast<size_t>(kMaxNewShellItems));
-    for (size_t i = 0; i < limit; ++i)
-        items.push_back(Item(CmdNewShellBase + static_cast<int>(i),
-                             shell_new[i].display.c_str(), kGlyphNewFile));
+    for (size_t i = 0; i < limit; ++i) {
+        const std::wstring extension = shell_new[i].extension;
+        auto row = Item(CmdNewShellBase + static_cast<int>(i), shell_new[i].display.c_str(),
+                        NewItemGlyph(extension));
+        row.icon = ui::FileTypeIcon(extension);
+        items.push_back(std::move(row));
+    }
+    items.back().separator_after = true;
+    // 主操作: what the New button's main part does; the same three choices as
+    // 自定义工具栏, offered here so the dropdown can change it in place.
+    auto primary = Item(CmdNone, l10n::Get(l10n::StringId::NewButtonPrimary).c_str(), L"\xE8A4");
+    primary.children.push_back(Item(CmdNewPrimaryBase + 0,
+        l10n::Get(l10n::StringId::NewPrimaryFolder).c_str(), L"", L"Ctrl+Shift+N"));
+    primary.children.push_back(Item(CmdNewPrimaryBase + 1,
+        l10n::Get(l10n::StringId::NewPrimaryLast).c_str(), L""));
+    primary.children.push_back(Item(CmdNewPrimaryBase + 2,
+        l10n::Get(l10n::StringId::NewPrimaryMenu).c_str(), L""));
+    if (new_primary >= 0 && new_primary < 3) {
+        primary.children[static_cast<size_t>(new_primary)].radio = true;
+        for (auto& child : primary.children) child.radio_group = true;
+    }
+    items.push_back(std::move(primary));
+    items.push_back(Item(CmdCustomizeToolbar,
+        l10n::Get(l10n::StringId::CustomizeToolbarMenu).c_str(), L"\xE9E9"));
     return items;
 }
 

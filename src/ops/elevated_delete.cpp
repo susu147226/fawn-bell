@@ -7,6 +7,9 @@
 #include <wrl/client.h>
 #include <algorithm>
 #include <new>
+#include <vector>
+
+#pragma comment(lib, "advapi32.lib")
 
 namespace luling::ops {
 namespace {
@@ -40,13 +43,9 @@ std::wstring ErrorText(HRESULT hr) {
 // failure is never interpreted here as permission to invoke permanent deletion.
 class RecycleSink final : public ITransferAdviseSink {
 public:
-    RecycleSink(std::atomic<bool>& cancel, const ShellTransferProgress& progress)
-        : cancel_(cancel), progress_(progress) {}
+    RecycleSink(const std::wstring& source, std::atomic<bool>& cancel, const ShellTransferProgress& progress)
+        : source_(source), cancel_(cancel), progress_(progress) {}
     HRESULT failure = S_OK;
-    // Which file the shell is reporting on right now. One sink serves the whole
-    // batch, so this moves with the run instead of being fixed at construction —
-    // a fresh sink per file was part of what made large deletes crawl.
-    std::wstring current;
     IFACEMETHODIMP QueryInterface(REFIID iid, void** out) override {
         if (!out) return E_POINTER;
         *out = nullptr;
@@ -56,7 +55,7 @@ public:
     IFACEMETHODIMP_(ULONG) AddRef() override { return ++refs_; }
     IFACEMETHODIMP_(ULONG) Release() override { const ULONG refs = --refs_; if (!refs) delete this; return refs; }
     IFACEMETHODIMP UpdateProgress(ULONGLONG done, ULONGLONG total, int, int, int, int) override {
-        try { if (progress_) progress_(current, total ? static_cast<float>(100.0 * static_cast<double>(done) / static_cast<double>(total)) : -1.0f); }
+        try { if (progress_) progress_(source_, total ? static_cast<float>(100.0 * static_cast<double>(done) / static_cast<double>(total)) : -1.0f); }
         catch (...) { return Fail(E_FAIL); }
         return cancel_.load() ? kCancelled : S_OK;
     }
@@ -69,19 +68,91 @@ public:
 private:
     HRESULT Fail(HRESULT hr) { if (SUCCEEDED(hr)) hr = E_FAIL; if (SUCCEEDED(failure)) failure = hr; return hr; }
     std::atomic<ULONG> refs_{1};
+    const std::wstring& source_;
     std::atomic<bool>& cancel_;
     const ShellTransferProgress& progress_;
 };
-// `transfer` and `bin` are supplied by the caller, which builds them once per
-// batch (and per parent folder) rather than once per file — see the delete loop.
-HRESULT RecycleOnly(const std::wstring& source, ITransferSource* transfer, IShellItem* bin,
-                    RecycleSink& sink, std::atomic<bool>& cancel,
-                    ShellTransferResult& result, const ShellTransferProgress& progress) {
-    ComPtr<IShellItem> item;
-    HRESULT hr = SHCreateItemFromParsingName(path::StripExtendedPathPrefix(source).c_str(), nullptr, IID_PPV_ARGS(&item));
+std::wstring ParentKey(const std::wstring& path) {
+    std::wstring key = path::StripExtendedPathPrefix(path);
+    const size_t slash = key.find_last_of(L'\\');
+    key.resize(slash == std::wstring::npos ? 0 : slash);
+    if (!key.empty()) CharLowerBuffW(key.data(), static_cast<DWORD>(key.size()));
+    return key;
+}
+}  // namespace
+
+struct RecycleCache::State {
+    ComPtr<IShellItem> bin;
+    std::wstring transfer_parent;
+    ComPtr<ITransferSource> transfer;
+    ComPtr<IShellItem> parent;  // the folder `transfer` serves (transfer_parent)
+    std::wstring volume_parent;
+    bool volume_checked = false;
+    bool available = false;
+    DWORD volume_error = 0;
+    bool limits_read = false;
+    RecycleBinLimits limits;
+};
+RecycleCache::RecycleCache() : state_(std::make_unique<State>()) {}
+RecycleCache::~RecycleCache() = default;
+
+// Parsing a full path walks it from the namespace root: known folders,
+// libraries and property handlers, 3-17 ms per item under a user profile.
+// Asking the item's own folder for its name skips all of that. Only a plain
+// name is asked for this way; a root, an extended path, a stream or a name
+// Win32 would trim is parsed whole, as before.
+HRESULT CreateItemForPath(const std::wstring& path, IShellItem* folder, IShellItem** item) {
+    if (!item) return E_POINTER;
+    *item = nullptr;
+    if (folder && !path.starts_with(L"\\\\?\\") && path.find(L'/') == std::wstring::npos) {
+        const size_t slash = path.find_last_of(L'\\');
+        if (slash != std::wstring::npos && slash > 0 && slash + 1 < path.size() && path[slash - 1] != L'\\') {
+            const std::wstring leaf = path.substr(slash + 1);
+            if (leaf.find(L':') == std::wstring::npos && leaf.back() != L'.' && leaf.back() != L' ' &&
+                SUCCEEDED(SHCreateItemFromRelativeName(folder, leaf.c_str(), nullptr, IID_PPV_ARGS(item))))
+                return S_OK;
+        }
+    }
+    return SHCreateItemFromParsingName(path::StripExtendedPathPrefix(path).c_str(), nullptr, IID_PPV_ARGS(item));
+}
+
+namespace {
+HRESULT RecycleOnly(const std::wstring& source, std::atomic<bool>& cancel,
+                    ShellTransferResult& result, const ShellTransferProgress& progress,
+                    RecycleCache* cache) {
+    ComPtr<IShellItem> item, parent, bin;
+    ComPtr<ITransferSource> transfer;
+    const std::wstring parent_key = cache ? ParentKey(source) : std::wstring{};
+    const bool same_folder = cache && cache->state().transfer && cache->state().parent &&
+        !parent_key.empty() && cache->state().transfer_parent == parent_key;
+    HRESULT hr = CreateItemForPath(source, same_folder ? cache->state().parent.Get() : nullptr, &item);
     if (FAILED(hr)) return hr;
-    sink.current = source;
-    sink.failure = S_OK;
+    if (same_folder) {
+        transfer = cache->state().transfer;
+    } else {
+        hr = item->GetParent(&parent);
+        if (FAILED(hr)) return hr;
+        hr = parent->BindToHandler(nullptr, BHID_Transfer, IID_PPV_ARGS(&transfer));
+        if (FAILED(hr)) return hr;
+        if (cache) {
+            cache->state().transfer = transfer;
+            cache->state().parent = parent;
+            cache->state().transfer_parent = parent_key;
+        }
+    }
+    if (cache && cache->state().bin) {
+        bin = cache->state().bin;
+    } else {
+        hr = SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr, IID_PPV_ARGS(&bin));
+        if (FAILED(hr)) return hr;
+        if (cache) cache->state().bin = bin;
+    }
+    ComPtr<RecycleSink> sink;
+    sink.Attach(new (std::nothrow) RecycleSink(source, cancel, progress));
+    if (!sink) return E_OUTOFMEMORY;
+    DWORD cookie = 0;
+    hr = transfer->Advise(sink.Get(), &cookie);
+    if (FAILED(hr)) return hr;
     ComPtr<IShellItem> recycled;
     bool attempted = false;
     if (cancel.load()) hr = kCancelled;
@@ -90,8 +161,15 @@ HRESULT RecycleOnly(const std::wstring& source, ITransferSource* transfer, IShel
         if (cancel.load()) hr = kCancelled;
         else {
             attempted = true;
-            hr = transfer->RecycleItem(item.Get(), bin, TSF_NORMAL, &recycled);
+            hr = transfer->RecycleItem(item.Get(), bin.Get(), TSF_NORMAL, &recycled);
         }
+    }
+    transfer->Unadvise(cookie);
+    // A failed transfer source is not trusted with the next item.
+    if (cache && FAILED(hr)) {
+        cache->state().transfer.Reset();
+        cache->state().parent.Reset();
+        cache->state().transfer_parent.clear();
     }
     const DWORD attributes = GetFileAttributesW(source.c_str());
     const DWORD source_error = attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : ERROR_SUCCESS;
@@ -103,10 +181,10 @@ HRESULT RecycleOnly(const std::wstring& source, ITransferSource* transfer, IShel
     if (recycled || (attempted && attributes == INVALID_FILE_ATTRIBUTES)) result.mutated = true;
     if ((hr == S_OK || hr == COPYENGINE_S_DONT_PROCESS_CHILDREN) && recycled && missing) {
         result.sources.push_back(source);
-        return FAILED(sink.failure) ? sink.failure : S_OK;
+        return FAILED(sink->failure) ? sink->failure : S_OK;
     }
     if (FAILED(hr)) return hr;
-    if (FAILED(sink.failure)) return sink.failure;
+    if (FAILED(sink->failure)) return sink->failure;
     // Skipped/pending results and a missing output object are not completion.
     return E_FAIL;
 }
@@ -194,182 +272,244 @@ private:
     ComPtr<IUnknown> root_identity_;
 };
 }
+namespace {
+constexpr wchar_t kExplorerPolicies[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer";
+
+bool ReadDword(HKEY root, const std::wstring& key, const wchar_t* name, DWORD& value) {
+    DWORD size = sizeof(value);
+    return RegGetValueW(root, key.c_str(), name, RRF_RT_REG_DWORD, nullptr, &value, &size) == ERROR_SUCCESS;
+}
+
+bool PolicyDword(const wchar_t* name, DWORD& value) {
+    return ReadDword(HKEY_CURRENT_USER, kExplorerPolicies, name, value) ||
+           ReadDword(HKEY_LOCAL_MACHINE, kExplorerPolicies, name, value);
+}
+
+std::wstring LongPath(const std::wstring& path) {
+    if (path.size() < 240 || path.starts_with(L"\\\\?\\")) return path;
+    if (path.starts_with(L"\\\\")) return L"\\\\?\\UNC\\" + path.substr(2);
+    return L"\\\\?\\" + path;
+}
+
+// Bytes under `folder`, stopping once past `limit`. Links are not entered,
+// the same as the recycle itself. An unreadable subfolder counts as empty;
+// the recycle then fails on it anyway.
+uint64_t MeasureFolder(const std::wstring& folder, uint64_t limit, std::atomic<bool>& cancel) {
+    uint64_t total = 0;
+    std::vector<std::wstring> pending{folder};
+    while (!pending.empty() && total <= limit && !cancel.load()) {
+        const std::wstring current = std::move(pending.back());
+        pending.pop_back();
+        WIN32_FIND_DATAW data{};
+        const std::wstring pattern = LongPath(current + (current.ends_with(L'\\') ? L"*" : L"\\*"));
+        HANDLE find = FindFirstFileExW(pattern.c_str(), FindExInfoBasic, &data, FindExSearchNameMatch, nullptr,
+                                       FIND_FIRST_EX_LARGE_FETCH);
+        if (find == INVALID_HANDLE_VALUE) continue;
+        do {
+            const wchar_t* name = data.cFileName;
+            if (name[0] == L'.' && (name[1] == 0 || (name[1] == L'.' && name[2] == 0))) continue;
+            if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                if (!(data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+                    pending.push_back(current + (current.ends_with(L'\\') ? L"" : L"\\") + name);
+            } else {
+                total += (static_cast<uint64_t>(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
+            }
+        } while (total <= limit && FindNextFileW(find, &data));
+        FindClose(find);
+    }
+    return total;
+}
+}  // namespace
+
+RecycleBinLimits ReadRecycleBinLimits(const std::wstring& path, DWORD* volume_error) {
+    RecycleBinLimits limits;
+    if (volume_error) *volume_error = 0;
+    DWORD value = 0;
+    if (PolicyDword(L"NoRecycleFiles", value) && value != 0) {
+        limits.disabled = true;
+        return limits;
+    }
+    std::vector<wchar_t> root(32768);
+    if (!GetVolumePathNameW(LongPath(path).c_str(), root.data(), static_cast<DWORD>(root.size()))) {
+        if (volume_error) *volume_error = GetLastError();
+        return limits;
+    }
+    ULARGE_INTEGER total{}, free{};
+    if (GetDiskFreeSpaceExW(root.data(), nullptr, &total, &free))
+        limits.used_bytes = total.QuadPart - (std::min)(free.QuadPart, total.QuadPart);
+    // Policy size (percent of the volume) wins over the user's setting.
+    if (PolicyDword(L"RecycleBinSize", value) && value <= 100) {
+        limits.max_bytes = total.QuadPart / 100 * value;
+        return limits;
+    }
+    wchar_t volume_name[64]{};
+    std::wstring guid;
+    if (GetVolumeNameForVolumeMountPointW(root.data(), volume_name, 64)) {
+        const std::wstring name = volume_name;
+        const size_t open = name.find(L'{'), close = name.find(L'}');
+        if (open != std::wstring::npos && close != std::wstring::npos && close > open)
+            guid = name.substr(open, close - open + 1);
+    }
+    bool have_capacity = false;
+    if (!guid.empty()) {
+        const std::wstring key =
+            L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\BitBucket\\Volume\\" + guid;
+        if (ReadDword(HKEY_CURRENT_USER, key, L"NukeOnDelete", value) && value != 0) {
+            limits.disabled = true;
+            return limits;
+        }
+        if (ReadDword(HKEY_CURRENT_USER, key, L"MaxCapacity", value)) {  // MB
+            limits.max_bytes = static_cast<uint64_t>(value) << 20;
+            have_capacity = true;
+        }
+    }
+    if (!have_capacity && total.QuadPart) {
+        // No setting saved yet: Windows' default, 10% of the first 40 GB and
+        // 5% of the rest.
+        constexpr uint64_t k40GB = 40ull << 30;
+        const uint64_t bytes = total.QuadPart;
+        limits.max_bytes = (std::min)(bytes, k40GB) / 10 + (bytes > k40GB ? (bytes - k40GB) / 20 : 0);
+    }
+    return limits;
+}
+
+HRESULT CheckRecycleFits(const std::wstring& path, const RecycleBinLimits& limits, std::atomic<bool>& cancel,
+                         bool measure_folders) {
+    if (limits.disabled) return COPYENGINE_E_RECYCLE_BIN_NOT_FOUND;
+    if (!limits.max_bytes || (limits.used_bytes && limits.max_bytes >= limits.used_bytes)) return S_OK;
+    WIN32_FILE_ATTRIBUTE_DATA data{};
+    if (!GetFileAttributesExW(LongPath(path).c_str(), GetFileExInfoStandard, &data)) return S_OK;  // the recycle reports it
+    uint64_t bytes = 0;
+    if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        bytes = (static_cast<uint64_t>(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
+    } else if (measure_folders && !(data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        bytes = MeasureFolder(path, limits.max_bytes, cancel);
+        if (cancel.load()) return kCancelled;
+    }
+    return bytes > limits.max_bytes ? kRecycleBinTooSmall : S_OK;
+}
+
+bool RecycleBinAvailable(const std::wstring& path, DWORD* volume_error) {
+    if (volume_error) *volume_error = 0;
+    if (path::StripExtendedPathPrefix(path).starts_with(L"\\\\")) return false;
+    std::vector<wchar_t> volume(32768);
+    if (!GetVolumePathNameW(path.c_str(), volume.data(), static_cast<DWORD>(volume.size()))) {
+        if (volume_error) *volume_error = GetLastError();
+        return false;
+    }
+    if (GetDriveTypeW(volume.data()) != DRIVE_FIXED) return false;
+    // A bin that is turned off deletes at once: the same as having none.
+    return !ReadRecycleBinLimits(path).disabled;
+}
+
 ShellTransferResult DeleteWithCurrentToken(const std::vector<std::wstring>& sources,
-    bool permanent, HWND owner, std::atomic<bool>& cancel, ShellTransferProgress progress) {
+    bool permanent, HWND owner, std::atomic<bool>& cancel, ShellTransferProgress progress,
+    RecycleCache* cache) {
     ShellTransferResult result;
-    // Built once for the whole batch. Rebuilding the Recycle Bin item, the transfer
-    // source and the advise sink for every file is what made deleting a large
-    // selection crawl — each of those spins up shell machinery that serves any
-    // number of items. A transfer source belongs to one parent folder, so it is
-    // kept and reused until the batch moves elsewhere; selections are usually a
-    // single folder anyway, and a mixed one still pays only once per folder.
-    ComPtr<IShellItem> recycle_bin;
-    ComPtr<RecycleSink> recycle_sink;
-    ComPtr<ITransferSource> cached_transfer;
-    std::wstring cached_parent;
-    DWORD cached_cookie = 0;
-    // Files the strict recycle path refused; retried through the shell's own delete
-    // once the loop is done (see below).
-    std::vector<std::wstring> deferred;
-    if (!permanent) {
-        result.hr = SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr,
-                                         IID_PPV_ARGS(&recycle_bin));
-        if (FAILED(result.hr)) { result.error = ErrorText(result.hr); return result; }
-        recycle_sink.Attach(new (std::nothrow) RecycleSink(cancel, progress));
-        if (!recycle_sink) { result.hr = E_OUTOFMEMORY; return result; }
-    }
-    // One IFileOperation serves the whole batch — it holds any number of items, and a
-    // fresh one per file paid COM startup plus shell-engine spin-up for every single
-    // file. Each file still gets its own sink (a sink tracks which item is the root
-    // of its own subtree and when that subtree is gone), so the per-file bookkeeping
-    // is unchanged; the work just happens in one PerformOperations at the end.
-    struct PendingDelete { ComPtr<DeleteSink> sink; std::wstring source; DWORD cookie = 0; };
-    ComPtr<IFileOperation> batch;
-    std::vector<PendingDelete> pending;
-    if (permanent) {
-        result.hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&batch));
-        if (FAILED(result.hr)) { result.error = ErrorText(result.hr); return result; }
-        result.hr = batch->SetOwnerWindow(owner);
-        if (SUCCEEDED(result.hr))
-            result.hr = batch->SetOperationFlags(
-                FOF_NO_UI | FOF_NO_CONNECTED_ELEMENTS | FOFX_EARLYFAILURE | FOFX_NOCOPYHOOKS);
-        if (FAILED(result.hr)) { result.error = ErrorText(result.hr); return result; }
-    }
     for (const auto& source : sources) {
         if (cancel.load()) { result.hr = kCancelled; result.cancelled = true; break; }
         if (!permanent) {
-            const auto plain = path::StripExtendedPathPrefix(source);
-            wchar_t volume[32768]{};
-            if (plain.starts_with(L"\\\\")) {
-                result.hr = COPYENGINE_E_RECYCLE_BIN_NOT_FOUND;
-                result.error = L"This location cannot be safely sent to the Recycle Bin. The item was not deleted.";
-                break;
-            }
-            if (!GetVolumePathNameW(source.c_str(), volume, 32768)) {
-                result.hr = HRESULT_FROM_WIN32(GetLastError());
-                break;
-            }
-            if (GetDriveTypeW(volume) != DRIVE_FIXED) {
-                result.hr = COPYENGINE_E_RECYCLE_BIN_NOT_FOUND;
-                result.error = L"This location cannot be safely sent to the Recycle Bin. The item was not deleted.";
-                break;
-            }
-            const size_t slash = plain.find_last_of(L"\\/");
-            const std::wstring parent_dir = slash == std::wstring::npos ? std::wstring{}
-                                                                        : plain.substr(0, slash);
-            if (!cached_transfer || parent_dir != cached_parent) {
-                if (cached_transfer) cached_transfer->Unadvise(cached_cookie);
-                cached_transfer.Reset();
-                cached_cookie = 0;
-                ComPtr<IShellItem> item, parent;
-                if (SUCCEEDED(SHCreateItemFromParsingName(plain.c_str(), nullptr, IID_PPV_ARGS(&item))) &&
-                    SUCCEEDED(item->GetParent(&parent)) &&
-                    SUCCEEDED(parent->BindToHandler(nullptr, BHID_Transfer, IID_PPV_ARGS(&cached_transfer))) &&
-                    SUCCEEDED(cached_transfer->Advise(recycle_sink.Get(), &cached_cookie))) {
-                    cached_parent = parent_dir;
-                } else {
-                    cached_transfer.Reset();
-                    result.hr = E_FAIL;
-                    break;
+            // The UI sends such items as permanent deletes after asking
+            // (DeletePaths); a recycle request for them is refused, never
+            // turned into a silent permanent delete.
+            DWORD volume_error = 0;
+            bool available = false;
+            // A mount point is checked on its own: its volume is not its parent's.
+            const DWORD source_attributes = cache ? GetFileAttributesW(source.c_str()) : INVALID_FILE_ATTRIBUTES;
+            const bool cacheable = source_attributes != INVALID_FILE_ATTRIBUTES &&
+                !(source_attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+            const std::wstring volume_parent = cacheable ? ParentKey(source) : std::wstring{};
+            if (cache && cache->state().volume_checked && !volume_parent.empty() &&
+                cache->state().volume_parent == volume_parent) {
+                available = cache->state().available;
+                volume_error = cache->state().volume_error;
+            } else {
+                available = RecycleBinAvailable(source, &volume_error);
+                if (cache && !volume_parent.empty()) {
+                    auto& state = cache->state();
+                    state.volume_checked = true;
+                    state.volume_parent = volume_parent;
+                    state.limits_read = false;  // read again for this folder
+                    state.available = available;
+                    state.volume_error = volume_error;
                 }
             }
-            const HRESULT direct = RecycleOnly(source, cached_transfer.Get(), recycle_bin.Get(),
-                                               *recycle_sink.Get(), cancel, result, progress);
-            if (SUCCEEDED(direct)) {
-                result.hr = direct;
-                continue;
-            }
-            if (cancel.load()) {
-                result.hr = kCancelled;
-                result.cancelled = true;
+            if (!available) {
+                if (volume_error) {
+                    result.hr = HRESULT_FROM_WIN32(volume_error);
+                } else {
+                    result.hr = COPYENGINE_E_RECYCLE_BIN_NOT_FOUND;
+                    result.error = L"This location cannot be safely sent to the Recycle Bin. The item was not deleted.";
+                }
                 break;
             }
-            // The transfer source refused this one. Keep it for the shell-delete
-            // fallback instead of failing the whole batch: RecycleItem is stricter
-            // than Explorer's own path and rejects some folders the shell handles
-            // fine (OneDrive-backed ones report "recycling not available").
-            deferred.push_back(source);
+            // The bin's size limit: an item larger than the bin would be
+            // deleted for good by the Shell, so it is refused here, untouched.
+            RecycleBinLimits limits;
+            if (cache && cache->state().limits_read && !volume_parent.empty() &&
+                cache->state().volume_parent == volume_parent) {
+                limits = cache->state().limits;
+            } else {
+                limits = ReadRecycleBinLimits(source);
+                if (cache && !volume_parent.empty() && cache->state().volume_parent == volume_parent) {
+                    cache->state().limits_read = true;
+                    cache->state().limits = limits;
+                }
+            }
+            result.hr = CheckRecycleFits(source, limits, cancel);
+            if (FAILED(result.hr)) {
+                result.cancelled = result.hr == kCancelled;
+                if (result.hr == kRecycleBinTooSmall)
+                    result.error = L"This item is larger than the Recycle Bin can hold. It was not deleted.";
+                else if (result.hr == COPYENGINE_E_RECYCLE_BIN_NOT_FOUND)
+                    result.error = L"This location cannot be safely sent to the Recycle Bin. The item was not deleted.";
+                break;
+            }
+            result.hr = RecycleOnly(source, cancel, result, progress, cache);
+            result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT || result.hr == COPYENGINE_E_USER_CANCELLED;
+            if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
+            if (FAILED(result.hr) || result.cancelled) break;
             continue;
         }
-        // Only stage the item here; the batch runs once, after the loop.
+        ComPtr<IFileOperation> operation;
+        result.hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&operation));
+        if (FAILED(result.hr)) break;
+        result.hr = operation->SetOwnerWindow(owner);
+        if (FAILED(result.hr)) break;
+        result.hr = operation->SetOperationFlags(FOF_NO_UI | FOF_NO_CONNECTED_ELEMENTS | FOFX_EARLYFAILURE | FOFX_NOCOPYHOOKS);
+        if (FAILED(result.hr)) break;
         ComPtr<IShellItem> item;
         result.hr = SHCreateItemFromParsingName(path::StripExtendedPathPrefix(source).c_str(), nullptr, IID_PPV_ARGS(&item));
         if (FAILED(result.hr)) break;
-        PendingDelete entry;
-        entry.sink.Attach(new (std::nothrow) DeleteSink(source, cancel, result, progress));
-        if (!entry.sink) { result.hr = E_OUTOFMEMORY; break; }
-        result.hr = batch->Advise(entry.sink.Get(), &entry.cookie);
+        ComPtr<DeleteSink> sink;
+        sink.Attach(new (std::nothrow) DeleteSink(source, cancel, result, progress));
+        if (!sink) { result.hr = E_OUTOFMEMORY; break; }
+        DWORD cookie = 0;
+        result.hr = operation->Advise(sink.Get(), &cookie);
         if (FAILED(result.hr)) break;
-        result.hr = batch->DeleteItem(item.Get(), nullptr);
-        if (FAILED(result.hr)) break;
-        entry.source = source;
-        pending.push_back(std::move(entry));
-    }
-
-    // Fallback for whatever the strict path refused: the shell's own delete — the
-    // same call Explorer makes. FOF_ALLOWUNDO keeps it a recycle, and
-    // FOFX_RECYCLEONDELETE additionally forces oversized items into the bin rather
-    // than dropping them. The strict path stays the default precisely because it
-    // cannot fall back to a permanent delete on its own; this one can, so it only
-    // ever sees the leftovers.
-    if (!deferred.empty() && !cancel.load()) {
-        ComPtr<IFileOperation> shell_batch;
-        HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_INPROC_SERVER,
-                                      IID_PPV_ARGS(&shell_batch));
-        if (SUCCEEDED(hr)) hr = shell_batch->SetOwnerWindow(owner);
-        if (SUCCEEDED(hr))
-            hr = shell_batch->SetOperationFlags(FOF_NO_UI | FOF_NO_CONNECTED_ELEMENTS |
-                                                FOFX_EARLYFAILURE | FOFX_NOCOPYHOOKS |
-                                                FOF_ALLOWUNDO | FOFX_RECYCLEONDELETE);
-        if (SUCCEEDED(hr)) {
-            std::vector<std::wstring> queued;
-            for (const auto& source : deferred) {
-                if (cancel.load()) break;
-                ComPtr<IShellItem> item;
-                if (FAILED(SHCreateItemFromParsingName(path::StripExtendedPathPrefix(source).c_str(),
-                                                       nullptr, IID_PPV_ARGS(&item)))) continue;
-                if (FAILED(shell_batch->DeleteItem(item.Get(), nullptr))) continue;
-                queued.push_back(source);
-            }
-            if (!queued.empty()) {
-                const HRESULT performed = shell_batch->PerformOperations();
-                if (FAILED(performed) && SUCCEEDED(result.hr)) result.hr = performed;
-                for (const auto& source : queued) {
-                    if (!Missing(source)) continue;
-                    result.mutated = true;
-                    if (std::find(result.sources.begin(), result.sources.end(), source) == result.sources.end())
-                        result.sources.push_back(source);
-                }
-            }
-        }
-    }
-
-    // Run the batch, then let each sink report on its own file.
-    if (permanent && !pending.empty() && SUCCEEDED(result.hr) && !cancel.load()) {
-        const HRESULT performed = batch->PerformOperations();
-        if (FAILED(performed)) result.hr = performed;
-        BOOL aborted = FALSE;
-        const HRESULT queried = batch->GetAnyOperationsAborted(&aborted);
-        if (FAILED(queried) && SUCCEEDED(result.hr)) result.hr = queried;
-        if (aborted && SUCCEEDED(result.hr)) result.hr = HRESULT_FROM_WIN32(ERROR_OPERATION_ABORTED);
-        for (auto& entry : pending) {
-            const bool source_missing = Missing(entry.source);
+        result.hr = operation->DeleteItem(item.Get(), nullptr);
+        if (SUCCEEDED(result.hr)) {
+            const HRESULT performed = operation->PerformOperations();
+            if (FAILED(performed) && SUCCEEDED(result.hr)) result.hr = performed;
+            BOOL aborted = FALSE;
+            const HRESULT queried = operation->GetAnyOperationsAborted(&aborted);
+            if (FAILED(queried) && SUCCEEDED(result.hr)) result.hr = queried;
+            if (aborted && SUCCEEDED(result.hr)) result.hr = HRESULT_FROM_WIN32(ERROR_OPERATION_ABORTED);
+            const bool source_missing = Missing(source);
             if (source_missing) result.mutated = true;
-            if (SUCCEEDED(result.hr) && !aborted && entry.sink->DeferredDirectory() && source_missing &&
-                (result.sources.empty() || result.sources.back() != entry.source))
-                result.sources.push_back(entry.source);
-            if (result.sources.empty() || result.sources.back() != entry.source) {
-                // No completion callback must never become a fabricated success.
-                if (SUCCEEDED(result.hr)) result.hr = E_FAIL;
-                break;
-            }
+            if (SUCCEEDED(result.hr) && !aborted && sink->DeferredDirectory() && source_missing &&
+                (result.sources.empty() || result.sources.back() != source))
+                result.sources.push_back(source);
+        }
+        operation->Unadvise(cookie);
+        result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT || result.hr == COPYENGINE_E_USER_CANCELLED;
+        if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
+        if (FAILED(result.hr) || result.cancelled) break;
+        if (result.sources.empty() || result.sources.back() != source) {
+            // No completion callback must never become a fabricated success.
+            result.hr = E_FAIL; break;
         }
     }
-    for (auto& entry : pending) batch->Unadvise(entry.cookie);
-    result.cancelled = cancel.load() || result.hr == kCancelled || result.hr == E_ABORT ||
-                       result.hr == COPYENGINE_E_USER_CANCELLED;
-    if (result.cancelled && SUCCEEDED(result.hr)) result.hr = kCancelled;
-    if (cached_transfer) cached_transfer->Unadvise(cached_cookie);
     if (FAILED(result.hr) && !result.cancelled && result.error.empty()) result.error = ErrorText(result.hr);
     return result;
 }

@@ -60,6 +60,10 @@ public:
     bool SaveSnapshot(const wchar_t* path);
 
     ID2D1DeviceContext* Dc() const { return dc_.get(); }
+    // dc->DrawTextLayout with the null checks the panels rely on.
+    void DrawTextLayout(D2D1_POINT_2F origin, IDWriteTextLayout* layout,
+                        ID2D1SolidColorBrush* brush,
+                        D2D1_DRAW_TEXT_OPTIONS options = D2D1_DRAW_TEXT_OPTIONS_NONE);
     IDWriteFactory2* DwriteFactory() const { return dwriteFactory_.get(); }
     HWND Hwnd() const { return hwnd_; }
 
@@ -67,6 +71,7 @@ public:
     bool UpdateTextRenderingParams(HMONITOR monitor);
     IDWriteTextFormat* TextFormat() const { return textFormat_.get(); }
     IDWriteTextFormat* FileNameFormat() const { return fileNameFormat_.get(); }
+    IDWriteTextFormat* BoldFileNameFormat() const { return boldFileNameFormat_.get(); }
     IDWriteTextFormat* SmallFormat() const { return smallFormat_.get(); }
     IDWriteTextFormat* HeaderFormat() const { return headerFormat_.get(); }
     IDWriteTextFormat* TabFormat() const { return tabFormat_.get(); }
@@ -129,6 +134,7 @@ private:
     ComPtr<IDWriteRenderingParams2> textRenderingParams_;
     ComPtr<IDWriteTextFormat> textFormat_;
     ComPtr<IDWriteTextFormat> fileNameFormat_;
+    ComPtr<IDWriteTextFormat> boldFileNameFormat_;
     ComPtr<IDWriteTextFormat> smallFormat_;
     ComPtr<IDWriteTextFormat> headerFormat_;
     ComPtr<IDWriteTextFormat> tabFormat_;

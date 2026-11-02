@@ -18,7 +18,7 @@ namespace {
 // Files of an installation that predates the manifest ([Files] in the iss).
 constexpr const wchar_t* kKnownFiles[] = {
     L"luling.exe", L"lumatext.dll", L"pdfium.dll", L"Luling.Index.exe", L"Luling.Document.exe",
-    L"Luling.Preview.exe", L"luling_shell.exe", L"luling_elevated.exe", L"luling_integration.exe",
+    L"Luling.Preview.exe", L"Luling.AI.exe", L"luling_shell.exe", L"luling_elevated.exe", L"luling_integration.exe",
     L"msvcp140.dll", L"msvcp140_atomic_wait.dll", L"vcruntime140.dll", L"vcruntime140_1.dll",
     L"uninstall.exe",
 };

@@ -34,6 +34,16 @@
 #pragma comment(lib, "advapi32.lib")
 
 namespace luling::fs {
+namespace {
+std::atomic<bool> g_show_server_hidden_shares{false};
+}
+
+void SetShowServerHiddenShares(bool on) noexcept {
+    g_show_server_hidden_shares.store(on, std::memory_order_relaxed);
+}
+bool ShowServerHiddenShares() noexcept {
+    return g_show_server_hidden_shares.load(std::memory_order_relaxed);
+}
 
 DWORD ReadReparseTag(const std::wstring& path) {
     WIN32_FIND_DATAW data{};
@@ -140,8 +150,12 @@ bool IsVirtualPath(const std::wstring& path) {
 }
 
 bool IsUncPath(const std::wstring& path) {
-    return path.starts_with(L"\\\\?\\UNC\\") ||
-           (path.starts_with(L"\\\\") && !path.starts_with(L"\\\\?\\"));
+    // Tools and old sessions can hand back the prefix lowercased
+    // (\\?\unc\...); treating it as a local path skipped the network probe
+    // and made transfers report the raw path as missing.
+    if (path.size() >= 8 && _wcsnicmp(path.c_str(), L"\\\\?\\UNC\\", 8) == 0) return true;
+    if (path.starts_with(L"\\\\?\\")) return false;
+    return path.starts_with(L"\\\\");
 }
 
 std::wstring NormalizePath(std::wstring path) {
@@ -456,7 +470,7 @@ static void EnumerateServerShares(const std::wstring& server, std::vector<DirEnt
         const DWORD type = infos[i].shi1_type & ~(STYPE_SPECIAL | STYPE_TEMPORARY);
         if (type != STYPE_DISKTREE) continue;
         std::wstring name = infos[i].shi1_netname;
-        if (name.empty() || name.back() == L'$') continue;
+        if (name.empty() || (name.back() == L'$' && !ShowServerHiddenShares())) continue;
         DirEntry e;
         e.name = name;
         e.full_path = NormalizePath(host + L"\\" + name);
@@ -786,6 +800,10 @@ std::unordered_map<std::wstring, std::wstring> g_shell_names;
 
 bool IsShellPath(const std::wstring& path) {
     return path.starts_with(kShellPathPrefix);
+}
+
+bool ShellPidlFromPath(const std::wstring& path, PIDLIST_ABSOLUTE& pidl) {
+    return ParseShellPidl(path, pidl);
 }
 
 std::wstring MakeShellPath(PCIDLIST_ABSOLUTE pidl) {

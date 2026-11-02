@@ -29,6 +29,8 @@ public:
     void ToggleGroupCollapse(WindowTabs& tabs, int group_id);
     void ShowGroupMenu(WindowTabs& tabs, int group_id, POINT screen_pt, ui::FluentMenu& menu);
     void ShowTabMenu(WindowTabs& tabs, int tab_index, POINT screen_pt, ui::FluentMenu& menu);
+    // The rename bubble on its own, so Settings > 标签页管理 can reuse it.
+    void ShowTabRenameMenu(WindowTabs& tabs, int tab_index, POINT screen_pt, ui::FluentMenu& menu);
 
     static const uint32_t* Palette() noexcept;
     static constexpr size_t PaletteSize() noexcept { return 8; }

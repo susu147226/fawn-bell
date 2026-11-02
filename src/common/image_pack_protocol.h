@@ -69,4 +69,10 @@ inline bool WindowsMayDecode(std::wstring_view ext) {
     return ext == L".heic" || ext == L".heif" || ext == L".hif" || ext == L".avif" || ext == L".jxl";
 }
 
+// Big PNG / WebP acceleration is offered by pack versions newer than the one
+// this build ships (1.0.2); until that pack exists these stay off, and WIC
+// decodes those formats as before.
+inline bool IsAcceleratedExtension(std::wstring_view) { return false; }
+inline uint64_t AcceleratedSourcePixels(const uint8_t*, size_t) { return 0; }
+
 } // namespace luling::imgpack

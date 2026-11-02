@@ -1,7 +1,13 @@
 // app_runtime.cpp — extracted from app_main.cpp.
+#include "ai_assistant.h"
+#include "ai_broker.h"
+#include "ai_settings_ui.h"
 #include "app_internal.h"
+#include "selection_caps.h"
+#include "shortcut_map.h"
 #include "system_ctx_model.h"
 #include "../fs/shell_namespace.h"
+#include "../fs/svn_status.h"
 #include "pane_layout.h"
 #include "vertical_tabs.h"
 #include "app_column_view.h"
@@ -17,6 +23,7 @@
 #include "../ui/batch_rename_dialog.h"
 #include "../ui/quick_preview_window.h"
 #include "../ui/typography.h"
+#include "../ui/thumbnail_disk_cache.h"
 #include "../ui/color_picker.h"
 #include "../ui/confirm_dialog.h"
 #include "../common/localization.h"
@@ -60,6 +67,43 @@
 using namespace luling;
 
 namespace {
+
+// Name shown by the pinned parent row; empty when there is no level above
+// (drive roots, This PC, virtual searches).
+std::wstring ParentFolderLabel(const std::wstring& path) {
+    if (path.empty() || fs::IsVirtualPath(path)) return {};
+    std::wstring current;
+    try {
+        current = fs::NormalizePath(path);
+    } catch (...) {
+        return {};
+    }
+    if (current.empty()) return {};
+    std::wstring up;
+    try {
+        up = fs::ParentPath(current);
+    } catch (...) {
+        return {};
+    }
+    if (up.empty() || _wcsicmp(up.c_str(), current.c_str()) == 0) return {};
+    std::wstring label = up;
+    while (label.size() > 3 && (label.back() == L'\\' || label.back() == L'/')) label.pop_back();
+    const size_t slash = label.find_last_of(L"\\/");
+    if (slash != std::wstring::npos) label = label.substr(slash + 1);
+    return label.empty() ? up : label;
+}
+
+std::shared_ptr<const std::unordered_map<std::wstring, uint8_t>> SvnItemsFor(
+    const app::AppPrefs& prefs, const std::wstring& path, HWND hwnd) {
+    if (!prefs.svn_status || path.empty()) return {};
+    const fs::SvnStatusMap status = fs::QuerySvnStatus(path, hwnd);
+    if (status.items.empty()) return {};
+    auto items = std::make_shared<std::unordered_map<std::wstring, uint8_t>>();
+    items->reserve(status.items.size());
+    for (const auto& [name, item] : status.items)
+        (*items)[name] = static_cast<uint8_t>(item);
+    return items;
+}
 
 struct DetailsMetaRequest {
     HWND hwnd = nullptr;
@@ -265,6 +309,9 @@ std::wstring ResolveOpenFolderPath(std::wstring path) {
         if (!path.empty() && path.back() == L'"') path.pop_back();
     }
     if (path.empty()) return {};
+    // Keep Luling's own pages addressable from a command line, e.g.
+    // `luling.exe luling:settings/shortcuts`.
+    if (fs::IsVirtualPath(path)) return path;
     const DWORD attrs = GetFileAttributesW(path.c_str());
     if (attrs != INVALID_FILE_ATTRIBUTES &&
         (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0) {
@@ -400,6 +447,18 @@ void TickFolderValidation(AppState& s, ULONGLONG now) {
     }
 }
 
+namespace {
+// A folder request Luling cannot show at all: gone, not a folder, or the
+// device is unreachable. Server roots are exempt because \\server lists its
+// shares without a directory stat.
+bool FolderUnavailableForLuling(const std::wstring& path) {
+    if (path.empty() || fs::IsVirtualPath(path)) return false;
+    if (app::IsUncServerRoot(path)) return false;
+    const DWORD attrs = GetFileAttributesW(path.c_str());
+    return attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}
+}
+
 void OpenFolderInNewTab(AppState& s, const std::wstring& raw) {
     if (app::IsThisPcArgument(raw)) {
         // The This PC verb (设为默认文件管理器): This PC is the empty path,
@@ -411,6 +470,13 @@ void OpenFolderInNewTab(AppState& s, const std::wstring& raw) {
         return;
     }
     const std::wstring path = ResolveOpenFolderPath(raw);
+    if (s.appPrefs.explorer_fallback && FolderUnavailableForLuling(path)) {
+        // 启动与集成: hand it to Explorer instead of leaving an empty tab.
+        const std::wstring quoted = L"\"" + path + L"\"";
+        ShellExecuteW(s.hwnd, L"open", L"explorer.exe", quoted.c_str(), nullptr, SW_SHOWNORMAL);
+        s.tray_controller.RestoreWindow();
+        return;
+    }
     // Back from the tray with "open the default location" at startup: an
     // explicit folder starts over on its own, as launching with it would.
     if (!path.empty() && !IsWindowVisible(s.hwnd) && TakeFreshStart(s)) StartFreshAt(s, path);
@@ -515,6 +581,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             vm.settings_open = true;
             vm.settings_page = app::SettingsController::PageFromName(rest);
             vm.settings_scroll = s.settings.scroll();
+            vm.settings_nav_scroll = s.settings.nav_scroll();
             vm.settings_launch_on_startup = s.appPrefs.launch_on_startup;
             vm.settings_start_in_tray = s.appPrefs.start_in_tray;
             vm.settings_keep_running = s.appPrefs.keep_running_on_close;
@@ -647,6 +714,11 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             vm.settings_integration_can_restore = s.settings.IntegrationCanRestore();
             vm.settings_shell_tags = s.appPrefs.shell_tag_menu;
             vm.settings_blank_click_action = s.appPrefs.blank_click_action;
+            vm.settings_collision_policy = s.appPrefs.collision_policy;
+            vm.settings_single_click_open = s.appPrefs.single_click_open;
+            vm.settings_list_checkboxes = s.appPrefs.list_checkboxes;
+            vm.settings_show_hidden_shares = s.appPrefs.show_hidden_shares;
+            vm.settings_explorer_fallback = s.appPrefs.explorer_fallback;
             vm.settings_change_tracking = s.appPrefs.change_tracking_enabled;
             vm.settings_change_days = s.appPrefs.change_tracking_days;
             vm.settings_row_height = s.appPrefs.row_height;
@@ -658,6 +730,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             wchar_t version_text[128]{};
             swprintf_s(version_text,
                 l10n::Get(l10n::StringId::VersionFormat).c_str(), LULING_VERSION_STRING);
+
             vm.settings_version = version_text;
             wchar_t build_text[256]{};
             swprintf_s(build_text,
@@ -744,6 +817,28 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_update_status = l10n::Get(l10n::StringId::UpdateUpToDate);
             }
             vm.settings_bloom = &s.bloom_accent;
+            vm.settings_accent_editor_open = s.accentEditorOpen;
+            vm.settings_accent_h = s.appPrefs.accent_h;
+            vm.settings_accent_s = s.appPrefs.accent_s;
+            vm.settings_accent_l = s.appPrefs.accent_l;
+            {
+                uint32_t accent_rgb = 0;
+                if (app::ParseAccentRgb(s.appPrefs.accent_rgb, accent_rgb)) {
+                    vm.settings_accent_rgb = accent_rgb;
+                    vm.settings_accent_valid = true;
+                } else {
+                    const auto to_byte = [](float v) {
+                        return static_cast<uint32_t>(std::lround(std::clamp(v, 0.0f, 1.0f) * 255.0f));
+                    };
+                    vm.settings_accent_rgb = (to_byte(s.accentColor.r) << 16) |
+                                             (to_byte(s.accentColor.g) << 8) |
+                                             to_byte(s.accentColor.b);
+                    vm.settings_accent_valid = true;
+                }
+                wchar_t hex[8]{};
+                swprintf_s(hex, L"%06X", vm.settings_accent_rgb & 0xFFFFFFu);
+                vm.settings_accent_hex = hex;
+            }
             vm.settings_index_service = s.index.Connected() && s.index.ServiceMode();
             vm.settings_index_installed = s.settings.service_installed();
             // Index and network-index texts are Simplified (most come from
@@ -1038,7 +1133,22 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             // BuildWindowViewModel already populated the focused pane. Reuse
             // it instead of rebuilding all snapshot-derived data twice.
             if (slot.focused) slot.pane = vm.pane;
-            else app::FillPaneViewModel(slot.pane, *p, &s.places);
+            else app::FillPaneViewModel(slot.pane, *p, &s.places,
+                s.appPrefs.list_checkboxes);
+            slot.pane.list_checkboxes = s.appPrefs.list_checkboxes;
+            slot.pane.cloud_status = s.appPrefs.cloud_status;
+            slot.pane.sticky_parent = s.appPrefs.sticky_parent;
+            slot.pane.sticky_parent_label = s.appPrefs.sticky_parent
+                ? ParentFolderLabel(slot.pane.path) : std::wstring();
+            slot.pane.svn_items = SvnItemsFor(s.appPrefs, slot.pane.path, s.hwnd);
+            slot.pane.mtime_style = s.appPrefs.mtime_style;
+            slot.pane.mtime_marks = s.appPrefs.mtime_style > 0;
+            slot.pane.mtime_days = s.appPrefs.mtime_days;
+            slot.pane.mtime_palette = s.appPrefs.mtime_palette;
+            slot.pane.mtime_dim_old = s.appPrefs.mtime_dim_old;
+            slot.pane.mtime_bold_today = s.appPrefs.mtime_bold_today;
+            slot.pane.mtime_in_icons = s.appPrefs.mtime_in_icons;
+            slot.pane.mtime_folders = s.appPrefs.mtime_folders;
             if (app::Tab* tab = p->ActiveTab()) {
                 FillChangePane(s, *tab, slot.pane, slot.rect);
                 for (const auto& cutPath : s.cutPaths) {
@@ -1821,8 +1931,8 @@ static std::wstring ContextStatusHint(AppState& s, StatusHintAction& action) {
     if (tab->net_readonly) return l10n::Get(I::HintReadonly2);
     if (selected == 1) {
         const int index = tab->selected_index;
-        const bool folder = tab->snapshot && index >= 0 &&
-            static_cast<size_t>(index) < tab->snapshot->size() && (*tab->snapshot)[index].is_dir;
+        const bool folder = index >= 0 && static_cast<size_t>(index) < tab->EntryCount() &&
+            tab->EntryAt(static_cast<size_t>(index)).is_dir;
         if (kind == L"search") {
             action = StatusHintAction::OpenPath;
             return l10n::Get(I::HintSearchResultSel);
@@ -2147,6 +2257,50 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.settings_list_selection_outline = s.appPrefs.list_selection_outline;
     vm.settings_list_thumbnail_badges = s.appPrefs.list_thumbnail_badges;
     vm.settings_vertical_tabs = s.appPrefs.vertical_tabs;
+    vm.settings_mtime_style = s.appPrefs.mtime_style;
+    vm.settings_mtime_days = s.appPrefs.mtime_days;
+    vm.settings_mtime_palette = s.appPrefs.mtime_palette;
+    vm.settings_mtime_dim_old = s.appPrefs.mtime_dim_old;
+    vm.settings_mtime_bold_today = s.appPrefs.mtime_bold_today;
+    vm.settings_mtime_icons = s.appPrefs.mtime_in_icons;
+    vm.settings_mtime_folders = s.appPrefs.mtime_folders;
+    vm.settings_mtime_flash = s.appPrefs.mtime_flash;
+    vm.settings_cloud_status = s.appPrefs.cloud_status;
+    vm.settings_sticky_parent = s.appPrefs.sticky_parent;
+    vm.settings_tree_view = s.appPrefs.tree_view;
+    vm.settings_svn_status = s.appPrefs.svn_status;
+    vm.settings_svn_available = fs::SvnClientAvailable();
+    vm.settings_tab_manage.clear();
+    {
+        for (size_t i = 0; i < s.window_tabs.items.size(); ++i) {
+            const app::LayoutTab& tab = *s.window_tabs.items[i];
+            ui::TabManageRow row;
+            row.active = i == s.window_tabs.active;
+            row.pinned = tab.pinned;
+            row.color = tab.marker_rgb;
+            row.group_id = tab.tab_group;
+            const app::Tab* folder = tab.ActiveFolder();
+            row.path = folder ? folder->current_path : std::wstring();
+            if (row.path.starts_with(L"luling:settings")) {
+                row.title = l10n::Get(l10n::StringId::Settings);
+                row.path.clear();
+            } else if (!tab.title.empty()) {
+                row.title = tab.title;
+            } else if (!row.path.empty()) {
+                const size_t slash = row.path.find_last_of(L"\\/");
+                row.title = slash == std::wstring::npos ? row.path : row.path.substr(slash + 1);
+            } else {
+                row.title = l10n::Get(l10n::StringId::ThisPc);
+            }
+            for (const auto& group : s.window_tabs.tab_groups) {
+                if (group.id == row.group_id) {
+                    row.group_name = group.name;
+                    break;
+                }
+            }
+            vm.settings_tab_manage.push_back(std::move(row));
+        }
+    }
     vm.settings_show_hints = s.appPrefs.show_hints;
     vm.settings_tips_seen = s.appPrefs.tips_seen != 0;
     vm.settings_folder_sort = s.appPrefs.folder_sort_mode;
@@ -2154,6 +2308,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.settings_notify_icon = s.appPrefs.notify_icon_mode;
     vm.settings_new_tab_open = s.appPrefs.new_tab_open;
     vm.settings_close_last_tab = s.appPrefs.close_window_with_last_tab;
+    vm.settings_single_window = s.appPrefs.single_window;
     vm.settings_confirm_delete = s.appPrefs.confirm_recycle_delete;
     vm.settings_home_folder = s.appPrefs.home_folder;
     vm.settings_text_render = s.appPrefs.text_render;
@@ -2258,6 +2413,20 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     }
     vm.pane.drop_target_index = s.dropRow;
     vm.pane.rename_index = s.renameIndex;
+    vm.pane.list_checkboxes = s.appPrefs.list_checkboxes;
+    vm.pane.cloud_status = s.appPrefs.cloud_status;
+    vm.pane.sticky_parent = s.appPrefs.sticky_parent;
+    vm.pane.sticky_parent_label = s.appPrefs.sticky_parent ? ParentFolderLabel(vm.pane.path)
+                                                           : std::wstring();
+    vm.pane.svn_items = SvnItemsFor(s.appPrefs, vm.pane.path, s.hwnd);
+    vm.pane.mtime_style = s.appPrefs.mtime_style;
+    vm.pane.mtime_marks = s.appPrefs.mtime_style > 0;
+    vm.pane.mtime_days = s.appPrefs.mtime_days;
+    vm.pane.mtime_palette = s.appPrefs.mtime_palette;
+    vm.pane.mtime_dim_old = s.appPrefs.mtime_dim_old;
+    vm.pane.mtime_bold_today = s.appPrefs.mtime_bold_today;
+    vm.pane.mtime_in_icons = s.appPrefs.mtime_in_icons;
+    vm.pane.mtime_folders = s.appPrefs.mtime_folders;
     SyncSearchBarWidth(s);
     vm.address_editing = s.addressEditing;
     vm.address_searching = s.addressSearching;
@@ -2709,10 +2878,36 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     s.renderer.SetToolbarPrefs(s.appPrefs.toolbar_new_primary, s.appPrefs.toolbar_last_new == 1,
                                static_cast<int>(vm.toolbar_pins.size() + vm.toolbar_apps.size()));
     s.renderer.SetToolbarApps(static_cast<int>(vm.toolbar_pins.size()), drop_mode, vm.toolbar_drop_label);
+    vm.settings_ai_host = !AiHostPath().empty();
     vm.settings_preview_trigger = s.appPrefs.preview_trigger;
     vm.settings_hover_delay_ms = s.appPrefs.hover_preview_delay_ms;
     vm.settings_hover_card_size = s.appPrefs.hover_card_size;
     vm.window_drop_index = s.windowDropIndex;
+
+    FillAiAssistantVm(s, vm);
+    if (vm.settings_page == 11) vm.settings_ai = BuildAiPage(s);
+    else if (vm.settings_page == 12) vm.settings_ai_model = BuildAiModelPage(s);
+    else if (vm.settings_page == 13) {
+        vm.settings_shortcuts =
+            std::make_shared<const std::vector<ui::ShortcutGroupView>>(
+                app::ShortcutGroupsWithPrefs(s.appPrefs.shortcut_bindings));
+        vm.settings_shortcut_capture = s.shortcutCapture;
+        vm.settings_shortcut_hint = s.shortcutCaptureHint;
+    } else if (vm.settings_page == 7) {
+        auto& cache = ui::ThumbnailDiskCache::Shared();
+        const uint64_t bytes = cache.BytesOnDisk();
+        if (cache.Root().empty()) {
+            vm.settings_thumb_cache_text = l10n::Pick(L"缓存已关闭", L"Cache is off");
+        } else if (bytes == 0) {
+            vm.settings_thumb_cache_text = l10n::Pick(L"还没有缓存", L"Nothing cached yet");
+        } else {
+            const std::wstring format = l10n::Pick(L"已缓存 %.1f MB；清除后重新生成",
+                                                   L"%.1f MB cached; clear to rebuild");
+            wchar_t text[128]{};
+            swprintf_s(text, format.c_str(), static_cast<double>(bytes) / (1024.0 * 1024.0));
+            vm.settings_thumb_cache_text = text;
+        }
+    }
     return vm;
 }
 
@@ -2815,6 +3010,7 @@ std::wstring TooltipForHover(AppState& s) {
     case R::SettingsNotifyIcon: return text(I::SettingsNotifyIcon);
     case R::SettingsNewTabOpen: return text(I::SettingsNewTabOpen);
     case R::SettingsBlankClick: return text(I::SettingsBlankClickBack);
+    case R::SettingsCollision: return text(I::SettingsCollision);
     case R::SettingsHomeFolder:
         return text(s.hoverControlIndex == 1 ? I::ThisPc : I::SettingsHomeFolderPick);
     case R::SettingsTextRender: return text(I::SettingsTextRender);
@@ -2885,6 +3081,7 @@ std::wstring TooltipForHover(AppState& s) {
         return text(s.detailsPreviewEnabled ? I::PreviewHide : I::PreviewShow);
     case R::DetailsPreview: return L"";
     case R::StatusBarTask: return text(I::OpDetails);
+    case R::StatusBarAi: return L"鹿铃助手  Ctrl+P";
     case R::StatusBarCancelSearch: return text(I::ContentCancelSearch);
     case R::DetailsNewTab: return text(I::OpenNewTab);
     case R::DetailsCopyPath: return text(I::CopyPath);
@@ -3072,7 +3269,8 @@ void QueueVisibleTagDiscovery(AppState& s) {
     if (!tab || tab->loading || !tab->snapshot || tab->EntryCount() == 0) return;
 
     ui::PaneViewModel pane;
-    app::FillPaneViewModel(pane, *s.pane, &s.places);
+    app::FillPaneViewModel(pane, *s.pane, &s.places,
+        s.appPrefs.list_checkboxes);
     const auto bounds = FocusedPaneRect(s);
     const auto list = s.renderer.PaneListRect(pane, bounds);
     if (list.right <= list.left || list.bottom <= list.top) return;

@@ -1,5 +1,7 @@
 // app_model.cpp
 #include "app_model.h"
+#include "app_tree.h"
+#include "cloud_status.h"
 #include "layout_pane_selection.h"
 #include "selection_caps.h"
 #include "network_sidebar.h"
@@ -111,6 +113,7 @@ void Tab::NavigateTo(const std::wstring& path) {
 }
 
 fs::DirEntry Tab::EntryAt(size_t index) const {
+    if (TreeActive() && index < tree_rows->size()) return (*tree_rows)[index];
     if(content_results) {
         if(const auto it=content_action_rows.find(index); it!=content_action_rows.end()) return it->second.entry;
         index::ContentResultStore::Row row;
@@ -138,19 +141,23 @@ void Tab::SetSnapshot(fs::SnapshotPtr value) {
     }
     directory_count = 0;
     file_count = 0;
-    if (!snapshot) return;
+    if (!snapshot) {
+        RebuildTreeRows(*this);
+        return;
+    }
 
     for (const auto& entry : *snapshot) {
         if (!AllowsAttributes(entry.attrs)) continue;
         if (entry.is_dir) ++directory_count;
         else ++file_count;
     }
+    RebuildTreeRows(*this);
 }
 
 bool Tab::EntryVisible(int index) const {
     if(index < 0 || static_cast<size_t>(index) >= EntryCount()) return false;
     if(content_results) return true;
-    return AllowsAttributes((*snapshot)[static_cast<size_t>(index)].attrs);
+    return AllowsAttributes(EntryAt(static_cast<size_t>(index)).attrs);
 }
 
 bool Tab::AllowsAttributes(DWORD attrs) const {
@@ -1219,6 +1226,7 @@ std::vector<SidebarEntry> BuildOneDriveEntries() {
         entry.path = path;
         entry.label = prefix.empty() ? TabTitle(path)
             : (suffix.empty() ? prefix : prefix + L" - " + suffix);
+        entry.detail = CloudFolderSyncStatus(path);
         out.push_back(std::move(entry));
     }
     RegCloseKey(root);
@@ -1315,6 +1323,15 @@ SidebarModel BuildSidebarModel(const fs::RecycleBinInfo* recycle) {
         ui::HexColor(0xC084FC), l10n::Get(l10n::StringId::Downloads).c_str());
     downloads.builtin = static_cast<int>(BuiltinQuickAccess::Downloads);
     m.quick_access.push_back(std::move(downloads));
+    // Explorer's remaining default quick-access folders.
+    SidebarEntry pictures = MakeKnownEntry(FOLDERID_Pictures, L"\xE91B", L"Pictures",
+        ui::HexColor(0x60A5FA), l10n::Get(l10n::StringId::Images).c_str());
+    pictures.builtin = static_cast<int>(BuiltinQuickAccess::Pictures);
+    m.quick_access.push_back(std::move(pictures));
+    SidebarEntry videos = MakeKnownEntry(FOLDERID_Videos, L"\xE714", L"Videos",
+        ui::HexColor(0xF472B6), l10n::Get(l10n::StringId::KindVideo).c_str());
+    videos.builtin = static_cast<int>(BuiltinQuickAccess::Videos);
+    m.quick_access.push_back(std::move(videos));
     // OneDrive leads its own section: one row per signed-in account, the way
     // Explorer lists them. The known folder only resolves for the primary
     // account, so it stays as the fallback when the registry has nothing.
@@ -1592,9 +1609,19 @@ void CollectFilterMatches(const Tab& tab, const PlacesCatalog* places, std::vect
     }
 }
 
-void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCatalog* places) {
+void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCatalog* places,
+                       bool list_checkboxes) {
     const Tab* tab = pane.ActiveTab();
     if (!tab) return;
+    // The tree switch may have been applied after this tab's snapshot landed
+    // (session restore before app.json). Build the rows on first display so the
+    // switch never reads "on" while the list is still flat.
+    if (TreeViewEnabled() && !tab->tree_rows && tab->snapshot &&
+        tab->view_mode == ui::ViewMode::Details && !tab->content_results &&
+        tab->filter_text.empty() && tab->group_by == 0 &&
+        !fs::IsVirtualPath(tab->current_path))
+        RebuildTreeRows(const_cast<Tab&>(*tab));
+    out.list_checkboxes = list_checkboxes;
     out.path = tab->virtual_title.empty() ? DisplayPath(tab->current_path) : tab->virtual_title;
     out.header_text = PaneHeaderText(*tab);
     out.filter_text = tab->filter_text;
@@ -1677,25 +1704,28 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     out.search_column_dividers = tab->search_column_dividers;
     FillColumnStripView(out.column_strip, *tab);
     out.focused = pane.focused;
-    out.snapshot = tab->snapshot;
+    // The tree's flattened rows stand in for the snapshot in the list while the
+    // inline tree is on; nothing else about the view changes.
+    const fs::SnapshotPtr view_snapshot = tab->TreeActive() ? tab->tree_rows : tab->snapshot;
+    out.snapshot = view_snapshot;
     out.tag_catalog = places;
     const uint64_t places_revision = places ? places->TagRevision() : 0;
-    const bool source_changed = tab->view_cache_snapshot != tab->snapshot ||
+    const bool source_changed = tab->view_cache_snapshot != view_snapshot ||
         tab->view_cache_places != places ||
         tab->view_cache_places_revision != places_revision;
     if (source_changed || !tab->view_tag_dots) {
         auto dots_by_row = std::make_shared<ui::PaneViewModel::TagDots>();
-        tab->view_cache_snapshot = tab->snapshot;
+        tab->view_cache_snapshot = view_snapshot;
         tab->view_cache_places = places;
         tab->view_cache_places_revision = places_revision;
         tab->view_tag_dots = std::move(dots_by_row);
         tab->view_filter_map.reset();
         tab->view_row_cache = std::make_shared<ui::RowPresentationCache>();
-        tab->view_row_cache->snapshot = tab->snapshot;
+        tab->view_row_cache->snapshot = view_snapshot;
     }
     if (!tab->view_row_cache) {
         tab->view_row_cache = std::make_shared<ui::RowPresentationCache>();
-        tab->view_row_cache->snapshot = tab->snapshot;
+        tab->view_row_cache->snapshot = view_snapshot;
     }
     out.row_cache = tab->view_row_cache;
     out.tag_dots = tab->view_tag_dots;
@@ -2144,6 +2174,13 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
             tag.tag_dot = ui::HexColor(t.rgb);
             tags.items.push_back(std::move(tag));
         }
+        // 管理标签 entry: opens the sheet instead of navigating (see NavigateTo).
+        ui::SidebarItem all_tags;
+        all_tags.label = l10n::Get(l10n::StringId::SidebarAllTags);
+        all_tags.icon_glyph = L"\xE8FD";
+        all_tags.fallback_text = L"Tags";
+        all_tags.path = L"luling:all-tags";
+        tags.items.push_back(std::move(all_tags));
     }
     nets.header = l10n::Get(l10n::StringId::SidebarNetworkLocations);
     nets.add_action = ui::SidebarAddAction::AddNetwork;

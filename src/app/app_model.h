@@ -27,6 +27,10 @@
 
 namespace luling { struct ContentSizeSummary; struct ContentSelectionRestore; }
 namespace luling::app {
+
+// File tree switch (Settings > 外观). Declared here because Tab::TreeActive
+// has to consult it; defined in app_tree.cpp.
+bool TreeViewEnabled() noexcept;
 struct ContentNavigationState;
 
 // When navigating from a descendant to one of its ancestors, returns the
@@ -148,7 +152,19 @@ struct Tab {
     std::map<size_t,index::ContentResultStore::Row> content_action_rows;
     bool content_action_ready = false;
     size_t content_action_count = 0;
-    size_t EntryCount() const { if(content_action_ready && all_selected) return content_action_count; return content_results ? content_results->Count() : snapshot ? snapshot->size() : 0; }
+    // File tree: expanded folder paths (lowercase, full), their loaded child
+    // listings, and the flattened rows the details view draws while it is on.
+    std::set<std::wstring> tree_expanded;
+    std::map<std::wstring, std::vector<fs::DirEntry>> tree_children;
+    std::map<std::wstring, uint64_t> tree_child_stamps;  // folder key -> write time
+    std::map<std::wstring, UINT_PTR> tree_pending;       // folder key -> load token
+    std::shared_ptr<std::vector<fs::DirEntry>> tree_rows;
+    bool TreeActive() const {
+        return TreeViewEnabled() && tree_rows && view_mode == ui::ViewMode::Details &&
+               content_results == nullptr && filter_text.empty() && group_by == 0 &&
+               snapshot != nullptr && !fs::IsVirtualPath(current_path);
+    }
+    size_t EntryCount() const { if(TreeActive()) return tree_rows->size(); if(content_action_ready && all_selected) return content_action_count; return content_results ? content_results->Count() : snapshot ? snapshot->size() : 0; }
     fs::DirEntry EntryAt(size_t index) const;
     size_t search_total = 0;
     size_t search_next_offset = 0;
@@ -373,7 +389,8 @@ struct FolderCompareResult {
 };
 FolderCompareResult CompareFolderTabs(const Tab& a, const Tab& b);
 void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane,
-                       const PlacesCatalog* places = nullptr);
+                       const PlacesCatalog* places = nullptr,
+                       bool list_checkboxes = false);
 
 // One window tab = one working layout (pane count, split ratios, each column).
 struct LayoutTab {
@@ -539,6 +556,9 @@ enum class BuiltinQuickAccess : int {
     Desktop,
     Downloads,
     RecycleBin,
+    // Appended so the stored hidden-row bitmask keeps its meaning.
+    Pictures,
+    Videos,
     Count,
 };
 

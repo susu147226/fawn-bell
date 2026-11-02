@@ -7,6 +7,7 @@
 #include "session.h"
 #include "../ui/panel_metrics.h"
 #include "../common/json_utils.h"
+#include "../common/hsl_color.h"
 #include "../common/config_json.h"
 #include "../common/utf8_file.h"
 #include "../common/runtime_log.h"
@@ -61,6 +62,7 @@ void AppPrefs::ResetToDefaults() {
     integration_residual = false;
     integration_incomplete = false;
     take_over_explorer_windows = false;
+    take_over_explorer_windows_set = false;
     shell_tag_menu = false;
     verify_copies = false;
     show_status_performance = false;
@@ -75,6 +77,7 @@ void AppPrefs::ResetToDefaults() {
     startup_open = 0;
     new_tab_open = 0;
     close_window_with_last_tab = false;
+    single_window = false;
     confirm_recycle_delete = false;
     start_in_tray = false;
     home_folder.clear();
@@ -90,6 +93,23 @@ void AppPrefs::ResetToDefaults() {
     show_hidden_files = false;
     show_protected_os_files = false;
     blank_click_action = kBlankClickOff;
+    collision_policy = 0;
+    single_click_open = false;
+    list_checkboxes = false;
+    show_hidden_shares = false;
+    explorer_fallback = true;
+    mtime_style = 0;
+    mtime_days = 7;
+    mtime_palette = 0;
+    mtime_dim_old = true;
+    mtime_bold_today = true;
+    mtime_in_icons = true;
+    mtime_folders = false;
+    mtime_flash = true;
+    cloud_status = true;
+    sticky_parent = true;
+    tree_view = true;
+    svn_status = false;
     change_tracking_enabled = false;
     change_tracking_days = 7;
     theme_mode = -1;
@@ -109,7 +129,11 @@ void AppPrefs::ResetToDefaults() {
     tips_seen = 0;
     accent_rgb.clear();
     accent_follow_system = false;
+    accent_h = 206;
+    accent_s = 100;
+    accent_l = 38;
     custom_tag_colors.clear();
+    shortcut_bindings.clear();
     duplicate_scan_scope = 0;
     duplicate_scan_folder.clear();
     duplicate_scan_drive.clear();
@@ -144,6 +168,8 @@ std::wstring AppPrefs::ToJson() const {
     out += integration_this_pc ? L"true" : L"false";
     out += L",\n  \"take_over_explorer_windows\":";
     out += take_over_explorer_windows ? L"true" : L"false";
+    out += L",\n  \"take_over_explorer_windows_set\":";
+    out += take_over_explorer_windows_set ? L"true" : L"false";
     out += L",\n  \"shell_tag_menu\":";
     out += shell_tag_menu ? L"true" : L"false";
     out += L",\n  \"verify_copies\":";
@@ -178,6 +204,8 @@ std::wstring AppPrefs::ToJson() const {
     out += new_tab_open == 1 ? L"1" : L"0";
     out += L",\n  \"close_window_with_last_tab\":";
     out += close_window_with_last_tab ? L"true" : L"false";
+    out += L",\n  \"single_window\":";
+    out += single_window ? L"true" : L"false";
     out += L",\n  \"confirm_recycle_delete\":";
     out += confirm_recycle_delete ? L"true" : L"false";
     out += L",\n  \"start_in_tray\":";
@@ -204,6 +232,28 @@ std::wstring AppPrefs::ToJson() const {
     // Kept for older builds, which only know on/off.
     out += L",\n  \"blank_click_go_back\":";
     out += blank_click_action != kBlankClickOff ? L"true" : L"false";
+    out += L",\n  \"collision_policy\":";
+    out += std::to_wstring(collision_policy);
+    out += L",\n  \"single_click_open\":";
+    out += single_click_open ? L"true" : L"false";
+    out += L",\n  \"list_checkboxes\":";
+    out += list_checkboxes ? L"true" : L"false";
+    out += L",\n  \"show_hidden_shares\":";
+    out += show_hidden_shares ? L"true" : L"false";
+    out += L",\n  \"explorer_fallback\":";
+    out += explorer_fallback ? L"true" : L"false";
+    out += L",\n  \"mtime_style\":" + std::to_wstring(mtime_style);
+    out += L",\n  \"mtime_days\":" + std::to_wstring(mtime_days);
+    out += L",\n  \"mtime_palette\":" + std::to_wstring(mtime_palette);
+    out += L",\n  \"mtime_dim_old\":" + std::wstring(mtime_dim_old ? L"true" : L"false");
+    out += L",\n  \"mtime_bold_today\":" + std::wstring(mtime_bold_today ? L"true" : L"false");
+    out += L",\n  \"mtime_in_icons\":" + std::wstring(mtime_in_icons ? L"true" : L"false");
+    out += L",\n  \"mtime_folders\":" + std::wstring(mtime_folders ? L"true" : L"false");
+    out += L",\n  \"mtime_flash\":" + std::wstring(mtime_flash ? L"true" : L"false");
+    out += L",\n  \"cloud_status\":" + std::wstring(cloud_status ? L"true" : L"false");
+    out += L",\n  \"sticky_parent\":" + std::wstring(sticky_parent ? L"true" : L"false");
+    out += L",\n  \"tree_view\":" + std::wstring(tree_view ? L"true" : L"false");
+    out += L",\n  \"svn_status\":" + std::wstring(svn_status ? L"true" : L"false");
     out += L",\n  \"change_tracking_enabled\":";
     out += change_tracking_enabled ? L"true" : L"false";
     out += L",\n  \"change_tracking_days\":";
@@ -259,6 +309,9 @@ std::wstring AppPrefs::ToJson() const {
         out += escaped_accent;
     }
     out += L"\",\n  \"accent_follow_system\":" + std::to_wstring(accent_follow_system);
+    out += L",\n  \"accent_h\":" + std::to_wstring(accent_h);
+    out += L",\n  \"accent_s\":" + std::to_wstring(accent_s);
+    out += L",\n  \"accent_l\":" + std::to_wstring(accent_l);
     out += L",\n  \"custom_tag_colors\":[";
     for (size_t i = 0; i < custom_tag_colors.size(); ++i) {
         wchar_t hex[8]{};
@@ -266,6 +319,13 @@ std::wstring AppPrefs::ToJson() const {
         if (i > 0) out += L",";
         out += L"\"";
         out += hex;
+        out += L"\"";
+    }
+    out += L"],\n  \"shortcuts\":[";
+    for (size_t i = 0; i < shortcut_bindings.size(); ++i) {
+        if (i > 0) out += L",";
+        out += L"\"";
+        out += std::to_wstring(shortcut_bindings[i]);
         out += L"\"";
     }
     out += L"],\n  \"duplicate_scan_scope\":";
@@ -314,6 +374,8 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     if (notify_icon_mode < 0 || notify_icon_mode > 2) notify_icon_mode = 0;
     open_folders_in_luling = luling::json::ExtractBool(json, L"open_folders_in_luling", false);
     take_over_explorer_windows = luling::json::ExtractBool(json, L"take_over_explorer_windows", false);
+    take_over_explorer_windows_set =
+        luling::json::ExtractBool(json, L"take_over_explorer_windows_set", false);
     integration_configured = json.find(L"\"integration_enabled\"") != std::wstring::npos;
     integration_enabled = luling::json::ExtractBool(json, L"integration_enabled", false);
     integration_folders = luling::json::ExtractBool(json, L"integration_folders", true);
@@ -338,6 +400,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     startup_open = luling::json::ExtractInt(json, L"startup_open", 0) == 1 ? 1 : 0;
     new_tab_open = luling::json::ExtractInt(json, L"new_tab_open", 0) == 1 ? 1 : 0;
     close_window_with_last_tab = luling::json::ExtractBool(json, L"close_window_with_last_tab", false);
+    single_window = luling::json::ExtractBool(json, L"single_window", false);
     confirm_recycle_delete = luling::json::ExtractBool(json, L"confirm_recycle_delete", false);
     start_in_tray = luling::json::ExtractBool(json, L"start_in_tray", false);
     home_folder = luling::json::ExtractString(json, L"home_folder");
@@ -355,6 +418,24 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     // Files from before blank_click_action carry only the on/off flag (= back).
     blank_click_action = NormalizeBlankClickAction(luling::json::ExtractInt(json, L"blank_click_action",
         luling::json::ExtractBool(json, L"blank_click_go_back", false) ? kBlankClickBack : kBlankClickOff));
+    collision_policy = std::clamp(luling::json::ExtractInt(json, L"collision_policy", 0), 0, 2);
+    single_click_open = luling::json::ExtractBool(json, L"single_click_open", false);
+    list_checkboxes = luling::json::ExtractBool(json, L"list_checkboxes", false);
+    show_hidden_shares = luling::json::ExtractBool(json, L"show_hidden_shares", false);
+    explorer_fallback = luling::json::ExtractBool(json, L"explorer_fallback", true);
+    mtime_style = std::clamp(luling::json::ExtractInt(json, L"mtime_style", 0), 0, 3);
+    mtime_days = luling::json::ExtractInt(json, L"mtime_days", 7);
+    if (mtime_days != 1 && mtime_days != 3 && mtime_days != 7 && mtime_days != 30) mtime_days = 7;
+    mtime_palette = std::clamp(luling::json::ExtractInt(json, L"mtime_palette", 0), 0, 5);
+    mtime_dim_old = luling::json::ExtractBool(json, L"mtime_dim_old", true);
+    mtime_bold_today = luling::json::ExtractBool(json, L"mtime_bold_today", true);
+    mtime_in_icons = luling::json::ExtractBool(json, L"mtime_in_icons", true);
+    mtime_folders = luling::json::ExtractBool(json, L"mtime_folders", false);
+    mtime_flash = luling::json::ExtractBool(json, L"mtime_flash", true);
+    cloud_status = luling::json::ExtractBool(json, L"cloud_status", true);
+    sticky_parent = luling::json::ExtractBool(json, L"sticky_parent", true);
+    tree_view = luling::json::ExtractBool(json, L"tree_view", true);
+    svn_status = luling::json::ExtractBool(json, L"svn_status", false);
     change_tracking_enabled = luling::json::ExtractBool(json, L"change_tracking_enabled", false);
     change_tracking_days = luling::json::ExtractInt(json, L"change_tracking_days", 7);
     if (change_tracking_days != 1 && change_tracking_days != 3 && change_tracking_days != 7)
@@ -390,7 +471,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     toolbar_new_primary = tb_primary >= 0 && tb_primary <= 2 ? tb_primary : 0;
     toolbar_last_new = luling::json::ExtractInt(json, L"toolbar_last_new", 0) == 1 ? 1 : 0;
     const int tb_pins = luling::json::ExtractInt(json, L"toolbar_pins", 0);
-    toolbar_pins = tb_pins > 0 ? static_cast<uint32_t>(tb_pins) & 0x1Fu : 0u;
+    toolbar_pins = tb_pins > 0 ? static_cast<uint32_t>(tb_pins) & 0x3FFFu : 0u;
     toolbar_apps.clear();
     for (auto& app : luling::json::ExtractStringArray(json, L"toolbar_apps")) {
         if (app.empty() || toolbar_apps.size() >= 8) continue;
@@ -414,11 +495,15 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     }
     accent_rgb = luling::json::ExtractString(json, L"accent_rgb");
     accent_follow_system = luling::json::ExtractInt(json, L"accent_follow_system", 0) != 0;
+    accent_h = std::clamp(luling::json::ExtractInt(json, L"accent_h", 206), 0, 359);
+    accent_s = std::clamp(luling::json::ExtractInt(json, L"accent_s", 100), 0, 100);
+    accent_l = std::clamp(luling::json::ExtractInt(json, L"accent_l", 38), 0, 100);
     uint32_t accent_parsed = 0;
     if (!accent_rgb.empty() && ParseAccentRgb(accent_rgb, accent_parsed)) {
         wchar_t hex[8]{};
         swprintf_s(hex, L"%06X", accent_parsed);
         accent_rgb = hex;
+        luling::hsl::HslFromRgb(accent_parsed, accent_h, accent_s, accent_l);
     } else {
         accent_rgb.clear();
     }
@@ -431,6 +516,13 @@ bool AppPrefs::FromJson(const std::wstring& json) {
         const unsigned long v = wcstoul(text, &end, 16);
         if (end && *end == L'\0' && v <= 0xFFFFFFul && wcslen(text) == 6)
             custom_tag_colors.push_back(static_cast<uint32_t>(v));
+    }
+    shortcut_bindings.clear();
+    for (const std::wstring& entry : luling::json::ExtractStringArray(json, L"shortcuts")) {
+        wchar_t* end = nullptr;
+        const unsigned long v = wcstoul(entry.c_str(), &end, 10);
+        if (end && end != entry.c_str() && *end == L'\0' && v <= 0xFFFFFFul)
+            shortcut_bindings.push_back(static_cast<uint32_t>(v));
     }
     duplicate_scan_scope = luling::json::ExtractInt(json, L"duplicate_scan_scope", 0);
     if (duplicate_scan_scope < 0 || duplicate_scan_scope > 2) duplicate_scan_scope = 0;
@@ -648,6 +740,15 @@ bool AppPrefs::Load() {
     had_file = !missing;
     launch_on_startup = ReadLaunchOnStartup();
     open_folders_in_luling = ReadFolderOpen();
+    // Older builds registered the Win+E verb without --new-window; without it
+    // Win+E would now activate the open window instead of opening another.
+    if (persist) {
+        std::wstring win_e_command;
+        if (ReadShellIntegrationCommand(ShellIntegrationKind::WinE, win_e_command) &&
+            win_e_command.find(L"--new-window") == std::wstring::npos &&
+            ShellCommandTargetsExecutable(win_e_command, ExePath()))
+            ApplyShellIntegration(ShellIntegrationKind::WinE, ExePath(), true);
+    }
     take_over_win_e = ReadWinE();
     // Older builds registered the Run command without --startup.
     if (persist && launch_on_startup && StartupCommandNeedsRepair(ReadRunCommand(), ExePath()))
@@ -656,6 +757,11 @@ bool AppPrefs::Load() {
     integration_residual = ReadIntegrationResidual();
     integration_incomplete = ReadIntegrationIncomplete();
     MigrateIntegration();
+    // Folder integration implies the Explorer-window takeover for installs
+    // that never touched the experimental row: programs that launch
+    // explorer.exe directly then open in Luling as well.
+    if (!take_over_explorer_windows_set && integration_enabled && open_folders_in_luling)
+        take_over_explorer_windows = true;
     return true;
 }
 

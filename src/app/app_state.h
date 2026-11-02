@@ -1,6 +1,7 @@
 // app_state.h — Window process state, shot request, and WM_APP message ids.
 #pragma once
-#include "tray_compare_metadata.h"
+#include "ai_assistant.h"
+#include  "tray_compare_metadata.h"
 #include "../common/path_utils.h"
 
 #include "../ui/ui_compositor.h"
@@ -320,6 +321,9 @@ struct AppState {
 
     bool darkMode = false;
     unsigned settingsExpanded = ui::kSettingsDefaultExpandedMask;
+    // Settings > 快捷键: the row waiting for a key, or -1 (shortcut_map.h).
+    int shortcutCapture = -1;
+    std::wstring shortcutCaptureHint;
     ui::ThemeMode themeOverride = ui::ThemeMode::Auto;
     bool safeMode = false;
     bool startupComplete = false; // WM_CREATE committed loaded/restored state; rollback must not save.
@@ -327,6 +331,8 @@ struct AppState {
     bool isolatedTestPersist = false; // selftest builds: test instance saves into LULING_TEST_DATA_DIR
     bool contentIndexObserver = false;
     D2D1_COLOR_F accentColor;
+    // 鹿铃助手 (ai_assistant.h).
+    AiAssistantState aiAssistant;
     float scale = 1.0f;
     bool maximized = false;
     bool backdropActive = true;
@@ -439,6 +445,9 @@ struct AppState {
     AppState* window_adopt_from = nullptr;
     size_t window_adopt_index = 0;
     bool restart_launch = false; // --restart: wait for the old process before claiming the singleton
+    // --new-window: the Win+E verb asks for another window; a bare launch
+    // (taskbar, Start menu) activates the window already open instead.
+    bool new_window_launch = false;
     Timing timing;
     std::wstring session_path;
     std::vector<app::LayoutTabSnapshot> session_layout_tabs;
@@ -543,6 +552,17 @@ struct AppState {
     ULONGLONG renameClickDue = 0;
     ULONGLONG renameClickStarted = 0;
     std::wstring renameClickPath;
+    // 单击打开: the row pressed, opened on release when the pointer stayed put.
+    struct SingleClickOpenState {
+        bool pending = false;
+        int index = -1;
+        app::Pane* pane = nullptr;
+        app::Tab* tab = nullptr;
+        uint64_t generation = 0;
+        POINT at{};
+        ULONGLONG opened_at = 0;   // swallows the second click of a double click
+    };
+    SingleClickOpenState singleClickOpen;
     HWND hwndTagRenameEdit = nullptr;
     app::TagId tagRenameId;
     bool tagRenameIgnoreKillFocus = false;
@@ -554,6 +574,16 @@ struct AppState {
     ui::WindowDropTarget* dropTarget = nullptr; // ref held by RegisterDragDrop
     int breadcrumbHover = -1;
     int hoverRegion = 0;
+    // Press started on the pinned parent row: the release goes up a level
+    // instead of selecting whatever row the new listing puts under the cursor.
+    bool stickyParentPress = false;
+    // Appearance › 主题色 › 自定义颜色 is expanded (not persisted: the panel
+    // opens on demand and the chosen color itself lives in app.json).
+    bool accentEditorOpen = false;
+    // Inline file tree: token of the expanded-folder change poll in flight,
+    // and when the last poll started (GetTickCount64).
+    UINT_PTR treeStampToken = 0;
+    uint64_t treeStampCheckedAt = 0;
     int hoverControlIndex = -1;
     int hoverSubIndex = -1;
     ULONGLONG hoverSince = 0;

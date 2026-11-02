@@ -42,6 +42,7 @@ DEFAULT_LAYOUT = [
     ("{build}/luling.exe", "luling.exe"),
     ("{build}/Luling.Index.exe", "Luling.Index.exe"),
     ("{build}/Luling.Preview.exe", "Luling.Preview.exe"),
+    ("{build}/Luling.AI.exe", "Luling.AI.exe"),
     ("{build}/luling_elevated.exe", "luling_elevated.exe"),
     ("{build}/luling_shell.exe", "luling_shell.exe"),
     ("{build}/luling_integration.exe", "luling_integration.exe"),

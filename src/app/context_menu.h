@@ -10,6 +10,7 @@
 #include "../ui/ui_renderer.h"
 #include "context_menu_prefs.h"
 #include "../index/index_engine.h"
+#include "../common/localization.h"
 #include <string>
 
 namespace luling::app {
@@ -142,6 +143,13 @@ enum MenuCmd : int {
     CmdConvertCompress = 100109,
     // Built-in "send to compressed folder" row (Explorer's zipped folder).
     CmdCompressZip = 100110,
+    // New menu: types Pulse offers on top of the registry's ShellNew list, and
+    // the New button's main-action submenu (0 folder, 1 remember, 2 menu).
+    CmdNewMarkdown = 100111,
+    CmdNewShortcut = 100112,
+    CmdNewPrimaryBase = 100120,
+    // Built-in "new office/document" rows that do not depend on HKCR.
+    CmdNewBuiltinBase = 100130,
     CmdCustomizeToolbar = 3899, // toolbar More / New menu: 自定义工具栏 sheet
     CmdEjectDrive = 3900,       // removable / optical / USB drive: 弹出
     CmdDisconnectDrive = 3901,  // mapped network drive: 断开连接
@@ -254,7 +262,14 @@ std::vector<ui::FluentMenuItem> BuildRecycleBackgroundMenu(bool can_undo,
 std::vector<ui::FluentMenuItem> BuildRecyclePlaceMenu(bool can_empty);
 
 // Toolbar "新建▾" dropdown (reuses the same FluentMenu component).
-std::vector<ui::FluentMenuItem> BuildNewMenu();
+// new_primary marks the 主操作 row that matches the current New-button choice.
+std::vector<ui::FluentMenuItem> BuildNewMenu(int new_primary = 0);
+// Built-in new-file types that do not depend on HKCR\ShellNew (Word, Excel,
+// PowerPoint, RTF, CSV, PSD, contact, ZIP). Shared by the menu and Dispatch.
+int BuiltinNewItemCount();
+const wchar_t* BuiltinNewItemExtension(int index);
+l10n::StringId BuiltinNewItemLabel(int index);
+
 std::vector<ui::FluentMenuItem> BuildConvertMenu();
 
 std::vector<ui::FluentMenuItem> BuildBreadcrumbMenu(bool filesystem);

@@ -1,5 +1,7 @@
 #include "../common/windows_compat.h"
 #include "../common/localization.h"
+#include "../common/hsl_color.h"
+#include "../fs/fs_enum.h"
 #include "settings_controller.h"
 #include "system_ctx_model.h"
 #include "blank_pane_click.h"
@@ -45,6 +47,14 @@ int SettingsController::PageFromName(std::wstring_view name) noexcept {
     if (name == L"duplicates") return 4;
     if (name == L"packs") return 5;
     if (name == L"sysctx") return 6;
+    if (name == L"filelist") return 7;
+    if (name == L"tabs") return 8;
+    if (name == L"startup") return 9;
+    if (name == L"fileops") return 10;
+    if (name == L"aimcp") return 11;
+    if (name == L"ai") return 12;
+    if (name == L"shortcuts") return 13;
+    if (name == L"enhance") return 14;
     return 0;
 }
 
@@ -55,13 +65,22 @@ const wchar_t* SettingsController::PageName(int page) noexcept {
     if (page == 4) return L"duplicates";
     if (page == 5) return L"packs";
     if (page == 6) return L"sysctx";
+    if (page == 7) return L"filelist";
+    if (page == 8) return L"tabs";
+    if (page == 9) return L"startup";
+    if (page == 10) return L"fileops";
+    if (page == 11) return L"aimcp";
+    if (page == 12) return L"ai";
+    if (page == 13) return L"shortcuts";
+    if (page == 14) return L"enhance";
     return L"general";
 }
 
 void SettingsController::SelectPage(int page) noexcept {
     CancelGlobalSearchHotkeyCapture();
-    page_ = std::clamp(page, 0, 6);
+    page_ = std::clamp(page, 0, 14);
     scroll_ = 0.0f;
+    nav_scroll_ = 0.0f;
     packs_checked_ = 0;  // re-read the packs when their page opens
 }
 
@@ -771,6 +790,24 @@ void SettingsController::RowHeight(int index) {
         SaveAndApply(SettingsEffect::RowHeight);
 }
 
+void SettingsController::MtimeStyle(int index) {
+    static constexpr int values[] = {0, 1, 2, 3};
+    if (prefs_ && SelectValue(index, values, prefs_->mtime_style))
+        SaveAndApply(SettingsEffect::None);
+}
+
+void SettingsController::MtimeMarkDays(int index) {
+    static constexpr int values[] = {1, 3, 7, 30};
+    if (prefs_ && SelectValue(index, values, prefs_->mtime_days))
+        SaveAndApply(SettingsEffect::None);
+}
+
+void SettingsController::MtimePalette(int index) {
+    static constexpr int values[] = {0, 1, 2, 3, 4, 5};
+    if (prefs_ && SelectValue(index, values, prefs_->mtime_palette))
+        SaveAndApply(SettingsEffect::None);
+}
+
 void SettingsController::FolderSort(int index) {
     static constexpr int values[] = {0, 1, 2};
     if (prefs_ && SelectValue(index, values, prefs_->folder_sort_mode))
@@ -806,6 +843,12 @@ void SettingsController::NewTabOpen(int index) {
 void SettingsController::BlankClick(int index) {
     static constexpr int values[] = {kBlankClickOff, kBlankClickBack, kBlankClickUp};
     if (prefs_ && SelectValue(index, values, prefs_->blank_click_action))
+        SaveAndApply(SettingsEffect::None);
+}
+
+void SettingsController::Collision(int index) {
+    static constexpr int values[] = {0, 1, 2};
+    if (prefs_ && SelectValue(index, values, prefs_->collision_policy))
         SaveAndApply(SettingsEffect::None);
 }
 
@@ -846,7 +889,24 @@ void SettingsController::TrayIconSize(int index) {
 // Both only change how the next frame is painted; the caller invalidates.
 // Values snap to the former preset levels unless Shift is held.
 bool SettingsController::SliderValue(int which, int value) {
-    if (!prefs_ || which < 0 || which > 1) return false;
+    if (!prefs_ || which < 0 || which > 4) return false;
+    if (which >= 2) {
+        // Appearance › 主题色 › 自定义颜色: hue / saturation / lightness.
+        int& target = which == 2 ? prefs_->accent_h
+                    : which == 3 ? prefs_->accent_s : prefs_->accent_l;
+        const int max_value = which == 2 ? 359 : 100;
+        value = std::clamp(value, 0, max_value);
+        if (target == value) return false;
+        target = value;
+        const uint32_t rgb = luling::hsl::RgbFromHsl(prefs_->accent_h, prefs_->accent_s,
+                                                     prefs_->accent_l);
+        wchar_t hex[8]{};
+        swprintf_s(hex, L"%06X", rgb & 0xFFFFFFu);
+        prefs_->accent_rgb = hex;
+        prefs_->accent_follow_system = false;
+        Apply(SettingsEffect::Accent); // live; EndSlider saves once
+        return true;
+    }
     const bool snap = GetKeyState(VK_SHIFT) >= 0;
     int& target = which == 0 ? prefs_->wallpaper_look : prefs_->wallpaper_blur;
     value = std::clamp(value, 0, which == 0 ? 90 : 40);
@@ -1036,11 +1096,18 @@ void SettingsController::IntegrationAction(int index) {
     auto& p = *prefs_;
     p.integration_configured = true;
     if (index == 0) p.integration_enabled = !p.integration_enabled;
-    else if (index == 1) p.integration_folders = !p.integration_folders;
-    else if (index == 2) p.integration_win_e = !p.integration_win_e;
+    else if (index == 1) {
+        p.integration_folders = !p.integration_folders;
+        // The Explorer-window takeover follows folder integration until the
+        // user turns that row off themselves.
+        if (p.integration_folders && !p.take_over_explorer_windows_set)
+            p.take_over_explorer_windows = true;
+    } else if (index == 2) p.integration_win_e = !p.integration_win_e;
     else if (index == 3) p.integration_this_pc = !p.integration_this_pc;
-    else if (index == 4) p.take_over_explorer_windows = !p.take_over_explorer_windows;
-    else if (index == 6) p.integration_enabled = false;
+    else if (index == 4) {
+        p.take_over_explorer_windows = !p.take_over_explorer_windows;
+        p.take_over_explorer_windows_set = true;
+    } else if (index == 6) p.integration_enabled = false;
     // Editing a disabled integration only changes the saved selection.
     if (p.integration_enabled || index == 0 || index == 5 || index == 6) {
         integration_error_.clear();
@@ -1143,6 +1210,49 @@ void SettingsController::ToggleUi(int index) {
         SaveAndApply(SettingsEffect::None);
     } else if (index == 32) {
         prefs_->confirm_recycle_delete = !prefs_->confirm_recycle_delete;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 36) {
+        prefs_->single_window = !prefs_->single_window;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 37) {
+        prefs_->single_click_open = !prefs_->single_click_open;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 38) {
+        prefs_->show_hidden_shares = !prefs_->show_hidden_shares;
+        fs::SetShowServerHiddenShares(prefs_->show_hidden_shares);
+        SaveAndApply(SettingsEffect::FileVisibility);
+    } else if (index == 39) {
+        prefs_->list_checkboxes = !prefs_->list_checkboxes;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 40) {
+        prefs_->explorer_fallback = !prefs_->explorer_fallback;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 41) {
+        prefs_->mtime_dim_old = !prefs_->mtime_dim_old;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 42) {
+        prefs_->mtime_bold_today = !prefs_->mtime_bold_today;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 43) {
+        prefs_->mtime_in_icons = !prefs_->mtime_in_icons;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 44) {
+        prefs_->mtime_folders = !prefs_->mtime_folders;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 45) {
+        prefs_->mtime_flash = !prefs_->mtime_flash;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 46) {
+        prefs_->cloud_status = !prefs_->cloud_status;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 47) {
+        prefs_->sticky_parent = !prefs_->sticky_parent;
+        SaveAndApply(SettingsEffect::None);
+    } else if (index == 49) {
+        prefs_->tree_view = !prefs_->tree_view;
+        SaveAndApply(SettingsEffect::TreeView);
+    } else if (index == 48) {
+        prefs_->svn_status = !prefs_->svn_status;
         SaveAndApply(SettingsEffect::None);
     } else if (index == 27) {
         prefs_->start_in_tray = !prefs_->start_in_tray;

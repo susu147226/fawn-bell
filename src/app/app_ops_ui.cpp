@@ -59,6 +59,11 @@ bool ErrorHas(const std::wstring& error, const wchar_t* simplified) {
 bool SubmitWithConflictResolution(AppState& s, ops::OpRequest request, uint64_t* task_id) {
     // Copy/move conflict discovery is part of the transfer worker's recursive
     // scan. The UI only consumes immutable conflict snapshots.
+    // Settings > 文件操作 › 同名文件 picks the answer up front; 0 keeps the
+    // per-file question.
+    if (s.appPrefs.collision_policy > 0 && request.collision_policy == ops::CollisionPolicy::System)
+        request.collision_policy = s.appPrefs.collision_policy == 1
+            ? ops::CollisionPolicy::KeepBoth : ops::CollisionPolicy::Replace;
     const auto id = s.ops.Submit(std::move(request));
     if (task_id) *task_id = id;
     return id != 0;

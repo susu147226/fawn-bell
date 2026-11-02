@@ -13,7 +13,7 @@ foreach ($name in @('package_portable.ps1','check_release_payload.ps1','archive_
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $fixtureScripts
 }
 [IO.File]::WriteAllText((Join-Path $fixture 'version.txt'), '0.0.0')
-$binaryNames = @('luling.exe','Luling.Index.exe','Luling.Document.exe','Luling.Preview.exe',
+$binaryNames = @('luling.exe','Luling.Index.exe','Luling.Document.exe','Luling.Preview.exe','Luling.AI.exe',
     'luling_shell.exe','luling_elevated.exe','luling_integration.exe','lumatext.dll','pdfium.dll')
 foreach ($name in $binaryNames) { [IO.File]::WriteAllText((Join-Path $build $name), 'private non-executable fixture') }
 foreach ($folder in @('licenses/PDFium','licenses/LumaText')) {

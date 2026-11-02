@@ -22,6 +22,7 @@ namespace luling::ui {
 
 void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     ID2D1DeviceContext* dc = compositor_->Dc();
+    ai_model_fields_valid_ = false;   // only page 12 marks the EDIT fields
     const SettingsLayout lay = MakeSettingsLayout(vm, rect, scale_, title_bar_height_,
                                                   status_height_, &painter_);
     D2D1_COLOR_F nav_bg = theme.tab_bg;
@@ -34,36 +35,65 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
 
     const bool compact_nav = lay.nav.right - lay.nav.left < 100*scale_;
     MakeBrush(dc, theme.stroke_divider, brStrokeDivider_);
-    FillRect(dc, brStrokeDivider_.get(), lay.nav.left+16*scale_, lay.nav_row[3].top-12*scale_,
-        lay.nav.right-lay.nav.left-32*scale_, 1);
-    if (!compact_nav) painter_.DrawText(L"Luling " + vm.settings_version,
+    if (lay.nav_about.bottom > lay.nav_about.top)
+        FillRect(dc, brStrokeDivider_.get(), lay.nav.left+16*scale_, lay.nav_about.top-12*scale_,
+            lay.nav.right-lay.nav.left-32*scale_, 1);
+    if (!compact_nav && lay.nav.bottom - lay.nav.top >= 64*scale_) painter_.DrawText(L"Luling " + vm.settings_version,
         D2D1::RectF(lay.nav.left+20*scale_,lay.nav.bottom-40*scale_,lay.nav.right-12*scale_,lay.nav.bottom-16*scale_),
         compositor_->SmallFormat(),theme.text_secondary);
 
-    static constexpr luling::l10n::StringId kNav[] = {
-        luling::l10n::StringId::SettingsGeneral,
-        luling::l10n::StringId::SettingsSearchIndex,
-        luling::l10n::StringId::SettingsContextMenu,
-        luling::l10n::StringId::SettingsAboutDiagnostics,
-        luling::l10n::StringId::SettingsDuplicates,
+    static constexpr const wchar_t* kNavIconFor[kSettingsNavItemCount] = {
+        L"\xE790",      // 外观
+        L"\xED25",      // 文件列表
+        L"\xE737",      // 标签页与窗口
+        L"\xE7E8",      // 启动与集成
+        L"\xE8DE",      // 文件操作
+        L"\xE8A7",      // 系统右键菜单
+        kIconSearch,    // 搜索与索引
+        L"\xE890",      // 快速预览
+        L"\xE7B8",      // 增强包
+        L"\xE945",      // AI 助手
+        L"\xE8F1",      // AI 与 MCP
+        L"\xE700",      // 右键菜单
+        L"\xE765",      // 快捷键
+        kIconCopy,      // 重复文件
     };
-    static constexpr const wchar_t* kNavIcon[] = {
-        kIconHome, kIconSearch, kIconSettings, kIconInfo, kIconCopy, L"\xE890",  // Quick Look
-        L"\xE700"  // 系统右键菜单
-    };
-    static_assert(std::size(kNavIcon) == kSettingsNavCount);
-    // Page 5 (快速预览) has no string-table entry; see pack_text.
+    static constexpr const wchar_t* kNavGroupName[kSettingsNavGroupCount] = {
+        L"个性化", L"浏览", L"系统", L"功能", L"工具"};
     auto nav_label = [](int page) -> std::wstring {
-        if (page == 6) return std::wstring(sysctx_text::PageTitle());
-        return page == 5 ? std::wstring(pack_text::Title()) : luling::l10n::Get(kNav[page]);
+        switch (page) {
+        case 0: return luling::l10n::Get(luling::l10n::StringId::SettingsAppearance);
+        case 1: return luling::l10n::Get(luling::l10n::StringId::SettingsSearchIndex);
+        case 2: return std::wstring(L"右键菜单");
+        case 4: return luling::l10n::Get(luling::l10n::StringId::SettingsDuplicates);
+        case 5: return std::wstring(pack_text::Title());
+        case 6: return std::wstring(sysctx_text::PageTitle());
+        case 7: return std::wstring(L"文件列表");
+        case 8: return std::wstring(L"标签页与窗口");
+        case 9: return std::wstring(L"启动与集成");
+        case 10: return std::wstring(L"文件操作");
+        case 11: return std::wstring(L"AI 与 MCP");
+        case 12: return std::wstring(L"AI 助手");
+        case 13: return std::wstring(L"快捷键");
+        case 14: return std::wstring(L"增强包");
+        default: return luling::l10n::Get(luling::l10n::StringId::SettingsAboutDiagnostics);
+        }
     };
-    // Hover plate and selection pill glide between rows (ui_motion.h); the
-    // accent bar travels with the pill.
+    auto item_for_page = [](int page) {
+        for (int i = 0; i < kSettingsNavItemCount; ++i)
+            if (kSettingsNav[i].page == page) return i;
+        return -1;
+    };
+    const int active_item = item_for_page(vm.settings_page);
+    // Hover plate and selection pill glide between rows (ui_motion.h).
     {
         const uint64_t now = motion_now_;
         int hovered_row = -1;
-        for (int i = 0; i < kSettingsNavCount; ++i)
-            if (i != vm.settings_page && IsHovered(vm, HitTestResult::SettingsNav, i)) hovered_row = i;
+        for (int i = 0; i < kSettingsNavItemCount; ++i)
+            if (lay.nav_row[i].right > lay.nav_row[i].left &&
+                kSettingsNav[i].page != vm.settings_page &&
+                IsHovered(vm, HitTestResult::SettingsNav, kSettingsNav[i].page))
+                hovered_row = i;
         if (hovered_row >= 0) {
             const D2D1_RECT_F rc = settings_nav_hover_.Update(
                 1, hovered_row, lay.nav_row[hovered_row], motion_frame_, now, 120);
@@ -71,25 +101,61 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top,
                             rc.right - rc.left, rc.bottom - rc.top, 6.0f * scale_);
         }
-        if (vm.settings_page >= 0 && vm.settings_page < kSettingsNavCount) {
+        if (active_item >= 0 && lay.nav_row[active_item].right > lay.nav_row[active_item].left) {
             const D2D1_RECT_F rc = settings_nav_pill_.Update(
-                1, vm.settings_page, lay.nav_row[vm.settings_page], motion_frame_, now, 200);
+                1, active_item, lay.nav_row[active_item], motion_frame_, now, 200);
             MakeBrush(dc, theme.fill_selected, brFillSelected_);
             FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top,
                             rc.right - rc.left, rc.bottom - rc.top, 6.0f * scale_);
             MakeBrush(dc, theme.accent, brFillSelected_);
-            FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top+10*scale_, 3*scale_, 20*scale_, 1.5f*scale_);
+            FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top + 10 * scale_, 3 * scale_,
+                            20 * scale_, 1.5f * scale_);
         }
     }
-    for (int i = 0; i < kSettingsNavCount; ++i) {
-        const bool active = vm.settings_page == i;
+    for (int g = 0; g < kSettingsNavGroupCount; ++g) {
+        if (lay.nav_group[g].bottom <= lay.nav_group[g].top) continue;
+        painter_.DrawText(luling::l10n::Pick(kNavGroupName[g], L""), lay.nav_group[g],
+                          compositor_->SmallFormat(), theme.text_secondary);
+    }
+    for (int i = 0; i < kSettingsNavItemCount; ++i) {
+        const int page = kSettingsNav[i].page;
+        const bool active = page == vm.settings_page;
         const auto& rc = lay.nav_row[i];
-        DrawIconText(rc.left + (compact_nav ? 13.0f : 12.0f) * scale_, rc.top, 22.0f * scale_, rc.bottom - rc.top,
-                     kNavIcon[i], L"*", active ? theme.accent : theme.text_secondary, 0.85f);
+        if (rc.right <= rc.left) continue;   // a short window clips the overflow
+        DrawIconText(rc.left + (compact_nav ? 13.0f : 12.0f) * scale_, rc.top, 22.0f * scale_,
+                     rc.bottom - rc.top, kNavIconFor[i], L"*",
+                     active ? theme.accent : theme.text_secondary, 0.85f);
         MakeBrush(dc, theme.text, brText_);
-        if (!compact_nav) DrawTextRect(dc, compositor_->TextFormat(), brText_.get(), nav_label(i),
-                     rc.left + 42.0f * scale_, rc.top, rc.right - rc.left - 48.0f * scale_,
-                     rc.bottom - rc.top);
+        if (!compact_nav)
+            DrawTextRect(dc, compositor_->TextFormat(), brText_.get(), nav_label(page),
+                         rc.left + 42.0f * scale_, rc.top, rc.right - rc.left - 48.0f * scale_,
+                         rc.bottom - rc.top);
+    }
+    // 关于与诊断 stays pinned above the version line (Pulse does the same).
+    {
+        const bool active = vm.settings_page == kSettingsPageAbout;
+        const D2D1_RECT_F rc = lay.nav_about;
+        if (active) {
+            MakeBrush(dc, theme.fill_selected, brFillSelected_);
+            FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top,
+                            rc.right - rc.left, rc.bottom - rc.top, 6.0f * scale_);
+            MakeBrush(dc, theme.accent, brFillSelected_);
+            FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top + 8 * scale_, 3 * scale_,
+                            22 * scale_, 1.5f * scale_);
+        } else if (IsHovered(vm, HitTestResult::SettingsNav, kSettingsPageAbout)) {
+            MakeBrush(dc, theme.fill_hover, brFillSelected_);
+            FillRoundedRect(dc, brFillSelected_.get(), rc.left, rc.top,
+                            rc.right - rc.left, rc.bottom - rc.top, 6.0f * scale_);
+        }
+        DrawIconText(rc.left + (compact_nav ? 13.0f : 12.0f) * scale_, rc.top, 22.0f * scale_,
+                     rc.bottom - rc.top, kIconInfo, L"*",
+                     active ? theme.accent : theme.text_secondary, 0.85f);
+        MakeBrush(dc, theme.text, brText_);
+        if (!compact_nav)
+            DrawTextRect(dc, compositor_->TextFormat(), brText_.get(),
+                         luling::l10n::Get(luling::l10n::StringId::SettingsAboutDiagnostics),
+                         rc.left + 42.0f * scale_, rc.top, rc.right - rc.left - 48.0f * scale_,
+                         rc.bottom - rc.top);
     }
 
     dc->PushAxisAlignedClip(lay.content, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
@@ -98,15 +164,9 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     const float switch_w = 42.0f * scale_;
     const float switch_h = 32.0f * scale_;
 
-    const auto page_title_id = vm.settings_page == 0
-        ? luling::l10n::StringId::SettingsGeneral
-        : vm.settings_page == 1 ? luling::l10n::StringId::SettingsSearchIndex
-        : vm.settings_page == 2 ? luling::l10n::StringId::SettingsContextMenu
-        : vm.settings_page == 4 ? luling::l10n::StringId::SettingsDuplicates
-                                : luling::l10n::StringId::SettingsAboutDiagnostics;
-    MakeBrush(dc, theme.text, brText_);
-    const std::wstring title = vm.settings_page == 6 ? std::wstring(sysctx_text::PageTitle())
-        : vm.settings_page == 5 ? std::wstring(pack_text::Title()) : l10n::Get(page_title_id);
+    // Pulse's page names; the pages Luling has not built yet say where their
+    // settings live today.
+    const std::wstring title = nav_label(vm.settings_page);
     ComPtr<IDWriteTextLayout> title_layout;
     compositor_->DwriteFactory()->CreateTextLayout(title.c_str(), static_cast<UINT32>(title.size()),
         compositor_->HeaderFormat(), lay.content.right-lay.content.left-pad*2, 40*scale_, &title_layout);
@@ -125,8 +185,21 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
             compositor_->SmallFormat(),theme.text_secondary);
 
 
-    if (vm.settings_page == 0) {
-        DrawSettingsCore(vm, rect, theme);
+    if (const wchar_t* page_intro = SettingsPageIntro(vm.settings_page)) {
+        painter_.DrawText(page_intro,
+            D2D1::RectF(lay.content.left+pad,origin+60*scale_,lay.content.right-pad,origin+84*scale_),
+            compositor_->SmallFormat(),theme.text_secondary);
+    }
+
+    if (vm.settings_page == 0 || (vm.settings_page >= 7 && vm.settings_page <= 10) ||
+        vm.settings_page == 13) {
+        DrawSettingsPages(vm, rect, theme);
+    } else if (vm.settings_page == 11) {
+        DrawSettingsAi(vm, rect, theme);
+    } else if (vm.settings_page == 12) {
+        DrawSettingsAiModel(vm, rect, theme);
+    } else if (vm.settings_page == 14) {
+        DrawSettingsEnhance(vm, rect, theme);
     } else if (vm.settings_page == 1) {
         auto draw_card = [&](const D2D1_RECT_F& card) {
             MakeBrush(dc, theme.fill_input, brFillInput_);
@@ -559,6 +632,26 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                                      copied ? std::wstring_view(L"\xE73E") : std::wstring_view{},
                                      fluent::ButtonKind::Standard, state});
             }
+        }
+
+        draw_card(lay.backup_card);
+        MakeBrush(dc, theme.text, brText_);
+        DrawTextRect(dc, compositor_->TextFormat(), brText_.get(), L"备份与迁移",
+                     lay.backup_card.left + 16 * scale_, lay.backup_card.top + 12 * scale_,
+                     lay.backup_card.right - lay.backup_card.left - 32 * scale_, 22 * scale_);
+        MakeBrush(dc, theme.text_secondary, brTextSecondary_);
+        DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(),
+                     L"把设置导出成一个文件，换电脑或重装后导入回来；导入前会先备份当前设置。",
+                     lay.backup_card.left + 16 * scale_, lay.backup_card.top + 34 * scale_,
+                     lay.backup_card.right - lay.backup_card.left - 32 * scale_, 18 * scale_);
+        {
+            fluent::ControlState state{};
+            state.hovered = IsHovered(vm, HitTestResult::SettingsAboutAction, 4);
+            painter_.DrawButton({lay.backup_export, L"导出设置…", {},
+                                 fluent::ButtonKind::Standard, state});
+            state.hovered = IsHovered(vm, HitTestResult::SettingsAboutAction, 5);
+            painter_.DrawButton({lay.backup_import, L"导入设置…", {},
+                                 fluent::ButtonKind::Standard, state});
         }
 
         draw_card(lay.diagnostics_card);
@@ -1042,6 +1135,7 @@ float MainRenderer::SettingsDestinationOffset(const WindowViewModel& vm, int set
     case I::SettingsStartupOpen: target=l.startup_open_card;break;
     case I::SettingsNewTabOpen: target=l.new_tab_open_card;break;
     case I::SettingsCloseLastTab: target=l.close_last_tab_row;break;
+    case I::SettingsSingleWindow: target=l.single_window_row;break;
     case I::SettingsConfirmDelete: target=l.confirm_delete_row;break;
     case I::SettingsOpenFolders: target=l.startup_row[2];break;
     case I::SettingsRowHeight: target=l.density_card;break;
@@ -1067,6 +1161,9 @@ float MainRenderer::SettingsDestinationOffset(const WindowViewModel& vm, int set
     case I::SettingsHints: target=l.hints_row;break;
     case I::SettingsHintsReset: target=l.hints_reset_row;break;
     case I::SettingsBlankClickBack: target=l.blank_click_row;break;
+    case I::SettingsCollision: target=l.collision_row;break;
+    case I::SettingsSingleClick: target=l.single_click_row;break;
+    case I::SettingsHiddenShares: target=l.hidden_shares_row;break;
     case I::SettingsWinE: target=l.win_e_row;break;
     case I::SettingsThisPc: target=l.this_pc_row;break;
     case I::SettingsExplorerWindows: target=l.explorer_windows_row;break;
@@ -1093,6 +1190,27 @@ float MainRenderer::SettingsMaxScroll(const WindowViewModel& vm, float window_w,
                                                   status_height_, &painter_);
     const float view = (std::max)(0.0f, lay.content.bottom - lay.content.top);
     return (std::max)(0.0f, lay.content_h - view);
+}
+
+float MainRenderer::SettingsNavMaxScroll(const WindowViewModel& vm, float window_w,
+                                         float window_h) const {
+    const D2D1_RECT_F rect = D2D1::RectF(0, 0, window_w, window_h);
+    const SettingsLayout lay = MakeSettingsLayout(vm, rect, scale_, title_bar_height_,
+                                                  status_height_, &painter_);
+    const float nav_top = lay.nav.top + 14 * scale_;
+    const float limit = lay.nav_about.bottom > lay.nav_about.top
+        ? lay.nav_about.top - 8 * scale_ : lay.nav.bottom - 52 * scale_;
+    const float content = kSettingsNavGroupCount * 24.0f * scale_ +
+                          kSettingsNavItemCount * 40.0f * scale_;
+    return (std::max)(0.0f, content - (limit - nav_top));
+}
+
+bool MainRenderer::InSettingsNav(const WindowViewModel& vm, float window_w, float window_h,
+                                 float x, float y) const {
+    const D2D1_RECT_F rect = D2D1::RectF(0, 0, window_w, window_h);
+    const SettingsLayout lay = MakeSettingsLayout(vm, rect, scale_, title_bar_height_,
+                                                  status_height_, &painter_);
+    return x >= lay.nav.left && x < lay.nav.right && y >= lay.nav.top && y < lay.nav.bottom;
 }
 
 } // namespace luling::ui

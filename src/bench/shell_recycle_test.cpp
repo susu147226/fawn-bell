@@ -88,12 +88,12 @@ int wmain() {
 
     luling::ipc::ShellClient::Callbacks callbacks;
     callbacks.ctx_items = [](uint32_t id, std::vector<luling::ipc::CtxMenuItem> items, bool partial,
-                             std::vector<std::wstring> slow) {
+                             luling::ipc::CtxItemsExtra extra) {
         std::lock_guard<std::mutex> lock(g_mutex);
         Session& s = g_sessions[id];
         s.items = items.size();
         if (partial) s.partial = true;
-        else { s.final = true; s.slow = std::move(slow); }
+        else { s.final = true; s.slow = std::move(extra.slow_clsids); }
         g_cv.notify_all();
     };
     callbacks.done = [](uint32_t, uint32_t, bool, std::wstring) {};

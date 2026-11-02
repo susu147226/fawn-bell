@@ -63,7 +63,8 @@ bool CanShow(AppState& s) {
     return s.hwnd && HoverPreviewOn(s) && GetForegroundWindow() == s.hwnd && !IsIconic(s.hwnd) &&
         !s.shot.active && !s.menushot && !s.quickPreview.visible() && !s.context_menu.menu_open() &&
         s.renameIndex < 0 && PointerFree(s) &&
-        s.hoverRegion == static_cast<int>(ui::HitTestResult::Row);
+        (s.hoverRegion == static_cast<int>(ui::HitTestResult::Row) ||
+         s.hoverRegion == static_cast<int>(ui::HitTestResult::RowCheck));
 }
 
 app::Tab* TabAtSlot(AppState& s, int slot) {
@@ -336,7 +337,8 @@ bool StageHoverPreviewShot(AppState& s, int nth_file) {
     app::Tab* tab = s.pane ? s.pane->ActiveTab() : nullptr;
     if (!tab || !tab->snapshot) return false;
     ui::PaneViewModel pane;
-    app::FillPaneViewModel(pane, *s.pane, &s.places);
+    app::FillPaneViewModel(pane, *s.pane, &s.places,
+        s.appPrefs.list_checkboxes);
     const D2D1_RECT_F bounds = FocusedPaneRect(s);
     const int count = static_cast<int>(tab->EntryCount());
     int seen = 0;

@@ -17,6 +17,9 @@ enum class ShellIntegrationKind { Folders, WinE, ThisPc, Directory, Drive };
 // backup: matching Luling overrides are removed, unrelated values stay put.
 bool ApplyShellIntegration(ShellIntegrationKind kind, const std::wstring& exe, bool on);
 bool ReadShellIntegration(ShellIntegrationKind kind, const std::wstring& exe);
+// The command line the kind's first verb currently holds, whether or not it
+// still matches this build's expected text (used by startup migration).
+bool ReadShellIntegrationCommand(ShellIntegrationKind kind, std::wstring& command);
 bool HasShellIntegrationOwnership(ShellIntegrationKind kind, const std::wstring& exe);
 // Exact pre-snapshot orphan signature, used by startup migration and explicit
 // repair. Ordinary enable/disable must not infer ownership of arbitrary values.

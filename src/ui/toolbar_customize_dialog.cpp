@@ -14,7 +14,7 @@ namespace luling::ui {
 namespace {
 
 constexpr wchar_t kCustomizeClass[] = L"LulingToolbarCustomizeWindow";
-constexpr float kWidth = 460.0f;
+constexpr float kWidth = 520.0f;
 constexpr float kPad = 24.0f;
 constexpr float kTitleBar = 36.0f;
 constexpr float kCloseW = 46.0f;
@@ -24,9 +24,16 @@ constexpr float kRowInset = 10.0f;    // rows reach into the padding for their h
 constexpr float kButtonMinW = 96.0f;
 constexpr float kButtonGap = 8.0f;
 constexpr float kFooterPadY = 18.0f;
+constexpr float kTabH = 32.0f;
+constexpr float kSearchH = 32.0f;
+constexpr float kTileW = 88.0f;
+constexpr float kTileH = 84.0f;
+constexpr float kTileGap = 8.0f;
+constexpr int kTileCols = 5;
 
 // Control ids: footer and close, then one id per row.
 enum : int { kNone = 0, kDone = 1, kCancel = 2, kClose = 3, kAddApp = 4,
+             kTabBase = 10, kSearch = 20, kTileBase = 40,
              kPrimaryBase = 100, kPinBase = 200, kAppBase = 300 };
 
 float Dip(float scale, float value) { return value * scale; }
@@ -55,10 +62,14 @@ struct Layout {
     float width = 0.0f;
     float height = 0.0f;
     float title_bar = 0.0f;
-    D2D1_RECT_F close{}, title{}, intro{}, primary_heading{}, pin_heading{}, app_heading{};
-    std::vector<D2D1_RECT_F> primary, pins, apps;
+    D2D1_RECT_F close{}, title{}, intro{}, primary_heading{}, app_heading{};
+    D2D1_RECT_F tabs[3]{};
+    D2D1_RECT_F search_box{};
+    std::vector<D2D1_RECT_F> tiles;
+    std::vector<size_t> tile_pin;
+    std::vector<D2D1_RECT_F> primary, apps;
     D2D1_RECT_F add_app{}, app_footnote{};
-    D2D1_RECT_F footer{}, done{}, cancel{};
+    D2D1_RECT_F footer{}, done{}, cancel{}, shortcut_hint{};
 };
 
 struct Visual {
@@ -73,15 +84,13 @@ float Wrapped(IDWriteFactory2* factory, IDWriteTextFormat* format, std::wstring_
     return std::ceil(typography::MeasureWrapped(factory, format, text, width));
 }
 
-// One column, or two (the apps on the right) when one column would not fit in
-// max_height (a short screen: commands and apps together are long).
-Layout LayoutDialog(const ToolbarCustomizeSpec& spec, const fluent::Painter& painter,
-                    IDWriteFactory2* factory, const Formats& formats, float scale,
-                    float max_height = 0.0f, bool two_columns = false) {
+// Tabs, the filter box and the command tiles; the apps stay a row list.
+Layout LayoutDialog(const ToolbarCustomizeSpec& spec, const std::vector<size_t>& visible,
+                    int tab, const fluent::Painter& painter, IDWriteFactory2* factory,
+                    const Formats& formats, float scale) {
     Layout l;
     const float pad = Dip(scale, kPad);
-    const float column = std::ceil(Dip(scale, kWidth));
-    const float width = two_columns ? column * 2.0f - pad : column;
+    const float width = std::ceil(Dip(scale, kWidth));
     const float text_w = width - pad * 2.0f;
     l.title_bar = Dip(scale, kTitleBar);
     l.close = D2D1::RectF(width - Dip(scale, kCloseW), 0, width, l.title_bar);
@@ -93,36 +102,46 @@ Layout LayoutDialog(const ToolbarCustomizeSpec& spec, const fluent::Painter& pai
     l.intro = D2D1::RectF(pad, y, width - pad, y + intro_h);
     y = l.intro.bottom + Dip(scale, 14.0f);
 
-    const float columns_top = y;
-    float x0 = 0.0f;   // left edge of the current column
     const auto rows = [&](D2D1_RECT_F& heading, std::vector<D2D1_RECT_F>& out, size_t count) {
-        heading = D2D1::RectF(x0 + pad, y, x0 + column - pad, y + Dip(scale, kHeadingH));
+        heading = D2D1::RectF(pad, y, width - pad, y + Dip(scale, kHeadingH));
         y = heading.bottom;
         for (size_t i = 0; i < count; ++i) {
-            out.push_back(D2D1::RectF(x0 + pad - Dip(scale, kRowInset), y,
-                                      x0 + column - pad + Dip(scale, kRowInset), y + Dip(scale, kRowH)));
+            out.push_back(D2D1::RectF(pad - Dip(scale, kRowInset), y,
+                                      width - pad + Dip(scale, kRowInset), y + Dip(scale, kRowH)));
             y += Dip(scale, kRowH);
         }
     };
-    rows(l.primary_heading, l.primary, spec.primary.size());
-    y += Dip(scale, 10.0f);
-    rows(l.pin_heading, l.pins, spec.pins.size());
-    if (!spec.app_heading.empty()) {
-        const float left_bottom = y;
-        if (two_columns) {
-            x0 = column - pad;
-            y = columns_top;
-        } else {
-            y += Dip(scale, 10.0f);
+    const float tab_w = text_w / 3.0f;
+    for (int i = 0; i < 3; ++i)
+        l.tabs[i] = D2D1::RectF(pad + i * tab_w, y, pad + (i + 1) * tab_w,
+                                y + Dip(scale, kTabH));
+    y = l.tabs[0].bottom + Dip(scale, 10.0f);
+    if (tab < 2) {
+        l.search_box = D2D1::RectF(pad, y, width - pad, y + Dip(scale, kSearchH));
+        y = l.search_box.bottom + Dip(scale, 12.0f);
+        const float tile_w = Dip(scale, kTileW), tile_h = Dip(scale, kTileH);
+        const float gap = Dip(scale, kTileGap);
+        for (size_t k = 0; k < visible.size(); ++k) {
+            const int col = static_cast<int>(k) % kTileCols;
+            const int row = static_cast<int>(k) / kTileCols;
+            l.tiles.push_back(D2D1::RectF(pad + col * (tile_w + gap), y + row * (tile_h + gap),
+                                          pad + col * (tile_w + gap) + tile_w,
+                                          y + row * (tile_h + gap) + tile_h));
         }
-        rows(l.app_heading, l.apps, spec.apps.size());
-        l.add_app = D2D1::RectF(x0 + pad - Dip(scale, kRowInset), y, x0 + column - pad + Dip(scale, kRowInset),
-                                y + Dip(scale, kRowH));
+        l.tile_pin = visible;
+        const int grid_rows = (static_cast<int>(visible.size()) + kTileCols - 1) / kTileCols;
+        if (grid_rows > 0) y += grid_rows * tile_h + (grid_rows - 1) * gap;
+        y += Dip(scale, 16.0f);
+        if (tab == 0 && !spec.primary.empty())
+            rows(l.primary_heading, l.primary, spec.primary.size());
+    } else {
+        if (!spec.app_heading.empty()) rows(l.app_heading, l.apps, spec.apps.size());
+        l.add_app = D2D1::RectF(pad - Dip(scale, kRowInset), y,
+                                width - pad + Dip(scale, kRowInset), y + Dip(scale, kRowH));
         y = l.add_app.bottom + Dip(scale, 4.0f);
-        const float note_w = column - pad * 2.0f;
-        const float note_h = Wrapped(factory, formats.intro.get(), spec.app_footnote, note_w);
-        l.app_footnote = D2D1::RectF(x0 + pad, y, x0 + pad + note_w, y + note_h);
-        y = std::max(left_bottom, l.app_footnote.bottom);
+        const float note_h = Wrapped(factory, formats.intro.get(), spec.app_footnote, text_w);
+        l.app_footnote = D2D1::RectF(pad, y, width - pad, y + note_h);
+        y = l.app_footnote.bottom;
     }
     y += Dip(scale, 20.0f);
 
@@ -136,8 +155,7 @@ Layout LayoutDialog(const ToolbarCustomizeSpec& spec, const fluent::Painter& pai
                            l.done.left - Dip(scale, kButtonGap), by + btn_h);
     l.width = width;
     l.height = std::ceil(l.footer.bottom);
-    if (!two_columns && max_height > 0.0f && l.height > max_height && !spec.app_heading.empty())
-        return LayoutDialog(spec, painter, factory, formats, scale, max_height, true);
+    l.shortcut_hint = D2D1::RectF(pad, by, l.cancel.left - Dip(scale, 12.0f), by + btn_h);
     return l;
 }
 
@@ -145,12 +163,17 @@ int HitTest(const Layout& l, const ToolbarCustomizeSpec& spec, float x, float y)
     if (ContainsRect(l.close, x, y)) return kClose;
     if (ContainsRect(l.done, x, y)) return kDone;
     if (ContainsRect(l.cancel, x, y)) return kCancel;
+    for (int i = 0; i < 3; ++i)
+        if (ContainsRect(l.tabs[i], x, y)) return kTabBase + i;
+    if (l.search_box.right > l.search_box.left && ContainsRect(l.search_box, x, y)) return kSearch;
+    for (size_t i = 0; i < l.tiles.size() && i < l.tile_pin.size(); ++i) {
+        if (!ContainsRect(l.tiles[i], x, y)) continue;
+        const size_t pin = l.tile_pin[i];
+        return pin < spec.pins.size() && !spec.pins[pin].locked
+            ? kTileBase + static_cast<int>(i) : kNone;
+    }
     for (size_t i = 0; i < l.primary.size(); ++i)
         if (ContainsRect(l.primary[i], x, y)) return kPrimaryBase + static_cast<int>(i);
-    for (size_t i = 0; i < l.pins.size(); ++i) {
-        if (ContainsRect(l.pins[i], x, y))
-            return spec.pins[i].locked ? kNone : kPinBase + static_cast<int>(i);
-    }
     for (size_t i = 0; i < l.apps.size(); ++i)
         if (ContainsRect(l.apps[i], x, y)) return kAppBase + static_cast<int>(i);
     if (spec.add_app && ContainsRect(l.add_app, x, y)) return kAddApp;
@@ -248,7 +271,8 @@ void DrawRows(Compositor& compositor, fluent::Painter& painter, const Theme& the
 
 void DrawDialog(Compositor& compositor, fluent::Painter& painter, const Theme& theme,
                 const ToolbarCustomizeSpec& spec, const Layout& l, const Formats& formats,
-                const Visual& visual, bool high_contrast, IconBitmaps& icons) {
+                const Visual& visual, bool high_contrast, IconBitmaps& icons,
+                int tab, const std::wstring& search, bool search_focused) {
     const float scale = painter.Scale();
     fluent::ControlState close_state{};
     close_state.hovered = visual.hover == kClose;
@@ -258,12 +282,84 @@ void DrawDialog(Compositor& compositor, fluent::Painter& painter, const Theme& t
     DrawDialogParagraph(compositor, formats.title.get(), l.title, spec.title, theme.text);
     DrawDialogParagraph(compositor, formats.intro.get(), l.intro, spec.intro,
                         high_contrast ? theme.text : theme.text_secondary);
-    if (compositor.SmallFormat()) {
-        painter.DrawText(spec.primary_heading, l.primary_heading, compositor.SmallFormat(), theme.text_secondary);
-        painter.DrawText(spec.pin_heading, l.pin_heading, compositor.SmallFormat(), theme.text_secondary);
+    // Tabs
+    const std::wstring tab_names[3] = {spec.tab_tools, spec.tab_selection, spec.tab_apps};
+    for (int i = 0; i < 3; ++i) {
+        const auto& r = l.tabs[i];
+        if (r.right <= r.left) continue;
+        const bool active = i == tab;
+        const bool hot = visual.hover == kTabBase + i;
+        if (hot && !active) painter.FillRoundedRect(r, Dip(scale, 6.0f), theme.fill_hover);
+        if (compositor.TextFormat())
+            painter.DrawText(tab_names[i], r, compositor.TextFormat(),
+                             active ? theme.accent : theme.text_secondary,
+                             fluent::HorizontalAlignment::Center);
+        if (active) {
+            const float w = compositor.TextFormat()
+                ? std::ceil(typography::MeasureLine(&compositor, compositor.TextFormat(), tab_names[i]))
+                : 0.0f;
+            const float cx = (r.left + r.right) * 0.5f;
+            painter.FillRoundedRect(D2D1::RectF(cx - w * 0.5f, r.bottom - Dip(scale, 2.0f),
+                                               cx + w * 0.5f, r.bottom),
+                                   Dip(scale, 1.0f), theme.accent);
+        }
     }
-    DrawRows(compositor, painter, theme, spec.primary, l.primary, kPrimaryBase, true, visual);
-    DrawRows(compositor, painter, theme, spec.pins, l.pins, kPinBase, false, visual);
+    if (tab < 2 && l.search_box.right > l.search_box.left) {
+        const auto& r = l.search_box;
+        painter.FillRoundedRect(r, Dip(scale, 6.0f), theme.fill_input);
+        painter.StrokeRoundedRect(r, Dip(scale, 6.0f),
+                                  search_focused ? theme.accent : theme.stroke_card, Dip(scale, 1.0f));
+        painter.DrawGlyph(L"\xE721", D2D1::RectF(r.left + Dip(scale, 10.0f), r.top,
+                                                 r.left + Dip(scale, 28.0f), r.bottom),
+                          theme.text_secondary);
+        const std::wstring shown = search.empty() ? spec.search_hint : search;
+        if (compositor.TextFormat())
+            painter.DrawText(shown,
+                             D2D1::RectF(r.left + Dip(scale, 32.0f), r.top, r.right - Dip(scale, 10.0f), r.bottom),
+                             compositor.TextFormat(),
+                             search.empty() ? theme.text_secondary : theme.text);
+    }
+    // Command tiles
+    for (size_t i = 0; i < l.tiles.size() && i < l.tile_pin.size(); ++i) {
+        const size_t pin = l.tile_pin[i];
+        if (pin >= spec.pins.size()) continue;
+        const ToolbarCustomizeRow& row = spec.pins[pin];
+        const auto& r = l.tiles[i];
+        const int id = kTileBase + static_cast<int>(i);
+        const bool hot = visual.hover == id || visual.pressed == id;
+        painter.FillRoundedRect(r, Dip(scale, 8.0f), hot ? theme.fill_hover : theme.surface_card);
+        painter.StrokeRoundedRect(r, Dip(scale, 8.0f),
+                                  row.checked ? theme.accent : theme.stroke_card,
+                                  Dip(scale, row.checked ? 1.5f : 1.0f));
+        const float icon_y = r.top + Dip(scale, 12.0f);
+        if (!row.glyph.empty())
+            painter.DrawGlyph(row.glyph,
+                              D2D1::RectF((r.left + r.right) * 0.5f - Dip(scale, 11.0f), icon_y,
+                                          (r.left + r.right) * 0.5f + Dip(scale, 11.0f),
+                                          icon_y + Dip(scale, 22.0f)),
+                              theme.text_secondary);
+        painter.DrawText(row.label,
+                         D2D1::RectF(r.left + Dip(scale, 4.0f), r.top + Dip(scale, 40.0f),
+                                     r.right - Dip(scale, 4.0f), r.bottom - Dip(scale, 6.0f)),
+                         compositor.SmallFormat(), row.locked ? theme.text_secondary : theme.text,
+                         fluent::HorizontalAlignment::Center);
+        // Selection badge in the top-right corner.
+        const float cx = r.right - Dip(scale, 12.0f), cy = r.top + Dip(scale, 12.0f);
+        const float radius = Dip(scale, 7.0f);
+        if (row.checked || row.locked) {
+            painter.FillRoundedRect(D2D1::RectF(cx - radius, cy - radius, cx + radius, cy + radius),
+                                    radius, theme.accent);
+            painter.DrawGlyph(L"\xE73E", D2D1::RectF(cx - radius, cy - radius, cx + radius, cy + radius),
+                              theme.accent_text);
+        } else {
+            painter.StrokeRoundedRect(D2D1::RectF(cx - radius, cy - radius, cx + radius, cy + radius),
+                                      radius, theme.stroke_card, Dip(scale, 1.0f));
+        }
+    }
+    if (compositor.SmallFormat() && !l.primary.empty())
+        painter.DrawText(spec.primary_heading, l.primary_heading, compositor.SmallFormat(), theme.text_secondary);
+    if (!l.primary.empty())
+        DrawRows(compositor, painter, theme, spec.primary, l.primary, kPrimaryBase, true, visual);
     if (!spec.app_heading.empty()) {
         if (compositor.SmallFormat()) {
             painter.DrawText(spec.app_heading, l.app_heading, compositor.SmallFormat(), theme.text_secondary);
@@ -305,6 +401,10 @@ void DrawDialog(Compositor& compositor, fluent::Painter& painter, const Theme& t
     painter.FillRoundedRect(l.footer, 0, theme.surface_sheet);
     painter.FillRoundedRect(D2D1::RectF(l.footer.left, l.footer.top, l.footer.right, l.footer.top + 1.0f),
                             0, theme.stroke_divider);
+    if (!spec.shortcut_hint.empty() && compositor.SmallFormat() &&
+        l.shortcut_hint.right > l.shortcut_hint.left)
+        painter.DrawText(spec.shortcut_hint, l.shortcut_hint, compositor.SmallFormat(),
+                         theme.text_secondary);
     const auto state_for = [&](int id) {
         fluent::ControlState state{};
         state.hovered = visual.hover == id;
@@ -379,14 +479,36 @@ private:
         return self ? self->Handle(message, wparam, lparam) : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
+    std::vector<size_t> VisiblePins() const {
+        std::vector<size_t> out;
+        for (size_t i = 0; i < spec_.pins.size() && i < 32; ++i) {
+            if (spec_.pins[i].group != tab_) continue;
+            if (!search_.empty() && !ContainsFold(spec_.pins[i].label, search_)) continue;
+            out.push_back(i);
+        }
+        return out;
+    }
+
+    static bool ContainsFold(const std::wstring& text, const std::wstring& needle) {
+        if (needle.empty()) return true;
+        if (needle.size() > text.size()) return false;
+        auto lower = [](wchar_t c) {
+            if (c >= L'A' && c <= L'Z') return static_cast<wchar_t>(c - L'A' + L'a');
+            return c;
+        };
+        for (size_t at = 0; at + needle.size() <= text.size(); ++at) {
+            size_t k = 0;
+            while (k < needle.size() && lower(text[at + k]) == lower(needle[k])) ++k;
+            if (k == needle.size()) return true;
+        }
+        return false;
+    }
+
     void SizeToContent() {
         if (!hwnd_ || !compositor_.DwriteFactory()) return;
         formats_.Create(compositor_.DwriteFactory(), scale_);
-        MONITORINFO monitor{ sizeof(monitor) };
-        float max_height = 0.0f;
-        if (GetMonitorInfoW(MonitorFromWindow(owner_ ? owner_ : hwnd_, MONITOR_DEFAULTTONEAREST), &monitor))
-            max_height = static_cast<float>(monitor.rcWork.bottom - monitor.rcWork.top) - 48.0f * scale_;
-        layout_ = LayoutDialog(spec_, painter_, compositor_.DwriteFactory(), formats_, scale_, max_height);
+        layout_ = LayoutDialog(spec_, VisiblePins(), tab_, painter_,
+                               compositor_.DwriteFactory(), formats_, scale_);
         const int width = static_cast<int>(std::ceil(layout_.width));
         const int height = static_cast<int>(std::ceil(layout_.height));
         sizing_ = true;
@@ -404,6 +526,28 @@ private:
     void Activate(int id) {
         if (id == kDone) { Complete(true); return; }
         if (id == kCancel || id == kClose) { Complete(false); return; }
+        if (id >= kTabBase && id < kTabBase + 3) {
+            tab_ = id - kTabBase;
+            search_focused_ = false;
+            SizeToContent();
+            if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+            return;
+        }
+        if (id == kSearch) {
+            search_focused_ = true;
+            if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+            return;
+        }
+        if (id >= kTileBase && id < kTileBase + 64) {
+            const size_t tile = static_cast<size_t>(id - kTileBase);
+            if (tile < layout_.tile_pin.size()) {
+                const size_t pin = layout_.tile_pin[tile];
+                if (pin < spec_.pins.size() && !spec_.pins[pin].locked)
+                    spec_.pins[pin].checked = !spec_.pins[pin].checked;
+            }
+            if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+            return;
+        }
         if (id == kAddApp) {
             AddApp();
             return;
@@ -452,8 +596,11 @@ private:
     std::vector<int> FocusOrder() const {
         std::vector<int> order;
         for (size_t i = 0; i < spec_.primary.size(); ++i) order.push_back(kPrimaryBase + static_cast<int>(i));
-        for (size_t i = 0; i < spec_.pins.size(); ++i)
-            if (!spec_.pins[i].locked) order.push_back(kPinBase + static_cast<int>(i));
+        const std::vector<size_t> visible = VisiblePins();
+        for (size_t i = 0; i < visible.size(); ++i)
+            if (i < layout_.tile_pin.size() && layout_.tile_pin[i] < spec_.pins.size() &&
+                !spec_.pins[layout_.tile_pin[i]].locked)
+                order.push_back(kTileBase + static_cast<int>(i));
         for (size_t i = 0; i < spec_.apps.size(); ++i) order.push_back(kAppBase + static_cast<int>(i));
         if (spec_.add_app) order.push_back(kAddApp);
         order.push_back(kCancel);
@@ -484,7 +631,8 @@ private:
         const bool high_contrast = IsHighContrast();
         const Theme theme = high_contrast ? MakeHighContrastTheme() : MakeTheme(dark_, accent_);
         BeginSurface(compositor_, painter_, theme, dark_, high_contrast, backdrop_enabled_, scale_);
-        DrawDialog(compositor_, painter_, theme, spec_, layout_, formats_, visual_, high_contrast, icons_);
+        DrawDialog(compositor_, painter_, theme, spec_, layout_, formats_, visual_, high_contrast, icons_,
+                   tab_, search_, search_focused_);
         EndSurface(compositor_);
     }
 
@@ -542,11 +690,14 @@ private:
             visual_.hover = kNone;
             InvalidateRect(hwnd_, nullptr, FALSE);
             return 0;
-        case WM_LBUTTONDOWN:
-            visual_.pressed = Hit(lparam);
+        case WM_LBUTTONDOWN: {
+            const int hit = Hit(lparam);
+            if (hit != kSearch) search_focused_ = false;
+            visual_.pressed = hit;
             SetCapture(hwnd_);
             InvalidateRect(hwnd_, nullptr, FALSE);
             return 0;
+        }
         case WM_LBUTTONUP: {
             const int hit = Hit(lparam);
             const int pressed = visual_.pressed;
@@ -559,15 +710,39 @@ private:
             if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
             return 0;
         }
+        case WM_CHAR:
+            if (search_focused_) {
+                if (wparam == 0x08) {   // Backspace
+                    if (!search_.empty()) search_.pop_back();
+                } else if (wparam >= 0x20 && wparam != 0x7F) {
+                    search_.push_back(static_cast<wchar_t>(wparam));
+                } else {
+                    break;
+                }
+                SizeToContent();
+                InvalidateRect(hwnd_, nullptr, FALSE);
+                return 0;
+            }
+            break;
         case WM_KEYDOWN:
             switch (wparam) {
-            case VK_ESCAPE: Complete(false); return 0;
+            case VK_ESCAPE:
+                if (search_focused_ && !search_.empty()) {
+                    search_.clear();
+                    SizeToContent();
+                    InvalidateRect(hwnd_, nullptr, FALSE);
+                    return 0;
+                }
+                Complete(false); return 0;
             case VK_TAB: MoveFocus((GetKeyState(VK_SHIFT) & 0x8000) ? -1 : 1); return 0;
             case VK_UP:
             case VK_LEFT: MoveFocus(-1); return 0;
             case VK_DOWN:
             case VK_RIGHT: MoveFocus(1); return 0;
-            case VK_SPACE: Activate(visual_.focus); return 0;
+            case VK_SPACE:
+                if (search_focused_) break;   // typed into the filter
+                Activate(visual_.focus);
+                return 0;
             case VK_RETURN:
                 // Enter confirms the sheet, unless Cancel has the focus.
                 Activate(visual_.focus == kCancel ? kCancel : kDone);
@@ -603,6 +778,9 @@ private:
     Visual visual_;
     IconBitmaps icons_;
     ToolbarCustomizeSpec spec_;
+    int tab_ = 0;
+    std::wstring search_;
+    bool search_focused_ = false;
     D2D1_COLOR_F accent_ = HexColor(0x0078D4);
     float scale_ = 1.0f;
     bool dark_ = false;
