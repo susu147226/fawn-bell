@@ -3019,9 +3019,10 @@ NameTrail LayoutNameTrail(float name_x, float text_y, float text_h,
     const bool compact_actions = action_slots == 2 || (reserve_actions &&
         content_width + 3 * (btn + gap) > dock - name_x);
     if (compact_actions) show_new_tab = false;
-    const float readable_name = std::min(full_name_width, 96.0f * scale);
-    const float minimum_tags = t.tag_n ? gap + OverlapTagsWidth(t.tag_n, diameter) : 0.0f;
-    if (dock - name_x < readable_name + minimum_tags + 2 * (btn + gap)) {
+    // A short name must not be cut down just to keep hover buttons that only
+    // fit by taking its space. Drop the buttons and show the name whole; a
+    // long name still truncates, but keeps the wider space either way.
+    if (content_width + 2 * (btn + gap) > dock - name_x) {
         reserve_actions = false;
         show_star = show_new_tab = show_more = false;
     }
@@ -3062,8 +3063,10 @@ NameTrail LayoutNameTrail(float name_x, float text_y, float text_h,
     const float budget = std::max(0.0f,
         dock - name_x - badge_gap - badge_w - tags_gap - tags_w);
     const std::wstring fitted = FitHighlightedFileName(compositor, factory, fmt, name, budget, matches, scale);
+    // Rounding between the fit pass and the draw pass must not turn a name
+    // that fits into an ellipsis; leave a couple of pixels of headroom.
     t.name_w = std::min(budget, MeasureLayoutText(compositor, factory, fmt, fitted) +
-        HighlightPaddingWidth(name, fitted, matches, scale));
+        HighlightPaddingWidth(name, fitted, matches, scale) + 2.0f * scale);
     float trail_x = name_x + t.name_w;
     if (badge_w > 0.0f && !change_badge) {
         trail_x += badge_gap;

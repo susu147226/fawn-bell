@@ -619,21 +619,26 @@ float QuickPreviewWindow::OpenButtonWidth() const {
     return std::clamp(text + 56.0f * scale_, 96.0f * scale_, 220.0f * scale_);
 }
 
-// Header right-to-left: × | ⋯ | next | prev | counter | open-with label.
+// Header right-to-left: × | ⋯ | next | prev | toggle | counter | open-with.
 D2D1_RECT_F QuickPreviewWindow::CounterRect() const {
     if (item_.position <= 0 || item_.count <= 0) return D2D1::RectF(0, 0, 0, 0);
-    const D2D1_RECT_F prev = ChromeButtonRect(ChromeButton::Prev);
+    // The tree/source toggle occupies the slot immediately left of the arrows;
+    // the counter has to sit left of it, not on top of it.
+    const float right = markdown_shown_
+        ? MarkdownToggleRect(-1).left - 6.0f * scale_
+        : ChromeButtonRect(ChromeButton::Prev).left - 6.0f * scale_;
     const float width = 58.0f * scale_;
-    return D2D1::RectF(prev.left - 6.0f * scale_ - width, 0, prev.left - 6.0f * scale_,
-                       kTitleBarHeight * scale_);
+    return D2D1::RectF(right - width, 0, right, kTitleBarHeight * scale_);
 }
 
 D2D1_RECT_F QuickPreviewWindow::OpenButtonRect() const {
     const float width = OpenButtonWidth();
     if (width <= 0.0f) return D2D1::RectF(0, 0, 0, 0);
     const D2D1_RECT_F counter = CounterRect();
-    const float right = counter.right > counter.left ? counter.left - 6.0f * scale_
-        : ChromeButtonRect(ChromeButton::Prev).left - 6.0f * scale_;
+    float right = 0.0f;
+    if (counter.right > counter.left) right = counter.left - 6.0f * scale_;
+    else if (markdown_shown_) right = MarkdownToggleRect(-1).left - 6.0f * scale_;
+    else right = ChromeButtonRect(ChromeButton::Prev).left - 6.0f * scale_;
     const float inset = 6.0f * scale_;
     return D2D1::RectF(right - width, inset, right, kTitleBarHeight * scale_ - inset);
 }
@@ -726,18 +731,24 @@ D2D1_RECT_F QuickPreviewWindow::ChromeButtonRect(ChromeButton button) const {
     const float width = static_cast<float>(compositor_.Width());
     const float header = kTitleBarHeight * scale_;
     const float slot = kChromeButtonWidth * scale_;
-    const float copy_slot = ShowsCopyButton() ? kCopyButtonWidth * scale_ + 6.0f * scale_ : 0.0f;
-    // Left to right: copy, prev, next, more, then the non-client close button.
-    float right = width - kCloseButtonWidth * scale_ - copy_slot;
+    const float right = width - kCloseButtonWidth * scale_;
+    // The copy chip is wider than an icon slot. Everything else has to be
+    // placed from its real left edge, or the next arrow lands inside it.
+    const float copy_w = ShowsCopyButton() ? kCopyButtonWidth * scale_ : 0.0f;
+    const float copy_left = right - copy_w;
     switch (button) {
     case ChromeButton::Copy:
-        return D2D1::RectF(right - kCopyButtonWidth * scale_, 0, right, header);
-    case ChromeButton::More: break;
-    case ChromeButton::Next: right -= slot; break;
-    case ChromeButton::Prev: right -= slot * 2.0f; break;
-    default: return D2D1::RectF(0, 0, 0, 0);
+        return copy_w > 0.0f ? D2D1::RectF(copy_left, 0, right, header)
+                             : D2D1::RectF(0, 0, 0, 0);
+    case ChromeButton::More:
+        return D2D1::RectF(copy_left - slot, 0, copy_left, header);
+    case ChromeButton::Next:
+        return D2D1::RectF(copy_left - slot * 2.0f, 0, copy_left - slot, header);
+    case ChromeButton::Prev:
+        return D2D1::RectF(copy_left - slot * 3.0f, 0, copy_left - slot * 2.0f, header);
+    default:
+        return D2D1::RectF(0, 0, 0, 0);
     }
-    return D2D1::RectF(right - slot, 0, right, header);
 }
 
 D2D1_RECT_F QuickPreviewWindow::MarkdownToggleRect(int segment) const {
@@ -2566,13 +2577,15 @@ void QuickPreviewWindow::Render() {
     // the chrome buttons.
     float title_right = width - (kCloseButtonWidth + kChromeButtonWidth * 3.0f + 8.0f +
                                  (ShowsCopyButton() ? kCopyButtonWidth + 6.0f : 0.0f)) * scale_;
-    if (markdown_shown_) {
-        title_right = MarkdownToggleRect(-1).left - 8.0f * scale_;
-    } else if (const D2D1_RECT_F open_rect = OpenButtonRect(); open_rect.right > open_rect.left) {
+    // The open-with chip is the leftmost header control, left of the counter and
+    // the tree/source toggle; the title must stop before whichever is present.
+    if (const D2D1_RECT_F open_rect = OpenButtonRect(); open_rect.right > open_rect.left) {
         title_right = open_rect.left - 8.0f * scale_;
+    } else if (markdown_shown_) {
+        title_right = MarkdownToggleRect(-1).left - 8.0f * scale_;
     }
     const D2D1_RECT_F title_rect = typography::SnapVerticalBounds(D2D1::RectF(
-        pad, 5.0f * scale_, title_right, 29.0f * scale_));
+        pad, 4.0f * scale_, title_right, 26.0f * scale_));
     dc->DrawTextW(item_.name.data(), static_cast<UINT32>(item_.name.size()),
                   compositor_.HeaderFormat(), title_rect, text_brush.get(),
                   D2D1_DRAW_TEXT_OPTIONS_CLIP, DWRITE_MEASURING_MODE_NATURAL);
@@ -2580,7 +2593,7 @@ void QuickPreviewWindow::Render() {
         const std::wstring meta = MetaLine();
         if (!meta.empty()) {
             dc->DrawTextW(meta.data(), static_cast<UINT32>(meta.size()), meta_format,
-                          D2D1::RectF(pad, 26.0f * scale_, title_right, 45.0f * scale_),
+                          D2D1::RectF(pad, 27.0f * scale_, title_right, 46.0f * scale_),
                           secondary_brush.get(), D2D1_DRAW_TEXT_OPTIONS_CLIP,
                           DWRITE_MEASURING_MODE_NATURAL);
         }

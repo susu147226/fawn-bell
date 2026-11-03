@@ -206,7 +206,9 @@ bool DecodeText(const std::vector<uint8_t>& bytes, std::wstring& text, bool& tru
     for (wchar_t& c : text) {
         if (c < 0x20 && c != L'\r' && c != L'\n' && c != L'\t') c = L'\xFFFD';
     }
-    constexpr size_t kMaxChars = 12000;
+    // Show the whole file up to the 1 MiB read cap; a 12k-character cut turned
+    // every ordinary source file into a fragment.
+    constexpr size_t kMaxChars = 1024u * 1024u;
     if (text.size() > kMaxChars) {
         text.resize(kMaxChars);
         truncated = true;

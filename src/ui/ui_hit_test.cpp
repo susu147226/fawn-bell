@@ -1558,7 +1558,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                             MakeDetailsNameLine(nameRc, cell, scale_, rowSnippet);
                         const NameTrail trail = LayoutNameTrail(
                             nameRc.left, nameLine.y, nameLine.h,
-                            paneVm.view_mode == ViewMode::Details ? columns.DividerX(0) - margin_ : nameRc.right, cell.top, cell.bottom, scale_,
+                            paneVm.view_mode == ViewMode::Details ? (columns.count <= 1 ? nameRc.right : columns.left + columns.widths[0] - margin_) : nameRc.right, cell.top, cell.bottom, scale_,
                             entry.name, static_cast<int>(std::min<size_t>(3, tagCount)), badgeW,
                             showActions, showActions && paneVm.hover_index == idx && entry.is_dir,
                             showActions && rowHot,

@@ -2068,8 +2068,12 @@ D2D1_RECT_F MainRenderer::RenameFieldRect(const PaneViewModel& vm, const D2D1_RE
     }
     const size_t totalTags = tagIndices ? tagIndices->size() : (tagDots ? tagDots->size() : 0);
     const int tagDotCount = static_cast<int>(std::min<size_t>(3, totalTags));
+    const DetailsColumnLayout name_columns = vm.view_mode == ViewMode::Details
+        ? DetailsColumns(list, vm) : DetailsColumnLayout{};
     const float nameColRight = vm.view_mode == ViewMode::Details
-        ? DetailsColumns(list, vm).DividerX(0) - margin_
+        ? (name_columns.count <= 1
+            ? nameRc.right
+            : name_columns.left + name_columns.widths[0] - margin_)
         : nameRc.right;
     if (iconGrid && tagDotCount > 0) {
         const float fullNameW = MeasureLayoutText(
@@ -2615,7 +2619,9 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 src != vm.rename_index &&
                 (hover || (selected && vm.selected_count == 1) || e.starred);
             const float nameColRight = vm.view_mode == ViewMode::Details
-                ? detailsColumns.DividerX(0) - margin_
+                ? (detailsColumns.count <= 1
+                    ? nameRc.right
+                    : detailsColumns.left + detailsColumns.widths[0] - margin_)
                 : nameRc.right;
             const bool showStar = showRowActions;
             const bool showNewTab = showRowActions && hover && e.is_dir;
@@ -2649,10 +2655,16 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 src != vm.rename_index && !change && e.badge.empty();
             const float badgeW = change && !iconGrid ? ChangeBadgeWidth(*change, scale_, compositor_) : vm.view_mode == ViewMode::Details && !e.badge.empty()
                 ? std::min(108.0f * scale_, painter_.MeasureTagWidth(e.badge)) : 0.0f;
+            // Files modified today are drawn semi-bold; measure with that same
+            // face so a name is not fitted to the narrower regular width and
+            // then ellipsized by the wider bold layout.
+            const bool name_bold = vm.mtime_bold_today && MtimeMarkFor(vm, e, mtime_now_ft).today;
+            IDWriteTextFormat* name_fmt = name_bold && compositor_->BoldFileNameFormat()
+                ? compositor_->BoldFileNameFormat() : compositor_->FileNameFormat();
             const NameTrail trail = LayoutNameTrail(
                 nameX, textY, textH, nameColRight, cell.top, cell.bottom, scale_,
                 e.name, tagDotCount, badgeW, showStar, showNewTab, showMore,
-                compositor_, compositor_->DwriteFactory(), compositor_->FileNameFormat(), change != nullptr,
+                compositor_, compositor_->DwriteFactory(), name_fmt, change != nullptr,
                 vm.view_mode == ViewMode::Details ? (e.is_dir ? 3 : 2) : 0, name_matches, row_actions_);
             if (src == vm.rename_index) {
                 // The rename frame is drawn after every row (below): it can be
@@ -2694,8 +2706,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     name_theme.text = nameColor;
                     name_truncated = DrawTruncatedName(e.name, trail.name_x, textY, trail.name_w, textH, name_theme,
                                                        selected, name_matches, detailsView && !e.is_dir,
-                                                       vm.mtime_bold_today &&
-                                                           MtimeMarkFor(vm, e, mtime_now_ft).today);
+                                                       name_bold);
                 }
                 // OneDrive placeholder state after the name (Files On-Demand).
                 if (!iconGrid && vm.cloud_status && e.cloud_state != 0) {
