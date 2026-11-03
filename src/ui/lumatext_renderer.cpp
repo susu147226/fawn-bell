@@ -835,9 +835,19 @@ struct LumaTextRenderer::Impl {
         return text;
     }
 
+    // CJK glyphs fill their em box, so at the same point size they read
+    // visibly larger than Latin text. Editors that opt in draw their CJK runs
+    // slightly smaller; Latin stays exactly as set.
+    static constexpr wchar_t kSmallCjkProp[] = L"Luling.Edit.SmallCjk";
+
+    static bool CjkChar(wchar_t ch) {
+        return (ch >= 0x2E80 && ch <= 0x9FFF) || (ch >= 0xF900 && ch <= 0xFAFF) ||
+               (ch >= 0xFE30 && ch <= 0xFE4F) || (ch >= 0xFF00 && ch <= 0xFFEF);
+    }
+
     Microsoft::WRL::ComPtr<IDWriteTextLayout> DwEditLayout(std::wstring_view text,
                                                            IDWriteTextFormat* format,
-                                                           float height) {
+                                                           float height, bool small_cjk) {
         Microsoft::WRL::ComPtr<IDWriteTextLayout> layout;
         if (!dw_factory || !format || text.size() > UINT32_MAX) return layout;
         const float line_height = std::max(1.0f, height);
@@ -851,7 +861,7 @@ struct LumaTextRenderer::Impl {
         const auto generation = luling::ui::typography::Generation();
         // Caret blinking and drag selection reuse the same layout. Retaining
         // the format prevents its address being recycled into a false hit.
-        const bool cacheable = text.size() <= 4096;
+        const bool cacheable = text.size() <= 4096 && !small_cjk;
         if (cacheable) {
             for (const auto& entry : edit_layouts) {
                 if (entry.layout && entry.format.Get() == format && entry.generation == generation &&
@@ -877,6 +887,26 @@ struct LumaTextRenderer::Impl {
         layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
         const DWRITE_TRIMMING none{DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
         layout->SetTrimming(&none, nullptr);
+        if (small_cjk) {
+            const float cjk_size = font_size * 0.85f;
+            size_t run_start = 0;
+            bool in_run = false;
+            for (size_t i = 0; i < text.size(); ++i) {
+                const bool cjk = CjkChar(text[i]);
+                if (cjk && !in_run) {
+                    run_start = i;
+                    in_run = true;
+                } else if (!cjk && in_run) {
+                    layout->SetFontSize(cjk_size, DWRITE_TEXT_RANGE{
+                        static_cast<UINT32>(run_start), static_cast<UINT32>(i - run_start)});
+                    in_run = false;
+                }
+            }
+            if (in_run) {
+                layout->SetFontSize(cjk_size, DWRITE_TEXT_RANGE{
+                    static_cast<UINT32>(run_start), static_cast<UINT32>(text.size() - run_start)});
+            }
+        }
         ++stats.edit_layout_builds;
         if (cacheable) {
             auto& entry = edit_layouts[next_edit_layout];
@@ -963,7 +993,8 @@ struct LumaTextRenderer::Impl {
         caret_for_scroll = std::clamp(caret_for_scroll, 0, static_cast<int>(text.size()));
 
         const int length = static_cast<int>(text.size());
-        const auto dw = DwEditLayout(text, format, static_cast<float>(rc.bottom - rc.top));
+        const auto dw = DwEditLayout(text, format, static_cast<float>(rc.bottom - rc.top),
+                                     GetPropW(hwnd, kSmallCjkProp) != nullptr);
         if (!dw) return;
         const float caret_x = DwCaretX(dw.Get(), caret_for_scroll, length);
         const float scroll = EditScrollX(caret_x, width);
@@ -1056,6 +1087,13 @@ struct LumaTextRenderer::Impl {
             const int copied = GetWindowTextW(hwnd, text.data(), len + 1);
             text.resize(copied > 0 ? static_cast<size_t>(copied) : 0);
         }
+        // A password EDIT holds the real text; the redirected surface must
+        // draw the same mask the native control would.
+        if ((GetWindowLongPtrW(hwnd, GWL_STYLE) & ES_PASSWORD) != 0) {
+            wchar_t mask = static_cast<wchar_t>(SendMessageW(hwnd, EM_GETPASSWORDCHAR, 0, 0));
+            if (!mask) mask = L'\x2022';
+            std::fill(text.begin(), text.end(), mask);
+        }
 
         DWORD sel0 = 0, sel1 = 0;
         SendMessageW(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&sel0),
@@ -1071,7 +1109,8 @@ struct LumaTextRenderer::Impl {
             caret = saved->second.second;
         caret = std::clamp(caret, 0, static_cast<int>(text.size()));
 
-        const auto dw_layout = DwEditLayout(text, format, static_cast<float>(h));
+        const auto dw_layout = DwEditLayout(text, format, static_cast<float>(h),
+                                            GetPropW(hwnd, kSmallCjkProp) != nullptr);
         IDWriteRenderingParams* params = DwParams(hwnd);
         if (!dw_layout || !params) return false;
         const auto caret_origin = [&](int position) {
@@ -1116,7 +1155,8 @@ struct LumaTextRenderer::Impl {
         if (!visible.empty()) {
             // Same layout, params and grayscale AA as the surrounding UI text.
             const auto visible_layout = visible == text && dw_layout
-                ? dw_layout : DwEditLayout(visible, format, static_cast<float>(h));
+                ? dw_layout : DwEditLayout(visible, format, static_cast<float>(h),
+                                           GetPropW(hwnd, kSmallCjkProp) != nullptr);
             if (visible_layout && brush) {
                 DWRITE_TEXT_METRICS metrics{};
                 if (FAILED(visible_layout->GetMetrics(&metrics))) {

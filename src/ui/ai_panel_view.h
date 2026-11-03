@@ -35,6 +35,7 @@ enum class AiPanelPart : uint8_t {
     None,
     Panel,          // anywhere else on the panel (swallows the click)
     NewChat,
+    ClearChat,      // header: 清空聊天记录
     Mode,           // docked <-> floating
     Close,
     Suggestion,     // index
@@ -841,7 +842,7 @@ private:
     bool drawn_ = false;
     D2D1_RECT_F panel_rect_{};     // clipped to what is visible
     D2D1_RECT_F head_rect_{};
-    D2D1_RECT_F new_button_{}, mode_button_{}, close_button_{};
+    D2D1_RECT_F new_button_{}, clear_button_{}, mode_button_{}, close_button_{};
     std::vector<D2D1_RECT_F> suggestion_rects_;
     D2D1_RECT_F composer_rect_{};
     D2D1_RECT_F context_chip_{}, context_remove_{};

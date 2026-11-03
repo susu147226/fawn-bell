@@ -419,11 +419,14 @@ void AiPanelView::DrawHeader(Compositor* compositor, const AiPanelViewModel& vm,
     mode_button_ = D2D1::RectF(bx, cy - bs * 0.5f, bx + bs, cy + bs * 0.5f);
     bx -= bs + 8.0f * s;
     new_button_ = D2D1::RectF(bx, cy - bs * 0.5f, bx + bs, cy + bs * 0.5f);
-    c.Text(vm.title, formats_.title, D2D1::RectF(tx, head_rect_.top, new_button_.left - 8.0f * s, head_rect_.bottom),
+    bx -= bs + 8.0f * s;
+    clear_button_ = D2D1::RectF(bx, cy - bs * 0.5f, bx + bs, cy + bs * 0.5f);
+    c.Text(vm.title, formats_.title, D2D1::RectF(tx, head_rect_.top, clear_button_.left - 8.0f * s, head_rect_.bottom),
            pal.text);
     struct Button { const D2D1_RECT_F* r; AiPanelPart part; AiIcon icon; };
     const Button buttons[] = {
         {&new_button_, AiPanelPart::NewChat, AiIcon::Plus},
+        {&clear_button_, AiPanelPart::ClearChat, AiIcon::Trash},
         {&mode_button_, AiPanelPart::Mode, mode_ == AiPanelMode::Docked ? AiIcon::Float : AiIcon::Dock},
         {&close_button_, AiPanelPart::Close, AiIcon::ChevronDown},
     };
@@ -741,7 +744,12 @@ void AiPanelView::DrawModelMenu(Compositor* compositor, const AiPanelViewModel& 
         g.view.reset();
         return;
     }
-    if (t < 1.0f) decor_ = true;
+    // Keep frames coming until the open/close fade finishes; otherwise the
+    // last partial-opacity menu frame stays on screen as a ghost.
+    if (t < 1.0f) {
+        decor_ = true;
+        conv_anim_ = true;
+    }
     Ctx c{compositor, compositor->Dc(), brush_, s};
     // Geometry: width 300, right = button right + 6, bottom = button top - 8.
     const float w = 300.0f * s;
@@ -766,7 +774,7 @@ void AiPanelView::DrawModelMenu(Compositor* compositor, const AiPanelViewModel& 
     g.menu_scroll = std::clamp(g.menu_scroll, 0.0f, g.menu_scroll_max);
     const float sep_h = 13.0f * s;
     const float seg_h = 36.0f * s;
-    const float desc_h = 28.0f * s;
+    const float desc_h = 46.0f * s;   // the effort note wraps to two lines
     const float foot_h = 36.0f * s;
     const float h = pad * 2 + head_h + list_box_h + sep_h + head_h + seg_h + desc_h + foot_h;
     const float anchor = model_button_.right + 6.0f * s;
@@ -1122,6 +1130,7 @@ AiPanelHit AiPanelView::HitTest(float x, float y) const {
     }
     if (!In(panel_rect_, x, y)) return hit;
     if (In(new_button_, x, y)) return {AiPanelPart::NewChat, -1};
+    if (In(clear_button_, x, y)) return {AiPanelPart::ClearChat, -1};
     if (In(mode_button_, x, y)) return {AiPanelPart::Mode, -1};
     if (In(close_button_, x, y)) return {AiPanelPart::Close, -1};
     if (In(conversation_rect_, x, y)) {

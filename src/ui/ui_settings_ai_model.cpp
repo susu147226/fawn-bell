@@ -228,10 +228,16 @@ void MainRenderer::DrawSettingsAiModel(const WindowViewModel& vm, const D2D1_REC
             const auto& r = o.base_row;
             text(ai_model_text::BaseLabel(), D2D1::RectF(r.left + 16 * s, r.top + 12 * s,
                                                          r.left + 148 * s, r.top + 36 * s));
-            if (!v->base_editing)
+            if (!v->base_editing) {
+                if (hovered(kAiModelBaseField)) {
+                    MakeBrush(dc, theme.fill_hover, brFillHover_);
+                    FillRoundedRect(dc, brFillHover_.get(), o.base_field.left, o.base_field.top,
+                                    o.base_field.right - o.base_field.left,
+                                    o.base_field.bottom - o.base_field.top, 6 * s);
+                }
                 text(v->base_text, D2D1::RectF(o.base_field.left, o.base_field.top,
                                                o.base_field.right, o.base_field.bottom), true);
-            else {
+            } else {
                 MakeBrush(dc, theme.fill_input, brFillInput_);
                 FillRoundedRect(dc, brFillInput_.get(), o.base_field.left, o.base_field.top,
                                 o.base_field.right - o.base_field.left,

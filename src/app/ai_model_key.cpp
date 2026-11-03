@@ -188,9 +188,9 @@ bool ClearVoiceKey() { return ClearKey(VoiceSlot()); }
 
 std::wstring MaskModelKey(std::wstring_view key) {
     if (key.empty()) return {};
-    const size_t tail = key.size() >= 8 ? 4 : 0;
-    std::wstring head(key.substr(0, (std::min)(key.size(), static_cast<size_t>(3))));
-    return head + L"…" + std::wstring(key.substr(key.size() - tail));
+    // Never reveal any part of the secret, and use a fixed length so the
+    // stored key's exact length is not shown either.
+    return std::wstring(10, L'\x2022');
 }
 
 } // namespace luling::app::ai

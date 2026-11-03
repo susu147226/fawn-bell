@@ -9,11 +9,15 @@
 #include "ai_settings.h"
 #include "app_internal.h"
 #include "../common/json_value.h"
+#include "../common/localization.h"
+#include "../ui/edit_host.h"
+#include "../ui/FluentTokens.h"
 #include "../ui/typography.h"
 #include "../ui/ui_renderer.h"
 
 #include <commctrl.h>
 #include <uxtheme.h>
+#include <windowsx.h>
 
 #include <algorithm>
 #include <cmath>
@@ -27,6 +31,11 @@ constexpr UINT_PTR kEditSubclass = 0x415A;
 constexpr UINT_PTR kProbeTimer = 0x4158;
 constexpr wchar_t kMaskChar = L'\x2022';
 
+const wchar_t* KeyCue() {
+    return l10n::Pick(L"粘贴新的 API Key（留空则保留原值）",
+                      L"Paste a new API key (empty keeps the current one)");
+}
+
 std::shared_ptr<AiSettingsEdits>& Slot(AppState& s) { return s.aiAssistant.settings_edits; }
 AiSettingsEdits* Ui(AppState& s) {
     auto& slot = Slot(s);
@@ -36,6 +45,7 @@ AiSettingsEdits* Ui(AppState& s) {
 void Redraw(AppState& s) {
     if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
 }
+void Present(AppState& s, HWND hwnd);
 
 std::wstring EditText(HWND edit) {
     if (!edit) return {};
@@ -59,6 +69,74 @@ std::wstring Trim(std::wstring text) {
 void Wipe(std::wstring& text) {
     if (!text.empty()) SecureZeroMemory(text.data(), text.size() * sizeof(wchar_t));
     text.clear();
+}
+
+void PasteClipboard(HWND edit) {
+    if (!edit || !OpenClipboard(edit)) return;
+    std::wstring text;
+    if (HANDLE data = GetClipboardData(CF_UNICODETEXT)) {
+        if (const auto* raw = static_cast<const wchar_t*>(GlobalLock(data))) {
+            text.assign(raw);
+            GlobalUnlock(data);
+        }
+    }
+    if (text.empty()) {
+        if (HANDLE data = GetClipboardData(CF_TEXT)) {
+            if (const auto* raw = static_cast<const char*>(GlobalLock(data))) {
+                const int size = MultiByteToWideChar(CP_ACP, 0, raw, -1, nullptr, 0);
+                if (size > 1) {
+                    text.resize(static_cast<size_t>(size - 1));
+                    MultiByteToWideChar(CP_ACP, 0, raw, -1, text.data(), size);
+                }
+                GlobalUnlock(data);
+            }
+        }
+    }
+    CloseClipboard();
+    // A key or URL is one line: drop the line breaks an editor may have
+    // copied along with it.
+    text.erase(std::remove_if(text.begin(), text.end(),
+                              [](wchar_t ch) { return ch == L'\r' || ch == L'\n'; }),
+               text.end());
+    if (!text.empty()) {
+        SendMessageW(edit, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(text.c_str()));
+    }
+    Wipe(text);
+}
+
+void ShowEditMenu(HWND edit, LPARAM lp) {
+    HMENU menu = CreatePopupMenu();
+    if (!menu) return;
+    DWORD sel_start = 0, sel_end = 0;
+    SendMessageW(edit, EM_GETSEL, reinterpret_cast<WPARAM>(&sel_start), reinterpret_cast<LPARAM>(&sel_end));
+    const bool selection = sel_end > sel_start;
+    const bool has_text = GetWindowTextLengthW(edit) > 0;
+    const bool can_paste = IsClipboardFormatAvailable(CF_UNICODETEXT) ||
+                           IsClipboardFormatAvailable(CF_TEXT);
+    auto add = [&](UINT id, l10n::StringId text, bool enabled) {
+        AppendMenuW(menu, MF_STRING | (enabled ? 0u : MF_GRAYED), id,
+                    l10n::Get(text).c_str());
+    };
+    add(1, l10n::StringId::Undo, SendMessageW(edit, EM_CANUNDO, 0, 0) != FALSE);
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    add(2, l10n::StringId::Cut, selection);
+    add(3, l10n::StringId::Copy, selection);
+    add(4, l10n::StringId::Paste, can_paste);
+    add(5, l10n::StringId::SelectAll, has_text);
+    POINT pt{};
+    if (lp == static_cast<LPARAM>(-1)) GetCursorPos(&pt);
+    else pt = POINT{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+    const UINT command = TrackPopupMenu(
+        menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, edit, nullptr);
+    DestroyMenu(menu);
+    switch (command) {
+    case 1: SendMessageW(edit, WM_UNDO, 0, 0); break;
+    case 2: SendMessageW(edit, WM_CUT, 0, 0); break;
+    case 3: SendMessageW(edit, WM_COPY, 0, 0); break;
+    case 4: PasteClipboard(edit); break;
+    case 5: SendMessageW(edit, EM_SETSEL, 0, -1); break;
+    default: break;
+    }
 }
 
 std::wstring ServiceBase() {
@@ -145,9 +223,12 @@ void Place(AppState& s, AiSettingsEdits& u, HWND edit, bool& shown, const D2D1_R
     MapWindowPoints(nullptr, s.hwnd, reinterpret_cast<POINT*>(&cur), 2);
     const bool placed =
         cur.left == x && cur.top == y && cur.right - cur.left == w && cur.bottom - cur.top == line;
-    if (!placed || !shown) {
+    // `shown` is the state flag: after HideEdit the rect is unchanged, so the
+    // position check alone would leave the window hidden on the next open.
+    if (!placed || !shown || !IsWindowVisible(edit)) {
         SetWindowPos(edit, HWND_TOP, x, y, w, line, SWP_NOACTIVATE | SWP_SHOWWINDOW);
         shown = true;
+        Present(s, edit);
         Redraw(s);   // the page stops drawing the field's text itself
     }
     if (focus_pending) {
@@ -160,14 +241,48 @@ void Place(AppState& s, AiSettingsEdits& u, HWND edit, bool& shown, const D2D1_R
     }
 }
 
+D2D1_COLOR_F EditForeground(const AppState& s) {
+    return ui::ColorFromRef(ui::EditTextColor(s.darkMode));
+}
+
+D2D1_COLOR_F EditBackground(const AppState& s) {
+    return ui::ColorFromRef(ui::EditBackColor(s.darkMode));
+}
+
+// These EDITs live in the main window, under its composition surface: a plain
+// GDI child disappears there. Present through the same redirected editor
+// surface the address bar uses.
+LRESULT Presented(AppState& s, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    return ui::DefPresentedChildEditProc(s.compositor, s.compositor.TextFormat(),
+                                         EditForeground(s), EditBackground(s), hwnd, msg, wp, lp);
+}
+
+void Present(AppState& s, HWND hwnd) {
+    if (!hwnd || !IsWindowVisible(hwnd)) return;
+    ui::PresentChildEdit(s.compositor, s.compositor.TextFormat(), EditForeground(s),
+                         EditBackground(s), hwnd);
+}
+
 LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR ref) {
     AppState& s = *reinterpret_cast<AppState*>(ref);
     AiSettingsEdits* u = Slot(s).get();
     if (!u) return DefSubclassProc(hwnd, msg, wp, lp);
+    LRESULT early = 0;
+    if (ui::HandleChildEditMessage(s.compositor, s.compositor.TextFormat(), EditForeground(s),
+                                   EditBackground(s), s.editBrush, hwnd, msg, wp, lp, early))
+        return early;
     switch (msg) {
     case WM_GETDLGCODE:
-        return DefSubclassProc(hwnd, msg, wp, lp) | DLGC_WANTALLKEYS;
+        return Presented(s, hwnd, msg, wp, lp) | DLGC_WANTALLKEYS;
     case WM_KEYDOWN:
+        if ((GetKeyState(VK_CONTROL) & 0x8000) && (wp == L'V' || wp == L'v')) {
+            PasteClipboard(hwnd);
+            return 0;
+        }
+        if ((GetKeyState(VK_SHIFT) & 0x8000) && wp == VK_INSERT) {
+            PasteClipboard(hwnd);
+            return 0;
+        }
         if (wp == VK_RETURN) {
             if (hwnd == u->key_edit) {
                 CommitKey(s, *u);
@@ -186,10 +301,19 @@ LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, D
         }
         break;
     case WM_CHAR:
-        if (wp == L'\r' || wp == L'\n' || wp == 27) return 0;
+        // 0x16 is the control character TranslateMessage makes from Ctrl+V.
+        // WM_KEYDOWN above already pasted once; letting this through makes the
+        // native EDIT paste a second copy.
+        if (wp == L'\r' || wp == L'\n' || wp == 27 || wp == 0x16) return 0;
         break;
+    case WM_PASTE:
+        PasteClipboard(hwnd);
+        return 0;
+    case WM_CONTEXTMENU:
+        ShowEditMenu(hwnd, lp);
+        return 0;
     case WM_KILLFOCUS: {
-        const LRESULT r = DefSubclassProc(hwnd, msg, wp, lp);
+        const LRESULT r = Presented(s, hwnd, msg, wp, lp);
         if (hwnd == u->key_edit && u->key_open) {
             CommitKey(s, *u);
             HideEdit(s, u->key_edit, u->key_open);
@@ -206,14 +330,13 @@ LRESULT CALLBACK EditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, D
     default:
         break;
     }
-    return DefSubclassProc(hwnd, msg, wp, lp);
+    return Presented(s, hwnd, msg, wp, lp);
 }
 
 HWND MakeEdit(AppState& s, bool password, const wchar_t* cue) {
     const DWORD style =
-        WS_CHILD | WS_CLIPSIBLINGS | WS_TABSTOP | ES_AUTOHSCROLL | (password ? ES_PASSWORD : 0);
-    HWND e = CreateWindowExW(0, L"EDIT", L"", style, 0, 0, 0, 0, s.hwnd, nullptr,
-                             GetModuleHandleW(nullptr), nullptr);
+        WS_CLIPSIBLINGS | WS_TABSTOP | ES_AUTOHSCROLL | (password ? ES_PASSWORD : 0);
+    HWND e = ui::CreateRedirectedChildEdit(s.hwnd, L"", style);
     if (!e) return nullptr;
     SetWindowTheme(e, L"", L"");
     SendMessageW(e, EM_LIMITTEXT, 512, 0);
@@ -281,7 +404,7 @@ void AiSettingsEditsLayout(AppState& s) {
         return;
     }
     EnsureFont(s, u);
-    if (u.key_open && !u.key_edit) u.key_edit = MakeEdit(s, true, L"粘贴 API Key");
+    if (u.key_open && !u.key_edit) u.key_edit = MakeEdit(s, true, KeyCue());
     if (u.base_open && !u.base_edit) u.base_edit = MakeEdit(s, false, L"https://…");
     if (u.key_open) Place(s, u, u.key_edit, u.key_open, key, u.key_focus_pending);
     else HideEdit(s, u.key_edit, u.key_open);
@@ -291,15 +414,16 @@ void AiSettingsEditsLayout(AppState& s) {
 
 void AiSettingsBeginKeyEdit(AppState& s) {
     AiSettingsEdits& u = *Ui(s);
-    if (!u.key_edit) u.key_edit = MakeEdit(s, true, L"粘贴 API Key");
+    if (!u.key_edit) u.key_edit = MakeEdit(s, true, KeyCue());
     if (!u.key_edit) return;
-    std::wstring key;
-    const bool has = app::ai::LoadModelKey(key) && !key.empty();
-    SetWindowTextW(u.key_edit, has ? key.c_str() : L"");
-    Wipe(key);
+    // Never load the stored secret into the EDIT: the page already shows the
+    // mask, and opening the field must not turn a paste into an append.
+    SetWindowTextW(u.key_edit, L"");
+    SendMessageW(u.key_edit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(KeyCue()));
     u.base_open = false;
     u.key_open = true;
-    SendMessageW(u.key_edit, EM_SETPASSWORDCHAR, u.key_revealed ? 0 : kMaskChar, 0);
+    u.key_revealed = false;
+    SendMessageW(u.key_edit, EM_SETPASSWORDCHAR, kMaskChar, 0);
     u.key_focus_pending = true;
     Redraw(s);
 }

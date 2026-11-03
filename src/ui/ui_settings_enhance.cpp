@@ -35,6 +35,37 @@ void MainRenderer::DrawSettingsEnhance(const WindowViewModel& vm, const D2D1_REC
         state.hovered = enabled && hovered(action);
         painter_.DrawButton({r, label, {}, kind, state});
     };
+    auto divider = [&](float y) {
+        MakeBrush(dc, theme.stroke_divider, brStrokeDivider_);
+        FillRect(dc, brStrokeDivider_.get(), lay.content.left + 20 * s + 16 * s, y,
+                 lay.content.right - lay.content.left - 40 * s - 32 * s, 1);
+    };
+    auto hover_row = [&](D2D1_RECT_F r, PackAction action) {
+        if (r.bottom <= r.top || !hovered(action)) return;
+        MakeBrush(dc, theme.fill_hover, brFillHover_);
+        FillRoundedRect(dc, brFillHover_.get(), r.left + 4 * s, r.top + 2 * s,
+                        r.right - r.left - 8 * s, r.bottom - r.top - 4 * s, 4 * s);
+    };
+    auto toggle = [&](D2D1_RECT_F bounds, bool on, PackAction action) {
+        fluent::ControlState state{};
+        state.checked = on;
+        state.hovered = hovered(action);
+        painter_.DrawSwitch(bounds, L"", state);
+    };
+    auto row_switch = [&](D2D1_RECT_F row) {
+        const float cy = (row.top + row.bottom) * 0.5f;
+        return D2D1::RectF(row.right - 16 * s - 42 * s, cy - 16 * s,
+                           row.right - 16 * s, cy + 16 * s);
+    };
+    auto setting = [&](D2D1_RECT_F r, const wchar_t* icon, std::wstring_view title,
+                       std::wstring_view desc) {
+        const float right = r.right - 72 * s;
+        DrawIconText(r.left + 16 * s, r.top + 20 * s, 24 * s, 24 * s, icon, L"",
+                     theme.text_secondary, 0.85f);
+        text(title, D2D1::RectF(r.left + 54 * s, r.top + 10 * s, right, r.top + 34 * s));
+        painter_.DrawWrappedCaption(desc, D2D1::Point2F(r.left + 54 * s, r.top + 35 * s),
+                                    right - r.left - 54 * s, theme.text_secondary);
+    };
     auto pack = [&](D2D1_RECT_F card_rc, D2D1_RECT_F badge_rc, D2D1_RECT_F primary_rc,
                     D2D1_RECT_F update_rc, const wchar_t* icon, std::wstring_view title,
                     std::wstring_view desc, std::wstring_view meta,
@@ -125,6 +156,70 @@ void MainRenderer::DrawSettingsEnhance(const WindowViewModel& vm, const D2D1_REC
                                    vm.settings_pack_transcode_installed,
                                    vm.settings_pack_transcode_installing),
          pack_text::TranscodeUpdate(vm), PackAction::TranscodeUpdate);
+
+    const bool pack_busy = vm.settings_pack_installing || vm.settings_pack_images_installing ||
+        vm.settings_pack_raw_installing || vm.settings_pack_archive_installing ||
+        vm.settings_pack_transcode_installing;
+    button(lay.pack_install_all, l10n::Get(l10n::StringId::PackInstallAll), PackAction::InstallAll,
+           !pack_busy, fluent::ButtonKind::Standard);
+
+    // 媒体来源: the FFmpeg pack, an existing ffmpeg, or neither.
+    text(l10n::Pick(L"媒体来源", L"Media source"), lay.pack_section);
+    card(lay.pack_source_group);
+    {
+        const auto& r = lay.pack_source_status;
+        const bool source_switch = pack_text::ShowsEnable(vm);
+        const float right = source_switch ? lay.pack_enable.left - 14 * s : r.right - 16 * s;
+        text(pack_text::SourceTitle(),
+             D2D1::RectF(r.left + 16 * s, r.top + 10 * s, right, r.top + 34 * s));
+        painter_.DrawWrappedCaption(
+            pack_text::SourceStatus(vm), D2D1::Point2F(r.left + 16 * s, r.top + 35 * s),
+            right - r.left - 16 * s, theme.text_secondary);
+        if (source_switch) toggle(lay.pack_enable, vm.settings_pack_ffmpeg_enabled, PackAction::Enable);
+        divider(r.bottom);
+    }
+    hover_row(lay.pack_custom_row, PackAction::UseCustom);
+    setting(lay.pack_custom_row, L"\xE943", pack_text::CustomTitle(), pack_text::CustomDesc());
+    toggle(row_switch(lay.pack_custom_row), vm.settings_pack_use_custom, PackAction::UseCustom);
+    divider(lay.pack_custom_row.bottom);
+    if (lay.pack_path_row.bottom > lay.pack_path_row.top) {
+        const auto& r = lay.pack_path_row;
+        const float right = r.right - 16 * s;
+        const std::wstring path = vm.settings_pack_custom_path.empty()
+            ? std::wstring(pack_text::NoCustom()) : vm.settings_pack_custom_path;
+        const bool active = vm.settings_pack_use_custom && vm.settings_pack_ffmpeg == 2;
+        if (!pack_text::ShowsDetect(vm)) {
+            painter_.DrawText(path, D2D1::RectF(r.left + 54 * s, r.top + 14 * s, right, r.top + 38 * s),
+                              compositor_->SmallFormat(),
+                              active ? theme.text : theme.text_secondary);
+        } else {
+            painter_.DrawText(path, D2D1::RectF(r.left + 54 * s, r.top + 12 * s, right, r.top + 34 * s),
+                              compositor_->SmallFormat(),
+                              active ? theme.text : theme.text_secondary);
+            text(pack_text::Found(vm.settings_pack_detected_path),
+                 D2D1::RectF(r.left + 54 * s, r.top + 34 * s, right, r.top + 54 * s), true);
+        }
+        button(lay.pack_detect, pack_text::UseDetected(), PackAction::UseDetected, true,
+               fluent::ButtonKind::Standard);
+        button(lay.pack_browse, pack_text::Browse(), PackAction::Browse, true,
+               fluent::ButtonKind::Standard);
+    }
+
+    text(pack_text::Advanced(), lay.pack_advanced_section);
+    card(lay.pack_group);
+    hover_row(lay.pack_auto_update_row, PackAction::AutoUpdate);
+    setting(lay.pack_auto_update_row, L"\xE895", pack_text::AutoUpdateTitle(), pack_text::AutoUpdateDesc());
+    toggle(row_switch(lay.pack_auto_update_row), vm.settings_pack_auto_update, PackAction::AutoUpdate);
+    divider(lay.pack_auto_update_row.bottom);
+    hover_row(lay.pack_remove_row, PackAction::RemoveOnUninstall);
+    setting(lay.pack_remove_row, L"\xE74D", pack_text::RemoveTitle(), pack_text::RemoveDesc());
+    toggle(row_switch(lay.pack_remove_row), vm.settings_pack_remove_on_uninstall,
+           PackAction::RemoveOnUninstall);
+
+    painter_.DrawWrappedCaption(pack_text::Note(),
+                                D2D1::Point2F(lay.pack_note.left + 4 * s, lay.pack_note.top),
+                                lay.pack_note.right - lay.pack_note.left - 8 * s,
+                                theme.text_secondary);
 
     if (lay.footer.bottom > lay.footer.top)
         text(l10n::Get(l10n::StringId::SettingsImmediate), lay.footer, true);

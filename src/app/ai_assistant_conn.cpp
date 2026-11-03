@@ -10,6 +10,8 @@
 #include "app_internal.h"
 #include "../common/json_value.h"
 #include "../ui/ai_panel_conn.h"
+#include "../ui/edit_host.h"
+#include "../ui/FluentTokens.h"
 #include "../ui/typography.h"
 #include "../ui/ui_renderer.h"
 
@@ -333,13 +335,30 @@ void PaintPlaceholder(AppState& s, AiConnUi& u, HWND hwnd) {
 
 void SaveCard(AppState& s, AiConnUi& u, bool& close_menu);
 
+D2D1_COLOR_F ConnForeground(const AppState& s) {
+    return ui::ColorFromRef(ui::EditTextColor(s.darkMode));
+}
+
+D2D1_COLOR_F ConnBackground(const AppState& s) {
+    return ui::ColorFromRef(ui::EditBackColor(s.darkMode));
+}
+
+LRESULT ConnPresented(AppState& s, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    return ui::DefPresentedChildEditProc(s.compositor, s.compositor.TextFormat(),
+                                         ConnForeground(s), ConnBackground(s), hwnd, msg, wp, lp);
+}
+
 LRESULT CALLBACK ConnEditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR ref) {
     AppState& s = *reinterpret_cast<AppState*>(ref);
     AiConnUi* u = Ui(s);
     if (!u) return DefSubclassProc(hwnd, msg, wp, lp);
+    LRESULT early = 0;
+    if (ui::HandleChildEditMessage(s.compositor, s.compositor.TextFormat(), ConnForeground(s),
+                                   ConnBackground(s), s.editBrush, hwnd, msg, wp, lp, early))
+        return early;
     switch (msg) {
     case WM_GETDLGCODE:
-        return DefSubclassProc(hwnd, msg, wp, lp) | DLGC_WANTALLKEYS;
+        return ConnPresented(s, hwnd, msg, wp, lp) | DLGC_WANTALLKEYS;
     case WM_KEYDOWN:
         if (wp == VK_RETURN) {
             bool close_menu = false;
@@ -369,12 +388,12 @@ LRESULT CALLBACK ConnEditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PT
         break;
     case WM_SETFOCUS:
     case WM_KILLFOCUS: {
-        const LRESULT r = DefSubclassProc(hwnd, msg, wp, lp);
+        const LRESULT r = ConnPresented(s, hwnd, msg, wp, lp);
         Redraw(s);
         return r;
     }
     case WM_PAINT: {
-        const LRESULT r = DefSubclassProc(hwnd, msg, wp, lp);
+        const LRESULT r = ConnPresented(s, hwnd, msg, wp, lp);
         if (GetWindowTextLengthW(hwnd) == 0) PaintPlaceholder(s, *u, hwnd);
         return r;
     }
@@ -384,7 +403,7 @@ LRESULT CALLBACK ConnEditProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PT
     default:
         break;
     }
-    const LRESULT r = DefSubclassProc(hwnd, msg, wp, lp);
+    const LRESULT r = ConnPresented(s, hwnd, msg, wp, lp);
     switch (msg) {
     case WM_CHAR: case WM_KEYDOWN: case WM_PASTE: case WM_CUT: case WM_CLEAR: case WM_UNDO:
     case EM_UNDO: case WM_SETTEXT: case EM_REPLACESEL:
@@ -422,13 +441,14 @@ void EnsureFont(AppState& s, AiConnUi& u) {
 
 HWND MakeEdit(AppState& s, bool password) {
     const DWORD style =
-        WS_CHILD | WS_CLIPSIBLINGS | WS_TABSTOP | ES_AUTOHSCROLL | (password ? ES_PASSWORD : 0);
-    HWND e = CreateWindowExW(0, L"EDIT", L"", style, 0, 0, 0, 0, s.hwnd, nullptr,
-                             GetModuleHandleW(nullptr), nullptr);
+        WS_CLIPSIBLINGS | WS_TABSTOP | ES_AUTOHSCROLL | (password ? ES_PASSWORD : 0);
+    HWND e = ui::CreateRedirectedChildEdit(s.hwnd, L"", style);
     if (!e) return nullptr;
     SetWindowTheme(e, L"", L"");
     SendMessageW(e, EM_LIMITTEXT, 512, 0);
     if (password) SendMessageW(e, EM_SETPASSWORDCHAR, kMaskChar, 0);
+    const std::wstring cue = password ? std::wstring(kKeyPlaceholder) : AiAgentDefaultBaseUrl();
+    SendMessageW(e, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(cue.c_str()));
     SetWindowSubclass(e, ConnEditProc, kConnSubclass, reinterpret_cast<DWORD_PTR>(&s));
     return e;
 }
@@ -467,9 +487,11 @@ void Place(AppState& s, AiConnUi& u, HWND edit, bool& shown, int field, bool& fo
     MapWindowPoints(nullptr, s.hwnd, reinterpret_cast<POINT*>(&cur), 2);
     const bool placed =
         cur.left == x && cur.top == y && cur.right - cur.left == w && cur.bottom - cur.top == line;
-    if (!placed || !shown) {
+    if (!placed || !shown || !IsWindowVisible(edit)) {
         SetWindowPos(edit, HWND_TOP, x, y, w, line, SWP_NOACTIVATE | SWP_SHOWWINDOW);
         shown = true;
+        ui::PresentChildEdit(s.compositor, s.compositor.TextFormat(), ConnForeground(s),
+                             ConnBackground(s), edit);
         Redraw(s);   // the card stops drawing the text itself
     }
     if (focus_pending) {
@@ -572,9 +594,8 @@ void AiConnFill(AppState& s, ui::AiPanelViewModel& p) {
         v->key_mask = key;   // only drawn for a frame or two while the card moves
         Wipe(key);
     } else if (u.key_len > 0) {
-        const int dots = u.key_len > 4 ? (std::min)(u.key_len - 4, 28) : u.key_len;
-        v->key_mask.assign(static_cast<size_t>(dots), kMaskChar);
-        v->key_mask += u.key_tail;
+        // Fixed-width mask: never expose the key's length or its tail.
+        v->key_mask.assign(static_cast<size_t>(10), kMaskChar);
     }
     v->key_placeholder = kKeyPlaceholder;
     v->paste = kPaste;

@@ -222,7 +222,8 @@ inline int HitTestSettingsAiModel(const SettingsLayout& l, const WindowViewModel
     if (in(o.switch_service)) return kAiModelSwitchService;
     if (in(o.key_eye)) return kAiModelKeyEye;
     if (in(o.key_field)) return kAiModelKeyField;
-    if (in(o.base_change)) return kAiModelBaseField;
+    // The address itself is clickable, not only the 更改 button beside it.
+    if (in(o.base_field) || in(o.base_change)) return kAiModelBaseField;
     if (in(o.connect)) return kAiModelConnect;
     for (size_t i = 0; i < v->model_choices.size() && i < o.model_chips.size(); ++i)
         if (in(o.model_chips[i])) return kAiModelChoiceBase + static_cast<int>(i);

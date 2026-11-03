@@ -4606,6 +4606,10 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             s->appPrefs.Save();
             InvalidateRect(hwnd, nullptr, FALSE);
         } else if (wParam == VK_ESCAPE) {
+            if (AiAssistantEscape(*s)) {
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            }
             if (SysCtxPreviewDragCancel(*s)) return 0;
             s->contentSelectionAction.reset();
             if (tab->search_content_active || tab->search_awaiting_content || tab->search_live_generation) {

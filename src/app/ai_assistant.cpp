@@ -11,9 +11,14 @@
 #include "ai_model_list.h"
 #include "ai_model_stream.h"
 #include "ai_settings.h"
+#include "app_commands.h"
 #include "app_internal.h"
 #include "app_runtime.h"
 #include "../common/json_value.h"
+#include "../ui/confirm_dialog.h"
+#include "../ui/edit_host.h"
+#include "../ui/FluentTokens.h"
+#include "../ui/folder_picker_dialog.h"
 #include "../ui/ui_motion.h"
 #include "../ui/ui_renderer.h"
 
@@ -174,6 +179,9 @@ void LayoutEdit(AppState& s) {
     if (!a.edit_visible) {
         ShowWindow(a.edit, SW_SHOWNA);
         a.edit_visible = true;
+        ui::PresentChildEdit(s.compositor, s.compositor.TextFormat(),
+                             ui::ColorFromRef(ui::EditTextColor(s.darkMode)),
+                             ui::ColorFromRef(ui::EditBackColor(s.darkMode)), a.edit);
     }
     SetWindowPos(a.edit, HWND_TOP, x, y, w, h, SWP_NOACTIVATE);
 }
@@ -222,13 +230,31 @@ void EnsureFont(AppState& s) {
 LRESULT CALLBACK ComposerProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR,
                               DWORD_PTR ref);
 
+D2D1_COLOR_F ComposerForeground(const AppState& s) {
+    return ui::ColorFromRef(ui::EditTextColor(s.darkMode));
+}
+
+D2D1_COLOR_F ComposerBackground(const AppState& s) {
+    return ui::ColorFromRef(ui::EditBackColor(s.darkMode));
+}
+
+LRESULT PresentedComposer(AppState& s, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    return ui::DefPresentedChildEditProc(s.compositor, s.compositor.TextFormat(),
+                                         ComposerForeground(s), ComposerBackground(s),
+                                         hwnd, msg, wp, lp);
+}
+
 void EnsureEdit(AppState& s) {
     AiAssistantState& a = s.aiAssistant;
     if (a.edit) return;
     EnsureFont(s);
-    a.edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | ES_MULTILINE | ES_AUTOVSCROLL, 0, 0, 10, 10,
-                             s.hwnd, nullptr, GetModuleHandleW(nullptr), nullptr);
+    // The panel is part of the main window's composition surface: a plain
+    // GDI child is painted underneath it, so typing looks like no input.
+    a.edit = ui::CreateRedirectedChildEdit(s.hwnd, L"", ES_MULTILINE | ES_AUTOVSCROLL);
     if (!a.edit) return;
+    // Chinese glyphs fill their em box; draw CJK runs a little smaller in the
+    // composer while Latin keeps the configured size.
+    SetPropW(a.edit, L"Luling.Edit.SmallCjk", reinterpret_cast<HANDLE>(1));
     SendMessageW(a.edit, EM_SETLIMITTEXT, 8000, 0);
     SendMessageW(a.edit, WM_SETFONT, reinterpret_cast<WPARAM>(a.font), TRUE);
     SetWindowSubclass(a.edit, ComposerProc, kComposerSubclass, reinterpret_cast<DWORD_PTR>(&s));
@@ -304,6 +330,34 @@ void ClosePanel(AppState& s, bool animate) {
     Redraw(s);
 }
 
+void AttachContextPaths(AppState& s, const std::vector<std::wstring>& paths, const wchar_t* heading) {
+    if (paths.empty()) return;
+    AiAssistantState& a = s.aiAssistant;
+    std::wstring text = ComposerText(a);
+    if (!text.empty() && text.back() != L'\n') text += L'\n';
+    text += heading;
+    size_t added = 0;
+    for (const std::wstring& path : paths) {
+        if (path.empty() || added++ >= 20) continue;
+        text += L"- " + path + L"\n";
+    }
+    if (a.edit) SetWindowTextW(a.edit, text.c_str());
+    SyncComposerMetrics(s);
+    a.focus_pending = true;
+}
+
+void ClearChat(AppState& s) {
+    AiAssistantState& a = s.aiAssistant;
+    AiAgentReset(s);
+    a.blocks.clear();
+    app::ai::ClearConversation();
+    a.busy = false;
+    a.context_removed_for.clear();
+    if (a.edit) SetWindowTextW(a.edit, L"");
+    SyncComposerMetrics(s);
+    a.focus_pending = true;
+}
+
 void Activate(AppState& s, const AiPanelHit& hit) {
     AiAssistantState& a = s.aiAssistant;
     if (AiPeekActivate(s, hit.part)) return;
@@ -314,6 +368,19 @@ void Activate(AppState& s, const AiPanelHit& hit) {
         }
         Redraw(s);
         return;
+    }
+    if (a.menu_open) {
+        // Only the menu itself (including the connection card it unfolds into
+        // and the button that toggles it) keeps the menu open; every other
+        // click in the panel dismisses it.
+        const bool in_menu = hit.part == AiPanelPart::Menu ||
+                             hit.part == AiPanelPart::MenuModel ||
+                             hit.part == AiPanelPart::MenuEffort ||
+                             hit.part == AiPanelPart::MenuManage ||
+                             hit.part == AiPanelPart::ModelButton ||
+                             hit.part == AiPanelPart::ConnCard ||
+                             AiConnIsField(hit.part);
+        if (!in_menu) CloseMenu(s, false);
     }
     switch (hit.part) {
     case AiPanelPart::Close:
@@ -330,13 +397,7 @@ void Activate(AppState& s, const AiPanelHit& hit) {
         break;
     case AiPanelPart::NewChat:
         CloseMenu(s, false);
-        AiAgentReset(s);
-        a.blocks.clear();
-        app::ai::ClearConversation();
-        a.busy = false;
-        a.context_removed_for.clear();
-        if (a.edit) SetWindowTextW(a.edit, L"");
-        a.focus_pending = true;
+        ClearChat(s);
         Redraw(s);
         break;
     case AiPanelPart::Send:
@@ -376,6 +437,19 @@ void Activate(AppState& s, const AiPanelHit& hit) {
         // The menu unfolds into the 管理连接 card in place.
         AiConnOpen(s);
         break;
+    case AiPanelPart::ClearChat: {
+        CloseMenu(s, false);
+        ui::ConfirmDialogSpec spec;
+        spec.title = L"清空聊天记录";
+        spec.message = L"删除当前对话的全部记录，无法恢复。";
+        spec.confirm_text = L"清空";
+        spec.cancel_text = L"取消";
+        spec.danger = true;
+        spec.default_choice = ui::ConfirmChoice::Cancel;
+        if (ui::ShowConfirmDialog(s.hwnd, spec, s.darkMode, s.accentColor)) ClearChat(s);
+        Redraw(s);
+        break;
+    }
     case AiPanelPart::Menu:
         CloseMenu(s);
         break;
@@ -410,7 +484,44 @@ void Activate(AppState& s, const AiPanelHit& hit) {
         Redraw(s);
         break;
     }
-    case AiPanelPart::AddFiles:
+    case AiPanelPart::AddFiles: {
+        CloseMenu(s, false);
+        int command = 0;
+        if (EnsureMenu(s)) {
+            std::vector<ui::FluentMenuItem> items(2);
+            items[0].command = 1;
+            items[0].text = L"添加文件…";
+            items[1].command = 2;
+            items[1].text = L"添加文件夹…";
+            POINT pt{};
+            GetCursorPos(&pt);
+            command = s.menu->TrackPopup(pt, std::move(items));
+        }
+        if (command == 1) {
+            ui::FolderPickerSpec spec;
+            spec.mode = ui::PickerMode::File;
+            spec.allow_multiselect = true;
+            spec.title = L"添加文件到对话";
+            ui::FilePickerResult picked;
+            if (ui::ShowFilePicker(s.hwnd, spec, s.darkMode, s.accentColor, picked))
+                AttachContextPaths(s, picked.paths, L"参考这些文件：\n");
+        } else if (command == 2) {
+            ui::FolderPickerSpec spec;
+            spec.mode = ui::PickerMode::Folder;
+            spec.title = L"添加文件夹到对话";
+            ui::FilePickerResult picked;
+            if (ui::ShowFilePicker(s.hwnd, spec, s.darkMode, s.accentColor, picked) &&
+                !picked.paths.empty()) {
+                AttachContextPaths(s, {picked.paths.front()}, L"参考这个文件夹：\n");
+            }
+        }
+        if (a.edit) {
+            SetFocus(a.edit);
+            a.focused = true;
+        }
+        Redraw(s);
+        break;
+    }
     case AiPanelPart::Input:
         if (a.edit) {
             SetFocus(a.edit);
@@ -427,6 +538,11 @@ LRESULT CALLBACK ComposerProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
                               DWORD_PTR ref) {
     auto* s = reinterpret_cast<AppState*>(ref);
     if (!s) return DefSubclassProc(hwnd, msg, wParam, lParam);
+    LRESULT early = 0;
+    if (ui::HandleChildEditMessage(s->compositor, s->compositor.TextFormat(),
+                                   ComposerForeground(*s), ComposerBackground(*s),
+                                   s->editBrush, hwnd, msg, wParam, lParam, early))
+        return early;
     switch (msg) {
     case WM_KEYDOWN:
         if (wParam == VK_RETURN && (GetKeyState(VK_SHIFT) & 0x8000) == 0) {
@@ -452,7 +568,7 @@ LRESULT CALLBACK ComposerProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
     default:
         break;
     }
-    const LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
+    const LRESULT result = PresentedComposer(*s, hwnd, msg, wParam, lParam);
     if (msg == WM_CHAR || msg == WM_PASTE || msg == WM_CUT || msg == WM_KEYUP)
         InvalidateRect(s->hwnd, nullptr, FALSE);
     return result;
@@ -650,7 +766,11 @@ bool AiAssistantMouseDown(AppState& s, int x, int y) {
     AiAssistantState& a = s.aiAssistant;
     if (!Reachable(s)) return false;
     const AiPanelHit hit = HitAt(s, x, y);
-    if (hit.part == AiPanelPart::None) return false;
+    if (hit.part == AiPanelPart::None) {
+        // A click anywhere outside the card dismisses an open model menu.
+        if (a.menu_open) CloseMenu(s);
+        return false;
+    }
     // A floating card moves by its header; the docked column never moves.
     if (a.floating && hit.part == AiPanelPart::Panel) {
         const D2D1_RECT_F head = s.renderer.AiPanel().HeaderRect();

@@ -548,6 +548,70 @@ inline float LayoutSettingsEnhance(SettingsLayout& l, const WindowViewModel& vm,
     pack_card(l.pack_transcode_card, l.pack_transcode_badge, l.pack_transcode_primary,
               l.pack_transcode_update, pack_text::TranscodeDesc(), pack_text::TranscodePrimary(vm),
               pack_text::TranscodeUpdate(vm), pack_text::TranscodeBadge(vm));
+
+    // 安装全部: one pass over every pack that is missing.
+    y += 24 * scale;
+    {
+        const float install_all_w = button_w(l10n::Get(l10n::StringId::PackInstallAll));
+        l.pack_install_all = D2D1::RectF(right - install_all_w, y, right, y + 32 * scale);
+        y = l.pack_install_all.bottom + 24 * scale;
+    }
+
+    // 媒体来源: the installed FFmpeg pack, or one the user already has.
+    y += 22 * scale;
+    l.pack_section = D2D1::RectF(left, y, right, y + 26 * scale);
+    y = l.pack_section.bottom + 8 * scale;
+    {
+        const float inner = 16 * scale;
+        const bool source_switch = pack_text::ShowsEnable(vm);
+        const float source_text_width = right - left - (source_switch ? 88 : 32) * scale;
+        const float status_h = caption_height(pack_text::SourceStatus(vm), source_text_width) + 47 * scale;
+        l.pack_source_status = D2D1::RectF(left, y, right, y + status_h);
+        if (source_switch) {
+            const float cy = (l.pack_source_status.top + l.pack_source_status.bottom) * 0.5f;
+            l.pack_enable = D2D1::RectF(right - inner - 42 * scale, cy - 16 * scale,
+                                        right - inner, cy + 16 * scale);
+        }
+        y = l.pack_source_status.bottom;
+        const float custom_h = caption_height(pack_text::CustomDesc(), right - left - 126 * scale) + 47 * scale;
+        l.pack_custom_row = D2D1::RectF(left, y, right, y + custom_h);
+        y = l.pack_custom_row.bottom;
+        if (pack_text::ShowsPath(vm)) {
+            const float path_h = pack_text::ShowsDetect(vm) ? 110 * scale : 90 * scale;
+            l.pack_path_row = D2D1::RectF(left, y, right, y + path_h);
+            const float browse_w = button_w(pack_text::Browse());
+            const float button_top = l.pack_path_row.bottom - 44 * scale;
+            l.pack_browse = D2D1::RectF(right - inner - browse_w, button_top,
+                                        right - inner, button_top + 32 * scale);
+            if (pack_text::ShowsDetect(vm)) {
+                const float detect_w = button_w(pack_text::UseDetected());
+                l.pack_detect = D2D1::RectF(l.pack_browse.left - 8 * scale - detect_w, button_top,
+                                            l.pack_browse.left - 8 * scale, button_top + 32 * scale);
+            }
+            y = l.pack_path_row.bottom;
+        }
+        l.pack_source_group = D2D1::RectF(left, l.pack_section.bottom + 8 * scale, right, y);
+    }
+
+    // 高级: background updates and the uninstall choice.
+    y += 22 * scale;
+    l.pack_advanced_section = D2D1::RectF(left, y, right, y + 26 * scale);
+    y = l.pack_advanced_section.bottom + 8 * scale;
+    {
+        const float group_top = y;
+        const float auto_h = caption_height(pack_text::AutoUpdateDesc(), right - left - 126 * scale) + 47 * scale;
+        l.pack_auto_update_row = D2D1::RectF(left, y, right, y + auto_h);
+        y = l.pack_auto_update_row.bottom;
+        const float remove_h = caption_height(pack_text::RemoveDesc(), right - left - 126 * scale) + 47 * scale;
+        l.pack_remove_row = D2D1::RectF(left, y, right, y + remove_h);
+        y = l.pack_remove_row.bottom;
+        l.pack_group = D2D1::RectF(left, group_top, right, y);
+    }
+    y += 12 * scale;
+    l.pack_note = D2D1::RectF(left, y, right,
+                              y + caption_height(pack_text::Note(), right - left - 8 * scale) + 4 * scale);
+    y = l.pack_note.bottom + 24 * scale;
+
     l.footer = D2D1::RectF(left, y, right, y + 24 * scale);
     return y + 40 * scale;
 }

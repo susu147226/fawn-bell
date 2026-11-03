@@ -69,7 +69,7 @@ std::string DateText(const FILETIME& ft) {
 json::Value StringField(const wchar_t* desc) {
     json::Value v = json::Value::Object();
     v.set("type", "string");
-    v.set("description", desc);
+    v.set("description", json::Utf8(desc));
     return v;
 }
 
@@ -114,7 +114,7 @@ const json::Value& BuildTools() {
             itemProps.set("name", StringField(L"Subfolder name: short, one segment, no slashes or colons."));
             json::Value items = json::Value::Object();
             items.set("type", "array");
-            items.set("description", L"Names of items directly inside the folder.");
+            items.set("description", json::Utf8(L"Names of items directly inside the folder."));
             json::Value itemType = json::Value::Object();
             itemType.set("type", "string");
             items.set("items", std::move(itemType));
@@ -128,7 +128,7 @@ const json::Value& BuildTools() {
             group.set("required", std::move(itemReq));
             json::Value groups = json::Value::Object();
             groups.set("type", "array");
-            groups.set("description", L"One entry per destination subfolder.");
+            groups.set("description", json::Utf8(L"One entry per destination subfolder."));
             groups.set("items", std::move(group));
             orgProps.set("groups", std::move(groups));
             json::Value req = json::Value::Array();
@@ -146,7 +146,7 @@ const json::Value& BuildTools() {
             json::Value delProps = json::Value::Object();
             json::Value paths = json::Value::Object();
             paths.set("type", "array");
-            paths.set("description", L"Absolute paths of the items; omit for the items selected in the window.");
+            paths.set("description", json::Utf8(L"Absolute paths of the items; omit for the items selected in the window."));
             json::Value pathType = json::Value::Object();
             pathType.set("type", "string");
             paths.set("items", std::move(pathType));
@@ -154,8 +154,8 @@ const json::Value& BuildTools() {
             json::Value permanent = json::Value::Object();
             permanent.set("type", "boolean");
             permanent.set("description",
-                          L"true only when the user asks to delete something for good; the default moves "
-                          L"to the Recycle Bin, which can be undone.");
+                          json::Utf8(L"true only when the user asks to delete something for good; the default moves "
+                                     L"to the Recycle Bin, which can be undone."));
             delProps.set("permanent", std::move(permanent));
             json::Value req = json::Value::Array();
             list.push(ToolDef(
@@ -171,7 +171,7 @@ const json::Value& BuildTools() {
             json::Value rnProps = json::Value::Object();
             json::Value paths = json::Value::Object();
             paths.set("type", "array");
-            paths.set("description", L"Absolute paths of the files; omit to rename the files selected in the window.");
+            paths.set("description", json::Utf8(L"Absolute paths of the files; omit to rename the files selected in the window."));
             json::Value pathType = json::Value::Object();
             pathType.set("type", "string");
             paths.set("items", std::move(pathType));
@@ -191,11 +191,11 @@ const json::Value& BuildTools() {
                                       L"extension), {ext}, {n} (running number)."));
             json::Value start = json::Value::Object();
             start.set("type", "integer");
-            start.set("description", L"template: the first number (default 1).");
+            start.set("description", json::Utf8(L"template: the first number (default 1)."));
             stepProps.set("start", std::move(start));
             json::Value digits = json::Value::Object();
             digits.set("type", "integer");
-            digits.set("description", L"template: pad {n} to this many digits (0-9, default none).");
+            digits.set("description", json::Utf8(L"template: pad {n} to this many digits (0-9, default none)."));
             stepProps.set("digits", std::move(digits));
             json::Value stepType = json::Value::Object();
             stepType.set("type", "string");
@@ -207,7 +207,7 @@ const json::Value& BuildTools() {
             step.set("required", std::move(stepReq));
             json::Value steps = json::Value::Object();
             steps.set("type", "array");
-            steps.set("description", L"Applied in order: a replace step and/or a template step.");
+            steps.set("description", json::Utf8(L"Applied in order: a replace step and/or a template step."));
             steps.set("items", std::move(step));
             rnProps.set("steps", std::move(steps));
             json::Value req = json::Value::Array();
@@ -248,7 +248,7 @@ const json::Value& BuildTools() {
             openProps.set("path", StringField(L"Absolute folder path (or a drive / known folder name)."));
             json::Value newTab = json::Value::Object();
             newTab.set("type", "boolean");
-            newTab.set("description", L"true (default): open in a new tab; false: use the active tab.");
+            newTab.set("description", json::Utf8(L"true (default): open in a new tab; false: use the active tab."));
             openProps.set("new_tab", std::move(newTab));
             json::Value req = json::Value::Array();
             req.push("path");
@@ -261,7 +261,7 @@ const json::Value& BuildTools() {
             json::Value props = json::Value::Object();
             json::Value paths = json::Value::Object();
             paths.set("type", "array");
-            paths.set("description", L"Absolute paths of the items.");
+            paths.set("description", json::Utf8(L"Absolute paths of the items."));
             json::Value item = json::Value::Object();
             item.set("type", "string");
             paths.set("items", std::move(item));
