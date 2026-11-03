@@ -1763,11 +1763,11 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
         FillRect(dc, brStrokeDivider_.get(), x, y + column_header_height_ - 1, w, 1);
         const DetailsColumnLayout columns = DetailsColumns(list_bounds, pane);
         if (pane.list_checkboxes && ShowsRowCheckbox(pane.view_mode)) {
-            // Header select-all: same box as the rows, in the reserved gutter.
+            // Header select-all: same box as the rows, at the gutter's left edge.
             const float size = kCheckboxSizeDip * scale_;
             const float cy = y + column_header_height_ * 0.5f;
-            const D2D1_RECT_F box = D2D1::RectF(x + 18 * scale_, cy - size * 0.5f,
-                                                x + 18 * scale_ + size, cy + size * 0.5f);
+            const D2D1_RECT_F box = D2D1::RectF(bounds.left + 2 * scale_, cy - size * 0.5f,
+                                                bounds.left + 2 * scale_ + size, cy + size * 0.5f);
             const bool all = pane.all_selected ||
                 (pane.selected_count > 0 &&
                  static_cast<size_t>(pane.selected_count) >= pane.EntryCount());
@@ -2429,7 +2429,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 // Multi-selection checkbox: in the row's leading gutter when the
                 // view reserves one, on the icon's corner in an icon grid.
                 const D2D1_RECT_F box = ShowsRowCheckbox(vm.view_mode)
-                    ? RowCheckboxRect(layout.IconRect(i), bg, scale_)
+                    ? RowCheckboxRect(bg, scale_)
                     : GridCheckboxRect(layout.IconRect(i), scale_);
                 const bool box_hot =
                     hover_region == static_cast<int>(HitTestResult::RowCheck) &&

@@ -1330,8 +1330,8 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             if (paneVm.list_checkboxes && ShowsRowCheckbox(paneVm.view_mode)) {
                 const float size = kCheckboxSizeDip * scale_;
                 const float cy = (columnTop + listTop) * 0.5f;
-                if (ContainsPt(D2D1::RectF(paneRc.left + 18 * scale_, cy - size * 0.5f,
-                                           paneRc.left + 18 * scale_ + size, cy + size * 0.5f),
+                if (ContainsPt(D2D1::RectF(paneRc.left + 2 * scale_, cy - size * 0.5f,
+                                           paneRc.left + 2 * scale_ + size, cy + size * 0.5f),
                                x, y)) {
                     out.region = HitTestResult::RowSelectAll;
                     out.pane_index = paneIndex;
@@ -1477,7 +1477,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 const int row = rowLayout.HitTest(probeX, y);
                 const int src = row >= 0 ? paneVm.SourceIndex(row) : -1;
                 if (src >= 0 && ContainsPt(
-                        RowCheckboxRect(rowLayout.IconRect(row), rowLayout.ItemRect(row), scale_), x, y)) {
+                        RowCheckboxRect(rowLayout.ItemRect(row), scale_), x, y)) {
                     out.region = HitTestResult::RowCheck;
                     out.index = src;
                     out.pane_index = paneIndex;
@@ -1501,7 +1501,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         const D2D1_RECT_F cell = layout.ItemRect(viewRow);
                         if (paneVm.list_checkboxes &&
                             ((ShowsRowCheckbox(paneVm.view_mode) &&
-                              ContainsPt(RowCheckboxRect(layout.IconRect(viewRow), cell, scale_), x, y)) ||
+                              ContainsPt(RowCheckboxRect(cell, scale_), x, y)) ||
                              (ShowsGridCheckbox(paneVm.view_mode) &&
                               ContainsPt(GridCheckboxRect(layout.IconRect(viewRow), scale_), x, y)))) {
                             out.region = HitTestResult::RowCheck; out.index = idx; return out;

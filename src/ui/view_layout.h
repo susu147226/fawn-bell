@@ -33,14 +33,15 @@ bool ShowsRowCheckbox(ViewMode mode) noexcept;
 bool ShowsGridCheckbox(ViewMode mode) noexcept;
 
 // Leading gutter a checkbox row view reserves, and the box inside a row.
-inline constexpr float kCheckboxGutterDip = 20.0f;
+// Wide enough to leave a visible gap before an inline-tree chevron.
+inline constexpr float kCheckboxGutterDip = 26.0f;
 inline constexpr float kCheckboxSizeDip = 14.0f;
-// Sits just before the row's icon, inside the reserved gutter.
-inline D2D1_RECT_F RowCheckboxRect(const D2D1_RECT_F& icon, const D2D1_RECT_F& cell,
-                                   float scale) noexcept {
+// Sits in the reserved gutter at a fixed offset from the row cell. Deriving it
+// from the icon moved it with an inline-tree indent and onto the chevron.
+inline D2D1_RECT_F RowCheckboxRect(const D2D1_RECT_F& cell, float scale) noexcept {
     const float size = kCheckboxSizeDip * scale;
     const float top = (cell.top + cell.bottom - size) * 0.5f;
-    const float right = icon.left - 4.0f * scale;
+    const float right = cell.left - 10.0f * scale;
     return D2D1::RectF(right - size, top, right, top + size);
 }
 inline D2D1_RECT_F GridCheckboxRect(const D2D1_RECT_F& icon, float scale) noexcept {
