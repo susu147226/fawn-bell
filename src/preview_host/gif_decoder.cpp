@@ -125,7 +125,8 @@ bool GifDecoder::Decode(const std::wstring& path, UINT edge, uint32_t index, Gif
     };
     try {
         if (const auto error = interrupted()) return fail(error);
-        Handle file{CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr,
+        Handle file{CreateFileW(path.c_str(), GENERIC_READ,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                                OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)};
         BY_HANDLE_FILE_INFORMATION identity{};
         if (file.value == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(file.value, &identity)) return fail(L"gif-open-failed");

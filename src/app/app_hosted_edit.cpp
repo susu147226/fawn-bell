@@ -492,6 +492,9 @@ void HideRenameOverlay(AppState& s, bool commit) {
                                        L"The device rejected the new name or does not allow renaming."));
                     }
                 } else {
+                    // A preview may still hold the file (ffmpeg playback has no
+                    // delete sharing); release it before the rename.
+                    if (s.quickPreview.visible()) s.quickPreview.Close();
                     ops::OpRequest req;
                     req.type = ops::OpType::Rename;
                     req.sources.push_back(full);

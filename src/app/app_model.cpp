@@ -1642,7 +1642,11 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
         ? true
         : (fs::IsVirtualPath(tab->current_path) ? tab->CanGoBack() : !tab->current_path.empty());
     out.is_file_system = !tab->current_path.empty() && !fs::IsVirtualPath(tab->current_path);
-    out.can_create = out.is_file_system && !tab->net_readonly;
+    // A phone/camera is not a file system but the Shell host can still create
+    // items in its folders; leaving it false made the New button look disabled
+    // while the click path worked.
+    out.can_create = (out.is_file_system || fs::IsShellPath(tab->current_path)) &&
+                     !tab->net_readonly;
     out.curated_order = virtual_kind == L"starred" || virtual_kind == L"recent" || virtual_kind == L"changes";
     out.is_starred = virtual_kind == L"starred";
     out.is_recent = virtual_kind == L"recent";

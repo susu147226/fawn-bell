@@ -19,6 +19,8 @@
 #include "drive_verbs.h"
 #include "bitlocker_unlock.h"
 #include "../fs/bitlocker_volume.h"
+#include "../fs/shell_namespace.h"
+#include "../common/shell_id.h"
 #include "shell_new.h"
 #include "system_deploy.h"
 #include "app_sidebar_refresh.h"
@@ -125,15 +127,42 @@ void CopySelectedPath(AppState& s) {
 void CreateNewItemWithExtension(AppState& s, bool folder, const std::wstring& extension,
                                 l10n::StringId label) {
     app::Tab* tab = ActiveTab(s);
-    if (!tab || tab->current_path.empty() || fs::IsVirtualPath(tab->current_path) || tab->net_readonly) return;
-    const std::wstring name = app::UniqueChildName(tab->current_path, l10n::Get(label),
-                                                   folder ? L"" : extension);
-    std::wstring full = tab->current_path;
-    if (!full.ends_with(L'\\')) full += L'\\';
-    full += name;
+    if (!tab || tab->current_path.empty() || tab->net_readonly) return;
+    const bool shell = fs::IsShellPath(tab->current_path);
+    if (fs::IsVirtualPath(tab->current_path) && !shell) return;
     ops::OpRequest req;
     req.type = folder ? ops::OpType::CreateFolder : ops::OpType::CreateTextFile;
-    req.sources.push_back(full);
+    if (shell) {
+        // A phone/camera has no filesystem path: the Shell host creates by
+        // parent parsing name + leaf name, and the row arrives with a refresh.
+        const std::wstring base = l10n::Get(label) + (folder ? L"" : extension);
+        std::wstring name = base;
+        if (tab->snapshot) {
+            for (int n = 2;; ++n) {
+                bool taken = false;
+                for (const fs::DirEntry& entry : *tab->snapshot) {
+                    if (_wcsicmp(entry.name.c_str(), name.c_str()) == 0) { taken = true; break; }
+                }
+                if (!taken) break;
+                name = base + L" (" + std::to_wstring(n) + L")";
+            }
+        }
+        // The ops layer and Shell host name device items by ID list; the
+        // pane's "luling:shell:" path is only Luling's own encoding.
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        if (!fs::ShellPidlFromPath(tab->current_path, pidl) || !pidl) return;
+        req.dest_dir = shell_id::EncodePidl(pidl);
+        CoTaskMemFree(pidl);
+        if (req.dest_dir.empty()) return;
+        req.new_name = name;
+    } else {
+        const std::wstring name = app::UniqueChildName(tab->current_path, l10n::Get(label),
+                                                       folder ? L"" : extension);
+        std::wstring full = tab->current_path;
+        if (!full.ends_with(L'\\')) full += L'\\';
+        full += name;
+        req.sources.push_back(full);
+    }
     const auto task_id = s.ops.Submit(std::move(req));
     app::QueueCreateRenameIntent(tab->create_rename_intents, task_id,
         tab->current_path, tab->view_generation);

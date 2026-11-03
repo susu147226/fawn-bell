@@ -37,9 +37,11 @@ DWORD Extract(const std::wstring& path, uint64_t maximum_bytes, std::wstring& bo
               std::wstring_view stop_needle, bool case_sensitive, luling::index::DocumentReadMetrics& metrics,
               const luling::index::document::Request& request, luling::index::document::Begin& begin,
               bool& began, HANDLE output, HANDLE ready) {
-    // Keep the checked file stable while OPC/IFilter reopen it by name. File
-    // access itself is inside the parent's cancellation and timeout boundary.
-    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+    // Keep the checked file stable while OPC/IFilter reopen it by name, but do
+    // not stop the user from renaming, writing or deleting it meanwhile: a
+    // failed reopen just means this document is skipped.
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
         OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
     if (file == INVALID_HANDLE_VALUE) return GetLastError();
     struct File { HANDLE value; ~File() { CloseHandle(value); } } owner{file};

@@ -273,6 +273,18 @@ std::wstring ToParsingPath(std::wstring path) {
 }
 
 HRESULT MakeItem(const std::wstring& path, IShellItem** out) {
+    // MTP children cannot be reopened by parsing name; Luling passes their
+    // absolute ID lists instead. NewItem/CopyItem/MoveItem/DeleteItem all take
+    // an IShellItem, so build it straight from the ID list.
+    if (luling::shell_id::IsPidlId(path)) {
+        PIDLIST_ABSOLUTE pidl = nullptr;
+        HRESULT hr = luling::shell_id::ParseId(path, &pidl);
+        if (SUCCEEDED(hr)) {
+            hr = SHCreateItemFromIDList(pidl, IID_PPV_ARGS(out));
+            CoTaskMemFree(pidl);
+        }
+        return hr;
+    }
     const std::wstring parsed = ToParsingPath(path);
     HRESULT hr = SHCreateItemFromParsingName(parsed.c_str(), nullptr, IID_PPV_ARGS(out));
     if (FAILED(hr) && parsed != path)

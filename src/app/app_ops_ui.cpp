@@ -1,5 +1,6 @@
 // app_ops_ui.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
+#include "app_hover_preview.h"
 #include "../fs/shell_namespace.h"
 #include "../ui/lumatext_renderer.h"
 #include "../ui/fluent_menu.h"
@@ -64,6 +65,13 @@ bool SubmitWithConflictResolution(AppState& s, ops::OpRequest request, uint64_t*
     if (s.appPrefs.collision_policy > 0 && request.collision_policy == ops::CollisionPolicy::System)
         request.collision_policy = s.appPrefs.collision_policy == 1
             ? ops::CollisionPolicy::KeepBoth : ops::CollisionPolicy::Replace;
+    // Move/rename/delete remove the source: release any preview (ffmpeg keeps
+    // the file open without delete sharing) before the worker starts.
+    if (request.type == ops::OpType::Move || request.type == ops::OpType::Rename ||
+        request.type == ops::OpType::RecycleDelete || request.type == ops::OpType::RealDelete) {
+        if (s.quickPreview.visible()) s.quickPreview.Close();
+        HideHoverPreview(s);
+    }
     const auto id = s.ops.Submit(std::move(request));
     if (task_id) *task_id = id;
     return id != 0;
@@ -635,6 +643,11 @@ void DeleteSelected(AppState& s, bool permanent) {
 
 void DeletePaths(AppState& s, std::vector<std::wstring> paths, bool permanent) {
     if (paths.empty()) return;
+    // A video preview keeps ffmpeg reading the file; close the preview first so
+    // its read handle (no FILE_SHARE_DELETE) cannot turn the delete into a
+    // sharing violation.
+    if (s.quickPreview.visible()) s.quickPreview.Close();
+    HideHoverPreview(s);
     const bool has_shell = std::any_of(paths.begin(), paths.end(),
         [](const std::wstring& path) { return fs::IsShellPath(path); });
     if (has_shell) {
