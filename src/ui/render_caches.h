@@ -25,12 +25,12 @@ struct RenderCaches {
     // Grid/list thumbnails and the details-pane preview decode through
     // separate hosts and budgets: a 2048 px selection preview (up to 16 MB)
     // must neither evict the visible grid nor queue ahead of it.
-    ThumbnailCache thumbnails{96ull * 1024ull * 1024ull, 1024};
+    ThumbnailCache thumbnails{24ull * 1024ull * 1024ull, 256};
     FolderThumbnailCache folder_thumbnails;
-    ThumbnailCache details{48ull * 1024ull * 1024ull, 24};
+    ThumbnailCache details{16ull * 1024ull * 1024ull, 16};
     // The hover preview card: its own host, so resting on a file never
     // displaces the details-pane preview of the selection.
-    ThumbnailCache hover{32ull * 1024ull * 1024ull, 24};
+    ThumbnailCache hover{12ull * 1024ull * 1024ull, 8};
 };
 
 // Stops the decode threads and drops every bitmap. Shared caches outlive any

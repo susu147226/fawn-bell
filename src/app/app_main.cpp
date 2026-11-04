@@ -1468,6 +1468,14 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_SIZE: {
         if (s) {
+            if (wParam == SIZE_MINIMIZED) {
+                // Nothing is visible while minimized. Trim after the resize so
+                // the repaint that follows cannot pull the pages straight
+                // back; restoring sends SIZE_RESTORED and rebuilds normally.
+                SetProcessWorkingSetSize(GetCurrentProcess(), static_cast<SIZE_T>(-1),
+                                         static_cast<SIZE_T>(-1));
+                return 0;
+            }
             s->compositor.Resize(LOWORD(lParam), HIWORD(lParam));
             s->maximized = (wParam == SIZE_MAXIMIZED);
             if (wParam != SIZE_MINIMIZED && IsWindowVisible(hwnd)) NoteUiActivity(hwnd, true);

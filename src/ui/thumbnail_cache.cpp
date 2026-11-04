@@ -182,13 +182,11 @@ uint32_t ThumbnailCache::DefaultParallelism() {
     wchar_t forced[8]{};
     if (GetEnvironmentVariableW(L"LULING_THUMBNAIL_LANES", forced, 8) > 0 && _wtoi(forced) > 0)
         return (std::min)(static_cast<uint32_t>(_wtoi(forced)), kMaxLanes);
-    // The ceiling follows the machine, not a constant: one host lane per core
-    // up to 32. Beyond that the bottleneck is the share or the disk, while
-    // every extra lane costs a resident host process (~15 MB) and another
-    // ffmpeg slot for videos. Active lanes still follow the amount of work:
-    // a folder with three pictures uses three, a wall of photos uses all.
+    // Hosts are heavy (about 15 MB of address space each) and a wall of
+    // pictures is bound by the disk or the share long before eight lanes.
+    // Cap the pool instead of following the core count on large machines.
     const DWORD processors = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
-    return std::clamp<uint32_t>(processors, 3, kMaxLanes);
+    return std::clamp<uint32_t>(processors, 3, 8);
 }
 
 void ThumbnailCache::SetParallelism(uint32_t lanes) {
@@ -925,9 +923,9 @@ void ThumbnailCache::Worker(uint32_t lane) {
         ARRAYSIZE(trace_path)) > 0) _wfopen_s(&trace_file, trace_path, L"a");
     std::unique_ptr<FILE, decltype(&std::fclose)> trace(trace_file, &std::fclose);
     if (warm_) {
-        // Warm(): start the floor (three hosts) now so the first screen is not
-        // waiting on process startup. The rest start on their first request.
-        if (lane < 3) {
+        // Warm(): start the first host now so the first screen is not waiting
+        // on process startup. More lanes start on their first request.
+        if (lane == 0) {
             Request probe;
             Connect(lane, probe, GetTickCount64());
         }

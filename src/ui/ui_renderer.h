@@ -1883,10 +1883,10 @@ private:
     // Grid/list thumbnails and the details-pane preview decode through
     // separate hosts and budgets: a 2048 px selection preview (up to 16 MB)
     // must neither evict the visible grid nor queue ahead of it.
-    ThumbnailCache thumbnail_cache_{96ull * 1024ull * 1024ull, 1024};
+    ThumbnailCache thumbnail_cache_{24ull * 1024ull * 1024ull, 256};
     FolderThumbnailCache folder_thumbnail_cache_;
     bool folder_thumbnails_enabled_ = true;
-    ThumbnailCache details_cache_{48ull * 1024ull * 1024ull, 24};
+    ThumbnailCache details_cache_{16ull * 1024ull * 1024ull, 16};
     PreviewHandlerHost preview_handler_;
     HWND notify_hwnd_ = nullptr;
     bool embedded_ = false;

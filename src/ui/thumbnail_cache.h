@@ -61,8 +61,8 @@ public:
     // Defaults suit a single large preview (Quick Look); grid thumbnails and
     // the details pane get their own instances and budgets (ui_renderer.h) so
     // a 2048 px selection preview never evicts the visible grid.
-    static constexpr size_t kDefaultBudgetBytes = 16ull * 1024ull * 1024ull;
-    static constexpr size_t kDefaultMaxItems = 128;
+    static constexpr size_t kDefaultBudgetBytes = 8ull * 1024ull * 1024ull;
+    static constexpr size_t kDefaultMaxItems = 96;
     explicit ThumbnailCache(size_t budget_bytes = kDefaultBudgetBytes,
                             size_t max_items = kDefaultMaxItems);
     ~ThumbnailCache();
