@@ -417,6 +417,19 @@ private:
     uint32_t text_line_count_ = 0;
     std::vector<uint32_t> line_starts_; // filled only while the gutter is shown
     std::wstring syntax_language_;
+    // One-slot cache of the other representation (tree <-> source). Without it
+    // every toggle rebuilds a whole text layout, stalling the header redraw.
+    std::wstring cached_text_;
+    ComPtr<IDWriteTextLayout> cached_layout_;
+    float cached_width_ = 0.0f;
+    float cached_scale_ = 0.0f;
+    bool cached_hex_ = false;
+    bool cached_dark_ = false;
+    float cached_gutter_ = 0.0f;
+    uint32_t cached_line_count_ = 0;
+    std::vector<uint32_t> cached_line_starts_;
+    std::wstring cached_syntax_language_;
+    void StashTextLayout();
     ComPtr<IDWriteTextFormat> gutter_format_;
     ComPtr<ID2D1SolidColorBrush> syntax_brushes_[16];
     float TextOriginX() const noexcept;

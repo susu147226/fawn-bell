@@ -307,6 +307,14 @@ bool QuickPreviewWindow::Initialize(HWND owner, UINT navigate_message, UINT open
 void QuickPreviewWindow::ResetTextState() {
     preview_text_.clear();
     text_layout_.reset();
+    cached_text_.clear();
+    cached_layout_.reset();
+    cached_width_ = cached_scale_ = 0.0f;
+    cached_hex_ = cached_dark_ = false;
+    cached_gutter_ = 0.0f;
+    cached_line_count_ = 0;
+    cached_line_starts_.clear();
+    cached_syntax_language_.clear();
     text_layout_width_ = 0.0f;
     text_layout_scale_ = 0.0f;
     text_layout_hex_ = false;
@@ -1566,6 +1574,20 @@ void QuickPreviewWindow::DrawHud(ID2D1DeviceContext* dc, const D2D1_RECT_F& cont
     }
 }
 
+void QuickPreviewWindow::StashTextLayout() {
+    if (!text_layout_.get() || preview_text_.empty()) return;
+    cached_text_ = preview_text_;
+    cached_layout_ = std::move(text_layout_);
+    cached_width_ = text_layout_width_;
+    cached_scale_ = text_layout_scale_;
+    cached_hex_ = text_layout_hex_;
+    cached_dark_ = text_layout_dark_;
+    cached_gutter_ = text_gutter_;
+    cached_line_count_ = text_line_count_;
+    cached_line_starts_ = line_starts_;
+    cached_syntax_language_ = syntax_language_;
+}
+
 void QuickPreviewWindow::EnsureTextLayout(const std::wstring& text, bool hex, float width) {
     if (text.empty() || !compositor_.DwriteFactory() || !preview_text_format_.get()) {
         text_layout_.reset();
@@ -1577,6 +1599,26 @@ void QuickPreviewWindow::EnsureTextLayout(const std::wstring& text, bool hex, fl
         std::abs(width - text_layout_width_) < 0.5f &&
         std::abs(scale_ - text_layout_scale_) < 0.001f && dark_ == text_layout_dark_ &&
         gutter == (text_gutter_ > 0.0f)) return;
+    if (!text_layout_.get() && cached_layout_.get() && text == cached_text_ &&
+        hex == cached_hex_ && std::abs(width - cached_width_) < 0.5f &&
+        std::abs(scale_ - cached_scale_) < 0.001f && dark_ == cached_dark_ &&
+        gutter == (cached_gutter_ > 0.0f)) {
+        // The other side of a tree/source toggle: swap its layout back in.
+        preview_text_.swap(cached_text_);
+        ComPtr<IDWriteTextLayout> previous = std::move(text_layout_);
+        text_layout_ = std::move(cached_layout_);
+        cached_layout_ = std::move(previous);
+        std::swap(text_line_count_, cached_line_count_);
+        line_starts_.swap(cached_line_starts_);
+        std::swap(text_gutter_, cached_gutter_);
+        syntax_language_.swap(cached_syntax_language_);
+        std::swap(text_layout_hex_, cached_hex_);
+        std::swap(text_layout_width_, cached_width_);
+        std::swap(text_layout_scale_, cached_scale_);
+        std::swap(text_layout_dark_, cached_dark_);
+        return;
+    }
+    StashTextLayout();
     preview_text_ = text;
     text_layout_.reset();
     preview_text_format_->SetWordWrapping(
@@ -2980,6 +3022,7 @@ void QuickPreviewWindow::Render() {
             } else {
                 native_kind_ = NativeKind::Tree;
                 if (preview_text_ != tree_.PlainText()) {
+                    StashTextLayout();
                     preview_text_ = tree_.PlainText();
                     text_layout_.reset();
                     sel_anchor_ = sel_focus_ = 0;

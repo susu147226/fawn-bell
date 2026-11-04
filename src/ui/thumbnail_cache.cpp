@@ -5,6 +5,7 @@
 #include "../common/runtime_log.h"
 #include "thumbnail_artwork_layout.h"
 #include <algorithm>
+#include <chrono>
 #include <cwctype>
 #include <iterator>
 #include <cstdio>
@@ -934,8 +935,20 @@ void ThumbnailCache::Worker(uint32_t lane) {
     while (running_) {
         Request req;
         bool slow = false;
-        { std::unique_lock lock(mutex_); cv_.wait(lock, [&]{return !running_ || TakeRequestLocked(req, slow);});
-          if (!running_) break; }
+        {
+            std::unique_lock lock(mutex_);
+            // Idle lanes hand their host process back after a minute: a
+            // processor-count pool otherwise leaves one Luling.Preview.exe
+            // resident per core for the whole session. Connect() restarts it
+            // on the next request.
+            if (!cv_.wait_for(lock, std::chrono::seconds(60),
+                    [&]{ return !running_ || TakeRequestLocked(req, slow); })) {
+                lock.unlock();
+                StopChild(lane);
+                continue;
+            }
+            if (!running_) break;
+        }
         // A slow request gives its slot back however this iteration ends.
         struct SlowSlot {
             ThumbnailCache* cache;
