@@ -177,8 +177,25 @@ void ThumbnailCache::Warm() {
     StartWorkersLocked();
 }
 
+uint32_t ThumbnailCache::LanesForPath(const std::wstring& path) {
+    if (path.starts_with(L"luling:shell:")) return 3;
+    std::wstring_view local(path);
+    if (local.starts_with(L"\\\\?\\")) local.remove_prefix(4);
+    if (local.starts_with(L"\\\\")) return 4;  // UNC share: latency-bound
+    if (local.size() >= 2 && local[1] == L':') {
+        const wchar_t root[4]{local[0], L':', L'\\', L'\0'};
+        switch (GetDriveTypeW(root)) {
+        case DRIVE_REMOTE: return 4;
+        case DRIVE_REMOVABLE:
+        case DRIVE_CDROM: return 3;
+        default: break;
+        }
+    }
+    return 8;  // local fixed disk: enough to cover the queue
+}
+
 uint32_t ThumbnailCache::DefaultParallelism() {
-    // LULING_THUMBNAIL_LANES=1..32 pins the count for measurements.
+    // LULING_THUMBNAIL_LANES=1..8 pins the count for measurements.
     wchar_t forced[8]{};
     if (GetEnvironmentVariableW(L"LULING_THUMBNAIL_LANES", forced, 8) > 0 && _wtoi(forced) > 0)
         return (std::min)(static_cast<uint32_t>(_wtoi(forced)), kMaxLanes);
@@ -190,18 +207,22 @@ uint32_t ThumbnailCache::DefaultParallelism() {
 }
 
 void ThumbnailCache::SetParallelism(uint32_t lanes) {
-    std::lock_guard lock(mutex_);
-    if (running_) return;
-    lane_count_ = std::clamp<uint32_t>(lanes ? lanes : DefaultParallelism(), 1, kMaxLanes);
-    visible_order_ = true;
-    // Other programs busy on every core halve the grid's speed: hosts at
-    // normal priority get a fair share at best. On screen thumbnails raise
-    // their host a step, but only while two cores stay free for the UI.
-    // LULING_THUMBNAIL_BOOST=0 turns it off for measurements.
-    wchar_t boost[4]{};
-    boost_hosts_ = !folder_thumbnail_ &&
-        GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) >= lane_count_ + 2 &&
-        !(GetEnvironmentVariableW(L"LULING_THUMBNAIL_BOOST", boost, 4) > 0 && boost[0] == L'0');
+    const uint32_t wanted = std::clamp<uint32_t>(lanes ? lanes : DefaultParallelism(), 1, kMaxLanes);
+    {
+        std::lock_guard lock(mutex_);
+        if (running_ && lane_count_ == wanted && visible_order_) return;
+        lane_count_ = wanted;
+        visible_order_ = true;
+        // Other programs busy on every core halve the grid's speed: hosts at
+        // normal priority get a fair share at best. On screen thumbnails raise
+        // their host a step, but only while two cores stay free for the UI.
+        // LULING_THUMBNAIL_BOOST=0 turns it off for measurements.
+        wchar_t boost[4]{};
+        boost_hosts_ = !folder_thumbnail_ &&
+            GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) >= lane_count_ + 2 &&
+            !(GetEnvironmentVariableW(L"LULING_THUMBNAIL_BOOST", boost, 4) > 0 && boost[0] == L'0');
+    }
+    cv_.notify_all();
 }
 
 void ThumbnailCache::AdvanceFrame() {
@@ -226,8 +247,11 @@ ThumbnailCache::LaneRef ThumbnailCache::LaneAt(uint32_t lane) {
 
 void ThumbnailCache::StartWorkersLocked() {
     if (running_.exchange(true)) return;
+    // The pool can shrink for a share or a device without recreating threads.
+    // Extra workers stay parked and release their host until the class grows.
+    constexpr uint32_t kWorkerCeiling = 8;
     worker_ = std::thread([this] { Worker(0); });
-    for (uint32_t lane = 1; lane < lane_count_; ++lane)
+    for (uint32_t lane = 1; lane < kWorkerCeiling; ++lane)
         extra_lanes_[lane - 1].worker = std::thread([this, lane] { Worker(lane); });
 }
 
@@ -935,6 +959,14 @@ void ThumbnailCache::Worker(uint32_t lane) {
         bool slow = false;
         {
             std::unique_lock lock(mutex_);
+            if (lane >= lane_count_) {
+                // Parked: the current path class uses fewer lanes (a share or
+                // a device). Give the host back and wait for the class to grow.
+                cv_.wait_for(lock, std::chrono::milliseconds(500),
+                             [&]{ return !running_ || lane < lane_count_; });
+                if (!running_) break;
+                if (lane >= lane_count_) { lock.unlock(); StopChild(lane); continue; }
+            }
             // Idle lanes hand their host process back after a minute: a
             // processor-count pool otherwise leaves one Luling.Preview.exe
             // resident per core for the whole session. Connect() restarts it

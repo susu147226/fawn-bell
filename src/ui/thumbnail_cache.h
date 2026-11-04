@@ -82,11 +82,15 @@ public:
     // rather than finishing a decode nobody is looking at any more.
     void SetAbandonStaleMs(uint32_t ms) { abandon_stale_ms_ = ms; }
     // Grid caches: decode on up to `lanes` host processes at once (0 picks
-    // from the processor count, at most kMaxLanes) and take the visible
-    // requests in the order the last frame drew them. Slow formats (video,
-    // shell providers) never hold every lane. Call before the first request.
+    // the machine default) and take the visible requests in the order the
+    // last frame drew them. Slow formats (video, shell providers) never hold
+    // every lane. Safe to call while running: the pool shrinks or grows
+    // without restarting it.
     void SetParallelism(uint32_t lanes);
     static uint32_t DefaultParallelism();
+    // Lanes for the folder being shown: local disks 8, network shares and
+    // removable media 4, Shell/MTP devices 3.
+    static uint32_t LanesForPath(const std::wstring& path);
     // Once per painted frame of a SetParallelism cache: what this frame draws
     // goes ahead of requests only earlier frames asked for.
     void AdvanceFrame();

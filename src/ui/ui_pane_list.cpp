@@ -2246,6 +2246,10 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
         GetSystemTimeAsFileTime(&now);
         mtime_now_ft = (static_cast<uint64_t>(now.dwHighDateTime) << 32) | now.dwLowDateTime;
     }
+    // Local disks get the full pool; a share, removable media or a device
+    // gets fewer hosts, since those are latency-bound and each host costs
+    // memory. Changing it while running just parks or wakes lanes.
+    thumbnail_cache_.SetParallelism(ThumbnailCache::LanesForPath(vm.path));
     const D2D1_RECT_F viewport = D2D1::RectF(x, y, x + w, y + h);
     ViewLayout layout(vm.view_mode, viewport, entryCount, vm.scroll_x, vm.scroll_y, scale_, ListRowHeightDip(vm, viewport), vm.Groups());
     const auto [startIdx, endIdx] = layout.VisibleRange();
