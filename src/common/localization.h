@@ -325,6 +325,8 @@ enum class StringId : UINT {
     PreviewImageInfo = IDS_PREVIEW_IMAGE_INFO,
     SettingsTreeView = IDS_SETTINGS_TREE_VIEW,
     SettingsTreeViewDesc = IDS_SETTINGS_TREE_VIEW_DESC,
+    SettingsTitleClock = IDS_SETTINGS_TITLE_CLOCK,
+    SettingsTitleClockDesc = IDS_SETTINGS_TITLE_CLOCK_DESC,
     Settings = IDS_SETTINGS,
     SettingsGeneral = IDS_SETTINGS_GENERAL,
     SettingsSearchIndex = IDS_SETTINGS_SEARCH_INDEX,

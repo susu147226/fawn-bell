@@ -599,6 +599,18 @@ bool HasShellIntegrationOwnership(ShellIntegrationKind kind, const std::wstring&
     return false;
 }
 
+bool ShellIntegrationCommandOwnedOrAbsent(ShellIntegrationKind kind, const std::wstring& exe) {
+    if (exe.empty()) return false;
+    for (const auto& group : Groups(kind)) {
+        const auto bindings = Bindings(group, exe);
+        if (bindings.empty()) return false;
+        Value actual;
+        if (!Read(bindings.front().key, bindings.front().name, actual)) return false;
+        if (actual.exists && !ShellCommandTargetsExecutable(Text(actual), exe)) return false;
+    }
+    return true;
+}
+
 bool HasLegacyShellIntegrationResidue() {
     std::vector<Binding> bindings;
     Snapshot journal;

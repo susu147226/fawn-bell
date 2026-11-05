@@ -21,6 +21,10 @@ bool ReadShellIntegration(ShellIntegrationKind kind, const std::wstring& exe);
 // still matches this build's expected text (used by startup migration).
 bool ReadShellIntegrationCommand(ShellIntegrationKind kind, std::wstring& command);
 bool HasShellIntegrationOwnership(ShellIntegrationKind kind, const std::wstring& exe);
+// True when every verb in the kind is absent or still points at `exe`. Startup
+// repair uses it to take back a takeover that something deleted, without ever
+// overwriting a command another program registered.
+bool ShellIntegrationCommandOwnedOrAbsent(ShellIntegrationKind kind, const std::wstring& exe);
 // Exact pre-snapshot orphan signature, used by startup migration and explicit
 // repair. Ordinary enable/disable must not infer ownership of arbitrary values.
 bool HasLegacyShellIntegrationResidue();

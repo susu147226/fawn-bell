@@ -1221,6 +1221,9 @@ void SettingsController::ToggleUi(int index) {
         prefs_->show_hidden_shares = !prefs_->show_hidden_shares;
         fs::SetShowServerHiddenShares(prefs_->show_hidden_shares);
         SaveAndApply(SettingsEffect::FileVisibility);
+    } else if (index == 60) {
+        prefs_->show_title_clock = !prefs_->show_title_clock;
+        SaveAndApply(SettingsEffect::None);
     } else if (index == 39) {
         prefs_->list_checkboxes = !prefs_->list_checkboxes;
         SaveAndApply(SettingsEffect::None);

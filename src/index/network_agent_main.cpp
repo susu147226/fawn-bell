@@ -5,6 +5,7 @@
 #include "network_index.h"
 #include "../ipc/protocol.h"
 #include "../ipc/deadline_pipe.h"
+#include "../common/active_clock.h"
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -258,12 +259,12 @@ int RunAgent(const std::wstring& test_token = {}) {
         return 0;
     }
     g.index.Start(nullptr, 0, 0);
-    g.last_activity = GetTickCount64();
+    g.last_activity = luling::common::AwakeMilliseconds();
     std::thread idle_watch([pipe_name] {
         while (g.running) {
             Sleep(1000);
             if (!g.running || g.clients.load() != 0 ||
-                GetTickCount64() - g.last_activity.load() < kIdleExitMs) continue;
+                luling::common::AwakeMilliseconds() - g.last_activity.load() < kIdleExitMs) continue;
             g.running = false;
             // Wake the pending accept so shutdown also works without an active client.
             HANDLE wake = CreateFileW(pipe_name.c_str(), GENERIC_READ | GENERIC_WRITE, 0,
@@ -296,9 +297,9 @@ int RunAgent(const std::wstring& test_token = {}) {
             pipe = listener.TakeConnected();
             if (pipe == INVALID_HANDLE_VALUE) { exit_code = static_cast<int>(GetLastError()); break; }
             ++g.clients;
-            g.last_activity = GetTickCount64();
+            g.last_activity = luling::common::AwakeMilliseconds();
             ClientLoop(pipe, owner);
-            g.last_activity = GetTickCount64();
+            g.last_activity = luling::common::AwakeMilliseconds();
             --g.clients;
         } else {
             exit_code = static_cast<int>(GetLastError());

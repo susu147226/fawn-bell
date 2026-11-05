@@ -227,6 +227,9 @@ private:
     void EnsureTextLayout(const std::wstring& text, bool hex, float width);
     bool HitTestText(float x, float y, uint32_t& index);
     void CopyTextSelection(bool require_selection) const;
+    // When the view shows the file's own source and the preview was cut at the
+    // read cap, copies the whole file instead of the visible prefix.
+    bool CopyWholeFileIfLarger(const std::wstring& shown) const;
     // The header copy button: whole text, then "copied" feedback.
     bool ShowsCopyButton() const noexcept;
     void CopyAllText();

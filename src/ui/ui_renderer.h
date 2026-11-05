@@ -910,6 +910,7 @@ struct WindowViewModel {
     std::wstring settings_home_folder; // default location; empty = This PC
     int settings_text_render = 0; // 0 auto, 1 sharp, 2 smooth
     int settings_ui_font_scale = 100; // interface font size: 90 / 100 / 112 / 125
+    bool settings_show_title_clock = true; // title-bar clock card
     bool settings_open_folders = false;
     bool settings_win_e = false;
     bool settings_this_pc = false;
@@ -986,6 +987,10 @@ struct WindowViewModel {
     // 鹿铃助手 (ai_panel_view.h): the docked column or floating card.
     AiPanelViewModel ai_panel;
 
+    // Title-bar clock: the second page shows festivals and upcoming schedules.
+    std::wstring clock_schedule_1;
+    std::wstring clock_schedule_2;
+
     std::wstring settings_version;
     std::wstring settings_build_id;
     std::vector<std::pair<std::wstring, std::wstring>> settings_about_rows; // label, value
@@ -1032,6 +1037,7 @@ struct HitTestResult {
         TabGroup,
         ThemeToggle,
         SettingsButton,
+        TitleClock,
         Minimize,
         Maximize,
         Close,
@@ -1254,6 +1260,15 @@ public:
 
     // Layout metrics (DIPs).
     float TitleBarHeight() const { return title_bar_height_; }
+    // Clock lines under the title bar scroll when the bar is too short for all
+    // of them. False when the point is not over the card.
+    bool ScrollTitleClock(float x, float y, float steps);
+    D2D1_RECT_F TitleClockRect() const { return title_clock_rect_; }
+    // Advances the clock card's two-page rotation. True while it switches or
+    // slides, so the caller can redraw just the card.
+    bool TickTitleClock(ULONGLONG now);
+    void DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel& vm,
+                        const Theme& theme, const D2D1_RECT_F& frame);
     float ToolbarHeight() const { return toolbar_height_; }
     float EffectiveSidebarWidth(float window_width) const;
     // 鹿铃助手: open/close and place it; the docked column sits right of the sidebar.
@@ -1894,6 +1909,12 @@ private:
     float embedded_bottom_dip_ = 0.0f;
     float scale_ = 1.0f;
     float title_bar_height_ = kTitleBarHeight;
+    // Title-bar clock card: its frame and internal scroll offset (DIPs).
+    D2D1_RECT_F title_clock_rect_{};
+    float title_clock_scroll_ = 0.0f;
+    float title_clock_max_scroll_ = 0.0f;
+    int title_clock_page_ = 0;
+    ULONGLONG title_clock_page_since_ = 0;
     float toolbar_height_ = 88.0f;
     float status_height_ = 28.0f;
     float sidebar_width_ = 224.0f;

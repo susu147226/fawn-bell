@@ -169,6 +169,7 @@ inline float LayoutSettingsAppearance(SettingsLayout& l, const WindowViewModel& 
     l.language_card = row(narrow ? 98.0f : 64.0f); l.language_choice = choice(l.language_card, 176);
     l.text_render_card = row(narrow ? 98.0f : 64.0f); segments(l.text_render_card, l.text_render_row, 3, 282);
     l.ui_font_size_card = row(narrow ? 98.0f : 64.0f); segments(l.ui_font_size_card, l.ui_font_size_row, 4, 340);
+    l.title_clock_row = row(narrow ? 98.0f : 64.0f);
     y += 12 * scale; l.footer = row(28); y += 16 * scale;
     return y;
 }

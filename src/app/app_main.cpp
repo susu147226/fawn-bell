@@ -743,6 +743,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
         }
         s->appPrefs.Load();
+        s->schedule.persist = !s->shot.active && !s->menushot && !s->isolatedTest;
+        s->schedule.Load();
         // Must be in effect before any restored tab's first snapshot lands:
         // otherwise the tree rows are built while the switch reads "on" but
         // the view stays flat until the user toggles it twice.
@@ -1595,6 +1597,32 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             TickOperationReveal(*s, now);
             TickFolderValidation(*s, now);
             TickQuickPreviewSelection(*s, now);
+            {
+                SYSTEMTIME local{};
+                GetLocalTime(&local);
+                const int minute_key = ((local.wYear * 12 + local.wMonth) * 31 + local.wDay) * 1440 +
+                                       local.wHour * 60 + local.wMinute;
+                if (minute_key != s->clockMinuteKey) {
+                    s->clockMinuteKey = minute_key;
+                    dirty = true;
+                }
+                if (s->renderer.TickTitleClock(now)) {
+                    const D2D1_RECT_F clock = s->renderer.TitleClockRect();
+                    RECT rc{ static_cast<LONG>(clock.left) - 4, static_cast<LONG>(clock.top) - 4,
+                             static_cast<LONG>(clock.right) + 4, static_cast<LONG>(clock.bottom) + 4 };
+                    InvalidateRect(hwnd, &rc, FALSE);
+                }
+                if (now - s->scheduleCheckedAt >= 30000) {
+                    s->scheduleCheckedAt = now;
+                    if (const auto* due = s->schedule.Due(local)) {
+                        wchar_t when[16]{};
+                        swprintf_s(when, L"%02d:%02d", due->hour, due->minute);
+                        s->notification_toast.Show(hwnd, L"日程提醒",
+                                                   std::wstring(when) + L"  " + due->title, false);
+                        s->schedule.MarkFired(due->id, local);
+                    }
+                }
+            }
             if (TickSidebarRefresh(*s, now)) dirty = true;
             TickSessionAutosave(*s, hwnd, now);
             if (s->renderer.TickDetailsPreview(now)) dirty = true;

@@ -13,6 +13,7 @@
 #include "about_info.h"
 #include "app_internal.h"
 #include "ai_assistant.h"
+#include "schedule_panel.h"
 #include "ai_settings_ui.h"
 #include "window_factory.h"
 #include "window_merge.h"
@@ -2447,6 +2448,15 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (app::Tab* tab = ActiveTab(*s)) ToggleTreeExpansion(*s, *tab, hit.index);
             return 0;
         }
+        if (hit.region == ui::HitTestResult::TitleClock) {
+            // Early return: the click chain below is at the compiler's nesting limit.
+            const D2D1_RECT_F clock = s->renderer.TitleClockRect();
+            POINT anchor{ static_cast<LONG>(clock.left), static_cast<LONG>(clock.bottom) + 6 };
+            ClientToScreen(hwnd, &anchor);
+            app::ShowSchedulePanel(hwnd, s->schedule, s->scale, s->darkMode, anchor);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::SettingsAccentToggle) {
             s->accentEditorOpen = !s->accentEditorOpen;
             if (s->accentEditorOpen) {
@@ -4404,12 +4414,19 @@ LRESULT HandleMouseWheel(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             // Overflowing tab strip scrolls under the wheel, on any page.
             POINT tp{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
             ScreenToClient(hwnd, &tp);
-            if (tp.y >= 0 && static_cast<float>(tp.y) < s->renderer.TitleBarHeight() &&
-                s->renderer.ScrollTabStrip(BuildVm(*s, false), static_cast<float>(s->compositor.Width()),
-                    static_cast<float>(tp.x), static_cast<float>(tp.y),
-                    static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / static_cast<float>(WHEEL_DELTA))) {
-                InvalidateRect(hwnd, nullptr, FALSE);
-                return 0;
+            if (tp.y >= 0 && static_cast<float>(tp.y) < s->renderer.TitleBarHeight()) {
+                const float steps = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) /
+                                    static_cast<float>(WHEEL_DELTA);
+                if (s->renderer.ScrollTitleClock(static_cast<float>(tp.x),
+                                                 static_cast<float>(tp.y), steps)) {
+                    InvalidateRect(hwnd, nullptr, FALSE);
+                    return 0;
+                }
+                if (s->renderer.ScrollTabStrip(BuildVm(*s, false), static_cast<float>(s->compositor.Width()),
+                        static_cast<float>(tp.x), static_cast<float>(tp.y), steps)) {
+                    InvalidateRect(hwnd, nullptr, FALSE);
+                    return 0;
+                }
             }
         }
         if (IsSettingsTab(ActiveTab(*s))) {

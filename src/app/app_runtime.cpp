@@ -3,6 +3,7 @@
 #include "ai_broker.h"
 #include "ai_settings_ui.h"
 #include "app_internal.h"
+#include "lunar_calendar.h"
 #include "selection_caps.h"
 #include "shortcut_map.h"
 #include "system_ctx_model.h"
@@ -318,6 +319,12 @@ std::wstring ResolveOpenFolderPath(std::wstring path) {
         path = fs::ParentPath(path);
     }
     return fs::NormalizePath(path);
+}
+
+static std::wstring TruncateScheduleTitle(const std::wstring& title) {
+    constexpr size_t kMaxTitle = 10;
+    if (title.size() <= kMaxTitle) return title;
+    return title.substr(0, kMaxTitle) + L"…";
 }
 
 static bool SelectNewestRecentFile(AppState& s, app::Tab& tab) {
@@ -2315,6 +2322,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.settings_home_folder = s.appPrefs.home_folder;
     vm.settings_text_render = s.appPrefs.text_render;
     vm.settings_ui_font_scale = s.appPrefs.ui_font_scale;
+    vm.settings_show_title_clock = s.appPrefs.show_title_clock;
     vm.sidebar_scroll = s.sidebarScroll;
     vm.sidebar_scrollbar_opacity = s.sidebarScrollbarFade.Opacity();
     vm.sidebar_scrollbar_expand = s.sidebarScrollbarFade.Expand();
@@ -2910,6 +2918,49 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
             vm.settings_thumb_cache_text = text;
         }
     }
+    // Title-bar clock, third page: at most two schedules within the next week.
+    {
+        SYSTEMTIME now{};
+        GetLocalTime(&now);        const int today = now.wYear * 10000 + now.wMonth * 100 + now.wDay;
+        const int minutes = now.wHour * 60 + now.wMinute;
+        int ly = now.wYear, lm = now.wMonth, ld = now.wDay;
+        static const int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        for (int i = 0; i < 7; ++i) {
+            int limit = days_in_month[lm - 1];
+            if (lm == 2 && ((ly % 4 == 0 && ly % 100 != 0) || ly % 400 == 0)) limit = 29;
+            if (++ld > limit) {
+                ld = 1;
+                if (++lm > 12) { lm = 1; ++ly; }
+            }
+        }
+        const int last_day = ly * 10000 + lm * 100 + ld;
+        std::vector<std::pair<int, std::wstring>> upcoming;
+        for (const auto& item : s.schedule.Items()) {
+            const int date = item.year * 10000 + item.month * 100 + item.day;
+            if (item.repeat == 0) {
+                if (date < today || date > last_day) continue;
+                if (date == today && item.hour * 60 + item.minute < minutes) continue;
+            }
+            std::wstring repeat;
+            if (item.repeat == 1) repeat = l10n::Pick(L"每天", L"Daily");
+            else if (item.repeat == 2) repeat = l10n::Pick(L"每周", L"Weekly");
+            else if (item.repeat == 3) repeat = l10n::Pick(L"每月", L"Monthly");
+            wchar_t when[64]{};
+            if (!repeat.empty())
+                swprintf_s(when, L"%s %02d:%02d", repeat.c_str(), item.hour, item.minute);
+            else if (date == today)
+                swprintf_s(when, L"%02d:%02d", item.hour, item.minute);
+            else
+                swprintf_s(when, L"%02d-%02d %02d:%02d", item.month, item.day, item.hour, item.minute);
+            upcoming.emplace_back(date * 1440 + item.hour * 60 + item.minute,
+                                  std::wstring(when) + L"  " + TruncateScheduleTitle(item.title) +
+                                      (item.notes.empty() ? std::wstring() : L" — " + item.notes));
+        }
+        std::sort(upcoming.begin(), upcoming.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+        if (!upcoming.empty()) vm.clock_schedule_1 = upcoming[0].second;
+        if (upcoming.size() > 1) vm.clock_schedule_2 = upcoming[1].second;
+    }
     return vm;
 }
 
@@ -2967,6 +3018,28 @@ std::wstring TooltipForHover(AppState& s) {
     case R::AddressSearchClear: return text(I::Clear);
     case R::AddressSearchClose: return text(I::Back);
     case R::TabClose: return text(I::TooltipCloseTab);
+    case R::TitleClock: {
+        // Full details for the clock card: date, festival, and the schedules.
+        SYSTEMTIME now{};
+        GetLocalTime(&now);
+        std::wstring out;
+        wchar_t date[64]{};
+        swprintf_s(date, L"%d年%d月%d日", now.wYear, now.wMonth, now.wDay);
+        out = date;
+        const std::wstring festival = calendar::Festival(now.wYear, now.wMonth, now.wDay);
+        if (!festival.empty()) out += L" · " + festival;
+        int index = 0;
+        for (const auto& item : s.schedule.Items()) {
+            if (index >= 4) break;
+            ++index;
+            out += L"\n";
+            wchar_t when[32]{};
+            swprintf_s(when, L"%02d-%02d %02d:%02d", item.month, item.day, item.hour, item.minute);
+            out += std::wstring(when) + L"  " + item.title;
+            if (!item.notes.empty()) out += L" — " + item.notes;
+        }
+        return out;
+    }
     case R::Tab: {
         if (!s.pane) return L"";
         int i = s.hoverControlIndex;

@@ -8,6 +8,7 @@
 #include "../app/shell_verbs.h"
 #include "../common/localization.h"
 #include "../common/text_format.h"
+#include "../common/text_decode.h"
 #include "../ipc/preview_protocol.h"
 #include "../ops/clipboard.h"
 #include "fluent_components.h"
@@ -1691,6 +1692,25 @@ bool QuickPreviewWindow::HasTextSelection() const noexcept {
     return sel_anchor_ != sel_focus_;
 }
 
+bool QuickPreviewWindow::CopyWholeFileIfLarger(const std::wstring& shown) const {
+    const bool source = native_kind_ == NativeKind::Text ||
+        (native_kind_ == NativeKind::Markdown &&
+            (markdown_source_ || toggle_kind_ == ToggleKind::NotebookSource)) ||
+        (native_kind_ == NativeKind::Table && toggle_kind_ == ToggleKind::TableSource) ||
+        (native_kind_ == NativeKind::Tree && toggle_kind_ == ToggleKind::TreeSource);
+    if (!source || item_.path.empty() || (item_.attrs & FILE_ATTRIBUTE_DIRECTORY)) return false;
+    // Virtual shell/device items have no file to read back.
+    if (item_.path.rfind(L"luling:", 0) == 0) return false;
+    // The preview stops at its 1 MiB read cap; copying must not.
+    constexpr uint64_t kMaxBytes = 32ull * 1024ull * 1024ull;
+    std::wstring full;
+    uint64_t bytes = 0;
+    if (!luling::text::ReadFile(item_.path, kMaxBytes, full, bytes) || full.size() <= shown.size())
+        return false;
+    luling::ops::WriteClipboardText(full);
+    return true;
+}
+
 void QuickPreviewWindow::CopyTextSelection(bool require_selection) const {
     if (native_kind_ == NativeKind::Table) {
         // Cells as TSV (Excel pastes it back as a range).
@@ -1711,6 +1731,7 @@ void QuickPreviewWindow::CopyTextSelection(bool require_selection) const {
     b = (std::min)(b, static_cast<uint32_t>(preview_text_.size()));
     if (b <= a) {
         if (require_selection) return;
+        if (CopyWholeFileIfLarger(preview_text_)) return;
         luling::ops::WriteClipboardText(preview_text_);
         return;
     }
@@ -1723,7 +1744,8 @@ bool QuickPreviewWindow::ShowsCopyButton() const noexcept {
 
 void QuickPreviewWindow::CopyAllText() {
     if (preview_text_.empty()) return;
-    luling::ops::WriteClipboardText(preview_text_);
+    if (!CopyWholeFileIfLarger(preview_text_))
+        luling::ops::WriteClipboardText(preview_text_);
     copy_feedback_ = true;
     SetTimer(hwnd_, kCopyFeedbackTimer, 1400, nullptr);
     InvalidateRect(hwnd_, nullptr, FALSE);

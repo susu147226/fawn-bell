@@ -21,6 +21,7 @@
 #include "network_agent_host.h"
 #include "content_agent.h"
 #include "../common/current_user_security.h"
+#include "../common/active_clock.h"
 #include <windows.h>
 #include <sddl.h>
 #include <shellapi.h>
@@ -562,7 +563,7 @@ void DropClient(const std::shared_ptr<Client>& c) {
     }
     std::lock_guard<std::mutex> lock(g.clients_mu);
     g.clients.erase(std::remove(g.clients.begin(), g.clients.end(), c), g.clients.end());
-    if (g.clients.empty()) g.idle_since = GetTickCount64();
+    if (g.clients.empty()) g.idle_since = luling::common::AwakeMilliseconds();
 }
 
 // Bind journals to the authenticated pipe token, never a caller supplied name.
@@ -854,7 +855,7 @@ LRESULT CALLBACK HostWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (!g.as_service && g.running) {
             std::lock_guard<std::mutex> lock(g.clients_mu);
             if (g.ever_client && g.clients.empty() && g.idle_since &&
-                GetTickCount64() - g.idle_since >= kIdleMs) {
+                luling::common::AwakeMilliseconds() - g.idle_since >= kIdleMs) {
                 PostMessageW(hwnd, WM_QUIT_HOST, 0, 0);
             }
         }
@@ -936,7 +937,7 @@ int RunHost(bool as_service, bool test_mode = false,
         CloseHandle(check);
     }
     g.running = true;
-    g.idle_since = GetTickCount64();
+    g.idle_since = luling::common::AwakeMilliseconds();
 
     if (!as_service) {
         g.mutex = CreateMutexW(nullptr, TRUE, g.mutex_name.c_str());

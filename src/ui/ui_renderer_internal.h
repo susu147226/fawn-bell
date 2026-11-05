@@ -1872,6 +1872,32 @@ TitleChrome MakeTitleChrome(float window_w, float scale, float title_h) {
 constexpr float kSettingsNavW = 200.0f;
 constexpr int kSettingsNavCount = 7;  // pages: 5 packs, 6 shell menu
 
+// Fixed-width clock card in the title bar. The tab strip reserves this width,
+// so adding tabs never pushes the card out of view.
+inline constexpr float kTitleClockWidthDip = 180.0f;
+inline constexpr float kTitleClockGapDip = 8.0f;
+
+inline bool TitleClockVisible(float window_w, float scale) {
+    return window_w >= 760.0f * scale;
+}
+
+inline D2D1_RECT_F TitleClockBounds(float window_w, float title_h, float scale) {
+    const TitleChrome chrome = MakeTitleChrome(window_w, scale, title_h);
+    const float right = chrome.group_left - 8.0f * scale;
+    D2D1_RECT_F rc{};
+    rc.left = right - kTitleClockWidthDip * scale;
+    rc.top = 2.0f * scale;
+    rc.right = right;
+    rc.bottom = title_h - 2.0f * scale;
+    return rc;
+}
+
+inline float TabStripRightForClock(float window_w, float title_h, float scale) {
+    const TitleChrome chrome = MakeTitleChrome(window_w, scale, title_h);
+    if (!TitleClockVisible(window_w, scale)) return chrome.settings_left - 8.0f * scale;
+    return TitleClockBounds(window_w, title_h, scale).left - kTitleClockGapDip * scale;
+}
+
 // Settings navigation, grouped like the shell's own page: a small caption per
 // group, then its rows. About stays pinned above the version line.
 struct SettingsNavItem {
@@ -2147,6 +2173,7 @@ struct SettingsLayout {
     D2D1_RECT_F text_render_row[3]{};
     D2D1_RECT_F ui_font_size_card{};
     D2D1_RECT_F ui_font_size_row[4]{};
+    D2D1_RECT_F title_clock_row{};
     D2D1_RECT_F tray_icon_card{};
     D2D1_RECT_F tray_icon_row[3]{};
     D2D1_RECT_F staging_tray_row{};

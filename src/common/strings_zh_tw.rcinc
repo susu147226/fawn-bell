@@ -801,6 +801,8 @@ BEGIN
     IDS_PREVIEW_IMAGE_INFO "圖片資訊"
     IDS_SETTINGS_TREE_VIEW "檔案樹"
     IDS_SETTINGS_TREE_VIEW_DESC "在詳細清單中展開資料夾，顯示其子項"
+    IDS_SETTINGS_TITLE_CLOCK "標題列時間資訊"
+    IDS_SETTINGS_TITLE_CLOCK_DESC "在標題列顯示時間、日期、農曆、節日與行程"
     IDS_PINNED_NAMES_DESC "關閉後僅顯示圖示；右鍵重新命名可設定簡短別名"
     IDS_TAB_RENAME "重新命名分頁"
     IDS_TAB_NAME_HINT "標籤別名（不修改資料夾名稱）"

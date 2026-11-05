@@ -66,6 +66,7 @@ void AppPrefs::ResetToDefaults() {
     shell_tag_menu = false;
     verify_copies = false;
     show_status_performance = false;
+    show_title_clock = true;
     show_pinned_tab_names = true;
     list_smart_date = true;
     list_zebra_rows = true;
@@ -176,6 +177,8 @@ std::wstring AppPrefs::ToJson() const {
     out += verify_copies ? L"true" : L"false";
     out += L",\n  \"show_status_performance\":";
     out += show_status_performance ? L"true" : L"false";
+    out += L",\n  \"show_title_clock\":";
+    out += show_title_clock ? L"true" : L"false";
     out += L",\n  \"show_pinned_tab_names\":";
     out += show_pinned_tab_names ? L"true" : L"false";
     out += L",\n  \"list_smart_date\":";
@@ -384,6 +387,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     shell_tag_menu = luling::json::ExtractBool(json, L"shell_tag_menu", false);
     verify_copies = luling::json::ExtractBool(json, L"verify_copies", false);
     show_status_performance = luling::json::ExtractBool(json, L"show_status_performance", false);
+    show_title_clock = luling::json::ExtractBool(json, L"show_title_clock", true);
     show_pinned_tab_names = luling::json::ExtractBool(json, L"show_pinned_tab_names", true);
     list_smart_date = luling::json::ExtractBool(json, L"list_smart_date", true);
     list_zebra_rows = luling::json::ExtractBool(json, L"list_zebra_rows", true);
@@ -709,6 +713,41 @@ void AppPrefs::MigrateIntegration() {
     integration_configured = true;
 }
 
+void AppPrefs::RepairDriftedShellIntegration() {
+    if (!persist || !integration_enabled) return;
+    const std::wstring exe = ExePath();
+    if (exe.empty()) return;
+    bool folders = false, win_e = false, this_pc = false;
+    bool changed = false;
+    // Only a missing command or one that still names this executable may be
+    // taken back; a verb another program registered stays with that program and
+    // keeps surfacing as drift for the settings repair action.
+    if (integration_folders && !open_folders_in_luling &&
+        ShellIntegrationCommandOwnedOrAbsent(ShellIntegrationKind::Folders, exe)) {
+        folders = ApplyFolderOpen(true);
+        changed = true;
+    }
+    if (integration_win_e && !take_over_win_e &&
+        ShellIntegrationCommandOwnedOrAbsent(ShellIntegrationKind::WinE, exe)) {
+        win_e = ApplyWinE(true);
+        changed = true;
+    }
+    if (integration_this_pc && !take_over_this_pc &&
+        ShellIntegrationCommandOwnedOrAbsent(ShellIntegrationKind::ThisPc, exe)) {
+        this_pc = ApplyThisPcOpen(*this, true);
+        changed = true;
+    }
+    if (!changed) return;
+    luling::diagnostics::runtime::Event("shell_integration_autorepair", {
+        {"folders", folders ? 1u : 0u},
+        {"win_e", win_e ? 1u : 0u},
+        {"this_pc", this_pc ? 1u : 0u},
+        {"open_folders", open_folders_in_luling ? 1u : 0u},
+        {"take_over_win_e", take_over_win_e ? 1u : 0u},
+        {"take_over_this_pc", take_over_this_pc ? 1u : 0u},
+    });
+}
+
 bool AppPrefs::Load() {
     if (persist && HasLegacyShellIntegrationResidue()) {
         const bool repaired = RepairLegacyShellIntegrationResidue();
@@ -724,6 +763,7 @@ bool AppPrefs::Load() {
         integration_residual = ReadIntegrationResidual();
         integration_incomplete = ReadIntegrationIncomplete();
         MigrateIntegration();
+        RepairDriftedShellIntegration();
         return false;
     }
     std::wstring json;
@@ -757,6 +797,7 @@ bool AppPrefs::Load() {
     integration_residual = ReadIntegrationResidual();
     integration_incomplete = ReadIntegrationIncomplete();
     MigrateIntegration();
+    RepairDriftedShellIntegration();
     // Folder integration implies the Explorer-window takeover for installs
     // that never touched the experimental row: programs that launch
     // explorer.exe directly then open in Luling as well.

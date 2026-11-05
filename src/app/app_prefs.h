@@ -54,6 +54,8 @@ struct AppPrefs {
     bool shell_tag_menu = false;    // File Explorer "Luling tags" submenu (shell_tag_menu.cpp syncs HKCU)   // registry is the source of truth (not in app.json)
     bool verify_copies = false;
     bool show_status_performance = false;
+    // Title-bar clock card (time, date, lunar date, festivals, schedules).
+    bool show_title_clock = true;
     bool show_pinned_tab_names = true;
     // Details list presentation.
     bool list_smart_date = true;
@@ -182,6 +184,10 @@ struct AppPrefs {
     std::wstring ToJson() const;
     bool FromJson(const std::wstring& json);
     void MigrateIntegration();
+    // Re-applies a takeover the user left enabled but whose registry values an
+    // outside cleanup removed. Never takes over a verb that now belongs to
+    // another program.
+    void RepairDriftedShellIntegration();
     bool ReadIntegrationResidual() const;
     bool ReadIntegrationIncomplete() const;
 

@@ -498,7 +498,7 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
         }
 
         section_title(2, pages_text::AppearanceText());
-        draw_card(span(lay.language_card, lay.ui_font_size_card));
+        draw_card(span(lay.language_card, lay.title_clock_row));
         const I languages[] = {I::LanguageSystem, I::LanguageZhCN, I::LanguageZhTW, I::LanguageEnUS};
         dropdown(lay.language_card, lay.language_choice, I::SettingsLanguage, I::SettingsLanguageDesc,
                  l10n::Get(languages[vm.settings_language]), 1);
@@ -514,6 +514,9 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
         segmented(lay.ui_font_size_card, lay.ui_font_size_row, ui_font_size, ui_font_size_values,
                   vm.settings_ui_font_scale, H::SettingsUiFontSize, I::SettingsUiFontSize,
                   I::SettingsUiFontSizeDesc, 4, L"\xE8D2");
+        divider(lay.ui_font_size_card);
+        toggle(lay.title_clock_row, I::SettingsTitleClock, I::SettingsTitleClockDesc,
+               L"\xE823", vm.settings_show_title_clock, 60);
         text(l10n::Get(I::SettingsImmediate), lay.footer, true);
         return;
     }

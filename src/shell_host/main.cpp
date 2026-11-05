@@ -18,6 +18,7 @@
 #include "../common/recycle_index.h"
 #include "../common/shell_id.h"
 #include "../common/crash_reporter.h"
+#include "../common/active_clock.h"
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -1128,6 +1129,9 @@ struct CtxSlot {
 
 std::mutex g_ctx_mutex;
 std::map<uint32_t, CtxSlot> g_ctx_sessions;
+// Last request seen by the host window; the idle watchdog uses it to end a
+// host that third-party menu extensions have grown large.
+std::atomic<ULONGLONG> g_last_activity{0};
 // Guarded by g_ctx_mutex (#65): session threads still running (a session
 // leaves g_ctx_sessions before it joins its handler threads), and handler
 // threads given up on because QueryContextMenu never returned.
@@ -1884,7 +1888,32 @@ void MaybeRecycleHost() {
     TerminateProcess(GetCurrentProcess(), 0);
 }
 
+DWORD WINAPI IdleWatchdog(void*) {
+    // Third-party context-menu extensions loaded here (WPS, input methods,
+    // cloud clients) can hold hundreds of MB and never unload. Once no menu
+    // session or request is active for two minutes, end this host; the client
+    // starts a fresh one on the next request.
+    constexpr ULONGLONG kIdleMs = 120000;
+    while (g.running.load()) {
+        Sleep(15000);
+        if (!g.running.load()) break;
+        const ULONGLONG last = g_last_activity.load();
+        if (!last || luling::common::AwakeMilliseconds() - last < kIdleMs) continue;
+        bool busy = false;
+        {
+            std::lock_guard<std::mutex> lock(g_ctx_mutex);
+            busy = !g_ctx_sessions.empty() || g_ctx_threads > 0 ||
+                   g.requests_in_flight.load() != 0;
+        }
+        if (busy) continue;
+        PostMessageW(g.hwnd_msg, WM_QUIT_HOST, 0, 0);
+        break;
+    }
+    return 0;
+}
+
 LRESULT CALLBACK HostWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    g_last_activity.store(luling::common::AwakeMilliseconds());
     if (msg == WM_EXEC_REQUEST) {
         ExecuteRequest(reinterpret_cast<Request*>(lParam));
         g.requests_in_flight.fetch_sub(1);
@@ -1957,7 +1986,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
         return 3;
     }
 
+    g_last_activity.store(luling::common::AwakeMilliseconds());
     HANDLE reader = CreateThread(nullptr, 0, ReaderThread, nullptr, 0, nullptr);
+    HANDLE idle = CreateThread(nullptr, 0, IdleWatchdog, nullptr, 0, nullptr);
+    if (idle) CloseHandle(idle);
     HANDLE prewarm = CreateThread(nullptr, 0, PackagedVerbsPrewarm, nullptr, 0, nullptr);
     if (ui_pid != GetCurrentProcessId()) {
         HANDLE wd = CreateThread(nullptr, 0, ParentWatchdog,

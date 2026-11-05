@@ -243,6 +243,10 @@ struct AppState {
     uint32_t sidebarQuickAccessHiddenMask = 0;
     bool starredExpanded = true;
     float sidebarScroll = 0.0f;
+    // Title-bar clock: redraw when the minute changes; poll schedules half as
+    // often. Both live per window, the data is process-wide.
+    int clockMinuteKey = -1;
+    ULONGLONG scheduleCheckedAt = 0;
     app::StagingTray& tray = core.tray;
     app::PlacesCatalog& places = core.places;
     app::ContextMenuPrefs& ctxMenuPrefs = core.ctxMenuPrefs;
@@ -254,6 +258,7 @@ struct AppState {
     // Folders the user visited: the address bar's history dropdown.
     app::LocationHistory& locationHistory = core.locationHistory;
     app::SettingsController& settings = core.settings;
+    app::ScheduleStore& schedule = core.schedule;
     app::UpdateChecker& update_checker = core.update_checker;
     app::UpdateResult& update_result = core.update_result;
     bool& update_result_ready = core.update_result_ready;

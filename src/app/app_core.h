@@ -23,6 +23,7 @@
 #include "context_menu_prefs.h"
 #include "context_menu_controller.h"
 #include "settings_controller.h"
+#include "schedule_store.h"
 #include "update_checker.h"
 #include "update_installer.h"
 #include "single_instance_coordinator.h"
@@ -98,6 +99,8 @@ struct AppCore {
     app::ContextMenuPrefs ctxMenuPrefs;
     app::ContextMenuController context_menu;
     app::SettingsController settings;
+    // The title-bar clock's schedule list: one copy for every window.
+    app::ScheduleStore schedule;
     // Update check/download state: one check per process, shared by windows.
     app::UpdateChecker update_checker;
     app::UpdateResult update_result;

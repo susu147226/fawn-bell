@@ -3,6 +3,7 @@
 #include "../common/utf8_file.h"
 #include "../fs/shell_namespace.h"
 #include "../common/runtime_log.h"
+#include "../common/active_clock.h"
 #include "thumbnail_artwork_layout.h"
 #include <algorithm>
 #include <chrono>
@@ -970,14 +971,25 @@ void ThumbnailCache::Worker(uint32_t lane) {
             // Idle lanes hand their host process back after a minute: a
             // processor-count pool otherwise leaves one Luling.Preview.exe
             // resident per core for the whole session. Connect() restarts it
-            // on the next request.
-            if (!cv_.wait_for(lock, std::chrono::seconds(60),
-                    [&]{ return !running_ || TakeRequestLocked(req, slow); })) {
+            // on the next request. The wait is sliced and measured on the
+            // awake clock: a suspended machine is not an idle one.
+            constexpr ULONGLONG kIdleMs = 60ull * 1000ull;
+            const ULONGLONG idle_since = common::AwakeMilliseconds();
+            bool requested = false;
+            while (running_) {
+                if (cv_.wait_for(lock, std::chrono::seconds(5),
+                        [&]{ return !running_ || TakeRequestLocked(req, slow); })) {
+                    requested = true;
+                    break;
+                }
+                if (common::AwakeMilliseconds() - idle_since >= kIdleMs) break;
+            }
+            if (!running_) break;
+            if (!requested) {
                 lock.unlock();
                 StopChild(lane);
                 continue;
             }
-            if (!running_) break;
         }
         // A slow request gives its slot back however this iteration ends.
         struct SlowSlot {

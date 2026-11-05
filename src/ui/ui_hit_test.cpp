@@ -202,6 +202,14 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             return r;
         }
         }
+        if (!vertical_tabs_ && vm.settings_show_title_clock &&
+            TitleClockVisible(rect.right, scale_)) {
+            const D2D1_RECT_F clock = TitleClockBounds(rect.right, title_bar_height_, scale_);
+            if (ContainsPt(clock, x, y)) {
+                r.region = HitTestResult::TitleClock;
+                return r;
+            }
+        }
         if (x >= chrome.settings_left && x < chrome.settings_left + chrome.settings_w) {
             r.region = HitTestResult::SettingsButton;
             return r;
@@ -297,6 +305,11 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             for(int i=0;i<3;++i) if(ContainsPt(actions[i],x,y)) {r.region=HitTestResult::SettingsContentAction;r.index=i+1;return r;}
 
             if (vm.settings_page == 0) {
+                if (ContainsPt(lay.title_clock_row, x, y)) {
+                    r.region = HitTestResult::SettingsToggle;
+                    r.index = 60;
+                    return r;
+                }
                 if (vm.settings_bloom) {
                     vm.settings_bloom->SetDisk(lay.accent_picker);
                     const int dot = vm.settings_bloom->HitDot(x, y);
