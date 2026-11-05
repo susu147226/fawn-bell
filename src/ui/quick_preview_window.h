@@ -322,6 +322,9 @@ private:
     bool zoom_enabled_ = false;
     bool zoom_pending_ = false;
     bool closing_ = false;
+    // The key that opened the preview can still be repeating when focus moves
+    // here; ignore that burst so it does not immediately close the window.
+    ULONGLONG shown_tick_ = 0;
     POINT zoom_origin_{};
     void FinishClose(bool restore_focus);
     float scale_ = 1.0f;

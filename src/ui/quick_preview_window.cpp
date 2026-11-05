@@ -463,6 +463,7 @@ void QuickPreviewWindow::Show(const QuickPreviewItem& item, bool dark, WindowEff
     if (!was_visible) Render();
     ShowWindow(hwnd_, SW_SHOW);
     SetForegroundWindow(hwnd_);
+    shown_tick_ = GetTickCount64();
     InvalidateRect(hwnd_, nullptr, FALSE);
 }
 
@@ -3742,7 +3743,12 @@ LRESULT QuickPreviewWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lp
             }
         }
         if (wparam == VK_SPACE && !find_open_) {
-            Close();
+            // Space closes, but not the auto-repeat of the key that opened
+            // this window: that repeat arrives here right after Show() and
+            // made the first preview flash open and vanish (most visible on
+            // documents, which take longer to open).
+            const bool repeat = (lparam & (1LL << 30)) != 0;
+            if (!repeat && GetTickCount64() - shown_tick_ > 200) Close();
             return 0;
         }
         const bool text_kind = native_kind_ == NativeKind::Text || native_kind_ == NativeKind::Hex ||

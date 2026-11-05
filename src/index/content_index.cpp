@@ -183,7 +183,7 @@ bool Open(const std::wstring& path, sqlite3** db, bool readonly) {
     sqlite3_create_collation(*db, "LULING_ORDINAL", SQLITE_UTF16, nullptr, OrdinalCollation);
     sqlite3_create_function_v2(*db, "luling_filename", 1, SQLITE_UTF16 | SQLITE_DETERMINISTIC, nullptr, SqlFilename, nullptr, nullptr, nullptr);
     sqlite3_create_function_v2(*db,"luling_extension",1,SQLITE_UTF16|SQLITE_DETERMINISTIC,nullptr,SqlExtension,nullptr,nullptr,nullptr);
-    return RegisterTokenizer(*db) && Exec(*db, readonly ? "PRAGMA cache_size=-8192; PRAGMA temp_store=FILE;" : "PRAGMA cache_size=-32768; PRAGMA temp_store=FILE;");
+    return RegisterTokenizer(*db) && Exec(*db, readonly ? "PRAGMA cache_size=-8192; PRAGMA temp_store=FILE;" : "PRAGMA cache_size=-8192; PRAGMA temp_store=FILE;");
 }
 std::wstring LongPath(const std::wstring& p) {
     return p.starts_with(L"\\\\?\\") ? p : L"\\\\?\\" + p;
@@ -1520,10 +1520,14 @@ bool ContentIndex::SearchTask(const ContentSearchRequest& request, const std::at
             // A first-run instant search does not need a persistent body cache.
             progress.error = cancel ? ERROR_CANCELLED : impl_->mode == ContentAgentMode::Instant ? ERROR_SUCCESS : ERROR_DATABASE_FAILURE;
         } else {
-            // Only this snapshot opts into a bounded read-only mapping.
+            // Keep the mapping useful for random reads without letting SQLite
+            // map (and page in) a whole large database: the index host stayed
+            // around 200 MB when this followed half of physical memory.
             MEMORYSTATUSEX memory{sizeof(memory)};
             const uint64_t mapping_budget = GlobalMemoryStatusEx(&memory)
-                ? (std::min)(16ull * 1024 * 1024 * 1024, memory.ullAvailPhys / 2) : 0;
+                ? std::clamp<uint64_t>(memory.ullAvailPhys / 8,
+                                       32ull * 1024 * 1024, 128ull * 1024 * 1024)
+                : 64ull * 1024 * 1024;
             const auto mapping_sql = "PRAGMA mmap_size=" + std::to_string(mapping_budget);
             Exec(db, mapping_sql.c_str());
             Statement mapping(db, "PRAGMA mmap_size");
