@@ -2451,6 +2451,12 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         if (hit.region == ui::HitTestResult::TitleClock) {
             // Early return: the click chain below is at the compiler's nesting limit.
             // Left click turns the page; right click opens the schedule panel.
+            // Alt+drag moves the window like the tab strip; the card sits in the
+            // caption, so a wide card would otherwise swallow that handle.
+            if ((GetKeyState(VK_MENU) & 0x8000) != 0) {
+                StartWindowMoveFromTab(hwnd, mx, my);
+                return 0;
+            }
             s->renderer.NextTitleClockPage(GetTickCount64());
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
