@@ -3038,6 +3038,8 @@ std::wstring TooltipForHover(AppState& s) {
             out += std::wstring(when) + L"  " + item.title;
             if (!item.notes.empty()) out += L" — " + item.notes;
         }
+        out += L"\n";
+        out += l10n::Pick(L"单击切换页面 · 右键打开日程", L"Click to switch · right-click for schedules");
         return out;
     }
     case R::Tab: {

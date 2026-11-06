@@ -871,13 +871,27 @@ bool MainRenderer::TickTitleClock(ULONGLONG now) {
     }
     constexpr ULONGLONG kFirstHold = 14000;
     constexpr ULONGLONG kOtherHold = 8000;
+    constexpr ULONGLONG kSlide = 320;
+    if (title_clock_slide_start_) {
+        if (now - title_clock_slide_start_ >= kSlide) {
+            title_clock_slide_start_ = 0;
+            return false;
+        }
+        return true;
+    }
     const ULONGLONG hold = title_clock_page_ == 0 ? kFirstHold : kOtherHold;
     if (now - title_clock_page_since_ < hold) return false;
-    // Instant page flip: sliding meant several full-window repaints in a row,
-    // which is what made the switch stutter on a busy list.
     title_clock_page_ = (title_clock_page_ + 1) % 3;
     title_clock_page_since_ = now;
+    title_clock_slide_start_ = now;
     return true;
+}
+
+void MainRenderer::NextTitleClockPage(ULONGLONG now) {
+    if (title_clock_rect_.right <= title_clock_rect_.left) return;
+    title_clock_page_ = (title_clock_page_ + 1) % 3;
+    title_clock_page_since_ = now;
+    title_clock_slide_start_ = now;
 }
 
 void MainRenderer::DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel& vm,
@@ -907,110 +921,131 @@ void MainRenderer::DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel&
     const float frame_h = frame.bottom - frame.top;
     const float h1 = 16.0f * scale_;
     const float h2 = 14.0f * scale_;
-    // Page 0 is two rows centred in the card; pages 1-2 are three compact rows.
-    const float centered_top = frame.top + (frame_h - (h1 + h2)) * 0.5f;
-    const float page1_top = frame.top + (frame_h - (h1 + 13.0f * scale_)) * 0.5f;
-    const float stacked_top = frame.top + 1.5f * scale_;
     const float h2c = 13.0f * scale_;
     // Secondary text derives from theme.text so pale themes keep contrast.
     const D2D1_COLOR_F secondary = WithAlpha(theme.text, 0.72f);
 
-    auto centered = [&](const std::wstring& text, IDWriteTextFormat* format,
-                        ID2D1SolidColorBrush* brush, float cell_left, float cell_right,
-                        float top, float height) {
+    const ULONGLONG tick = GetTickCount64();
+    if (!title_clock_page_since_) title_clock_page_since_ = tick;
+    constexpr ULONGLONG kSlide = 320;
+    float slide = 1.0f;
+    if (title_clock_slide_start_) {
+        const ULONGLONG elapsed = tick - title_clock_slide_start_;
+        slide = elapsed >= kSlide ? 1.0f : static_cast<float>(elapsed) / kSlide;
+    }
+    // OutCubic, matching the Fluent motion used elsewhere.
+    const float eased = 1.0f - std::pow(1.0f - slide, 3.0f);
+    const float page_h = frame.bottom - frame.top;
+
+    auto aligned = [&](const std::wstring& text, IDWriteTextFormat* format,
+                       ID2D1SolidColorBrush* brush, float cell_left, float cell_right,
+                       float top, float height, bool right_align) {
         const float width = MeasureLayoutText(compositor_, compositor_->DwriteFactory(),
                                               format, text);
-        const float x = cell_left + ((cell_right - cell_left) - width) * 0.5f;
+        const float x = right_align ? cell_right - width : cell_left;
         DrawTextRect(dc, format, brush, text, x, top, width + 1.0f * scale_, height);
     };
 
-    if (title_clock_page_ == 0) {
-        wchar_t time_text[16]{};
-        swprintf_s(time_text, L"%02u:%02u", now.wHour, now.wMinute);
-        static const wchar_t* const kWeek[7] = {L"周日", L"周一", L"周二", L"周三",
-                                                L"周四", L"周五", L"周六"};
-        wchar_t date_text[24]{};
-        swprintf_s(date_text, L"%04d-%02d-%02d", now.wYear, now.wMonth, now.wDay);
-        std::wstring lunar = cached_day.ganzhi;
-        if (lunar.size() > 1 && lunar.back() == L'年') lunar.pop_back();
-        if (!cached_day.lunar_text.empty()) {
-            if (!lunar.empty()) lunar += L" ";
-            lunar += cached_day.lunar_text;
+    auto draw_page = [&](int page, float top) {
+        const float centered_top = top + (frame_h - (h1 + h2)) * 0.5f;
+        const float page1_top = top + (frame_h - (h1 + 13.0f * scale_)) * 0.5f;
+        const float stacked_top = top + 1.5f * scale_;
+        if (page == 0) {
+            wchar_t time_text[16]{};
+            swprintf_s(time_text, L"%02u:%02u", now.wHour, now.wMinute);
+            static const wchar_t* const kWeek[7] = {L"周日", L"周一", L"周二", L"周三",
+                                                    L"周四", L"周五", L"周六"};
+            wchar_t date_text[24]{};
+            swprintf_s(date_text, L"%04d-%02d-%02d", now.wYear, now.wMonth, now.wDay);
+            std::wstring lunar = cached_day.ganzhi;
+            if (lunar.size() > 1 && lunar.back() == L'年') lunar.pop_back();
+            if (!cached_day.lunar_text.empty()) {
+                if (!lunar.empty()) lunar += L" ";
+                lunar += cached_day.lunar_text;
+            }
+            MakeBrush(dc, theme.text, brText_);
+            aligned(time_text, compositor_->HeaderFormat(), brText_.get(), left, mid,
+                    centered_top, h1, false);
+            MakeBrush(dc, secondary, brTextSecondary_);
+            aligned(date_text, compositor_->TabFormat(), brTextSecondary_.get(), mid, right,
+                    centered_top, h1, true);
+            aligned(kWeek[cached_day.weekday & 7], compositor_->TabFormat(),
+                    brTextSecondary_.get(), left, mid, centered_top + h1, h2, false);
+            aligned(lunar, compositor_->TabFormat(), brTextSecondary_.get(), mid, right,
+                    centered_top + h1, h2, true);
+            return;
         }
-        MakeBrush(dc, theme.text, brText_);
-        centered(time_text, compositor_->HeaderFormat(), brText_.get(), left, mid,
-                 centered_top, h1);
+
+        if (page == 1) {
+            static int info_day = -1;
+            static std::wstring next_festival;
+            static int next_festival_days = 0;
+            static std::wstring prev_term, next_term;
+            static int prev_term_days = 0, next_term_days = 0;
+            const int day_key = now.wYear * 10000 + now.wMonth * 100 + now.wDay;
+            if (day_key != info_day) {
+                info_day = day_key;
+                next_festival.clear();
+                next_festival_days = 0;
+                calendar::NextFestival(now.wYear, now.wMonth, now.wDay, next_festival,
+                                       next_festival_days);
+                calendar::SolarTermsAround(now.wYear, now.wMonth, now.wDay, prev_term,
+                                           prev_term_days, next_term, next_term_days);
+            }
+
+            std::wstring line1;
+            bool accent = false;
+            if (!cached_day.festival.empty()) {
+                line1 = cached_day.festival;
+                accent = true;
+            } else if (!next_festival.empty()) {
+                wchar_t text[64]{};
+                swprintf_s(text, L"距离 %s %d 天", next_festival.c_str(), next_festival_days);
+                line1 = text;
+                accent = true;
+            } else if (!cached_day.solar_term.empty()) {
+                line1 = cached_day.solar_term;
+                accent = true;
+            }
+            std::wstring term_line;
+            if (!prev_term.empty()) {
+                term_line = prev_term;
+                if (prev_term_days > 0) term_line += std::to_wstring(prev_term_days) + L"天";
+            }
+            term_line += l10n::Pick(L"—今天—", L"—today—");
+            if (!next_term.empty()) {
+                if (next_term_days > 0) term_line += std::to_wstring(next_term_days) + L"天";
+                term_line += next_term;
+            }
+            MakeBrush(dc, accent ? theme.accent : secondary,
+                      accent ? brAccent_ : brTextSecondary_);
+            DrawTextRect(dc, compositor_->HeaderFormat(),
+                         accent ? brAccent_.get() : brTextSecondary_.get(), line1,
+                         left, page1_top, right - left, h1);
+            MakeBrush(dc, secondary, brTextSecondary_);
+            DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(), term_line,
+                         left, page1_top + h1, right - left, 12.0f * scale_);
+            return;
+        }
+
         MakeBrush(dc, secondary, brTextSecondary_);
-        centered(date_text, compositor_->TabFormat(), brTextSecondary_.get(), mid, right,
-                 centered_top, h1);
-        centered(kWeek[cached_day.weekday & 7], compositor_->TabFormat(),
-                 brTextSecondary_.get(), left, mid, centered_top + h1, h2);
-        centered(lunar, compositor_->TabFormat(), brTextSecondary_.get(), mid, right,
-                 centered_top + h1, h2);
-        return;
+        DrawTextRect(dc, compositor_->TabFormat(), brTextSecondary_.get(),
+                     l10n::Pick(L"最近日程", L"Upcoming"), left, stacked_top, right - left, h1);
+        DrawTextRect(dc, compositor_->TabFormat(), brTextSecondary_.get(),
+                     vm.clock_schedule_1.empty() ? l10n::Pick(L"暂无日程", L"No schedules")
+                                                 : vm.clock_schedule_1,
+                     left, stacked_top + h1, right - left, h2c);
+        DrawTextRect(dc, compositor_->TabFormat(), brTextSecondary_.get(), vm.clock_schedule_2,
+                     left, stacked_top + h1 + h2c, right - left, h2c);
+    };
+
+    dc->PushAxisAlignedClip(frame, D2D1_ANTIALIAS_MODE_ALIASED);
+    if (slide < 1.0f) {
+        // Old page slides up while the new one rises from below.
+        draw_page((title_clock_page_ + 2) % 3, frame.top - eased * page_h);
     }
-
-    if (title_clock_page_ == 1) {
-        static int info_day = -1;
-        static std::wstring next_festival;
-        static int next_festival_days = 0;
-        static std::wstring prev_term, next_term;
-        static int prev_term_days = 0, next_term_days = 0;
-        const int day_key = now.wYear * 10000 + now.wMonth * 100 + now.wDay;
-        if (day_key != info_day) {
-            info_day = day_key;
-            next_festival.clear();
-            next_festival_days = 0;
-            calendar::NextFestival(now.wYear, now.wMonth, now.wDay, next_festival,
-                                   next_festival_days);
-            calendar::SolarTermsAround(now.wYear, now.wMonth, now.wDay, prev_term,
-                                       prev_term_days, next_term, next_term_days);
-        }
-
-        std::wstring line1;
-        bool accent = false;
-        if (!cached_day.festival.empty()) {
-            line1 = cached_day.festival;
-            accent = true;
-        } else if (!next_festival.empty()) {
-            wchar_t text[64]{};
-            swprintf_s(text, L"距离 %s %d 天", next_festival.c_str(), next_festival_days);
-            line1 = text;
-            accent = true;
-        } else if (!cached_day.solar_term.empty()) {
-            line1 = cached_day.solar_term;
-            accent = true;
-        }
-        std::wstring term_line;
-        if (!prev_term.empty()) {
-            term_line = prev_term;
-            if (prev_term_days > 0) term_line += std::to_wstring(prev_term_days) + L"天";
-        }
-        term_line += l10n::Pick(L"—今天—", L"—today—");
-        if (!next_term.empty()) {
-            if (next_term_days > 0) term_line += std::to_wstring(next_term_days) + L"天";
-            term_line += next_term;
-        }
-        MakeBrush(dc, accent ? theme.accent : secondary,
-                  accent ? brAccent_ : brTextSecondary_);
-        DrawTextRect(dc, compositor_->HeaderFormat(),
-                     accent ? brAccent_.get() : brTextSecondary_.get(), line1,
-                     left, page1_top, right - left, h1);
-        MakeBrush(dc, secondary, brTextSecondary_);
-        DrawTextRect(dc, compositor_->SmallFormat(), brTextSecondary_.get(), term_line,
-                     left, page1_top + h1, right - left, 12.0f * scale_);
-        return;
-    }
-
-    MakeBrush(dc, secondary, brTextSecondary_);
-    DrawTextRect(dc, compositor_->TabFormat(), brTextSecondary_.get(),
-                 l10n::Pick(L"最近日程", L"Upcoming"), left, stacked_top, right - left, h1);
-    DrawTextRect(dc, compositor_->TabFormat(), brTextSecondary_.get(),
-                 vm.clock_schedule_1.empty() ? l10n::Pick(L"暂无日程", L"No schedules")
-                                             : vm.clock_schedule_1,
-                 left, stacked_top + h1, right - left, h2c);
-    DrawTextRect(dc, compositor_->TabFormat(), brTextSecondary_.get(), vm.clock_schedule_2,
-                 left, stacked_top + h1 + h2c, right - left, h2c);
+    draw_page(title_clock_page_, frame.top + (1.0f - eased) * page_h);
+    dc->PopAxisAlignedClip();
 }
 
 void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {

@@ -1607,6 +1607,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                     dirty = true;
                 }
                 if (s->renderer.TickTitleClock(now)) {
+                    // Keep the fast timer through the slide so the scroll is smooth.
+                    g_uiTimerPacer.NoteActivity(now);
                     const D2D1_RECT_F clock = s->renderer.TitleClockRect();
                     RECT rc{ static_cast<LONG>(clock.left) - 4, static_cast<LONG>(clock.top) - 4,
                              static_cast<LONG>(clock.right) + 4, static_cast<LONG>(clock.bottom) + 4 };

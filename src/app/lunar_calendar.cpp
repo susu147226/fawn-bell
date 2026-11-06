@@ -84,6 +84,7 @@ std::wstring LunarFestival(const LunarDate& date) {
     if (date.month == 1 && date.day == 1) return L"春节";
     if (date.month == 1 && date.day == 15) return L"元宵节";
     if (date.month == 2 && date.day == 2) return L"龙抬头";
+    if (date.month == 2 && date.day == 12) return L"花朝节";
     if (date.month == 5 && date.day == 5) return L"端午节";
     if (date.month == 7 && date.day == 7) return L"七夕";
     if (date.month == 7 && date.day == 15) return L"中元节";
@@ -98,17 +99,40 @@ std::wstring LunarFestival(const LunarDate& date) {
 const wchar_t* SolarFestival(int month, int day) {
     if (month == 1 && day == 1) return L"元旦";
     if (month == 2 && day == 14) return L"情人节";
+    if (month == 3 && day == 5) return L"学雷锋纪念日";
     if (month == 3 && day == 8) return L"妇女节";
     if (month == 3 && day == 12) return L"植树节";
+    if (month == 3 && day == 15) return L"消费者权益日";
     if (month == 4 && day == 1) return L"愚人节";
+    if (month == 4 && day == 15) return L"国家安全教育日";
     if (month == 5 && day == 1) return L"劳动节";
     if (month == 5 && day == 4) return L"青年节";
+    if (month == 5 && day == 12) return L"防灾减灾日";
     if (month == 6 && day == 1) return L"儿童节";
+    if (month == 6 && day == 5) return L"世界环境日";
     if (month == 7 && day == 1) return L"建党节";
     if (month == 8 && day == 1) return L"建军节";
+    if (month == 9 && day == 3) return L"抗战胜利纪念日";
     if (month == 9 && day == 10) return L"教师节";
+    if (month == 9 && day == 18) return L"九一八纪念日";
+    if (month == 9 && day == 30) return L"烈士纪念日";
     if (month == 10 && day == 1) return L"国庆节";
+    if (month == 12 && day == 4) return L"国家宪法日";
+    if (month == 12 && day == 13) return L"国家公祭日";
     if (month == 12 && day == 25) return L"圣诞节";
+    return nullptr;
+}
+
+int WeekdayOf(int year, int month, int day) {
+    return static_cast<int>((DaysFromCivil(year, static_cast<unsigned>(month),
+                                           static_cast<unsigned>(day)) + 4) % 7);
+}
+
+// Rules such as "second Sunday of May"; 0 = Sunday.
+const wchar_t* FloatingFestival(int year, int month, int day) {
+    if (month == 5 && WeekdayOf(year, 5, day) == 0 && (day - 1) / 7 == 1) return L"母亲节";
+    if (month == 6 && WeekdayOf(year, 6, day) == 0 && (day - 1) / 7 == 2) return L"父亲节";
+    if (month == 11 && WeekdayOf(year, 11, day) == 4 && (day - 1) / 7 == 3) return L"感恩节";
     return nullptr;
 }
 
@@ -199,8 +223,17 @@ std::wstring Festival(int year, int month, int day) {
         const std::wstring name = LunarFestival(lunar);
         if (!name.empty()) return name;
     }
-    if (SolarTerm(year, month, day) == L"清明") return L"清明节";
+    const std::wstring term = SolarTerm(year, month, day);
+    if (term == L"清明") return L"清明节";
+    if (term == L"秋分") return L"中国农民丰收节";
+    {
+        // Cold Food Festival: the day before Qingming.
+        int tomorrow_y = 0, tomorrow_m = 0, tomorrow_d = 0;
+        AddDays(year, month, day, 1, tomorrow_y, tomorrow_m, tomorrow_d);
+        if (SolarTerm(tomorrow_y, tomorrow_m, tomorrow_d) == L"清明") return L"寒食节";
+    }
     if (const wchar_t* name = SolarFestival(month, day)) return name;
+    if (const wchar_t* name = FloatingFestival(year, month, day)) return name;
     return {};
 }
 

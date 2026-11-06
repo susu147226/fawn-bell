@@ -2450,10 +2450,8 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         }
         if (hit.region == ui::HitTestResult::TitleClock) {
             // Early return: the click chain below is at the compiler's nesting limit.
-            const D2D1_RECT_F clock = s->renderer.TitleClockRect();
-            POINT anchor{ static_cast<LONG>(clock.left), static_cast<LONG>(clock.bottom) + 6 };
-            ClientToScreen(hwnd, &anchor);
-            app::ShowSchedulePanel(hwnd, s->schedule, s->scale, s->darkMode, anchor);
+            // Left click turns the page; right click opens the schedule panel.
+            s->renderer.NextTitleClockPage(GetTickCount64());
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
@@ -4286,6 +4284,13 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             shown = true;
         } else if (hit.region == ui::HitTestResult::BreadcrumbSegment && !hit.path.empty()) {
             ShowBreadcrumbMenu(*s, hit.path, sp);
+            shown = true;
+        } else if (hit.region == ui::HitTestResult::TitleClock) {
+            const D2D1_RECT_F clock = s->renderer.TitleClockRect();
+            POINT anchor{ static_cast<LONG>(clock.left), static_cast<LONG>(clock.bottom) + 6 };
+            ClientToScreen(hwnd, &anchor);
+            app::ShowSchedulePanel(hwnd, s->schedule, s->scale, s->darkMode, anchor);
+            InvalidateRect(hwnd, nullptr, FALSE);
             shown = true;
         } else if (hit.region == ui::HitTestResult::TrayCard ||
                    hit.region == ui::HitTestResult::TrayIntent ||

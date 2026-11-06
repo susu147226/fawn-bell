@@ -1267,6 +1267,8 @@ public:
     // Advances the clock card's two-page rotation. True while it switches or
     // slides, so the caller can redraw just the card.
     bool TickTitleClock(ULONGLONG now);
+    // User-driven page turn (a click on the card): restarts the hold timer.
+    void NextTitleClockPage(ULONGLONG now);
     void DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel& vm,
                         const Theme& theme, const D2D1_RECT_F& frame);
     float ToolbarHeight() const { return toolbar_height_; }
@@ -1915,6 +1917,7 @@ private:
     float title_clock_max_scroll_ = 0.0f;
     int title_clock_page_ = 0;
     ULONGLONG title_clock_page_since_ = 0;
+    ULONGLONG title_clock_slide_start_ = 0;
     float toolbar_height_ = 88.0f;
     float status_height_ = 28.0f;
     float sidebar_width_ = 224.0f;
