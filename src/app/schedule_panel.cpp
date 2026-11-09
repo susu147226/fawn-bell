@@ -1152,26 +1152,23 @@ void ShowSchedulePanel(HWND owner, ScheduleStore& store, float scale, bool dark,
     };
     // The owner is disabled while this runs, so a click on it never reaches the
     // message queue. Poll the physical button so any click outside the card and
-    // its pickers still closes the panel. Bit 0 reports presses since the last
-    // call, which catches clicks that start and end between two ticks.
+    // its pickers still closes the panel.
     constexpr UINT_PTR kOutsidePoll = 0x5D1;
-    const ULONGLONG opened_at = GetTickCount64();
+    bool button_was_down = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
     SetTimer(state.hwnd, kOutsidePoll, 30, nullptr);
     MSG msg{};
     while (!state.done) {
         if (GetMessageW(&msg, nullptr, 0, 0) <= 0) break;
         if (msg.message == WM_TIMER && msg.wParam == kOutsidePoll) {
-            if ((GetAsyncKeyState(VK_LBUTTON) & 0x0001) != 0 ||
-                (GetAsyncKeyState(VK_RBUTTON) & 0x0001) != 0) {
-                // The click that opened the panel is still in the button state;
-                // ignore anything that lands before the panel settles.
-                if (GetTickCount64() - opened_at < 250) continue;
+            const bool down = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+            if (down && !button_was_down) {
                 POINT pt{};
                 HWND under = GetCursorPos(&pt) ? WindowFromPoint(pt) : nullptr;
                 bool owned = false;
                 for (HWND h = under; h && !owned; h = GetParent(h)) owned = owns(h);
                 if (!owned) state.done = true;
             }
+            button_was_down = down;
             continue;
         }
         if (msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE) {
