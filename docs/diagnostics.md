@@ -8,7 +8,7 @@
 
 - 问题发生的大致时间和时区。
 - 触发步骤、预期结果、实际结果，是否可重复。
-- Pulse 版本；涉及特定目录时说明本地磁盘、移动磁盘或网络共享即可，通常不需要提供私人路径。
+- 应用 版本；涉及特定目录时说明本地磁盘、移动磁盘或网络共享即可，通常不需要提供私人路径。
 
 导出包含 `diagnostics-manifest.json`，它列出每个文件的实际字节数、复制状态和 Windows 错误码。`complete:false` 表示有文件未能导出；不要把这类包当成完整采集。服务导出失败时，仍尝试保存用户日志。现有「打开目录」打开 Diagnostics 根目录，可以看到 Runtime 与 Crashes。
 
@@ -16,8 +16,8 @@
 
 ## 存储与开销
 
-- 用户进程：`%LOCALAPPDATA%\Pulse\Diagnostics\Runtime`。
-- 索引服务：`%PROGRAMDATA%\Pulse\Diagnostics\Runtime`。
+- 用户进程：`%LOCALAPPDATA%\应用\Diagnostics\Runtime`。
+- 索引服务：`%PROGRAMDATA%\应用\Diagnostics\Runtime`。
 - 文件名为组件和进程号，如 `app-1234.jsonl`、`index-service-5678.jsonl`，轮转文件后缀 `.1`。
 - 每文件默认 2 MiB，每进程保留当前和上一份。启动和每分钟清理到最近 24 个历史文件；清理与新建并发时可暂时超过此数量。
 - 生产线程只向最多 1,024 条的内存队列提交数字事件；后台线程写文件。满队列丢弃计数可见，不无限积压；停止时排空队列。崩溃或强制结束可能损失队列尾部，崩溃转储仍由原机制生成。

@@ -1,5 +1,5 @@
 // ai_assistant_conn.cpp - 管理连接 card: state, EDITs, probe, saving.
-// Ported from Pulse 1.0.58 (app/ai_assistant_conn.cpp).
+// Ported from the earlier implementation (app/ai_assistant_conn.cpp).
 #include "ai_assistant_conn.h"
 
 #include "ai_assistant.h"
@@ -72,7 +72,7 @@ constexpr UINT_PTR kProbeTimer = 0x4150;     // 'AP'
 constexpr wchar_t kKeysUrl[] = L"https://platform.deepseek.com/api_keys";
 constexpr wchar_t kMaskChar = L'•';
 
-// The card's words (Pulse 1.0.58 strings.rcinc, zh-Hans).
+// The card's words (the earlier implementation strings.rcinc, zh-Hans).
 constexpr wchar_t kManage[] = L"管理连接";
 constexpr wchar_t kFormat[] = L"{host} · OpenAI 格式";
 constexpr wchar_t kStatusOff[] = L"未连接";

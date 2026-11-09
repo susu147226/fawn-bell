@@ -1,5 +1,5 @@
 // ai_model_view.h - Settings > AI 助手 (page 12), the model service page of
-// Pulse 1.0.58: the service grid, the chosen service's key and address, the
+// the earlier implementation: the service grid, the chosen service's key and address, the
 // connection probe, 语音输入, and the way into the AI pack's MCP settings.
 #pragma once
 

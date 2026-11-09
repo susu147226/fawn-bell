@@ -143,7 +143,7 @@ enum MenuCmd : int {
     CmdConvertCompress = 100109,
     // Built-in "send to compressed folder" row (Explorer's zipped folder).
     CmdCompressZip = 100110,
-    // New menu: types Pulse offers on top of the registry's ShellNew list, and
+    // New menu: types the app offers on top of the registry's ShellNew list, and
     // the New button's main-action submenu (0 folder, 1 remember, 2 menu).
     CmdNewMarkdown = 100111,
     CmdNewShortcut = 100112,

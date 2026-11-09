@@ -19,7 +19,7 @@ enum SysCtxHit : int {
     kSysCtxUndo = 3,         // reverse the last applied batch
     kSysCtxLog = 4,          // open the folder with ops.jsonl and the .reg backups
     kSysCtxRestoreAll = 5,   // reverse every batch applied in this session
-    kSysCtxLocalLayer = 6,   // "Pulse 右键菜单" card: go to Settings page 2
+    kSysCtxLocalLayer = 6,   // "应用右键菜单" card: go to Settings page 2
     kSysCtxTabPreview = 7,   // side panel tabs
     kSysCtxTabDetail = 8,
     kSysCtxDetailSwitch = 9, // the switch inside the detail panel (selected row)
@@ -33,10 +33,10 @@ enum SysCtxHit : int {
     kSysCtxMoreBase = 5000,  // + row index: the "…" menu
     kSysCtxPreviewBase = 7000,// + preview item: press to drag (menu zones / 已隐藏 shelf)
     kSysCtxOverview = 12,     // scene list: the 概览 row
-    kSysCtxDetailPulse = 13,  // detail panel: 在 Pulse 右键菜单中显示 (ContextMenuPrefs)
+    kSysCtxDetailApp = 13,  // detail panel: 在应用右键菜单中显示 (ContextMenuPrefs)
     kSysCtxDetailDelete = 14, // detail panel: 删除残留项 (queued)
     kSysCtxClean = 15,        // list head: 清理残留 (every leftover of the scene, queued)
-    kSysCtxSlowSkipBase = 9000,    // + 概览 slow row: Pulse 跳过 (ContextMenuPrefs)
+    kSysCtxSlowSkipBase = 9000,    // + 概览 slow row: 跳过 (ContextMenuPrefs)
     kSysCtxSlowToggleBase = 9200,  // + 概览 slow row: 禁用 in Windows
     kSysCtxMarkRestoreBase = 9400, // + 概览 mark row: 还原 a ContextMenuManager mark
     kSysCtxRemoveBase = 11000,     // + row index: a leftover's own 删除 / 撤回 button (queued)
@@ -87,12 +87,12 @@ struct SysCtxRowView {
     bool default_hidden = false; // Windows ships it switched off
     bool third_party = false;
     bool selected = false;
-    bool deletable = false;  // leftover whose key Pulse can delete
+    bool deletable = false;  // leftover whose key the app can delete
     bool deleting = false;   // its delete is queued
     int place = 0;           // effective SysCtxZone (Top / Default / Bottom), verbs only
-    // Pulse's own menu (ContextMenuPrefs, Windows unchanged): 0 no Pulse row
-    // for this kind, 1 shown in Pulse, 2 hidden in Pulse only.
-    int pulse = 0;
+    // the app's own menu (ContextMenuPrefs, Windows unchanged): 0 no the app row
+    // for this kind, 1 shown in the app, 2 hidden in the app only.
+    int menu_state = 0;
     // Detail panel.
     std::wstring kind_label;  // 静态动词 / Shell 扩展 / …
     std::wstring registry;    // full key path
@@ -117,11 +117,11 @@ struct SysCtxPreviewItem {
 };
 
 // 概览 (the prototype's home scene): ContextMenuManager marks, the handlers
-// Pulse measured while building its own menu, this session's changes.
+// the app measured while building its own menu, this session's changes.
 struct SysCtxHandlerTiming {   // fed by the app: ContextMenuController + ContextMenuPrefs
     std::wstring clsid;
     uint32_t ms = 0;           // slowest query seen across the stored layouts
-    bool pulse_skipped = false;// ContextMenuPrefs::ComDisabled
+    bool menu_skipped = false;// ContextMenuPrefs::ComDisabled
 };
 inline constexpr uint32_t kSysCtxSlowMs = 150;
 
@@ -132,8 +132,8 @@ struct SysCtxSlowRow {
     bool on = true;            // after the queued change
     bool pending = false;
     bool cmm = false;          // off through a ContextMenuManager "-" marker
-    bool pulse_skipped = false;
-    bool switchable = false;   // 禁用 button: a scanned entry Pulse can switch
+    bool menu_skipped = false;
+    bool switchable = false;   // 禁用 button: a scanned entry the app can switch
 };
 struct SysCtxMarkRow {         // 来自其他工具的禁用标记
     std::wstring title, registry, icon_path;
@@ -174,7 +174,7 @@ struct SysCtxView {
     int total = 0, disabled = 0, missing = 0;  // across every scene
     int pending = 0;                    // queued changes
     int pending_admin = 0;              // of them: machine-wide (one UAC)
-    int pending_pulse = 0;              // of them: Pulse's own menu only (ContextMenuPrefs)
+    int pending_menu = 0;              // of them: the app's own menu only (ContextMenuPrefs)
     int leftovers = 0;                  // deletable leftovers in the scene, not queued yet
     int undo_steps = 0;
     std::wstring message;
@@ -185,7 +185,7 @@ struct SysCtxView {
 // Renderer geometry of the page (SettingsLayout::sysctx); filled by
 // LayoutSettingsSysCtx in settings_sysctx_layout.h.
 struct SysCtxDetailLayout {
-    D2D1_RECT_F bounds{}, head{}, switch_row{}, toggle{}, pulse_row{}, pulse_toggle{}, method{}, copy{}, folder{};
+    D2D1_RECT_F bounds{}, head{}, switch_row{}, toggle{}, menu_row{}, menu_toggle{}, method{}, copy{}, folder{};
     D2D1_RECT_F remove{};               // 删除残留项 / 取消删除
     std::array<D2D1_RECT_F, 4> kv{};    // 注册表, 文件, 发布者, 权限
 };

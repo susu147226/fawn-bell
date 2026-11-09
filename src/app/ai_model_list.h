@@ -1,8 +1,8 @@
 // ai_model_list.h - The connected service's models, as the service names them.
 //
-// GET /models lists the ids a service accepts; Pulse shows and sends them
+// GET /models lists the ids a service accepts; the app shows and sends them
 // unchanged (another service's dated ids stay whole). The list of the last
-// endpoint is cached in %LOCALAPPDATA%\Pulse\ai\models.txt. UI thread only.
+// endpoint is cached in %LOCALAPPDATA%\the app\ai\models.txt. UI thread only.
 #pragma once
 
 #include <windows.h>

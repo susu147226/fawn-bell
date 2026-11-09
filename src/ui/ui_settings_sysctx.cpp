@@ -204,19 +204,19 @@ void MainRenderer::DrawSettingsSysCtx(const WindowViewModel& vm, const D2D1_RECT
                               compositor_->SmallFormat(), theme.text_secondary);
             DrawIconText(d.switch_row.right - w - 22 * s, sm - 8 * s, 16 * s, 16 * s, L"\xE72E", L"", theme.text_secondary, 0.7f);
         }
-        if (d.pulse_row.bottom > d.pulse_row.top) {
-            divider(d.pulse_row.left, d.pulse_row.right, d.pulse_row.top);
-            const float pm = (d.pulse_row.top + d.pulse_row.bottom) * 0.5f;
-            painter_.DrawText(sysctx_text::PulseShownTitle(),
-                              D2D1::RectF(d.pulse_row.left, pm - 18 * s, d.pulse_row.right - 60 * s, pm + 1 * s),
+        if (d.menu_row.bottom > d.menu_row.top) {
+            divider(d.menu_row.left, d.menu_row.right, d.menu_row.top);
+            const float pm = (d.menu_row.top + d.menu_row.bottom) * 0.5f;
+            painter_.DrawText(sysctx_text::AppShownTitle(),
+                              D2D1::RectF(d.menu_row.left, pm - 18 * s, d.menu_row.right - 60 * s, pm + 1 * s),
                               compositor_->TextFormat(), theme.text);
-            painter_.DrawText(sysctx_text::PulseShownCaption(),
-                              D2D1::RectF(d.pulse_row.left, pm + 1 * s, d.pulse_row.right - 60 * s, pm + 18 * s),
+            painter_.DrawText(sysctx_text::AppShownCaption(),
+                              D2D1::RectF(d.menu_row.left, pm + 1 * s, d.menu_row.right - 60 * s, pm + 18 * s),
                               compositor_->SmallFormat(), theme.text_secondary);
             fluent::ControlState state{};
-            state.checked = row.pulse == 1;
-            state.hovered = hovered(kSysCtxDetailPulse);
-            painter_.DrawSwitch(d.pulse_toggle, L"", state);
+            state.checked = row.menu_state == 1;
+            state.hovered = hovered(kSysCtxDetailApp);
+            painter_.DrawSwitch(d.menu_toggle, L"", state);
         }
         painter_.FillRoundedRect(d.method, 7 * s, subtle);
         painter_.DrawWrappedCaption(row.method, D2D1::Point2F(d.method.left + 10 * s, d.method.top + 8 * s),
@@ -387,13 +387,13 @@ void MainRenderer::DrawSettingsSysCtx(const WindowViewModel& vm, const D2D1_RECT
                     right = toggle.left - 6 * s;
                 }
                 if (skip.right > skip.left) {
-                    button(skip, sysctx_text::PulseSkip(), {}, kSysCtxSlowSkipBase + static_cast<int>(i), true);
+                    button(skip, sysctx_text::AppSkip(), {}, kSysCtxSlowSkipBase + static_cast<int>(i), true);
                     right = skip.left - 6 * s;
                 }
                 if (!row.on)
                     badge_at(right, mid, row.pending ? sysctx_text::Queued() : sysctx_text::Off(),
                              row.pending ? fluent::BadgeKind::Accent : fluent::BadgeKind::Neutral);
-                if (row.pulse_skipped) badge_at(right, mid, sysctx_text::PulseSkipped(), fluent::BadgeKind::Neutral);
+                if (row.menu_skipped) badge_at(right, mid, sysctx_text::AppSkipped(), fluent::BadgeKind::Neutral);
                 const float value_w = 56 * s;
                 painter_.DrawText(sysctx_text::Ms(row.ms), D2D1::RectF(right - value_w, r.top, right, r.bottom),
                                   compositor_->SmallFormat(), theme.text_secondary, fluent::HorizontalAlignment::Right);
@@ -546,7 +546,7 @@ void MainRenderer::DrawSettingsSysCtx(const WindowViewModel& vm, const D2D1_RECT
             if (row.extended) badge(sysctx_text::Shift(), fluent::BadgeKind::Keycap);
             if (row.place != kSysCtxZoneDefault) badge(sysctx_text::Zone(row.place), fluent::BadgeKind::Neutral);
             if (row.default_hidden) badge(sysctx_text::DefaultHidden(), fluent::BadgeKind::Neutral);
-            if (row.pulse == 2) badge(sysctx_text::PulseHidden(), fluent::BadgeKind::Neutral);
+            if (row.menu_state == 2) badge(sysctx_text::AppHidden(), fluent::BadgeKind::Neutral);
             if (row.missing && !row.deleting) badge(sysctx_text::Missing(), fluent::BadgeKind::Danger);
 
             const float text_right = (std::max)(text_left + 40 * s, badge_right - 6 * s);
@@ -770,7 +770,7 @@ float MainRenderer::SysCtxPreviewItemTop(const WindowViewModel& vm, const D2D1_R
 }
 
 // Where the live drag would land if released at (x, y); kSysCtxZoneNone when
-// the pointer left the side panel (the drop is cancelled, as on the Pulse menu page).
+// the pointer left the side panel (the drop is cancelled, as on the the app menu page).
 int MainRenderer::SysCtxDropZone(const WindowViewModel& vm, const D2D1_RECT_F& rect, float x, float y) {
     const SysCtxView* v = vm.settings_sysctx.get();
     if (!v || vm.settings_page != 6) return kSysCtxZoneNone;

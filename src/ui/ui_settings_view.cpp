@@ -131,7 +131,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
                          rc.left + 42.0f * scale_, rc.top, rc.right - rc.left - 48.0f * scale_,
                          rc.bottom - rc.top);
     }
-    // 关于与诊断 stays pinned above the version line (Pulse does the same).
+    // 关于与诊断 stays pinned above the version line (应用 does the same).
     {
         const bool active = vm.settings_page == kSettingsPageAbout;
         const D2D1_RECT_F rc = lay.nav_about;
@@ -164,7 +164,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
     const float switch_w = 42.0f * scale_;
     const float switch_h = 32.0f * scale_;
 
-    // Pulse's page names; the pages Luling has not built yet say where their
+    // the app's page names; the pages Luling has not built yet say where their
     // settings live today.
     const std::wstring title = nav_label(vm.settings_page);
     ComPtr<IDWriteTextLayout> title_layout;

@@ -1,5 +1,5 @@
 // ai_panel_voice.h - 语音输入 (third batch, flow V in
-// plans/ai/Pulse_AI助手_第三批_操控Pulse与语音.html): the 语音设置 menu over
+// plans/ai/应用_AI助手_第三批_操控应用与语音.html): the 语音设置 menu over
 // the mic's chevron (.vmenu) and the 语音识别连接 card at the panel's foot
 // (.vc). AiPanelView draws them (ai_panel_voice.cpp); app/ai_assistant_voice.cpp
 // fills these views and places the card's address and key EDITs over

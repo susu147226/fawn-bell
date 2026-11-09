@@ -16,7 +16,7 @@ Local fixed disks scan automatically. UNC paths, mapped network drives and remov
 media require clicking the size label. Network/driver latency can still delay a
 worker operation; first-time enumeration of very large trees is not instantaneous.
 
-The cache retains up to 4,096 directory totals in `folder_sizes.json` in Pulse's
+The cache retains up to 4,096 directory totals in `folder_sizes.json` in the app's
 data directory. On restart, cached totals are explicitly stale until revalidated.
 Recursive local watches invalidate affected ancestors; updates are debounced by
 200 ms. Watched complete results are reused, with a 60-second fallback freshness
@@ -67,7 +67,7 @@ Targeted scanner regression: build `pulse_folder_sizes_refactor_test`, then run
 lower bounds, a 5 GiB sparse file's logical length, and a 140-level extended path).
 `--watch-only` checks watched invalidation and verified subtree reuse separately.
 
-Targeted validation: build Pulse with `PULSE_WITH_SELFTEST=ON`, set
+Targeted validation: build the app with `PULSE_WITH_SELFTEST=ON`, set
 `PULSE_SELFTEST_CASE=folder-sizes`, and run `pulse.exe --selftest`, waiting for exit.
 The test uses isolated files, exercises real recursive watches and cache reloads,
 checks view-model wiring and size-label hit tests, and saves wide/narrow screenshots

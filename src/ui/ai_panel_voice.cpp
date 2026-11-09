@@ -1,4 +1,4 @@
-// ai_panel_voice.cpp - 语音输入 (plans/ai/Pulse_AI助手_第三批_操控Pulse与语音.html,
+// ai_panel_voice.cpp - 语音输入 (plans/ai/应用_AI助手_第三批_操控应用与语音.html,
 // flow V): the mic button (.vsel), the composer while it listens (.rec,
 // .asr), the 语音设置 menu (.vmenu) and the 语音识别连接 card (.vc). Sizes
 // are the design's CSS pixels used as DIPs.

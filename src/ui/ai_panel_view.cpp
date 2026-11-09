@@ -1,4 +1,4 @@
-// ai_panel_view.cpp — Pulse 助手 panel: layout, drawing, hit testing.
+// ai_panel_view.cpp — AI 助手 panel: layout, drawing, hit testing.
 //
 // Sizes are the design's CSS pixels (plans/ai/pulse_ai_assistant_v2.html),
 // used as DIPs.
@@ -755,7 +755,7 @@ void AiPanelView::DrawModelMenu(Compositor* compositor, const AiPanelViewModel& 
     const float w = 300.0f * s;
     const float pad = 6.0f * s;
     const float head_h = 25.0f * s;
-    // Model rows: name + line (51), or the name alone for a model Pulse has
+    // Model rows: name + line (51), or the name alone for a model the app has
     // no line for (36). A long list scrolls inside 312.
     const float opt_h = 51.0f * s;
     const float opt1_h = 36.0f * s;
@@ -1032,7 +1032,7 @@ void AiPanelView::DrawStatusChip(Compositor* compositor, const Theme& theme, con
     const bool busy = chip.state == AiChipState::Busy;
     const bool waiting = chip.state == AiChipState::Waiting;
     const bool done = chip.state == AiChipState::Done;
-    // A failed turn (plans/ai/Pulse_AI助手_错误与快捷键.html .chip.e / .chip.w).
+    // A failed turn (plans/ai/应用_AI助手_错误与快捷键.html .chip.e / .chip.w).
     const bool failed = chip.state == AiChipState::Error;
     const bool unfinished = chip.state == AiChipState::Warn;
     const bool anim = motion::SystemAnimationsEnabled();

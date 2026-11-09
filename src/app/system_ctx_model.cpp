@@ -38,7 +38,7 @@ bool Toggleable(const Item& item) {
            !item.is_protected && !item.trusted_installer && item.root != Root::File;
 }
 
-// 删除残留项: the program behind the entry is gone and its key is one Pulse
+// 删除残留项: the program behind the entry is gone and its key is one 应用
 // may write (the switch's own rules).
 bool Deletable(const Item& item) { return item.missing && Toggleable(item); }
 
@@ -482,9 +482,9 @@ std::wstring SceneKeys(const sysctx::Scene& scene) {
     return out;
 }
 
-// The key ContextMenuPrefs files the entry under in Pulse's own menu: shell
-// extensions by CLSID, static verbs by their menu text (as Pulse sees it).
-std::wstring PulseKey(const Item& item) {
+// The key ContextMenuPrefs files the entry under in the app's own menu: shell
+// extensions by CLSID, static verbs by their menu text (as the app sees it).
+std::wstring MenuCatalogKey(const Item& item) {
     if (item.kind == Kind::ShellEx) return item.clsid.empty() ? std::wstring() : ipc::HandlerCatalogKey(item.clsid);
     if (item.kind == Kind::Verb && !item.display.empty()) return ipc::CatalogKey(item.display, false);
     return {};
@@ -693,7 +693,7 @@ bool SystemCtxModel::RunElevated(const std::vector<Op>& ops, std::vector<OpResul
     }
     wchar_t temp[MAX_PATH];
     if (!GetTempPathW(MAX_PATH, temp)) return false;
-    const std::wstring stem = std::wstring(temp) + L"pulse_sysctx_" + std::to_wstring(GetCurrentProcessId()) + L"_" +
+    const std::wstring stem = std::wstring(temp) + L"luling_sysctx_" + std::to_wstring(GetCurrentProcessId()) + L"_" +
                               std::to_wstring(GetTickCount64());
     const std::wstring batch = stem + L".txt", result = stem + L".result";
     const std::string bytes = Utf8(sysctx::SerializeBatch(ops));
@@ -866,8 +866,8 @@ std::shared_ptr<const ui::SysCtxView> SystemCtxModel::View() {
         ++view->pending;
         if (op.root == Root::Machine) ++view->pending_admin;
     }
-    view->pending_pulse = static_cast<int>(pending_pulse_.size() + pending_skip_.size());
-    view->pending += view->pending_pulse;
+    view->pending_menu = static_cast<int>(pending_menu_.size() + pending_skip_.size());
+    view->pending += view->pending_menu;
     auto pending_op = [&](const Item& item) -> const Op* {
         const auto it = pending_.find(OpKey(item.root, item.kind, item.key_path));
         return it == pending_.end() ? nullptr : &it->second;
@@ -1038,13 +1038,13 @@ std::shared_ptr<const ui::SysCtxView> SystemCtxModel::View() {
             row.third_party = third;
             row.selected = key == selected_;
             row.place = zone;
-            if (const std::wstring pulse_key = PulseKey(item); !pulse_key.empty()) {
-                const auto queued = pending_pulse_.find(pulse_key);
-                const bool hidden = queued != pending_pulse_.end()
+            if (const std::wstring menu_key = MenuCatalogKey(item); !menu_key.empty()) {
+                const auto queued = pending_menu_.find(menu_key);
+                const bool hidden = queued != pending_menu_.end()
                                         ? queued->second
-                                        : std::binary_search(pulse_hidden_.begin(), pulse_hidden_.end(), pulse_key);
-                row.pulse = hidden ? 2 : 1;
-                if (queued != pending_pulse_.end()) row.pending = true;
+                                        : std::binary_search(menu_hidden_.begin(), menu_hidden_.end(), menu_key);
+                row.menu_state = hidden ? 2 : 1;
+                if (queued != pending_menu_.end()) row.pending = true;
             }
             row.kind_label = std::wstring(KindLabel(item.kind)) + L" · " +
                              (item.root == Root::File ? l10n::Pick(L"当前用户的文件夹", L"your SendTo folder")
@@ -1056,7 +1056,7 @@ std::shared_ptr<const ui::SysCtxView> SystemCtxModel::View() {
             row.publisher = e.publisher;
             row.method = MethodText(item, Toggleable(item));
             if (handler) {
-                // What the extension adds, when Pulse's own menu has seen it.
+                // What the extension adds, when the app's own menu has seen it.
                 const auto labels = labels_.find(UpperClsid(item.clsid));
                 if (labels != labels_.end() && !labels->second.empty()) {
                     std::wstring added;
@@ -1073,7 +1073,7 @@ std::shared_ptr<const ui::SysCtxView> SystemCtxModel::View() {
         }
     }
 
-    // 概览: ContextMenuManager marks, Pulse's handler timings, this session's changes.
+    // 概览: ContextMenuManager marks, 应用's handler timings, this session's changes.
     auto entry_title = [this](const Entry& e) { return TitleLocked(e); };
     ui::SysCtxOverview& ov = view->overview;
     ov.shown = overview_;
@@ -1110,7 +1110,7 @@ std::shared_ptr<const ui::SysCtxView> SystemCtxModel::View() {
         r.row.ms = timing.ms;
         const bool skip_queued = std::find(pending_skip_.begin(), pending_skip_.end(), UpperClsid(timing.clsid)) !=
                                  pending_skip_.end();
-        r.row.pulse_skipped = timing.pulse_skipped || skip_queued;
+        r.row.menu_skipped = timing.menu_skipped || skip_queued;
         for (size_t sc = 0; sc < entries_.size() && r.entry.first < 0; ++sc) {
             for (size_t i = 0; i < entries_[sc].size(); ++i) {
                 const Entry& e = entries_[sc][i];
@@ -1367,36 +1367,36 @@ void SystemCtxModel::QueueSlowSkip(int index) {
     dirty_ = true;
 }
 
-void SystemCtxModel::TogglePulseRow(int row) {
+void SystemCtxModel::ToggleAppRow(int row) {
     std::lock_guard lock(mutex_);
     const Entry* e = RowEntryLocked(row);
     if (!e) return;
-    const std::wstring key = PulseKey(e->item);
+    const std::wstring key = MenuCatalogKey(e->item);
     if (key.empty()) return;
     // Flipped back before 应用: nothing left to do.
-    if (pending_pulse_.erase(key) == 0)
-        pending_pulse_[key] = !std::binary_search(pulse_hidden_.begin(), pulse_hidden_.end(), key);
+    if (pending_menu_.erase(key) == 0)
+        pending_menu_[key] = !std::binary_search(menu_hidden_.begin(), menu_hidden_.end(), key);
     message_.clear();
     dirty_ = true;
 }
 
-bool SystemCtxModel::RowPulseHidden(int row) {
+bool SystemCtxModel::RowAppHidden(int row) {
     std::lock_guard lock(mutex_);
     const Entry* e = RowEntryLocked(row);
     if (!e) return false;
-    const std::wstring key = PulseKey(e->item);
-    const auto queued = pending_pulse_.find(key);
-    if (queued != pending_pulse_.end()) return queued->second;
-    return std::binary_search(pulse_hidden_.begin(), pulse_hidden_.end(), key);
+    const std::wstring key = MenuCatalogKey(e->item);
+    const auto queued = pending_menu_.find(key);
+    if (queued != pending_menu_.end()) return queued->second;
+    return std::binary_search(menu_hidden_.begin(), menu_hidden_.end(), key);
 }
 
-SystemCtxModel::PulseChanges SystemCtxModel::TakePulseChanges() {
+SystemCtxModel::AppMenuChanges SystemCtxModel::TakeAppMenuChanges() {
     std::lock_guard lock(mutex_);
-    PulseChanges out;
+    AppMenuChanges out;
     if (state_ != ui::SysCtxView::State::Ready) return out;
-    for (auto& [key, hidden] : pending_pulse_) out.hidden.emplace_back(key, hidden);
+    for (auto& [key, hidden] : pending_menu_) out.hidden.emplace_back(key, hidden);
     out.skipped = std::move(pending_skip_);
-    pending_pulse_.clear();
+    pending_menu_.clear();
     pending_skip_.clear();
     dirty_ = true;
     return out;
@@ -1412,7 +1412,7 @@ void SystemCtxModel::SetHandlerTimings(std::vector<ui::SysCtxHandlerTiming> timi
     std::lock_guard lock(mutex_);
     if (timings.size() == timings_.size() &&
         std::equal(timings.begin(), timings.end(), timings_.begin(), [](const auto& a, const auto& b) {
-            return a.ms == b.ms && a.pulse_skipped == b.pulse_skipped && a.clsid == b.clsid;
+            return a.ms == b.ms && a.menu_skipped == b.menu_skipped && a.clsid == b.clsid;
         }))
         return;
     timings_ = std::move(timings);
@@ -1432,7 +1432,7 @@ void SystemCtxModel::SetHandlerLabels(std::map<std::wstring, std::vector<std::ws
         }
     }
     std::lock_guard lock(mutex_);
-    // Merged, never dropped: a registry change empties Pulse's menu caches
+    // Merged, never dropped: a registry change empties the app's menu caches
     // until the next right-click, and the rows should keep their names.
     bool changed = false;
     for (auto& [clsid, rows] : upper) {
@@ -1453,7 +1453,7 @@ std::wstring SystemCtxModel::TitleLocked(const Entry& e) const {
         if (_wcsicmp(title.c_str(), item.key_name.c_str()) == 0)
             if (const wchar_t* known = LookUpName(kVerbNames, std::size(kVerbNames), item.key_name)) title = known;
     } else if (item.kind == Kind::ShellEx || item.kind == Kind::DragDrop) {
-        // What it adds to the menu, as Pulse's own menu saw it; else Windows'
+        // What it adds to the menu, as the app's own menu saw it; else Windows'
         // known handlers; else the program it belongs to. The CLSID's own
         // name ("Bandizip shell menu dll") is the last resort.
         const auto labels = labels_.find(UpperClsid(item.clsid));
@@ -1487,10 +1487,10 @@ std::wstring SystemCtxModel::TitleLocked(const Entry& e) const {
     return StripAccessKey(std::move(title));
 }
 
-void SystemCtxModel::SetPulseHidden(std::vector<std::wstring> keys) {
+void SystemCtxModel::SetAppHidden(std::vector<std::wstring> keys) {
     std::lock_guard lock(mutex_);
-    if (keys == pulse_hidden_) return;
-    pulse_hidden_ = std::move(keys);
+    if (keys == menu_hidden_) return;
+    menu_hidden_ = std::move(keys);
     dirty_ = true;
 }
 
@@ -1539,7 +1539,7 @@ void SystemCtxModel::ApplyPending() {
 void SystemCtxModel::DiscardPending() {
     std::lock_guard lock(mutex_);
     pending_.clear();
-    pending_pulse_.clear();
+    pending_menu_.clear();
     pending_skip_.clear();
     dirty_ = true;
 }
@@ -1585,10 +1585,10 @@ std::wstring SystemCtxModel::RowFile(int row) {
     return e->item.file;
 }
 
-std::wstring SystemCtxModel::RowPulseKey(int row) {
+std::wstring SystemCtxModel::RowMenuCatalogKey(int row) {
     std::lock_guard lock(mutex_);
     const Entry* e = RowEntryLocked(row);
-    return e ? PulseKey(e->item) : std::wstring();
+    return e ? MenuCatalogKey(e->item) : std::wstring();
 }
 
 } // namespace luling::app

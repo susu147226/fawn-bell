@@ -1,6 +1,6 @@
 # 系统预览处理器：拖动窗口时的预览跟随
 
-详情面板预览 `.xlsx` / `.docx` / `.pdf` 这类文件时，真正画图的是系统预览处理器：它被承载在 `pulse.exe` 的 STA 里，画面放进一个 TOPMOST 的 overlay 窗口（`PulsePreviewHandlerHost`）。拖动窗口时这个 overlay 曾经明显"在后追"——窗口已经移开，预览还停在原处，过一会儿才跳过去。
+详情面板预览 `.xlsx` / `.docx` / `.pdf` 这类文件时，真正画图的是系统预览处理器：它被承载在 `pulse.exe` 的 STA 里，画面放进一个 TOPMOST 的 overlay 窗口（`应用PreviewHandlerHost`）。拖动窗口时这个 overlay 曾经明显"在后追"——窗口已经移开，预览还停在原处，过一会儿才跳过去。
 
 ## 根因
 

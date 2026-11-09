@@ -1904,7 +1904,7 @@ struct SettingsNavItem {
     int page;
     int group;
 };
-// Pulse 1.0.58's settings order: 个性化 / 浏览 / 系统 / 功能 / 工具, with 关于与诊断
+// 应用 1.0.58's settings order: 个性化 / 浏览 / 系统 / 功能 / 工具, with 关于与诊断
 // pinned above the version line.
 inline constexpr SettingsNavItem kSettingsNav[] = {
     {0, 0},   // 外观
@@ -2323,7 +2323,7 @@ SettingsLayout MakeSettingsLayout(const WindowViewModel& vm, const D2D1_RECT_F& 
         rect.right - rect.left < 1000 * scale ? 200.0f : 220.0f) * scale;
     l.nav = D2D1::RectF(l.body.left, l.body.top, l.body.left + nav_width, l.body.bottom);
     l.content = D2D1::RectF(l.nav.right, l.body.top, l.body.right, l.body.bottom);
-    // Rows keep Pulse's size; a short window hides the ones that would run
+    // Rows keep the app's size; a short window hides the ones that would run
     // into the pinned 关于 row instead of squeezing them (overflow is clipped).
     const float nav_top = l.nav.top + 14 * scale;
     const float caption_h = 24 * scale, row_h = 38 * scale, row_step = 40 * scale;

@@ -8,7 +8,7 @@ namespace luling::app::ai {
 namespace {
 
 const std::vector<ProviderInfo> kProviders = {
-    // The grid, two rows of five (Pulse's order).
+    // The grid, two rows of five (the app's order).
     {"deepseek", L"DeepSeek", L"深度求索", L"https://api.deepseek.com",
      L"https://platform.deepseek.com/api_keys", L"", 0x4D6BFE, false, true},
     {"qwen", L"通义千问", L"阿里云百炼", L"https://dashscope.aliyuncs.com/compatible-mode/v1",

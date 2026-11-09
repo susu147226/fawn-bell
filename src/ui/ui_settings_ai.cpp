@@ -1,4 +1,4 @@
-// ui_settings_ai.cpp - Settings > AI 助手 (page 12). Ported from Pulse 1.0.58
+// ui_settings_ai.cpp - Settings > AI 助手 (page 12). Ported from 应用 1.0.58
 // ui/ui_settings_ai.cpp: the MCP switch, the action groups, the apps that
 // connected, the always-allow rules and this run's calls.
 #include "../common/windows_compat.h"

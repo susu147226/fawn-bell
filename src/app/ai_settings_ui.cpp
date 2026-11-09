@@ -30,7 +30,7 @@ struct GroupDef {
     ui::AiGroupTag tag;
 };
 
-// Luling's tools, one group each (Pulse's five action groups do not exist
+// Luling's tools, one group each (the app's five action groups do not exist
 // here yet; the tool set is what the AI apps can use).
 constexpr GroupDef kGroups[] = {
     {"view", L"\xE721", L"查看", L"get_state · list_folder",

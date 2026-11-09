@@ -33,9 +33,9 @@ not a general rendering performance improvement or a guarantee of identical spee
 - Final `render_smoke`, `coretext_layout`, `color_glyph`, `glyph_provider`: 4/4 pass.
 - Assertion-enabled `/MD` ABI consumer against final `/MT` DLL: pass.
 - All 26 exported API names preserved; matching import library synchronized.
-- Pulse relinked successfully against the updated import library.
+- the app relinked successfully against the updated import library.
 - Installer runtime scan: zero external MSVC runtime DLL dependencies.
-- Optimized DLL and import library synchronized to both Pulse's bundled SDK and
+- Optimized DLL and import library synchronized to both the app's bundled SDK and
   the source project's `out/sdk/Release`; SHA-256 manifests regenerated.
 - Existing Debug SDK and remote CI SDK pin are unchanged. No installed copy was
   replaced, and Windows 8.1 was not tested.

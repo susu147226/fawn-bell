@@ -191,7 +191,7 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
     create.bounds=layout.create; create.text=compact ? std::wstring_view{} : std::wstring_view{label};
     create.glyph=NewButtonGlyph(); create.kind=fluent::ButtonKind::Primary;
     create.drop_down=true;
-    // This PC, a server's shares, Pulse views: nothing can be created there.
+    // This PC, a server's shares, the app views: nothing can be created there.
     create.state.enabled=vm.pane.can_create;
     painter_.DrawButton(create);
     const bool newMainHot=vm.pane.can_create && IsHovered(vm,HitTestResult::NewButton);

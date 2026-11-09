@@ -3128,7 +3128,7 @@ std::wstring DriveDisplay(const std::wstring& root) {
     return root.size() >= 2 ? root.substr(0, 2) : root;
 }
 
-// The selected Pulse network pins (Network view).
+// The selected the app network pins (Network view).
 std::vector<std::wstring> SelectedNetworkPins(AppState& s) {
     std::vector<std::wstring> pins;
     const app::Tab* tab = ActiveTab(s);
@@ -3148,7 +3148,7 @@ std::wstring SelectedShare(AppState& s) {
     return app::IsUncShareRoot(path) ? ClipboardPath(path) : std::wstring{};
 }
 
-// 在终端打开 in This PC / a server / a Pulse view opens the selected folder;
+// 在终端打开 in This PC / a server / a 应用 view opens the selected folder;
 // in a real folder it opens that folder, as before.
 std::wstring TerminalTarget(AppState& s) {
     const app::Tab* tab = ActiveTab(s);
@@ -3309,7 +3309,7 @@ ui::FluentMenuItem CustomizeToolbarItem() {
 // refresh it in the background (installs / the system page show up next time).
 
 std::vector<ui::SelectionChipAction> SelectionChipActions(AppState& s) {
-    // Rebuilt only when the selection or the Pulse menu settings change: the
+    // Rebuilt only when the selection or the the app menu settings change: the
     // item menu reads tag states and Quick Access targets of the selection.
     struct Cache {
         const AppState* state = nullptr;
@@ -3342,7 +3342,7 @@ std::vector<ui::SelectionChipAction> SelectionChipActions(AppState& s) {
     cache.order = std::move(order);
     cache.actions.clear();
     // The chip is its own surface: rows hidden from the right-click menu
-    // (Settings > Pulse menu) still belong here, so it reads the full item menu.
+    // (Settings > the app menu) still belong here, so it reads the full item menu.
     auto items = BuildFinderItemMenu(s, false, L"");
     for (const auto& item : items) {
         if (!item.enabled || item.command == app::CmdNone || !item.children.empty() ||

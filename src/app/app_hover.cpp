@@ -56,4 +56,4 @@ bool RefreshScrolledHover(AppState& s, const HoverPointerApi& api) {
         static_cast<float>(point.y));
     return UpdatePointerHover(s, hit, point);
 }
-} // namespace pulse
+} // namespace luling

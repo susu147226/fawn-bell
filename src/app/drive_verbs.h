@@ -1,4 +1,4 @@
-// drive_verbs.h — File Explorer's drive verbs that Pulse runs itself:
+// drive_verbs.h — File Explorer's drive verbs that the app runs itself:
 // 弹出 (eject), 断开连接 (disconnect a mapped drive), 映射网络驱动器.
 // They come from the This PC folder's own menu, not the registry, so the
 // merged Explorer verbs never carry them.

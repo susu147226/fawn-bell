@@ -300,31 +300,31 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
 }
 }
 namespace luling {
-// 系统右键菜单 "只在 Pulse 隐藏": ContextMenuPrefs only, Windows is unchanged.
+// 系统右键菜单 "只在 应用隐藏": ContextMenuPrefs only, Windows is unchanged.
 // Queued with the registry switches; SysCtxApply saves it.
-void SysCtxTogglePulse(AppState& s,int row) {
-    s.settings.SystemCtx().TogglePulseRow(row);
+void SysCtxToggleApp(AppState& s,int row) {
+    s.settings.SystemCtx().ToggleAppRow(row);
     InvalidateRect(s.hwnd,nullptr,FALSE);
 }
-// 应用更改: Pulse's own switches go to ContextMenuPrefs (the same calls as the
-// Pulse menu's rows, SettingsController::ToggleUi), the registry ones to the job.
+// 应用更改: 应用's own switches go to ContextMenuPrefs (the same calls as the
+// the app menu's rows, SettingsController::ToggleUi), the registry ones to the job.
 void SysCtxApply(AppState& s) {
     auto& model=s.settings.SystemCtx();
-    const auto pulse=model.TakePulseChanges();
-    if(!pulse.empty()) {
-        for(const auto& [key,hidden]:pulse.hidden) s.ctxMenuPrefs.SetItemEnabled(key,!hidden);
-        for(const auto& clsid:pulse.skipped) s.ctxMenuPrefs.SetComDisabled(ipc::HandlerCatalogKey(clsid),true);
+    const auto pending=model.TakeAppMenuChanges();
+    if(!pending.empty()) {
+        for(const auto& [key,hidden]:pending.hidden) s.ctxMenuPrefs.SetItemEnabled(key,!hidden);
+        for(const auto& clsid:pending.skipped) s.ctxMenuPrefs.SetComDisabled(ipc::HandlerCatalogKey(clsid),true);
         s.ctxMenuPrefs.Save();
     }
     model.ApplyPending();
 }
 // 系统右键菜单 row "…": copy the registry path, open the program's folder,
-// hide it in Pulse only, delete a leftover (queued like the switches).
+// hide it in the app only, delete a leftover (queued like the switches).
 // row -1: the selected entry (details panel).
 void SysCtxRowMenu(AppState& s,int row) {
     auto& model=s.settings.SystemCtx();
     const std::wstring key=model.RowRegistryPath(row),file=model.RowFile(row);
-    const std::wstring pulse_key=model.RowPulseKey(row);
+    const std::wstring menu_key=model.RowMenuCatalogKey(row);
     std::vector<ui::FluentMenuItem> items;
     auto add=[&](int command,const wchar_t* text,bool enabled) {
         ui::FluentMenuItem item;item.command=command;item.text=text;item.enabled=enabled;items.push_back(std::move(item));
@@ -334,10 +334,10 @@ void SysCtxRowMenu(AppState& s,int row) {
     add(1,l10n::Pick(L"复制注册表路径",L"Copy registry path"),!key.empty());
     add(2,l10n::Pick(L"复制程序路径",L"Copy program path"),!file.empty());
     add(3,l10n::Pick(L"在新标签页打开所在文件夹",L"Open its folder in a new tab"),!folder.empty());
-    if(!pulse_key.empty()) {
+    if(!menu_key.empty()) {
         items.back().separator_after=true;
         add(4,l10n::Pick(L"只在鹿铃右键菜单中隐藏",L"Hide in Luling's menu only"),true);
-        items.back().checked=model.RowPulseHidden(row);
+        items.back().checked=model.RowAppHidden(row);
     }
     if(model.RowDeletable(row)) {
         items.back().separator_after=true;
@@ -349,7 +349,7 @@ void SysCtxRowMenu(AppState& s,int row) {
     if(command==1) app::CopyTextToClipboard(s.hwnd,key);
     else if(command==2) app::CopyTextToClipboard(s.hwnd,file);
     else if(command==3 && GetFileAttributesW(folder.c_str())!=INVALID_FILE_ATTRIBUTES) NewTab(s,folder);
-    else if(command==4) SysCtxTogglePulse(s,row);
+    else if(command==4) SysCtxToggleApp(s,row);
     else if(command==5) {model.DeleteRow(row);InvalidateRect(s.hwnd,nullptr,FALSE);}
 }
 void SysCtxOpenFolder(AppState& s,const std::wstring& file) {
@@ -370,7 +370,7 @@ void SysCtxRestoreAll(AppState& s) {
 void SysCtxAction(AppState& s,int index) {
     auto& model=s.settings.SystemCtx();
     if(index==ui::kSysCtxLocalLayer) {OpenSettingsTab(s,2);return;}
-    if(index==ui::kSysCtxDetailPulse) {SysCtxTogglePulse(s,-1);return;}
+    if(index==ui::kSysCtxDetailApp) {SysCtxToggleApp(s,-1);return;}
     if(index==ui::kSysCtxLog) {
         const std::wstring dir=model.DataDirectory();
         if(!dir.empty() && SHCreateDirectoryExW(nullptr,dir.c_str(),nullptr)<=ERROR_ALREADY_EXISTS) NewTab(s,dir);
@@ -383,7 +383,7 @@ void SysCtxAction(AppState& s,int index) {
         return;
     }
     if(index>=ui::kSysCtxSlowSkipBase) {
-        // 概览 buttons. Pulse 跳过 only stops Pulse loading the handler; Windows is unchanged.
+        // 概览 buttons. 跳过 only stops 应用 loading the handler; Windows is unchanged.
         if(index>=ui::kSysCtxMarkRestoreBase) model.RestoreMarkRow(index-ui::kSysCtxMarkRestoreBase);
         else if(index>=ui::kSysCtxSlowToggleBase) model.ToggleSlowRow(index-ui::kSysCtxSlowToggleBase);
         else model.QueueSlowSkip(index-ui::kSysCtxSlowSkipBase);  // saved by 应用更改

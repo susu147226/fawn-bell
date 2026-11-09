@@ -1,4 +1,4 @@
-// ai_panel_view.h — The Pulse 助手 panel (plans/ai/pulse_ai_assistant_v2.html).
+// ai_panel_view.h — The AI 助手 panel (plans/ai/pulse_ai_assistant_v2.html).
 //
 // Drawn in the main window by MainRenderer. Docked (the default) it is a
 // column right of the sidebar rail and the toolbar and panes move over;
@@ -84,7 +84,7 @@ enum class AiPanelPart : uint8_t {
     DupToggle,         // 重复文件 card header
     DupFile,           // index = block index * 64 + group * 8 + file (that copy stays)
     DupRule,           // 改规则 (block index)
-    DupMore,           // 在 Pulse 中查看全部 (block index)
+    DupMore,           // 在应用中查看全部 (block index)
     // 管理连接 card (the model menu unfolded).
     ConnCard,       // the card's background (swallows the click)
     ConnBack,
@@ -149,7 +149,7 @@ enum class AiBlockKind : uint8_t {
     Steps,      // tool timeline (card); collapses to one summary line
     Plan,       // 整理方案 card with groups
     Confirm,    // amber confirmation, decided → one quiet line
-    Result,     // 已整理 … with folder tags, 撤销 / 在 Pulse 中查看
+    Result,     // 已整理 … with folder tags, 撤销 / 在应用中查看
     Acts,       // copy / retry / thumb + meta under a finished answer
     Working,    // ✦ shimmer line while waiting for the next thing
     Note,       // centred line between rules (你撤销了这次整理)
@@ -423,7 +423,7 @@ struct AiDupView {
     std::wstring keep_tag, extra_tag; // 保留 / 副本
     std::vector<AiDupGroupView> groups;
     std::wstring more;                // 还有 37 组，都按同样的规则
-    std::wstring more_link;           // 在 Pulse 中查看全部
+    std::wstring more_link;           // 在应用中查看全部
     // .cl-sum: text runs, numbers in the 15/600 face.
     std::vector<std::pair<std::wstring, bool>> sum;
     uint64_t sum_bump_ms = 0;
@@ -464,7 +464,7 @@ struct AiBlockView {
     std::wstring detail;
     std::vector<AiErrButton> actions;
     uint64_t gone_ms = 0;             // Error / Cut: fading out (retry)
-    // Query: title 搜索条件, meta "Pulse 索引 · 0.02 秒", tags = locations,
+    // Query: title 搜索条件, meta "搜索索引 · 0.02 秒", tags = locations,
     // label = "个文件 · 4.2 MB" after the count, hint = 本机重新搜索… (shown
     // from re_ms), add = 条件. Follow: label 接着做 and the chips.
     std::vector<AiQueryChipView> chips;
@@ -476,7 +476,7 @@ struct AiBlockView {
     // Confirm: a link button on the left (在批量重命名中调整…) and the line
     // that opens under the card while it is hovered.
     std::wstring extra, extra_tip;
-    // Result: the icon of the second button (在 Pulse 中查看 / 在批量重命名中打开).
+    // Result: the icon of the second button (在应用中查看 / 在批量重命名中打开).
     AiIcon accept_icon = AiIcon::Open;
     // Rename: label 重命名方案, meta 8 个文件, rule_label 规则 + rule, hint
     // 扩展名不变, rows (folded: the sample ones, then `more`; open: all,
@@ -495,7 +495,7 @@ struct AiBlockView {
     std::vector<AiResultLine> lines;
     std::wstring file, file_note;
     AiIcon hint_icon = AiIcon::Eye;
-    // Second batch, flow D. Disk: label 本地磁盘 (C:), meta Pulse 索引 · 0.4
+    // Second batch, flow D. Disk: label 本地磁盘 (C:), meta 搜索索引 · 0.4
     // 秒. Clean: label 清理建议, meta 只读分析…. Confirm: `tag` (删除类, red)
     // after the title, `hint2` a second hint (ok check, or amber warn when
     // `hint2_warn`), `danger` the red card, `accept_off` a disabled primary.
@@ -591,7 +591,7 @@ float AiStatusChipWidth(float label_w, float text_w, bool words, bool progress, 
 // assistant finished (or needs you); 撤销 and 打开对话.
 struct AiPeekView {
     bool on = false;
-    std::wstring title;               // Pulse 助手 · 完成
+    std::wstring title;               // AI 助手 · 完成
     std::wstring text;                // 已把 12 个文件整理到 5 个新文件夹：…
     std::wstring undo;                // 撤销 (empty: no button)
     std::wstring open;                // 打开对话
@@ -605,7 +605,7 @@ struct AiPanelViewModel {
     bool dark = false;
     bool high_contrast = false;
     // Header.
-    std::wstring title;               // Pulse 助手
+    std::wstring title;               // AI 助手
     // Empty state.
     bool empty = true;
     std::wstring greeting;            // 早上好，想整理点什么？

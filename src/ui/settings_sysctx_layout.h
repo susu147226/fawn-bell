@@ -12,7 +12,7 @@
 namespace sysctx_text {
 inline const wchar_t* Title() { return l10n::Pick(L"系统右键菜单", L"System context menu"); }
 // One sidebar entry for both context-menu pages; the layer cards under the intro
-// switch between Pulse's own menu (page 2) and the system handlers (page 6).
+// switch between the app's own menu (page 2) and the system handlers (page 6).
 inline const wchar_t* PageTitle() { return l10n::Pick(L"系统右键菜单", L"System context menu"); }
 inline const wchar_t* Intro() { return l10n::Pick(
     L"改动作用于资源管理器和所有应用的右键菜单。开关先记下，点“应用更改”才写入注册表；写入前自动导出 .reg 备份，随时可以撤销或全部还原。",
@@ -56,7 +56,7 @@ inline std::wstring PendingTitle(int n) {
     return l10n::Pick(L"", L"") + std::to_wstring(n) + l10n::Pick(L" 项更改待应用", L" change(s) waiting");
 }
 inline std::wstring PendingCaption(const SysCtxView& v) {
-    if (v.pending_pulse == v.pending)  // nothing for the registry: no backup, no admin
+    if (v.pending_menu == v.pending)  // nothing for the registry: no backup, no admin
         return l10n::Pick(L"只改鹿铃自己的右键菜单，Windows 不变", L"Luling's own menu only; Windows is unchanged");
     if (v.pending_admin > 0)
         return l10n::Pick(L"其中 ", L"") + std::to_wstring(v.pending_admin) +
@@ -104,9 +104,9 @@ inline std::wstring Permission(const SysCtxRowView& r) {
 }
 inline const wchar_t* EnabledTitle() { return l10n::Pick(L"在系统里启用", L"Enabled in Windows"); }
 inline const wchar_t* EnabledCaption() { return l10n::Pick(L"资源管理器和所有应用", L"File Explorer and every app"); }
-inline const wchar_t* PulseShownTitle() { return l10n::Pick(L"在鹿铃右键菜单中显示", L"Shown in Luling's menu"); }
-inline const wchar_t* PulseShownCaption() { return l10n::Pick(L"只影响鹿铃，不改动 Windows", L"Luling only; Windows is unchanged"); }
-inline const wchar_t* PulseHidden() { return l10n::Pick(L"鹿铃中隐藏", L"Hidden in Luling"); }
+inline const wchar_t* AppShownTitle() { return l10n::Pick(L"在鹿铃右键菜单中显示", L"Shown in Luling's menu"); }
+inline const wchar_t* AppShownCaption() { return l10n::Pick(L"只影响鹿铃，不改动 Windows", L"Luling only; Windows is unchanged"); }
+inline const wchar_t* AppHidden() { return l10n::Pick(L"鹿铃中隐藏", L"Hidden in Luling"); }
 inline const wchar_t* CopyKey() { return l10n::Pick(L"复制注册表路径", L"Copy registry path"); }
 inline const wchar_t* OpenFolder() { return l10n::Pick(L"打开所在文件夹", L"Open folder"); }
 inline const wchar_t* NoSelection() { return l10n::Pick(L"在左侧列表里点一个条目查看详情。",
@@ -167,8 +167,8 @@ inline const wchar_t* SlowEmpty() {
     return l10n::Pick(L"还没有数据。在鹿铃里右键几次文件或文件夹，这里就会显示各扩展的耗时。",
                       L"No data yet. Right-click a few files or folders in Luling and the times show up here.");
 }
-inline const wchar_t* PulseSkip() { return l10n::Pick(L"鹿铃跳过", L"Skip in Luling"); }
-inline const wchar_t* PulseSkipped() { return l10n::Pick(L"鹿铃已跳过", L"Skipped in Luling"); }
+inline const wchar_t* AppSkip() { return l10n::Pick(L"鹿铃跳过", L"Skip in Luling"); }
+inline const wchar_t* AppSkipped() { return l10n::Pick(L"鹿铃已跳过", L"Skipped in Luling"); }
 inline const wchar_t* TurnOff() { return l10n::Pick(L"禁用", L"Turn off"); }
 inline const wchar_t* Off() { return l10n::Pick(L"已禁用", L"Off"); }
 inline const wchar_t* MarksTitle() { return l10n::Pick(L"来自其他工具的禁用标记", L"Marks left by other tools"); }
@@ -256,12 +256,12 @@ inline float LayoutSysCtxDetail(SysCtxDetailLayout& d, const SysCtxRowView& row,
     const float method_h = SysCtxWrappedHeight(painter, row.method, right - left - 20 * s, s) + 16 * s;
     d.method = D2D1::RectF(left, y, right, y + method_h);
     y = d.method.bottom + 4 * s;
-    if (row.pulse != 0) {
-        // 只在 Pulse 隐藏: ContextMenuPrefs, whatever Windows does with the entry.
-        d.pulse_row = D2D1::RectF(left, y, right, y + 44 * s);
-        const float mid = (d.pulse_row.top + d.pulse_row.bottom) * 0.5f;
-        d.pulse_toggle = D2D1::RectF(right - 44 * s, mid - 11 * s, right, mid + 11 * s);
-        y = d.pulse_row.bottom;
+    if (row.menu_state != 0) {
+        // 只在 应用隐藏: ContextMenuPrefs, whatever Windows does with the entry.
+        d.menu_row = D2D1::RectF(left, y, right, y + 44 * s);
+        const float mid = (d.menu_row.top + d.menu_row.bottom) * 0.5f;
+        d.menu_toggle = D2D1::RectF(right - 44 * s, mid - 11 * s, right, mid + 11 * s);
+        y = d.menu_row.bottom;
     }
     y += 6 * s;
     const float bh = 28 * s;
@@ -289,7 +289,7 @@ inline float LayoutSysCtxDetail(SysCtxDetailLayout& d, const SysCtxRowView& row,
 
 // Live preview geometry. With a live drag every landing zone the item may
 // take is tried and the one whose slot is nearest the floating item wins; the
-// other items are laid out as that drop would leave them (as on the Pulse
+// other items are laid out as that drop would leave them (as on the the app
 // menu page). `with_drag` false: the resting layout (hit testing, grab offset).
 inline SysCtxPreviewLayout LayoutSysCtxPreview(const SysCtxView& v, const D2D1_RECT_F& body, float s,
                                                bool with_drag = true) {
@@ -482,7 +482,7 @@ inline float LayoutSysCtxOverview(SysCtxOverviewLayout& ov, const SysCtxView& v,
             cy = ov.slow_empty.bottom;
         }
         const float rh = 42 * s, bh = 26 * s;
-        const float skip_w = button_w(sysctx_text::PulseSkip()), off_w = button_w(sysctx_text::TurnOff());
+        const float skip_w = button_w(sysctx_text::AppSkip()), off_w = button_w(sysctx_text::TurnOff());
         for (const auto& row : data.slow_rows) {
             const auto r = D2D1::RectF(left + pad, cy, right - pad, cy + rh);
             const float mid = (r.top + r.bottom) * 0.5f;
@@ -492,7 +492,7 @@ inline float LayoutSysCtxOverview(SysCtxOverviewLayout& ov, const SysCtxView& v,
                 toggle = D2D1::RectF(bx - off_w, mid - bh * 0.5f, bx, mid + bh * 0.5f);
                 bx -= off_w + 6 * s;
             }
-            if (row.on && !row.pulse_skipped) skip = D2D1::RectF(bx - skip_w, mid - bh * 0.5f, bx, mid + bh * 0.5f);
+            if (row.on && !row.menu_skipped) skip = D2D1::RectF(bx - skip_w, mid - bh * 0.5f, bx, mid + bh * 0.5f);
             ov.slow_rows.push_back(r);
             ov.slow_toggle.push_back(toggle);
             ov.slow_skip.push_back(skip);
@@ -766,7 +766,7 @@ inline int HitTestSettingsSysCtx(const SettingsLayout& l, const WindowViewModel&
     if (SysCtxContains(o.overview_row, x, y)) return kSysCtxOverview;
     auto detail_hit = [&]() -> int {
         if (SysCtxContains(o.detail.toggle, x, y)) return kSysCtxDetailSwitch;
-        if (SysCtxContains(o.detail.pulse_toggle, x, y)) return kSysCtxDetailPulse;
+        if (SysCtxContains(o.detail.menu_toggle, x, y)) return kSysCtxDetailApp;
         if (SysCtxContains(o.detail.copy, x, y)) return kSysCtxDetailCopy;
         if (SysCtxContains(o.detail.folder, x, y)) return kSysCtxDetailFolder;
         if (SysCtxContains(o.detail.remove, x, y)) return v && v->state == SysCtxView::State::Ready ? kSysCtxDetailDelete : -1;

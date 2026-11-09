@@ -1,6 +1,6 @@
 // ai_tools.h - The tools 鹿铃助手 may call, and the two read-only ones this
 // version ships: get_state (the window's folder and selection) and
-// list_folder (one folder's items). Ported in shape from Pulse 1.0.58
+// list_folder (one folder's items). Ported in shape from the earlier implementation
 // app/ai_tools*; the file-changing tools arrive with the actions layer.
 #pragma once
 

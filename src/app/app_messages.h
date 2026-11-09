@@ -61,7 +61,7 @@ constexpr UINT WM_BITLOCKER_UNLOCK = WM_APP + 79;
 constexpr UINT WM_SVN_STATUS = WM_APP + 87;
 
 // Multi-window (M2/M4/M6): values above the single-window range, since the
-// upstream 76-79 collide with the ids this build already ships.
+// the reference 76-79 collide with the ids this build already ships.
 constexpr UINT WM_RELEASE_WINDOW_STATES = WM_APP + 80;  // the host frees retired window states
 constexpr UINT WM_NEW_WINDOW = WM_APP + 81;             // open another window at this window's folder
 constexpr UINT WM_OPEN_SESSION_WINDOWS = WM_APP + 82;   // first window shown: open the session's other windows

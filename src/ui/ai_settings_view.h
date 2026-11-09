@@ -1,4 +1,4 @@
-// ai_settings_view.h - what Settings > AI 助手 draws, ported from Pulse 1.0.58
+// ai_settings_view.h - what Settings > AI 助手 draws, ported from 应用 1.0.58
 // ui/ai_settings_view.h: the MCP switch, the action groups, the apps that
 // connected, the always-allow rules and this run's calls.
 #pragma once

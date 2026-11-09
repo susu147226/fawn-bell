@@ -1,5 +1,5 @@
 // ai_panel_conn.h - 管理连接, the model menu unfolded into the connection
-// card (plans/ai/Pulse_AI助手_管理连接.html, form B).
+// card (plans/ai/应用_AI助手_管理连接.html, form B).
 //
 // AiPanelView draws it in the model menu's place, anchored to the same
 // corner; the size eases between the menu and the card (220 ms) and follows

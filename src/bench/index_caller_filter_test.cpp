@@ -263,11 +263,11 @@ int wmain(int argc, wchar_t** argv) {
     const auto open = root / L"open", secret = root / L"secret", inner = secret / L"inner";
     fs::create_directories(open);
     fs::create_directories(inner);
-    fs::create_directories(secret / L"pulsecf_subdir");
+    fs::create_directories(secret / L"lulingcf_subdir");
     fs::create_directories(profile);
     fs::create_directories(cache);
-    for (const auto& file : {root / L"pulsecf_top.txt", open / L"pulsecf_open.txt",
-                             secret / L"pulsecf_secret.txt", inner / L"pulsecf_inner.txt"})
+    for (const auto& file : {root / L"lulingcf_top.txt", open / L"lulingcf_open.txt",
+                             secret / L"lulingcf_secret.txt", inner / L"lulingcf_inner.txt"})
         std::ofstream(file) << "luling caller filter";
 
     // Root: owner/SYSTEM/admins full, Authenticated Users may read. "secret"
@@ -307,9 +307,9 @@ int wmain(int argc, wchar_t** argv) {
     HANDLE other = Connect(pipe_name, restricted, 15000);
     Check(mine != INVALID_HANDLE_VALUE && other != INVALID_HANDLE_VALUE, "both callers connected");
 
-    const std::set<std::wstring> all = {L"pulsecf_top.txt", L"pulsecf_open.txt", L"pulsecf_secret.txt",
-                                        L"pulsecf_subdir", L"pulsecf_inner.txt"};
-    const std::set<std::wstring> listable = {L"pulsecf_top.txt", L"pulsecf_open.txt", L"pulsecf_inner.txt"};
+    const std::set<std::wstring> all = {L"lulingcf_top.txt", L"lulingcf_open.txt", L"lulingcf_secret.txt",
+                                        L"lulingcf_subdir", L"lulingcf_inner.txt"};
+    const std::set<std::wstring> listable = {L"lulingcf_top.txt", L"lulingcf_open.txt", L"lulingcf_inner.txt"};
     uint32_t id = 1;
     Names own;
     const ULONGLONG until = GetTickCount64() + 20000;
@@ -331,9 +331,9 @@ int wmain(int argc, wchar_t** argv) {
               "restricted caller sees only names in folders it can list");
         const Names again = Search(other, id++, L"pulsecf");
         Check(again.ok && again.names == listable && again.total == 3, "cached checks give the same page");
-        const Names direct = Search(other, id++, L"pulsecf_secret");
+        const Names direct = Search(other, id++, L"lulingcf_secret");
         Check(direct.ok && direct.names.empty() && direct.total == 0, "exact name in a hidden folder is not found");
-        const Names deep = Search(other, id++, L"pulsecf_inner");
+        const Names deep = Search(other, id++, L"lulingcf_inner");
         Check(deep.ok && deep.names.size() == 1 && deep.total == 1, "listable folder below a hidden one still works");
     }
     // Shared engine cache must not leak the restricted view to the owner.

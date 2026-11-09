@@ -1,4 +1,4 @@
-// ui_settings_ai_model.cpp - Settings > AI 助手 (page 12): Pulse 1.0.58's
+// ui_settings_ai_model.cpp - Settings > AI 助手 (page 12): 应用 1.0.58's
 // model service page - the service grid, the chosen service's key and address,
 // the connection probe, 语音输入 and the AI pack's MCP entry.
 #include "../common/windows_compat.h"
@@ -66,8 +66,8 @@ void MainRenderer::DrawSettingsAiModel(const WindowViewModel& vm, const D2D1_REC
                           hex(color), fluent::HorizontalAlignment::Center);
     };
     // The service's own mark; the letter only when there is none to draw.
-    // Ollama's mark has no brand colour (Pulse draws it in the text colour),
-    // and 自定义 shows the link glyph like Pulse does.
+    // Ollama's mark has no brand colour (the app draws it in the text colour),
+    // and 自定义 shows the link glyph like 应用 does.
     auto logo = [&](std::string_view id, const D2D1_RECT_F& r, uint32_t color,
                     std::wstring_view letter) {
         if (id == "custom") {

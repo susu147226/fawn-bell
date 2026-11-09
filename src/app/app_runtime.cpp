@@ -607,7 +607,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 auto& sysctx = s.settings.SystemCtx();
                 sysctx.SetNotifyWindow(s.hwnd);
                 sysctx.EnsureLoaded();
-                sysctx.SetPulseHidden(s.ctxMenuPrefs.HiddenCatalogKeys());
+                sysctx.SetAppHidden(s.ctxMenuPrefs.HiddenCatalogKeys());
                 vm.settings_sysctx = sysctx.View();
             }
             if (vm.settings_page == 5 || vm.settings_page == 14) {
@@ -2966,7 +2966,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
 
 // True while the sidebar is collapsed to its icon rail: rows carry no text, so
 // every hover needs a name hint. EffectiveSidebarWidth returns pixels (the
-// upstream DIP-scaling fix), which is what the rail test expects.
+// the reference DIP-scaling fix), which is what the rail test expects.
 bool SidebarRailActive(const AppState& s) {
     // SidebarRect, not EffectiveSidebarWidth: the hover-peek overlay has text.
     const D2D1_RECT_F sb = s.renderer.SidebarRect(static_cast<float>(s.compositor.Width()),

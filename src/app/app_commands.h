@@ -93,7 +93,7 @@ void ShowSortDropdown(AppState& s);
 void ShowGroupDropdown(AppState& s);
 void ShowToolbarMore(AppState& s);
 // built-in commands of the item menu as the user configured it (order and
-// visibility from Settings > Pulse menu), cached per selection.
+// visibility from Settings > the app menu), cached per selection.
 std::vector<ui::SelectionChipAction> SelectionChipActions(AppState& s);
 // 0-2 quick action, ui::kSelChipMore the full item menu, ui::kSelChipClear clear.
 void RunToolbarSelectionAction(AppState& s, int action);
@@ -132,7 +132,7 @@ bool RunToolbarAppMenuCommand(AppState& s, int command);
 // for this folder and 添加软件…; Apply returns true when the pins changed.
 void FillToolbarAppRows(AppState& s, ui::ToolbarCustomizeSpec& spec);
 bool ApplyToolbarAppRows(AppState& s, const ui::ToolbarCustomizeSpec& spec);
-// Pulse's file picker for a program (.exe or shortcut), opening in the Start menu.
+// the app's file picker for a program (.exe or shortcut), opening in the Start menu.
 bool PickToolbarAppFile(AppState& s, HWND owner, std::wstring& path);
 void ShowOmnibar(AppState& s, OmnibarMode mode);
 void ShowAdvancedSearch(AppState& s, bool require_scope = false);

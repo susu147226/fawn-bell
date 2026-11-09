@@ -1,5 +1,5 @@
 // ai_settings_ui.h - Settings > AI 助手 (page 12): the page's view model and
-// its clicks. Ported from Pulse 1.0.58 app/ai_settings_ui.cpp, with Luling's
+// its clicks. Ported from the earlier implementation app/ai_settings_ui.cpp, with Luling's
 // own tool groups; the broker itself is still being ported.
 #pragma once
 

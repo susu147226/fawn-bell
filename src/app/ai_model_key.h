@@ -1,6 +1,6 @@
-// ai_model_key.h - The model service's API key (Pulse 助手, DeepSeek) and the
+// ai_model_key.h - The model service's API key (AI 助手, DeepSeek) and the
 // voice recognition service's key, kept only on this machine: encrypted with
-// DPAPI for the current user in %LOCALAPPDATA%\Pulse\ai\model_key.bin and
+// DPAPI for the current user in %LOCALAPPDATA%\the app\ai\model_key.bin and
 // voice_key.bin. Never written to ai.json, the activity log or the runtime log.
 #pragma once
 

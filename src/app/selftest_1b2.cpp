@@ -5514,8 +5514,8 @@ void TestRecycleAndBatchRename() {
     GetTempPathW(MAX_PATH, temp);
     const std::wstring suffix = std::to_wstring(GetCurrentProcessId()) + L"_" +
                                 std::to_wstring(GetTickCount64());
-    const std::wstring index_path = std::wstring(temp) + L"$Ipulse_test_" + suffix;
-    const std::wstring content_path = std::wstring(temp) + L"$Rpulse_test_" + suffix;
+    const std::wstring index_path = std::wstring(temp) + L"$Iluling_test_" + suffix;
+    const std::wstring content_path = std::wstring(temp) + L"$Rluling_test_" + suffix;
     const std::wstring original = L"C:\\Users\\TestUser\\Desktop\\photo.jpg";
     FILETIME deleted{};
     deleted.dwLowDateTime = 1;

@@ -1,6 +1,6 @@
 # Markdown 数学预览
 
-Pulse 使用自有 C++ 解析与 DirectWrite/Direct2D 排版，复用系统 Cambria Math。
+应用 使用自有 C++ 解析与 DirectWrite/Direct2D 排版，复用系统 Cambria Math。
 不打包 KaTeX、MathJax 或数学字体。公式源码保留用于复制；不支持、格式错误或超预算时回退为文本。
 
 语法语义参考 [KaTeX Supported Functions](https://katex.org/docs/supported.html)

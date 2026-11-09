@@ -76,10 +76,10 @@ struct Item {
 
 std::vector<Item> Enumerate(const Roots& roots, const Scene& scene);
 
-// ---- Pulse's own 新建 menu (toolbar New split button) ----------------------
+// ---- 应用's own 新建 menu (toolbar New split button) ----------------------
 // The enabled entries of Explorer's 新建 menu (the shellnew scene, so items
 // switched off on the system page stay off here too), with how each file is
-// made. Folder is left out: Pulse's own 新建文件夹 covers it.
+// made. Folder is left out: 应用's own 新建文件夹 covers it.
 struct NewTemplate {
     std::wstring ext;            // ".docx"
     std::wstring display;        // menu text, e.g. "Microsoft Word 文档"
@@ -91,7 +91,7 @@ struct NewTemplate {
     bool handler = false;        // Handler value: a COM creator
 };
 std::vector<NewTemplate> ListNewTemplates(const Roots& roots);
-// Pure: entries Pulse can make itself. Handler-only creators (libraries,
+// Pure: entries the app can make itself. Handler-only creators (libraries,
 // contacts' COM handler) are skipped, except .lnk, whose creator is the
 // classic shortcut wizard.
 bool CanCreateNewTemplate(const NewTemplate& t);
@@ -135,7 +135,7 @@ Op Inverse(const Op& op);
 OpResult Apply(const Roots& roots, const Op& op);
 bool CanWriteWithoutElevation(const Op& op);
 
-// Machine-wide batches go to pulse_integration.exe --system-ctx-apply <file>.
+// Machine-wide batches go to luling_integration.exe --system-ctx-apply <file>.
 std::wstring SerializeBatch(const std::vector<Op>& ops);
 // Rejects anything but the supported kinds/actions on keys under the classes
 // root (no "..", no absolute paths, only shell/shellex locations).
@@ -147,7 +147,7 @@ std::wstring SerializeResults(const std::vector<OpResult>& results);
 bool ParseResults(std::wstring_view text, std::vector<OpResult>& results);
 const wchar_t* ResultName(OpResult result);
 
-// pulse_integration.exe --system-ctx-apply <batch> --result <file>: machine
+// luling_integration.exe --system-ctx-apply <batch> --result <file>: machine
 // ops only. Returns the process exit code (0 all ok, 1 some failed, 2 bad
 // input). Notifies the shell when anything changed.
 int RunElevatedBatch(const std::wstring& batch_path, const std::wstring& result_path);

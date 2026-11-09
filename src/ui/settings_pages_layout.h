@@ -1,4 +1,4 @@
-// settings_pages_layout.h - Settings pages 0 and 7-10, split the way Pulse
+// settings_pages_layout.h - Settings pages 0 and 7-10, split the way the app
 // 1.0.58 groups them: 外观 (主题与颜色 / 背景与透明度 / 文字与语言),
 // 文件列表 (打开与选择 / 显示哪些项目 / 列表外观), 标签页与窗口 (打开位置 /
 // 标签页), 启动与集成 (启动与托盘 / 资源管理器), 文件操作 (删除 / 暂存区 /
@@ -61,7 +61,7 @@ inline const wchar_t* ShortcutNote() {
 }
 } // namespace pages_text
 
-// The one-line description under each page's title, Pulse's wording.
+// The one-line description under each page's title, the app's wording.
 inline const wchar_t* SettingsPageIntro(int page) {
     switch (page) {
     case 7: return l10n::Pick(L"打开方式、显示哪些文件，以及列表里的各种提示。",
@@ -441,7 +441,7 @@ inline float LayoutSettingsShortcuts(SettingsLayout& l, const WindowViewModel& v
     l.shortcut_titles.clear();
     l.shortcut_rows.clear();
     if (!vm.settings_shortcuts) return y;
-    // Pulse's grid: groups are cards, two columns when there is room, each
+    // the app's grid: groups are cards, two columns when there is room, each
     // column filled independently so the cards do not interleave.
     const float header = 40 * scale, row_h = 36 * scale, pad = 8 * scale, gap = 14 * scale;
     const bool two_columns = right - left >= 720 * scale;

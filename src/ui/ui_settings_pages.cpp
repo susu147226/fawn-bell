@@ -1,4 +1,4 @@
-// ui_settings_pages.cpp - Settings pages split like Pulse 1.0.58: 外观,
+// ui_settings_pages.cpp - Settings pages split like 应用 1.0.58: 外观,
 // 文件列表, 标签页与窗口, 启动与集成, 文件操作 and the shortcut list. The rows
 // themselves reuse ui_settings_core.cpp's controls, laid out by
 // settings_pages_layout.h.
@@ -173,7 +173,7 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
             if (row_index > lay.shortcut_rows.size()) continue;
             draw_card(card_rc);
             text(group.title, title_rc);
-            // The category badge counts its shortcuts, like Pulse's cards.
+            // The category badge counts its shortcuts, like the app's cards.
             {
                 const std::wstring count = std::to_wstring(group.rows.size());
                 const float w = painter_.MeasureBadgeWidth(count);

@@ -1,5 +1,5 @@
 // settings_ai_model_layout.h - Settings > AI 助手 (page 12): texts, geometry
-// and hit testing of Pulse 1.0.58's model service page. Included by
+// and hit testing of the earlier implementation's model service page. Included by
 // ui_renderer_internal.h after SettingsLayout, so no includes here.
 namespace ai_model_text {
 inline const wchar_t* Intro() {

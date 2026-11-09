@@ -1068,7 +1068,7 @@ int wmain(int argc, wchar_t** argv) {
                                                     1u << 20, member, &zipError);
         const std::string xml(member.begin(), member.end());
         Check(deflated && member.size() == 1455 && xml.rfind("<w:document>", 0) == 0 &&
-              xml.find("\xE7\xAC\xAC" "39" "\xE6\xAE\xB5" " Pulse") != std::string::npos,
+              xml.find("\xE7\xAC\xAC" "39" "\xE6\xAE\xB5") != std::string::npos,
               L"zip member inflates through libarchive");
         const bool stored = preview::ReadZipEntry(path(L"package.docx"), "/[content_types].XML",
                                                   1u << 20, member, &zipError);

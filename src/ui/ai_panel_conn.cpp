@@ -1,4 +1,4 @@
-// ai_panel_conn.cpp - 管理连接 card (plans/ai/Pulse_AI助手_管理连接.html,
+// ai_panel_conn.cpp - 管理连接 card (plans/ai/应用_AI助手_管理连接.html,
 // .win.card-form): layout, drawing and hit rects. Sizes are the design's CSS
 // pixels used as DIPs.
 #include "ai_panel_conn.h"

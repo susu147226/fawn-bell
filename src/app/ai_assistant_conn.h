@@ -1,5 +1,5 @@
 // ai_assistant_conn.h - 管理连接: the model menu's connection card.
-// Ported from Pulse 1.0.58 (app/ai_assistant_conn.h). Owns the key and address
+// Ported from the earlier implementation (app/ai_assistant_conn.h). Owns the key and address
 // EDITs, the 测试连接 probe and saving the key (DPAPI, ai_model_key.h) and the
 // address (ai.json assistant.base_url). The menu stays open under it: ‹ goes
 // back to the menu, ⌄ / Esc / a click outside fold both away.

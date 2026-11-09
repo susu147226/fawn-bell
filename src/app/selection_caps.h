@@ -21,7 +21,7 @@ enum class SelectionKind : uint8_t {
     Files,          // ordinary files and folders
     Drives,         // This PC drive rows
     NetworkShares,  // the share list of \\server
-    NetworkPlaces,  // pulse:networks (pinned and system network locations)
+    NetworkPlaces,  // luling:networks (pinned and system network locations)
     Recycle,        // Recycle Bin items
 };
 
@@ -37,7 +37,7 @@ struct SelectionCaps {
     bool any_remote = false;     // mapped network drive
     bool any_locked = false;     // BitLocker volume not unlocked yet
     bool all_locked = false;
-    // Networks view: some selected rows are Pulse's own pins.
+    // Networks view: some selected rows are the app's own pins.
     bool any_network_pin = false;
 };
 

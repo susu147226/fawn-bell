@@ -1,5 +1,5 @@
 // ai_assistant.cpp - 鹿铃助手: panel state, composer EDIT and pointer routing.
-// Ported from Pulse 1.0.58 app/ai_assistant.cpp; the chat driver (network,
+// Ported from the earlier implementation app/ai_assistant.cpp; the chat driver (network,
 // tools) is not wired yet, so submitting keeps the conversation local.
 #include "ai_assistant.h"
 

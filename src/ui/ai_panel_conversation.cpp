@@ -1,4 +1,4 @@
-// ai_panel_conversation.cpp — the Pulse 助手 conversation: user bubbles,
+// ai_panel_conversation.cpp — the AI 助手 conversation: user bubbles,
 // thinking, tool steps, plan / confirm / result cards, the streamed answer.
 //
 // Sizes, margins and motion follow v2.css ("messages" … "result card") of

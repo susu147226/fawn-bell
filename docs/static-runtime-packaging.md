@@ -1,13 +1,13 @@
 # Self-contained MSVC runtime packaging
 
-The local Release build now uses `/MT` for Pulse, its helper processes, LumaText,
+The local Release build now uses `/MT` for the app, its helper processes, LumaText,
 HarfBuzz and FreeType. LumaText remains a separate DLL with its existing C ABI.
 The four app-local `msvcp140*.dll` / `vcruntime140*.dll` files are no longer needed.
 Do not remove those DLLs from an older `/MD` build without rebuilding its binaries.
 
 ## Changes
 
-- Pulse CMake defaults to the static runtime and honors explicit toolchain choices.
+- the app CMake defaults to the static runtime and honors explicit toolchain choices.
   `build_release.bat` explicitly selects `MultiThreaded` for Release.
 - The local LumaText source defaults to static CRT and honors
   `CMAKE_MSVC_RUNTIME_LIBRARY`. Its SDK manifest generator reads the actual
@@ -23,7 +23,7 @@ Do not remove those DLLs from an older `/MD` build without rebuilding its binari
 
 ## Rebuild the local LumaText SDK
 
-From an x64 Visual Studio developer prompt in the Pulse root:
+From an x64 Visual Studio developer prompt in the the app root:
 
 ```powershell
 $luma = (Resolve-Path ../lumatext).Path
@@ -53,7 +53,7 @@ the existing Debug SDK was not rebuilt.
 - ABI test compiled separately with `/MD` and assertions enabled, against the
   `/MT` DLL, passed. The ordinary Release ABI target disables `assert`, so it
   was not counted as ABI validation.
-- Pulse Shell create-file, ping and subsequent-response smoke checks passed
+- the app Shell create-file, ping and subsequent-response smoke checks passed
   using isolated test files.
 - Installer guard rejected the original MD payload, then accepted the MT payload
   and generated an empty `installer-runtime-manifest.json` (`[]`).
@@ -65,7 +65,7 @@ The normal installer uses `PULSE_WITH_SELFTEST=OFF`. No installation over the
 user's running Program Files copy or Windows 8.1 runtime test was performed.
 The remote CI SDK pin remains unchanged.
 
-Static CRT memory must be allocated and freed within the same module. Pulse uses
+Static CRT memory must be allocated and freed within the same module. the app uses
 LumaText's opaque handles and `lt_release`, with POD descriptors and COM references
 at the boundary. See Microsoft's [CRT guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features)
 and [runtime compiler options](https://learn.microsoft.com/en-us/cpp/build/reference/md-mt-ld-use-run-time-library).

@@ -1,12 +1,12 @@
 # Markdown 数学兼容范围与独立参考
 
-Pulse 的目标是可预测、有界、可回退的原生数学预览，不是完整 LaTeX 实现。下文的“完整支持”仅指明确列出的有限语法合同；不表示与 TeX、KaTeX 的所有布局规则或像素完全一致。一个命令能解析、完整公式能排版、字形正确、视觉接近参考，是四件需要分别验证的事。
+应用的目标是可预测、有界、可回退的原生数学预览，不是完整 LaTeX 实现。下文的“完整支持”仅指明确列出的有限语法合同；不表示与 TeX、KaTeX 的所有布局规则或像素完全一致。一个命令能解析、完整公式能排版、字形正确、视觉接近参考，是四件需要分别验证的事。
 
 ## 固定的独立基准
 
-开发参考固定为 **KaTeX 0.16.22**，来自[官方 npm 版本元数据](https://registry.npmjs.org/katex/0.16.22)和[对应上游发布](https://github.com/KaTeX/KaTeX/releases/tag/v0.16.22)。版本、归档地址、SHA-512 完整性、[MIT 许可证来源](https://github.com/KaTeX/KaTeX/blob/v0.16.22/LICENSE)及选项均记录在 `tools/math_reference/manifest.json`。固定旧版本是为了复现比较，不是宣称该版本最新。
+开发参考固定为 **KaTeX 0.16.22**，来自[官方 npm 版本元数据](https://registry.npmjs.org/katex/0.16.22)和[对应参考实现发布](https://github.com/KaTeX/KaTeX/releases/tag/v0.16.22)。版本、归档地址、SHA-512 完整性、[MIT 许可证来源](https://github.com/KaTeX/KaTeX/blob/v0.16.22/LICENSE)及选项均记录在 `tools/math_reference/manifest.json`。固定旧版本是为了复现比较，不是宣称该版本最新。
 
-KaTeX 仅在开发工具中执行。下载的源码、CSS、字体及许可证留在已忽略的 `build/math_reference_cache/`，不进入 Pulse 运行时、安装包或原生构建依赖。没有 npm 生命周期脚本或全局安装。参考调用使用 `renderToString`，分别生成 MathML 和 HTML+MathML；`throwOnError=true`、`strict=error`、`trust=false`，每次调用使用独立宏状态。选项意义见[KaTeX 官方选项文档](https://katex.org/docs/options.html)。
+KaTeX 仅在开发工具中执行。下载的源码、CSS、字体及许可证留在已忽略的 `build/math_reference_cache/`，不进入 应用 运行时、安装包或原生构建依赖。没有 npm 生命周期脚本或全局安装。参考调用使用 `renderToString`，分别生成 MathML 和 HTML+MathML；`throwOnError=true`、`strict=error`、`trust=false`，每次调用使用独立宏状态。选项意义见[KaTeX 官方选项文档](https://katex.org/docs/options.html)。
 
 实际运行环境：Windows，Node.js v24.19.0。当前原创语料扩展为 **132 条**：保留原有 83 条 ID 与源码，追加 49 条宏／字体组合公式、作用域错误及预算边界；92 条原生接受合同、19 条明确原生回退、21 条非法输入。KaTeX 已实际离线接受 109 条、拒绝 23 条，后者包括 21 条非法输入和 2 条明确的参考实现局限。逐条结果及精确语料哈希以 `reference-results.tsv`、`reference-summary.json` 为准，完整 MathML、HTML 和错误文本位于缓存。两个可选首参默认值正例仍是原生接受合同，不伪造参考成功。
 
@@ -18,7 +18,7 @@ KaTeX 仅在开发工具中执行。下载的源码、CSS、字体及许可证�
 
 本轮已实际读取最终作用域修复后的 132 条原生报告并运行比较：90 条双方接受、2 条原生接受但固定参考受限、19 条预期原生回退、21 条双方拒绝。ID 覆盖、尺寸和已知合同之外的问题均为零；90 条双方接受式的五类可比结构计数一致。`markdown-math-compatibility.json` 保存逐例实际结果和输入哈希。两个参考受限案例没有参考结构一致结论；最终构建与视觉检查的范围另列于下文，不由比较计数推断。
 
-固定 KaTeX 0.16.22 的[上游源码](https://github.com/KaTeX/KaTeX/blob/v0.16.22/src/macros.js#L148)明确将 `newcommand` 的可选首参默认值列为未实现。实际调用拒绝 `macro_optional_root` 和 `macro_empty_optional_default`，但这两个输入仍是原生必须支持的合同。`reference-limitations.json` 用精确 ID、源码及说明限定此差异；比较结果独立标记 `native_accept_reference_limited`，没有这些输入的参考 MathML 结构通过结论。相反，固定 KaTeX 实际接受了十参数定义，原生最多九参数，因此该例按 `native_fallback` 处理，不能误写成双方拒绝。
+固定 KaTeX 0.16.22 的[参考实现源码](https://github.com/KaTeX/KaTeX/blob/v0.16.22/src/macros.js#L148)明确将 `newcommand` 的可选首参默认值列为未实现。实际调用拒绝 `macro_optional_root` 和 `macro_empty_optional_default`，但这两个输入仍是原生必须支持的合同。`reference-limitations.json` 用精确 ID、源码及说明限定此差异；比较结果独立标记 `native_accept_reference_limited`，没有这些输入的参考 MathML 结构通过结论。相反，固定 KaTeX 实际接受了十参数定义，原生最多九参数，因此该例按 `native_fallback` 处理，不能误写成双方拒绝。
 
 ## 完整支持：限定的语法合同
 

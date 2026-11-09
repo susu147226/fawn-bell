@@ -1287,7 +1287,7 @@ void Wizard::Activate(int id) {
         case kUnStart: StartUninstall(); break;
         case kLicense:
             // Layered licensing: the product license, which itself points at
-            // NOTICE and the Apache-2.0 LICENSE for the upstream-derived part.
+            // NOTICE and the Apache-2.0 LICENSE for the the reference-derived part.
             ShellExecuteW(hwnd_, L"open",
                           L"https://github.com/susu147226/fawn-bell/blob/main/LICENSE-luling.md",
                           nullptr, nullptr, SW_SHOWNORMAL);

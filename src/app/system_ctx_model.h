@@ -2,7 +2,7 @@
 // registrations on a worker thread and switches them on/off.
 //
 // Per-user entries change at once; machine-wide ones queue until 应用, then go
-// to pulse_integration.exe --system-ctx-apply in one elevated batch. Every
+// to luling_integration.exe --system-ctx-apply in one elevated batch. Every
 // write is preceded by a .reg export and logged, and each batch can be undone.
 #pragma once
 
@@ -50,7 +50,7 @@ public:
     void DeleteRow(int row);
     // 清理残留: queues every leftover of the current scene; the count queued.
     int DeleteSceneLeftovers();
-    bool RowDeletable(int row);   // a leftover Pulse can delete
+    bool RowDeletable(int row);   // a leftover entry can delete
     bool RowDeleting(int row);    // its delete is queued
     void ApplyPending();
     void DiscardPending();
@@ -59,30 +59,30 @@ public:
 
     // 概览, the first row of the scene list: cards instead of the entry list.
     void ShowOverview();
-    // Pulse's own measurements of the handlers (fed while the page is open);
+    // the app's own measurements of the handlers (fed while the page is open);
     // the 概览 ranks them. Cheap when nothing changed.
     void SetHandlerTimings(std::vector<ui::SysCtxHandlerTiming> timings);
-    // The top-level rows each handler (CLSID) gave Pulse's own menu, from the
+    // The top-level rows each handler (CLSID) gave the app's own menu, from the
     // stored layouts: rows name a shell extension by what it adds.
     void SetHandlerLabels(std::map<std::wstring, std::vector<std::wstring>> labels);
     // 概览 buttons; `index` into the view's slow_rows / mark_rows.
     void ToggleSlowRow(int index);         // 禁用: like the row switch
     void RestoreMarkRow(int index);        // 还原: switches the marked entry on
-    // ContextMenuPrefs catalog keys Pulse hides in its own menu (sorted); rows
-    // show 在 Pulse 中隐藏. Cheap when nothing changed.
-    void SetPulseHidden(std::vector<std::wstring> keys);
-    // Pulse's own switches (只在 Pulse 隐藏, 概览 Pulse 跳过) wait in the
+    // ContextMenuPrefs catalog keys the app hides in its own menu (sorted); rows
+    // show 在应用中隐藏. Cheap when nothing changed.
+    void SetAppHidden(std::vector<std::wstring> keys);
+    // 应用's own switches (只在 应用隐藏, 概览 跳过) wait in the
     // same queue as the registry ones: 应用更改 hands them to the caller
-    // (TakePulseChanges, ContextMenuPrefs lives there), 放弃 drops them.
-    void TogglePulseRow(int row);          // -1: the selected row
-    bool RowPulseHidden(int row);          // after the queued change
-    void QueueSlowSkip(int index);         // 概览 slow row: Pulse 跳过 (again: withdraws)
-    struct PulseChanges {
-        std::vector<std::pair<std::wstring, bool>> hidden;  // catalog key -> hide in Pulse
-        std::vector<std::wstring> skipped;                  // CLSIDs Pulse stops loading
+    // (Take应用Changes, ContextMenuPrefs lives there), 放弃 drops them.
+    void ToggleAppRow(int row);          // -1: the selected row
+    bool RowAppHidden(int row);          // after the queued change
+    void QueueSlowSkip(int index);         // 概览 slow row: 跳过 (again: withdraws)
+    struct AppMenuChanges {
+        std::vector<std::pair<std::wstring, bool>> hidden;  // catalog key -> hide in the app
+        std::vector<std::wstring> skipped;                  // CLSIDs the app stops loading
         bool empty() const { return hidden.empty() && skipped.empty(); }
     };
-    PulseChanges TakePulseChanges();
+    AppMenuChanges TakeAppMenuChanges();
 
     // Live preview drag (UI thread): a press arms it, moves past 3 px make the
     // ghost follow the pointer, the drop goes through DropPreview.
@@ -102,9 +102,9 @@ public:
     // "…" menu helpers for `row` (-1: the selected row); empty when there is none.
     std::wstring RowRegistryPath(int row);  // HKEY_…\Software\Classes\…
     std::wstring RowFile(int row);
-    // Pulse's catalog key for the entry (ipc::HandlerCatalogKey / CatalogKey);
-    // empty for kinds Pulse does not list as rows of its own.
-    std::wstring RowPulseKey(int row);
+    // the app's catalog key for the entry (ipc::HandlerCatalogKey / CatalogKey);
+    // empty for kinds the app does not list as rows of its own.
+    std::wstring RowMenuCatalogKey(int row);
     std::wstring DataDirectory() const;     // holds ops.jsonl and the Backups folder
     std::wstring BackupDirectory() const;
 
@@ -191,9 +191,9 @@ private:
     bool overview_ = true;                             // 概览 shown; the first visit starts there
     std::vector<ui::SysCtxHandlerTiming> timings_;
     std::map<std::wstring, std::vector<std::wstring>> labels_;  // upper-case CLSID -> menu rows
-    std::vector<std::wstring> pulse_hidden_;  // sorted
-    std::map<std::wstring, bool> pending_pulse_;  // catalog key -> hide in Pulse (queued)
-    std::vector<std::wstring> pending_skip_;      // upper-case CLSIDs: Pulse 跳过 (queued)
+    std::vector<std::wstring> menu_hidden_;  // sorted
+    std::map<std::wstring, bool> pending_menu_;  // catalog key -> hide in the app (queued)
+    std::vector<std::wstring> pending_skip_;      // upper-case CLSIDs: 跳过 (queued)
     std::vector<std::pair<int, size_t>> slow_map_, mark_map_;  // 概览 rows -> (scene, entry); scene -1: not scanned
     int drag_item_ = -1;
     bool drag_live_ = false;

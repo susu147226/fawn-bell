@@ -1,6 +1,6 @@
 // ai_providers.h - The model services Settings > AI 助手 offers, in the order
-// Pulse 1.0.58 lists them. The addresses and key pages are Pulse's own
-// (pulse.exe strings). A service picked here sets ai.json assistant.base_url;
+// the earlier implementation lists them. The addresses and key pages are the app's own
+// (the app's strings). A service picked here sets ai.json assistant.base_url;
 // the key stays in ai_model_key.h's DPAPI file.
 #pragma once
 

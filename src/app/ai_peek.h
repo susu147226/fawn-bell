@@ -1,6 +1,6 @@
 // ai_peek.h - The bubble over the status bar's AI chip (.peek): shown when
 // the panel is closed and the assistant finished, or failed. Ported from
-// Pulse 1.0.58 (ai_assistant_chat.cpp AiChatPeek / AiChatFillPeek).
+// the earlier implementation (ai_assistant_chat.cpp AiChatPeek / AiChatFillPeek).
 #pragma once
 
 #include "../ui/ai_panel_view.h"

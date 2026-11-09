@@ -1,5 +1,5 @@
 // ai_agent.cpp - 鹿铃助手's turn driver (ai_agent.h).
-// Ported from Pulse 1.0.58 app/ai_assistant_agent.cpp: the same shape, with
+// Ported from the earlier implementation app/ai_assistant_agent.cpp: the same shape, with
 // the read-only tools of ai_tools.h and no file-changing ones yet.
 #include "ai_agent.h"
 
@@ -165,7 +165,7 @@ bool PathExists(const std::wstring& path) {
     return GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
 }
 
-// The system prompt: the same voice as Pulse's, with the tools this version
+// The system prompt: the same voice as the app's, with the tools this version
 // really has.
 std::string SystemPrompt() {
     SYSTEMTIME now{};

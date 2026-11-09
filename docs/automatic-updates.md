@@ -26,14 +26,14 @@ git tag v1.0.4
 git push origin v1.0.4
 ```
 
-GitHub Actions 的 **Build and publish Pulse** 工作流会构建、测试并打包两种版本。两者全部通过后，才发布 Release 并设为最新版本。单纯提交源码或上传 Actions 构建产物不会触发客户端更新。
+GitHub Actions 的 **Build and publish 应用** 工作流会构建、测试并打包两种版本。两者全部通过后，才发布 Release 并设为最新版本。单纯提交源码或上传 Actions 构建产物不会触发客户端更新。
 
 | 客户端 | 安装包 | 更新清单 |
 | --- | --- | --- |
-| Windows 10 / Windows 11 x64 | `PulseSetup-版本.exe` | `update-manifest.json` |
-| Windows 8.1 x64 | `PulseSetup-版本-win81.exe` | `update-manifest-win81.json` |
+| Windows 10 / Windows 11 x64 | `应用Setup-版本.exe` | `update-manifest.json` |
+| Windows 8.1 x64 | `应用Setup-版本-win81.exe` | `update-manifest-win81.json` |
 
-Windows 10 / 11 x64 免安装版 `Pulse-版本-portable-win-x64.zip` 由普通版构建一并打包，与安装包使用同一份通过测试的正式构建；Windows 8.1 版不提供免安装包。
+Windows 10 / 11 x64 免安装版 `应用-版本-portable-win-x64.zip` 由普通版构建一并打包，与安装包使用同一份通过测试的正式构建；Windows 8.1 版不提供免安装包。
 
 Release 正文自动提供上述系统说明与下载入口。不要重复覆盖已经公开发布的版本；修复发布问题时递增版本号。
 

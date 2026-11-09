@@ -1,6 +1,6 @@
 // ai_agent.h - 鹿铃助手's turn driver: one streamed answer from an
 // OpenAI-format service (ai_model_stream.h), turned into conversation blocks.
-// Ported from Pulse 1.0.58 app/ai_assistant_agent.cpp without the tool loop:
+// Ported from the earlier implementation app/ai_assistant_agent.cpp without the tool loop:
 // this version answers in text only, so the model is not offered tools.
 #pragma once
 

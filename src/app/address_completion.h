@@ -6,7 +6,7 @@
 namespace luling {
 struct AppState;
 
-// Address-bar path completion (Pulse 1.0.59 parity).
+// Address-bar path completion (the app 1.0.59 parity).
 //
 // The address drop-down is one popup for both jobs: it starts as the visit
 // history and, as soon as the typed text differs from the text the editor

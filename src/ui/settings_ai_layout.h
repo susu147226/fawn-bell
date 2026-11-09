@@ -1,5 +1,5 @@
 // settings_ai_layout.h - Settings > AI 助手: texts, geometry and hit testing.
-// Ported from Pulse 1.0.58 ui/settings_ai_layout.h (MCP). Included by
+// Ported from the earlier implementation ui/settings_ai_layout.h (MCP). Included by
 // ui_renderer_internal.h after SettingsLayout, so no includes here.
 namespace ai_text {
 inline const wchar_t* Title() { return L"AI 助手"; }

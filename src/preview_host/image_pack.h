@@ -2,7 +2,7 @@
 
 // Image preview pack: HEIC / AVIF / JPEG XL without the Store extensions, and
 // OpenEXR, Radiance HDR and QOI, which Windows never reads. The decoder is
-// pulse-imgpack.exe (packs/images, keeping its upstream name); the wire format
+// pulse-imgpack.exe (packs/images, keeping its the reference name); the wire format
 // is in common/image_pack_protocol.h.
 //
 // Performance rules (see docs/design/preview_packs_plan.md):

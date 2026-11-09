@@ -157,7 +157,7 @@ inline ToolbarLayout MakeToolbarLayout(float width, float scale, float top, floa
 }
 
 // Selection context (prototype note 4): up to kSelChipMaxActions commands of
-// the Pulse item menu in prototype priority (标签, 复制路径, ...; not filtered
+// the 应用 item menu in prototype priority (标签, 复制路径, ...; not filtered
 // by the right-click menu's visibility settings), then "more" (the full item
 // menu) and "clear".
 // Priority collapse: the label goes first, then trailing quick actions;

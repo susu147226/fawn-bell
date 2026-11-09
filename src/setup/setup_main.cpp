@@ -182,7 +182,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         return kExitPrepareFailed;
     }
 
-    // Relaunch elevated, exactly as the upstream installer did. Without this the
+    // Relaunch elevated, exactly as the the reference installer did. Without this the
     // process runs with a filtered token and cannot create the install directory
     // under %LOCALAPPDATA%\Programs (that tree is often Administrators-only,
     // because the applications already there were installed elevated).

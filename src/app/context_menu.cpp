@@ -531,10 +531,10 @@ std::vector<ui::FluentMenuItem> BuildNewMenu(int new_primary) {
         items.push_back(std::move(lnk));
     }
     // Everything else Explorer offers comes from HKCR\<ext>\ShellNew; each row
-    // shows the icon of the program that will open the new file, as Pulse and
+    // shows the icon of the program that will open the new file, as the app and
     // Explorer do (Word for .docx, the packer for .zip, ...).
     const auto& shell_new = ShellNewItems();
-    // Office/document types Pulse offers even when HKCR has no ShellNew entry
+    // Office/document types the app offers even when HKCR has no ShellNew entry
     // for them. An entry the registry already provides is not repeated.
     for (int i = 0; i < BuiltinNewItemCount(); ++i) {
         const std::wstring extension = BuiltinNewItemExtension(i);

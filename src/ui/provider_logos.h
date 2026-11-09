@@ -1,4 +1,4 @@
-// provider_logos.h - The model services' marks (Pulse 1.0.58).
+// provider_logos.h - The model services' marks (the earlier implementation).
 #pragma once
 
 #include <string_view>

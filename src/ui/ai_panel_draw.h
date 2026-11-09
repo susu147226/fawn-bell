@@ -1,4 +1,4 @@
-// ai_panel_draw.h — drawing helpers shared by the Pulse 助手 panel's files
+// ai_panel_draw.h — drawing helpers shared by the AI 助手 panel's files
 // (ai_panel_view.cpp, ai_panel_conversation.cpp). Internal to src/ui.
 #pragma once
 #include "ai_panel_view.h"

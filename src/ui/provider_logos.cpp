@@ -1,4 +1,4 @@
-// provider_logos.cpp - The model services' marks, taken from Pulse 1.0.58's
+// provider_logos.cpp - The model services' marks, taken from the earlier implementation's
 // pulse.exe (24x24 SVG with fill="currentColor"; the drawer bakes the brand colour).
 #include "provider_logos.h"
 

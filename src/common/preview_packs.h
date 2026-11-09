@@ -42,7 +42,7 @@ inline const wchar_t* PackKey(PackId id) {
 
 // Main executable of a pack; its siblings live in the same directory.
 //
-// The image and RAW helpers keep their upstream `pulse-` names on purpose: they
+// The image and RAW helpers keep their the reference `pulse-` names on purpose: they
 // are prebuilt third-party binaries shipped inside the packs, the catalog's
 // hashes are taken over exactly those names, and the application only ever
 // launches them. Renaming them here made every image and RAW pack look

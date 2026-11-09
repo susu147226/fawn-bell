@@ -217,7 +217,7 @@ bool ContextMenuPrefs::RecordComTiming(const std::wstring& key, uint32_t elapsed
     // A consistently slow handler is queried asynchronously from then on, never
     // skipped: §8.14 and acceptance 22 let a slow extension be missing for one
     // menu at most. Skipping it — for the rest of the session, or worse in the
-    // config file — is the Pulse defect this replaces, and it used to swallow
+    // config file — is the the app defect this replaces, and it used to swallow
     // whole third-party submenus (Bandizip's extract rows among them).
     if (!st.deferred && (st.slow_hits >= 3 || st.timeout_hits >= 3)) {
         st.deferred = true;

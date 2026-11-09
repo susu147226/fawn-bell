@@ -572,7 +572,7 @@ bool RunHoverBench(AppState& s) {
     {
         wchar_t temp[MAX_PATH]{};
         GetTempPathW(MAX_PATH, temp);
-        const std::wstring warm = std::wstring(temp) + L"pulse_bench_warmup.txt";
+        const std::wstring warm = std::wstring(temp) + L"luling_bench_warmup.txt";
         HANDLE file = CreateFileW(warm.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (file != INVALID_HANDLE_VALUE) {
             DWORD written = 0;
@@ -656,4 +656,4 @@ void AfterHoverPreviewDraw(AppState& s) {
     SetFrameTimer(s, ms);
 }
 
-} // namespace pulse
+} // namespace luling

@@ -1,5 +1,5 @@
 // json_value.h - A small JSON DOM for the AI pack: the tool broker protocol
-// (ai_tool_protocol.h), ai.json, the activity log and, in Pulse.AI.exe, MCP's
+// (ai_tool_protocol.h), ai.json, the activity log and, in the app.AI.exe, MCP's
 // JSON-RPC. Shared by pulse.exe and the pack.
 //
 // The parser is strict RFC 8259 on UTF-8 because its input comes from AI

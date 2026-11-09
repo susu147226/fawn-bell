@@ -1,5 +1,5 @@
 // ai_assistant.h - 鹿铃助手: panel state, composer EDIT, pointer routing and
-// the view model ui::AiPanelView draws. Ported from Pulse 1.0.58
+// the view model ui::AiPanelView draws. Ported from the earlier implementation
 // (app/ai_assistant.h); the chat driver is not wired yet.
 #pragma once
 #include "../ui/ai_panel_view.h"

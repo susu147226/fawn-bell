@@ -53,7 +53,7 @@ constexpr ULONGLONG kLaunchBackoffMs = 60000;
 
 bool StartPack(ffmpeg::Process& process, const std::wstring& arguments, SIZE_T memory_limit, DWORD stdout_buffer) {
     if (GetTickCount64() < g_backoff_until.load()) return false;
-    // The catalog and the installed pack both use the upstream `pulse-` name;
+    // The catalog and the installed pack both use the the reference `pulse-` name;
     // asking for anything else made every installed RAW pack unusable.
     const std::wstring exe = packs::PackToolPath(packs::PackId::Raw,
                                                  packs::PackMainTool(packs::PackId::Raw));
