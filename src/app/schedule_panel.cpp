@@ -1150,9 +1150,30 @@ void ShowSchedulePanel(HWND owner, ScheduleStore& store, float scale, bool dark,
         return wcscmp(cls, kListClass) == 0 || wcscmp(cls, kCalendarClass) == 0 ||
                wcscmp(cls, kTimeClass) == 0;
     };
+    // The owner is disabled while this runs, so a click on it never reaches the
+    // message queue. Poll the physical button so any click outside the card and
+    // its pickers still closes the panel. Bit 0 reports presses since the last
+    // call, which catches clicks that start and end between two ticks.
+    constexpr UINT_PTR kOutsidePoll = 0x5D1;
+    const ULONGLONG opened_at = GetTickCount64();
+    SetTimer(state.hwnd, kOutsidePoll, 30, nullptr);
     MSG msg{};
     while (!state.done) {
         if (GetMessageW(&msg, nullptr, 0, 0) <= 0) break;
+        if (msg.message == WM_TIMER && msg.wParam == kOutsidePoll) {
+            if ((GetAsyncKeyState(VK_LBUTTON) & 0x0001) != 0 ||
+                (GetAsyncKeyState(VK_RBUTTON) & 0x0001) != 0) {
+                // The click that opened the panel is still in the button state;
+                // ignore anything that lands before the panel settles.
+                if (GetTickCount64() - opened_at < 250) continue;
+                POINT pt{};
+                HWND under = GetCursorPos(&pt) ? WindowFromPoint(pt) : nullptr;
+                bool owned = false;
+                for (HWND h = under; h && !owned; h = GetParent(h)) owned = owns(h);
+                if (!owned) state.done = true;
+            }
+            continue;
+        }
         if (msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE) {
             state.done = true;
             continue;
@@ -1172,6 +1193,7 @@ void ShowSchedulePanel(HWND owner, ScheduleStore& store, float scale, bool dark,
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
+    KillTimer(state.hwnd, kOutsidePoll);
 
     EnableWindow(owner, TRUE);
     SetForegroundWindow(owner);
