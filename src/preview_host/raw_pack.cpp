@@ -53,7 +53,10 @@ constexpr ULONGLONG kLaunchBackoffMs = 60000;
 
 bool StartPack(ffmpeg::Process& process, const std::wstring& arguments, SIZE_T memory_limit, DWORD stdout_buffer) {
     if (GetTickCount64() < g_backoff_until.load()) return false;
-    const std::wstring exe = packs::PackToolPath(packs::PackId::Raw, L"luling-rawpack.exe");
+    // The catalog and the installed pack both use the upstream `pulse-` name;
+    // asking for anything else made every installed RAW pack unusable.
+    const std::wstring exe = packs::PackToolPath(packs::PackId::Raw,
+                                                 packs::PackMainTool(packs::PackId::Raw));
     if (exe.empty()) return false;
     ffmpeg::LaunchOptions options;
     options.memory_limit = memory_limit;
