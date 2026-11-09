@@ -205,7 +205,8 @@ void ShowAddressEditor(AppState& s) {
     s.addressIgnoreKillFocus = false;
     InvalidateRect(s.hwnd, nullptr, FALSE);
     // Clicking into the address field lists where the user has been, the way a
-    // browser shows recents on focus (posted, so this stays non-blocking).
+    // browser shows recents on focus (posted, so this stays non-blocking). The
+    // first keystroke swaps this popup for the completion list.
     PostMessageW(s.hwnd, WM_SEARCH_HISTORY, 0, 0);
 }
 
@@ -235,7 +236,8 @@ void HideAddressEditor(AppState& s, bool navigate) {
         // cmd / powershell / pwsh / wt open a console here instead of navigating.
         const app::AddressBarCommand command = app::ParseAddressBarCommand(buf);
         if (command.program != app::AddressBarProgram::None) RunAddressBarCommand(s, command);
-        else NavigateTo(s, AddressNavigationTarget(buf));
+        // A typed file path opens its folder with the file selected.
+        else NavigateToAddressTarget(s, AddressNavigationTarget(buf));
     }
     s.addressIgnoreKillFocus = true;
     ShowWindow(s.hwndAddressEdit, SW_HIDE);
@@ -781,7 +783,13 @@ LRESULT CALLBACK AddressEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
         return EraseHostedEditBackground(hwnd, wParam, s) ? 1 : 0;
     }
     }
-    return DefPresentedHostedEditProc(s, hwnd, msg, wParam, lParam);
+    const LRESULT result = DefPresentedHostedEditProc(s, hwnd, msg, wParam, lParam);
+    // Path completion is armed only after the edit has taken the character; the
+    // popup opens from the posted message, never from inside this handler.
+    if (s && (msg == WM_CHAR || msg == WM_PASTE || msg == WM_CUT || msg == WM_UNDO ||
+              (msg == WM_KEYDOWN && (wParam == VK_BACK || wParam == VK_DELETE))))
+        RequestAddressCompletion(*s);
+    return result;
 }
 
 LRESULT CALLBACK FilterEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,

@@ -71,5 +71,7 @@ constexpr UINT WM_UNDO_WINDOW_MERGE = WM_APP + 85;      // merge toast clicked: 
 constexpr UINT WM_MERGE_WINDOW = WM_APP + 86;           // wParam target HWND, lParam tab index: a window was dropped on a strip
 constexpr UINT WM_TREE_CHILDREN = WM_APP + 88;          // wParam token: a folder's children finished enumerating
 constexpr UINT WM_TREE_STAMPS = WM_APP + 89;            // wParam token: expanded folders' directory stamps were checked
+// The address editor took a keystroke and its completion debounce is armed.
+constexpr UINT WM_ADDRESS_COMPLETE = WM_APP + 90;
 
 } // namespace luling

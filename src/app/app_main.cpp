@@ -2451,6 +2451,9 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             else ShowLocationHistory(*s);
         }
         return 0;
+    case WM_ADDRESS_COMPLETE:
+        if (s) TickAddressCompletion(*s);
+        return 0;
     case WM_UPDATE_INSTALL:
         if (s) InstallUpdate(*s);
         return 0;

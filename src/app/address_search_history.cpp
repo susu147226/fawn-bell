@@ -84,49 +84,92 @@ void RecordSearchHistory(AppState& s, const std::wstring& path) {
     if (s.searchHistory.Record(query, path)) SaveHistory(s);
 }
 
-// Address-bar history: the folders the user visited, newest first. Down opens
-// it while the address editor has focus.
+// Address drop-down: the folders the user visited, newest first, until the
+// typed text stops matching what the editor opened with — then the same popup
+// lists path completion instead. Swapping the rows of the open popup (rather
+// than closing it and opening a second one) is what keeps the menu's modal loop
+// from nesting and stranding a window over the folder view.
 void ShowLocationHistory(AppState& s) {
     if (!s.hwndAddressEdit || !EnsureMenu(s)) return;
     if (s.menu->IsOpen()) return;
     const auto entries = s.locationHistory.entries;
     if (entries.empty()) return;
-    std::vector<ui::FluentMenuItem> items;
-    items.reserve(entries.size() + 1);
-    for (size_t i = 0; i < entries.size(); ++i) {
-        ui::FluentMenuItem item;
-        item.command = 300 + static_cast<int>(i);
-        item.text = entries[i];
-        item.glyph = L"\xE8B7";
-        items.push_back(std::move(item));
-    }
-    ui::FluentMenuItem clear;
-    clear.command = 2;
-    clear.secondary = true;
-    clear.text = l10n::Get(l10n::StringId::SearchHistoryClear);
-    clear.glyph = L"\xE74D";
-    items.push_back(std::move(clear));
+
+    auto edit_text = [&s]() {
+        const int length = GetWindowTextLengthW(s.hwndAddressEdit);
+        std::wstring text(static_cast<size_t>(length) + 1, L'\0');
+        text.resize(GetWindowTextW(s.hwndAddressEdit, text.data(), length + 1));
+        return text;
+    };
+    const std::wstring entry_text = edit_text();
+
+    auto history_rows = [&entries]() {
+        std::vector<ui::FluentMenuItem> items;
+        items.reserve(entries.size() + 1);
+        for (size_t i = 0; i < entries.size(); ++i) {
+            ui::FluentMenuItem item;
+            item.command = 300 + static_cast<int>(i);
+            item.text = entries[i];
+            item.glyph = L"\xE8B7";
+            items.push_back(std::move(item));
+        }
+        ui::FluentMenuItem clear;
+        clear.command = 2;
+        clear.secondary = true;
+        clear.text = l10n::Get(l10n::StringId::SearchHistoryClear);
+        clear.glyph = L"\xE74D";
+        items.push_back(std::move(clear));
+        return items;
+    };
+    auto items_for = [&](const std::wstring& query) {
+        if (query.empty() || query == entry_text) return history_rows();
+        return AddressCompletionRows(s, query);
+    };
 
     RECT anchor{};
     GetWindowRect(s.hwndAddressEdit, &anchor);
-    // Match the address bar exactly: anything wider looks detached from it.
-    const float field_w = static_cast<float>(anchor.right - anchor.left) / s.scale;
-    s.menu->SetFilterMinWidth(field_w);
-    s.menu->SetTheme(s.darkMode, s.accentColor);
-    // Route the keys back to the address edit, the way the search history does:
-    // without this the popup owns the keyboard, so Enter opened nothing and the
-    // typed path never reached NavigateTo. The list is only a hint here, so Enter
-    // is left to the edit.
-    s.menu->SetExternalFilterEdit(s.hwndAddressEdit, true);
-    const int command = s.menu->TrackPopup(
-        {anchor.left, anchor.bottom + static_cast<LONG>(6 * s.scale)}, items, {});
-    if (command >= 300 && command < 300 + static_cast<int>(entries.size())) {
-        const std::wstring path = entries[static_cast<size_t>(command - 300)];
-        HideAddressEditor(s, false);
-        NavigateTo(s, path);
-    } else if (command == 2) {
-        s.locationHistory.Clear();
+    const bool previous_ignore = s.addressIgnoreKillFocus;
+    s.addressIgnoreKillFocus = true;
+    bool repeat = true;
+    bool navigated = false;
+    while (repeat && s.addressEditing && !s.addressSearching &&
+           s.hwndAddressEdit && IsWindow(s.hwndAddressEdit)) {
+        repeat = false;
+        // Match the address bar exactly: anything wider looks detached from it.
+        s.menu->SetFilterMinWidth(static_cast<float>(anchor.right - anchor.left) / s.scale);
+        s.menu->SetTheme(s.darkMode, s.accentColor);
+        s.menu->SetAnchorRect(anchor);
+        // Route the keys back to the address edit: the list is a hint, Enter
+        // belongs to the typed path unless a row is highlighted.
+        s.menu->SetExternalFilterEdit(s.hwndAddressEdit, true);
+        s.menu->SetMaxVisibleRows(12);
+        s.menu->SetHoverFirstOnOpen(false);
+        s.menu->SetSelectAllOnOpen(false);
+        const std::wstring current = edit_text();
+        const int command = s.menu->TrackPopup({anchor.left, anchor.top},
+                                               items_for(current), items_for);
+        if (!s.hwndAddressEdit || !IsWindow(s.hwndAddressEdit)) break;
+        if (command >= 300 && command < 300 + static_cast<int>(entries.size())) {
+            const std::wstring path = entries[static_cast<size_t>(command - 300)];
+            HideAddressEditor(s, false);
+            NavigateTo(s, path);
+            navigated = true;
+            break;
+        }
+        if (command == 2) {
+            s.locationHistory.Clear();
+            break;
+        }
+        if (command == 0 && s.menu->LastFilterCommitted()) {
+            HideAddressEditor(s, true);
+            navigated = true;
+            break;
+        }
+        repeat = RunAddressCompletionRow(s, command, navigated);
     }
+    s.addressIgnoreKillFocus = previous_ignore;
+    if (!navigated && s.hwndAddressEdit && IsWindow(s.hwndAddressEdit) && s.addressEditing)
+        SetFocus(s.hwndAddressEdit);
 }
 
 void ShowAddressSearchHistory(AppState& s) {

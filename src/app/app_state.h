@@ -503,6 +503,13 @@ struct AppState {
     bool addressSearchComposing = false;
     ULONGLONG addressLiveDue = 0;
     ULONGLONG addressHistoryDue = 0;
+    // Address-bar path completion: the popup keeps its own re-entry flag, and
+    // the one level of the folder it lists is cached so the filter callback
+    // never touches the disk.
+    bool addressCompleting = false;
+    ULONGLONG addressCompleteDue = 0;
+    std::wstring addressCompleteDir;
+    std::vector<fs::DirEntry> addressCompleteEntries;
     std::wstring addressLiveContext;
     std::wstring addressHistoryPath;
     bool addressSearchCurrent = false;
