@@ -1094,6 +1094,7 @@ struct HitTestResult {
         AddressSearchClear,
         AddressSearchClose,
         BreadcrumbSegment,
+        BreadcrumbChevron,  // separator after a segment: list that segment's children
         ColumnHeader,
         ColumnDivider,
         FilterBox,

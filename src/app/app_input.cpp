@@ -2448,6 +2448,15 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (app::Tab* tab = ActiveTab(*s)) ToggleTreeExpansion(*s, *tab, hit.index);
             return 0;
         }
+        if (hit.region == ui::HitTestResult::BreadcrumbChevron) {
+            // Early return: the click chain below is at the compiler's nesting
+            // limit. The separator lists the folder before it, so a sibling is
+            // one click away instead of "up, then down".
+            POINT sp{mx, my};
+            ClientToScreen(hwnd, &sp);
+            ShowBreadcrumbChildrenMenu(*s, hit.path, sp);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::TitleClock) {
             // Early return: the click chain below is at the compiler's nesting limit.
             // Left click turns the page; right click opens the schedule panel.

@@ -913,8 +913,22 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             if (!vm.address_editing && x < toolbar.address.right-28*scale_) {
                 std::vector<BreadcrumbPlaced> placed;
                 BreadcrumbLayout(vm.pane,rect.right,placed);
-                for (size_t i=0;i<placed.size();++i) if (ContainsPt(placed[i].rc,x,y)) {
-                    r.region=HitTestResult::BreadcrumbSegment; r.index=(int)i; r.path=placed[i].path; break;
+                for (size_t i=0;i<placed.size();++i) {
+                    // The chevron band runs from a segment's right edge through
+                    // the gap after it: clicking the arrow lists that folder's
+                    // children instead of loading the folder itself. The last
+                    // segment has nothing after it, so it keeps plain navigation.
+                    if (i+1<placed.size()) {
+                        const D2D1_RECT_F chev=D2D1::RectF(placed[i].rc.right-16.0f*scale_,
+                            placed[i].rc.top,placed[i].rc.right+14.0f*scale_,placed[i].rc.bottom);
+                        if (ContainsPt(chev,x,y)) {
+                            r.region=HitTestResult::BreadcrumbChevron; r.index=(int)i;
+                            r.path=placed[i].path; break;
+                        }
+                    }
+                    if (ContainsPt(placed[i].rc,x,y)) {
+                        r.region=HitTestResult::BreadcrumbSegment; r.index=(int)i; r.path=placed[i].path; break;
+                    }
                 }
             }
             return r;
