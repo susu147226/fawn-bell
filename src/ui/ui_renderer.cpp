@@ -980,8 +980,6 @@ void MainRenderer::DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel&
             static int info_day = -1;
             static std::wstring next_festival;
             static int next_festival_days = 0;
-            static std::wstring prev_term, next_term;
-            static int prev_term_days = 0, next_term_days = 0;
             const int day_key = now.wYear * 10000 + now.wMonth * 100 + now.wDay;
             if (day_key != info_day) {
                 info_day = day_key;
@@ -989,9 +987,14 @@ void MainRenderer::DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel&
                 next_festival_days = 0;
                 calendar::NextFestival(now.wYear, now.wMonth, now.wDay, next_festival,
                                        next_festival_days);
-                calendar::SolarTermsAround(now.wYear, now.wMonth, now.wDay, prev_term,
-                                           prev_term_days, next_term, next_term_days);
             }
+            // Recompute the terms for the day on screen. Caching them across days
+            // let one half of this line use yesterday's date, which showed up as
+            // "霜降15天—今天—1天立冬" on the day 立冬 itself.
+            std::wstring prev_term, next_term;
+            int prev_term_days = 0, next_term_days = 0;
+            calendar::SolarTermsAround(now.wYear, now.wMonth, now.wDay, prev_term,
+                                       prev_term_days, next_term, next_term_days);
 
             std::wstring line1;
             bool accent = false;
