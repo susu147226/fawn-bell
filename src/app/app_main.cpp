@@ -477,15 +477,24 @@ static bool WindowCloaked(HWND hwnd) {
 static constexpr wchar_t kNewWindowRequest[] = L"luling:new-window";
 
 static void OpenForwardedLaunch(AppState& s, const std::wstring& path) {
+    // A forwarded launch comes from a shell verb ("open in file manager"), so
+    // the window has to come forward; opening the tab behind the sender's app
+    // reads as no response at all.
+    const auto bring_to_front = [&s] {
+        AppState* target = s.core.windows.MostRecent();
+        if (!target) return;
+        HWND hwnd = target->hwnd;
+        if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+    };
     if (!path.empty() && path != kNewWindowRequest) {
         OpenFolderInNewTab(s, path);
+        bring_to_front();
         return;
     }
     if (path.empty()) {
-        if (AppState* target = s.core.windows.MostRecent()) {
-            HWND hwnd = target->hwnd;
-            if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
-            SetForegroundWindow(hwnd);
+        if (s.core.windows.MostRecent()) {
+            bring_to_front();
             return;
         }
     }
