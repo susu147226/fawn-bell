@@ -16,6 +16,7 @@
 #include "../common/text_format.h"
 #include "../fs/shell_namespace.h"
 #include "../fs/drive_label.h"
+#include "../index/filename_pinyin.h"
 #include <commctrl.h>
 #include <prsht.h>
 #include <shlobj.h>
@@ -1524,6 +1525,16 @@ bool NameMatchesPattern(std::wstring_view name, std::wstring_view needle) {
     return folded_name.find(folded_pat) != std::wstring::npos;
 }
 
+// The toolbar filter also accepts pinyin: "bg" finds 报告.txt through its
+// initials, "baogao" through the full readings. Wildcards keep their plain
+// meaning, so the pinyin pass is skipped whenever the needle looks like a glob.
+static bool NameMatchesFilter(const std::wstring& name, const std::wstring& needle) {
+    if (NameMatchesPattern(name, needle)) return true;
+    if (needle.find_first_of(L"*?") != std::wstring::npos) return false;
+    if (!index::PinyinEligible(needle)) return false;
+    return index::FindPinyinMatch(name, needle).kind != index::PinyinMatchKind::None;
+}
+
 static void ParseFilterText(const std::wstring& text, std::wstring& name_needle,
                             std::vector<std::wstring>& tag_needles) {
     name_needle.clear();
@@ -1566,7 +1577,7 @@ index::ContentResultStore::Filter ContentFilter(const std::wstring& text, const 
             for(const auto& path:places.tags[id].paths) paths.insert(ToLowerCopy(path));
     }
     return [name=std::move(name),has_tags=!tags.empty(),paths=std::move(paths)](const fs::DirEntry& entry) {
-        return NameMatchesPattern(entry.name,name) && (!has_tags || paths.contains(ToLowerCopy(entry.full_path)));
+        return NameMatchesFilter(entry.name,name) && (!has_tags || paths.contains(ToLowerCopy(entry.full_path)));
     };
 }
 
@@ -1589,7 +1600,7 @@ void CollectFilterMatches(const Tab& tab, const PlacesCatalog* places, std::vect
     for (int i = 0; i < n; ++i) {
         const auto& e = tab.EntryAt(static_cast<size_t>(i));
         if (!tab.EntryVisible(i)) continue;
-        const bool name_ok = NameMatchesPattern(e.name, name_needle);
+        const bool name_ok = NameMatchesFilter(e.name, name_needle);
         bool tag_ok = tag_needles.empty();
         if (!tag_ok && places) {
             const std::wstring full = EntryPathOf(tab, e);
