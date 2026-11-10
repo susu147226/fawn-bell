@@ -1457,6 +1457,9 @@ void OpsManager::CancelCurrent() {
         if (current) {
             current->cancel_requested = true;
             shell_cancel_requested_ = true;
+            // Only a running shell request can be blocked in a shell call; the
+            // wait loop escalates this to aborting the host after a moment.
+            if (current_req_id_.load() != 0) shell_cancel_tick_ = GetTickCount64();
         }
         if (auto* item = CurrentTransferLocked()) {
             item->transfer_cancelled = true;
@@ -5112,19 +5115,36 @@ void OpsManager::RegisterShellRequest(uint32_t id) {
     std::lock_guard<std::mutex> lock(done_mutex_);
     shell_request_ids_.insert(id);
     current_req_id_.store(id);
+    // A cancel recorded for the previous request must not escalate here.
+    shell_cancel_tick_ = 0;
+    shell_activity_tick_ = GetTickCount64();
 }
 
 bool OpsManager::WaitShellDone(uint32_t id, uint32_t& hr, bool& cancelled, std::wstring& error) {
     auto& client = ipc::ShellClient::Instance();
-    constexpr ULONGLONG kShellInactivityTimeoutMs = 10ull * 60ull * 1000ull;
+    // A shell extension that never returns leaves the request with no progress
+    // at all; waiting ten minutes for it reads as a frozen window. The poll
+    // also has to be fine-grained: a cancel has to be able to escalate.
+    constexpr ULONGLONG kShellInactivityTimeoutMs = 45ull * 1000ull;
+    constexpr ULONGLONG kCancelEscalationMs = 2000;
     bool interrupted = false;
     {
         std::unique_lock<std::mutex> lock(done_mutex_);
         while (!done_results_.contains(id) && !stopping_.load()) {
-            done_cv_.wait_for(lock, std::chrono::seconds(5));
+            done_cv_.wait_for(lock, std::chrono::milliseconds(200));
             if (done_results_.contains(id)) break;
+            const ULONGLONG now = GetTickCount64();
+            const ULONGLONG cancel_tick = shell_cancel_tick_.load();
+            if (cancel_tick != 0 && now - cancel_tick >= kCancelEscalationMs) {
+                // Cancel was sent and the host still has not answered: it is
+                // blocked inside a shell call, so take the process away.
+                lock.unlock();
+                client.Abort(id);
+                lock.lock();
+                continue;
+            }
             const ULONGLONG activity = shell_activity_tick_.load();
-            if (GetTickCount64() - activity < kShellInactivityTimeoutMs) continue;
+            if (now - activity < kShellInactivityTimeoutMs) continue;
             lock.unlock();
             client.Abort(id);
             lock.lock();
@@ -5143,6 +5163,7 @@ bool OpsManager::WaitShellDone(uint32_t id, uint32_t& hr, bool& cancelled, std::
     uint32_t expected = id;
     current_req_id_.compare_exchange_strong(expected, 0);
     shell_cancel_requested_ = false;
+    shell_cancel_tick_ = 0;
     if (interrupted) {
         SetStatus([](OpStatus& st) {
             st.active = false;

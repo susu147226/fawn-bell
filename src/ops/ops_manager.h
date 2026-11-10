@@ -587,6 +587,10 @@ private:
     std::atomic<uint32_t> current_req_id_{0};
     std::atomic<bool> shell_cancel_requested_{false};
     std::atomic<ULONGLONG> shell_activity_tick_{0};
+    // When the user asked to stop the running shell request. The host can be
+    // stuck inside a shell extension that never returns, so a plain cancel is
+    // not enough: the wait loop escalates to aborting the host process.
+    std::atomic<ULONGLONG> shell_cancel_tick_{0};
     std::atomic<bool> transfer_active_{false};
     std::atomic<bool> transfer_cancel_{false};
     std::atomic<bool> transfer_pause_{false};
