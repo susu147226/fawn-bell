@@ -1895,8 +1895,13 @@ DWORD WINAPI IdleWatchdog(void*) {
     // starts a fresh one on the next request.
     constexpr ULONGLONG kIdleMs = 120000;
     while (g.running.load()) {
-        Sleep(15000);
+        Sleep(5000);
         if (!g.running.load()) break;
+        // An extension that never returned from QueryContextMenu keeps this
+        // host alive with whatever it opened still open - the user then cannot
+        // delete or copy those files. Once nothing else runs here, end the
+        // host; the client starts a fresh one on its next request.
+        MaybeRecycleHost();
         const ULONGLONG last = g_last_activity.load();
         if (!last || luling::common::AwakeMilliseconds() - last < kIdleMs) continue;
         bool busy = false;
