@@ -1,6 +1,8 @@
 // A context-menu handler that never returns from QueryContextMenu (#65): the
-// menu still settles, the handler is reported as timed out, and luling_shell
-// recycles itself once idle instead of leaking the stuck thread for good.
+// menu still settles, the handler is reported as timed out, and the host keeps
+// serving. Only once enough handler threads have leaked does luling_shell end
+// itself, because a restart throws away every loaded extension and makes the
+// next right-click a cold start.
 // Drives the real luling_shell.exe next to this test through ShellClient.
 #include "../ipc/shell_client.h"
 
@@ -122,8 +124,20 @@ int wmain() {
           "the host keeps serving while the menu is open");
 
     client.CloseContextMenu(first);
+    Sleep(3000); // session teardown joins the leaked handler first
+    Check(host && WaitForSingleObject(host, 0) == WAIT_TIMEOUT,
+          "one hung handler keeps the host resident");
+    // Leaked handler threads accumulate; the host restarts at the threshold.
+    bool more_settled = true;
+    for (int i = 0; i < 7; ++i) {
+        const uint32_t again = client.QueryContextMenu({ hang }, 0, false, false);
+        more_settled &= again != 0 &&
+                        WaitFor(again, [](const Session& s) { return s.final; }, 20000);
+        client.CloseContextMenu(again);
+    }
+    Check(more_settled, "menus with a hung handler keep settling");
     Check(host && WaitForSingleObject(host, 15000) == WAIT_OBJECT_0,
-          "the host recycles itself once the menu closes");
+          "the host recycles once enough handler threads are stuck");
     if (host) CloseHandle(host);
 
     // --- the next right-click gets a fresh host ----------------------------

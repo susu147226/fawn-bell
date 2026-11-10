@@ -84,6 +84,9 @@ public:
     void Cancel(uint32_t id);
     void Abort(uint32_t id);
     bool Ping();
+    // True when `pid` is the luling_shell.exe this client spawned. Lets the
+    // lock-owner report offer to end our own host instead of hiding it.
+    bool IsHostPid(DWORD pid);
 
     // Explorer context-menu session. Query returns the session id; items come
     // back through Callbacks::ctx_items. Invoke completes via Callbacks::done

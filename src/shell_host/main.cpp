@@ -1586,7 +1586,9 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
     };
     auto collect_slow = [&] {
         std::vector<std::wstring> slow;
-        const bool late = GetTickCount64() - started >= 1000;
+        // Same budget the loop below settles at: a worker still unanswered
+        // when it breaks has to be reported, or the app never learns to skip it.
+        const bool late = GetTickCount64() - started >= kHandlerStuckMs;
         for (const auto& w : workers) {
             if (!w) continue;
             // SendTo wraps the whole default menu, so its elapsed time is
@@ -1865,9 +1867,12 @@ DWORD WINAPI PackagedVerbsPrewarm(LPVOID) {
     return 0;
 }
 
-// A handler thread that never returned cannot be stopped (#65). Once nothing
-// else runs in the host, end the process: that reclaims those threads, and
-// Luling starts a fresh host on its next request.
+// A handler thread that never returned cannot be stopped (#65). Restarting the
+// whole host reclaims it, but that also throws away every loaded extension DLL
+// and costs a cold start on the next right-click. One hung handler is therefore
+// kept; only this many means the leaked threads outweigh a restart.
+constexpr size_t kMaxAbandonedThreads = 8;
+
 void MaybeRecycleHost() {
     if (g.requests_in_flight.load() != 0) return;
     std::lock_guard<std::mutex> lock(g_ctx_mutex); // keeps new sessions out
@@ -1877,8 +1882,8 @@ void MaybeRecycleHost() {
         CloseHandle(thread); // it returned after all
         return true;
     }), stuck.end());
-    if (stuck.empty() || g_ctx_threads != 0 || !g_ctx_sessions.empty() ||
-        g.requests_in_flight.load() != 0) return;
+    if (stuck.size() < kMaxAbandonedThreads || g_ctx_threads != 0 ||
+        !g_ctx_sessions.empty() || g.requests_in_flight.load() != 0) return;
     wchar_t line[128];
     swprintf_s(line, L"Recycling host: %zu context menu handler thread(s) never returned",
                stuck.size());
@@ -1890,17 +1895,15 @@ void MaybeRecycleHost() {
 
 DWORD WINAPI IdleWatchdog(void*) {
     // Third-party context-menu extensions loaded here (WPS, input methods,
-    // cloud clients) can hold hundreds of MB and never unload. Once no menu
-    // session or request is active for two minutes, end this host; the client
-    // starts a fresh one on the next request.
-    constexpr ULONGLONG kIdleMs = 120000;
+    // cloud clients) can hold hundreds of MB and never unload. Keeping the
+    // host resident is what keeps right-click fast, so it only ends after a
+    // long quiet stretch; the client starts a fresh one on the next request.
+    constexpr ULONGLONG kIdleMs = 600000;
     while (g.running.load()) {
         Sleep(5000);
         if (!g.running.load()) break;
-        // An extension that never returned from QueryContextMenu keeps this
-        // host alive with whatever it opened still open - the user then cannot
-        // delete or copy those files. Once nothing else runs here, end the
-        // host; the client starts a fresh one on its next request.
+        // Leaked handler threads from menu extensions accumulate here; the
+        // host only restarts once enough of them pile up (see MaybeRecycleHost).
         MaybeRecycleHost();
         const ULONGLONG last = g_last_activity.load();
         if (!last || luling::common::AwakeMilliseconds() - last < kIdleMs) continue;

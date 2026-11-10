@@ -1540,6 +1540,11 @@ LockReport OpsManager::ProbeLock(const OpRequest& req, uint64_t task_id, HRESULT
         || req.type == OpType::Rename;
     if (lockable) {
         report = ProbeLockFailure(hr, error, req.sources, CurrentModuleDirectory());
+        // Our own shell host lives in Luling's install folder, so the probe
+        // marks it unclosable. It is the one holder we can safely end: a file
+        // operation or menu starts a fresh host on demand.
+        for (auto& owner : report.owners)
+            if (ipc::ShellClient::Instance().IsHostPid(owner.pid)) owner.closable = true;
     }
     std::lock_guard<std::mutex> lock(mutex_);
     if (report.Empty()) {

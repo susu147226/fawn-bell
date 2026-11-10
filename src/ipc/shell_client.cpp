@@ -120,6 +120,12 @@ bool ShellClient::SpawnChild() {
     return true;
 }
 
+bool ShellClient::IsHostPid(DWORD pid) {
+    if (pid == 0) return false;
+    std::lock_guard<std::mutex> lock(send_mutex_);
+    return child_started_ && child_.dwProcessId == pid;
+}
+
 // Caller must hold send_mutex_.
 bool ShellClient::EnsureConnected() {
     if (!running_.load()) return false;
