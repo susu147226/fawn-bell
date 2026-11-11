@@ -1537,7 +1537,7 @@ LockReport OpsManager::ProbeLock(const OpRequest& req, uint64_t task_id, HRESULT
     LockReport report;
     const bool lockable = req.type == OpType::Copy || req.type == OpType::Move
         || req.type == OpType::RecycleDelete || req.type == OpType::RealDelete
-        || req.type == OpType::Rename;
+        || req.type == OpType::Rename || req.type == OpType::BatchRename;
     if (lockable) {
         report = ProbeLockFailure(hr, error, req.sources, CurrentModuleDirectory());
         // Our own shell host lives in Luling's install folder, so the probe
@@ -4846,6 +4846,9 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
         std::vector<std::wstring> ok_names;
         std::vector<std::wstring> ok_destinations;
         std::wstring last_error;
+        std::wstring failed_source;
+        std::wstring failed_name;
+        DWORD failed_code = ERROR_SUCCESS;
         bool cancelled = false;
         for (size_t i = 0; i < req.sources.size(); ++i) {
             if (stopping_.load() || shell_cancel_requested_.load()) { cancelled = true; break; }
@@ -4859,8 +4862,17 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
             if (stopping_.load() || shell_cancel_requested_.load()) { cancelled = true; break; }
             // Each item uses the same no-overwrite filesystem rename.
             std::wstring local_error;
-            const auto local = RenameInProcess(req.sources[i], name, &local_error);
-            if (local == RenameResult::Rejected) { last_error = local_error; continue; }
+            DWORD local_code = ERROR_SUCCESS;
+            const auto local = RenameInProcess(req.sources[i], name, &local_error, &local_code);
+            if (local == RenameResult::Rejected) {
+                if (failed_source.empty()) {
+                    failed_source = req.sources[i];
+                    failed_name = name;
+                    failed_code = local_code;
+                }
+                last_error = local_error;
+                continue;
+            }
             if (local == RenameResult::Completed) {
                 ok_sources.push_back(req.sources[i]);
                 ok_names.push_back(name);
@@ -4877,11 +4889,24 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
             recorded.new_names = ok_names;
             PushUndo(recorded, task_id, &ok_destinations);
         }
+        // A held item fails the same way a single rename does: name the
+        // programs holding it and offer the retry, instead of a bare failure
+        // the user can only read as a bug. The retry covers the failed item.
+        LockReport lock_report;
+        if (!cancelled && !failed_source.empty() && failed_code != ERROR_SUCCESS) {
+            OpRequest probe = req;
+            probe.sources = { failed_source };
+            probe.new_names = { failed_name };
+            probe.new_name = failed_name;
+            lock_report = ProbeLock(probe, task_id, HRESULT_FROM_WIN32(failed_code), last_error);
+        }
         SetStatus([&](OpStatus& st) {
             st.active = false;
             st.percent = -1.0f;
             st.completed_ops++;
             st.completed_items = ok_sources.size();
+            st.locked_path = lock_report.path;
+            st.lock_owners = lock_report.owners;
             if (cancelled) {
                 st.phase = OpPhase::Failed;
                 st.last_error = l10n::Get(l10n::StringId::Canceled).c_str();

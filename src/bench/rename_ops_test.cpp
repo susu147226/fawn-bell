@@ -1,4 +1,5 @@
 #include "../ops/ops_manager.h"
+#include "../ops/file_lock_owner.h"
 #include "../ipc/shell_client.h"
 #include "../common/localization.h"
 #include "../app/batch_rename.h"
@@ -180,6 +181,29 @@ int main(int argc, char** argv) {
         ops.Status().phase == OpPhase::Failed && ops.Status().last_error != L"操作层未启动",
         "sharing violation reports failure without changing file");
     if (locked != INVALID_HANDLE_VALUE) CloseHandle(locked);
+    // A batch that hits a held item must name the holder instead of failing
+    // with a message the user can only read as a bug.
+    make(L"batch-free.txt"); make(L"batch-held.txt");
+    HANDLE held = CreateFileW((root / L"batch-held.txt").c_str(), GENERIC_READ, 0,
+        nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    Check(held != INVALID_HANDLE_VALUE, "hold isolated file against batch rename");
+    const bool rm_available = !luling::ops::FindLockOwners(
+        {(root / L"batch-held.txt").wstring()}, luling::ops::CurrentModuleDirectory()).empty();
+    OpRequest held_batch; held_batch.type = OpType::BatchRename;
+    held_batch.sources = {(root / L"batch-free.txt").wstring(), (root / L"batch-held.txt").wstring()};
+    held_batch.new_names = {L"batch-free-new.txt", L"batch-held-new.txt"};
+    const auto held_before = ops.Status().completed_ops;
+    ops.Submit(held_batch);
+    Check(Wait(ops, held_before), "held batch terminates");
+    Check(Exact(root / L"batch-free-new.txt"), "held batch still renames the free item");
+    if (!rm_available) {
+        // Restart Manager cannot report holders in this session (some CI and
+        // test hosts); the ops layer only forwards what it returns.
+        std::printf("[SKIP] held batch owner report: Restart Manager unavailable\n");
+    } else {
+        Check(!ops.Status().lock_owners.empty(), "held batch reports the owning process");
+    }
+    if (held != INVALID_HANDLE_VALUE) CloseHandle(held);
     ops.Stop();
     // This absolute directory was created by this process under bench_data.
     std::filesystem::remove_all(root);

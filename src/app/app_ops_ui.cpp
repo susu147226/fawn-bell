@@ -947,7 +947,10 @@ void UpdateOperationWindow(AppState& s, bool allow_conflict_dialog) {
 
     // Failed on an item other processes hold: name them and offer the retry
     // instead of the plain failure window (the token guards modal re-entry).
-    const bool locked_failure = !status.active && status.phase == ops::OpPhase::Failed
+    // A batch rename reports the items that did go through, so a held item
+    // leaves phase Completed; it still has to name the holder.
+    const bool locked_failure = !status.active
+        && (status.phase == ops::OpPhase::Failed || status.type == ops::OpType::BatchRename)
         && !status.lock_owners.empty() && status.task_id != 0;
     if (locked_failure && allow_conflict_dialog && status.task_id != s.lockPromptTaskId) {
         s.lockPromptTaskId = status.task_id;
