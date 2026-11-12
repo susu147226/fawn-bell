@@ -777,7 +777,8 @@ target_link_libraries(luling_preview_handler_probe PRIVATE
 
 add_executable(luling_preview_handler_pan_test src/bench/preview_handler_pan_test.cpp)
 add_executable(luling_directory_test src/bench/directory_regression_test.cpp)
-add_executable(luling_fs_audit_test src/bench/fs_audit_test.cpp)
+add_executable(luling_fs_audit_test src/bench/fs_audit_test.cpp
+    src/app/this_pc_launchers.cpp)
 target_link_libraries(luling_fs_audit_test PRIVATE luling_localization user32 shell32 shlwapi netapi32 advapi32)
 add_executable(luling_enum_benchmark_test src/bench/enum_benchmark_test.cpp)
 target_link_libraries(luling_enum_benchmark_test PRIVATE shell32 shlwapi)
@@ -1396,7 +1397,8 @@ add_executable(luling_unc_probe_order_test src/bench/unc_probe_order_test.cpp)
 add_executable(luling_enum_cancel_test src/bench/enum_cancel_test.cpp)
 target_link_libraries(luling_enum_cancel_test PRIVATE luling_localization shell32 shlwapi netapi32)
 
-add_executable(luling_worker_enum_cancel_test src/bench/worker_enum_cancel_test.cpp)
+add_executable(luling_worker_enum_cancel_test src/bench/worker_enum_cancel_test.cpp
+    src/app/this_pc_launchers.cpp)
 
 add_executable(luling_shell_benchmark_test src/bench/shell_benchmark_test.cpp)
 target_link_libraries(luling_shell_benchmark_test PRIVATE ole32 shell32 uuid comctl32)
@@ -1511,7 +1513,8 @@ add_executable(luling_config_capacity_test src/bench/config_capacity_test.cpp
     src/app/places.cpp src/app/tag_ads_sync.cpp src/fs/fs_enum.cpp src/ui/view_layout.cpp)
 target_link_libraries(luling_config_capacity_test PRIVATE user32 shell32 ole32 uuid advapi32 shlwapi netapi32 luling_localization luling_runtime_log)
 
-add_executable(luling_virtual_worker_consumers_test src/bench/virtual_worker_consumers_test.cpp)
+add_executable(luling_virtual_worker_consumers_test src/bench/virtual_worker_consumers_test.cpp
+    src/app/this_pc_launchers.cpp)
 
 target_sources(luling_persistence_test PRIVATE src/app/this_pc_argument.cpp)
 target_sources(luling_app_controllers_test PRIVATE src/app/this_pc_argument.cpp src/app/update_download_cleanup.cpp)
