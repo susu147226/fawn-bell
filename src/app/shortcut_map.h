@@ -49,6 +49,7 @@ enum class ShortcutCommand : int {
     LayoutThree,
     LayoutFour,
     CustomizeToolbar,
+    FavoritesBar,
     Count,
 };
 

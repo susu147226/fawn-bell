@@ -14,7 +14,7 @@ namespace luling::ui {
 namespace {
 
 constexpr wchar_t kTagManagerClass[] = L"LulingTagManagerWindow";
-constexpr float kWidth = 520.0f;
+constexpr float kWidth = 660.0f;
 constexpr float kPad = 24.0f;
 constexpr float kTitleBar = 36.0f;
 constexpr float kCloseW = 46.0f;
@@ -26,6 +26,7 @@ constexpr float kButtonGap = 8.0f;
 constexpr float kFooterPadY = 18.0f;
 
 enum : int { kNone = 0, kDone = 1, kClose = 2, kMerge = 3, kDelete = 4,
+             kCombine = 5, kExport = 6, kImport = 7,
              kTabBase = 10, kRowBase = 40 };
 
 float Dip(float scale, float value) { return value * scale; }
@@ -38,6 +39,7 @@ struct Layout {
     D2D1_RECT_F tabs[4]{};
     std::vector<D2D1_RECT_F> rows;
     D2D1_RECT_F footer{}, done{}, merge{}, remove{}, note{};
+    D2D1_RECT_F combine{}, export_{}, import_{};
 };
 
 struct Visual {
@@ -77,8 +79,18 @@ Layout MakeLayout(const TagManagerSpec& spec, size_t visible, const fluent::Pain
     l.note = D2D1::RectF(pad, y, width - pad, y + Dip(scale, 20.0f));
     y = l.note.bottom + Dip(scale, 12.0f);
     const float btn_h = painter.MeasureButtonHeight();
-    l.footer = D2D1::RectF(0, y, width, y + btn_h + Dip(scale, kFooterPadY) * 2.0f);
-    const float by = y + Dip(scale, kFooterPadY);
+    const float footer_pad = Dip(scale, kFooterPadY);
+    l.footer = D2D1::RectF(0, y, width, y + btn_h + footer_pad * 2.0f);
+    const float by = y + footer_pad;
+    // One row: utilities on the left, merge / delete / done on the right.
+    const float imp_w = std::max(painter.MeasureButtonWidth(spec.import_text), Dip(scale, kButtonMinW));
+    l.import_ = D2D1::RectF(pad, by, pad + imp_w, by + btn_h);
+    const float exp_w = std::max(painter.MeasureButtonWidth(spec.export_text), Dip(scale, kButtonMinW));
+    l.export_ = D2D1::RectF(l.import_.right + Dip(scale, kButtonGap), by,
+                            l.import_.right + Dip(scale, kButtonGap) + exp_w, by + btn_h);
+    const float comb_w = std::max(painter.MeasureButtonWidth(spec.combine_text), Dip(scale, kButtonMinW));
+    l.combine = D2D1::RectF(l.export_.right + Dip(scale, kButtonGap), by,
+                            l.export_.right + Dip(scale, kButtonGap) + comb_w, by + btn_h);
     const float done_w = std::max(painter.MeasureButtonWidth(spec.done_text), Dip(scale, kButtonMinW));
     l.done = D2D1::RectF(width - pad - done_w, by, width - pad, by + btn_h);
     const float del_w = std::max(painter.MeasureButtonWidth(spec.delete_text), Dip(scale, kButtonMinW));
@@ -97,6 +109,9 @@ int HitTest(const Layout& l, float x, float y) {
     if (ContainsRect(l.done, x, y)) return kDone;
     if (ContainsRect(l.merge, x, y)) return kMerge;
     if (ContainsRect(l.remove, x, y)) return kDelete;
+    if (ContainsRect(l.combine, x, y)) return kCombine;
+    if (ContainsRect(l.export_, x, y)) return kExport;
+    if (ContainsRect(l.import_, x, y)) return kImport;
     for (int i = 0; i < 4; ++i)
         if (ContainsRect(l.tabs[i], x, y)) return kTabBase + i;
     for (size_t i = 0; i < l.rows.size(); ++i)
@@ -205,11 +220,24 @@ private:
         if (hwnd_) { HideComposedDialog(hwnd_, owner_); DestroyWindow(hwnd_); }
     }
 
+    void CompleteAction(int action) {
+        result_ = {};
+        for (auto& row : spec_.rows)
+            if (row.checked) result_.checked_ids.push_back(row.id);
+        result_.action = action;
+        accepted_ = true;
+        done_ = true;
+        if (hwnd_) { HideComposedDialog(hwnd_, owner_); DestroyWindow(hwnd_); }
+    }
+
     void Activate(int id) {
         if (id == kDone) { Complete(true, false, false); return; }
         if (id == kClose) { Complete(false, false, false); return; }
         if (id == kMerge) { if (SelectedCount() >= 2) Complete(true, true, false); else MessageBeep(MB_OK); return; }
         if (id == kDelete) { if (SelectedCount() >= 1) Complete(true, false, true); else MessageBeep(MB_OK); return; }
+        if (id == kCombine) { if (SelectedCount() >= 2) CompleteAction(1); else MessageBeep(MB_OK); return; }
+        if (id == kExport) { CompleteAction(2); return; }
+        if (id == kImport) { CompleteAction(3); return; }
         if (id >= kTabBase && id < kTabBase + 4) {
             tab_ = id - kTabBase;
             scroll_ = 0;
@@ -325,6 +353,12 @@ private:
             return st;
         };
         const bool two = SelectedCount() >= 2, one = SelectedCount() >= 1;
+        painter_.DrawButton({layout_.import_, spec_.import_text, {}, fluent::ButtonKind::Standard,
+                             state_for(kImport)});
+        painter_.DrawButton({layout_.export_, spec_.export_text, {}, fluent::ButtonKind::Standard,
+                             state_for(kExport)});
+        painter_.DrawButton({layout_.combine, spec_.combine_text, {}, fluent::ButtonKind::Standard,
+                             state_for(kCombine, two)});
         painter_.DrawButton({layout_.merge, spec_.merge_text, {}, fluent::ButtonKind::Standard,
                              state_for(kMerge, two)});
         painter_.DrawButton({layout_.remove, spec_.delete_text, {}, fluent::ButtonKind::Standard,

@@ -76,6 +76,8 @@ inline const wchar_t* SettingsPageIntro(int page) {
                                L"Luling's current keyboard shortcuts, the same as Help › Shortcuts.");
     case 14: return l10n::Pick(L"下载和管理预览、媒体、图像与转换增强包。",
                                L"Download and manage preview, media, image and conversion packs.");
+    case 15: return l10n::Pick(L"安装社区增强包，为鹿铃添加更多功能。",
+                               L"Install community packs to add more to Luling.");
     default: return nullptr;
     }
 }

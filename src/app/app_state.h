@@ -364,6 +364,8 @@ struct AppState {
     bool scrollbarHorizontal = false;
     bool scrollbarSidebar = false;
     bool scrollbarSettings = false;  // settings page scrollbar drag (#166/#196)
+    // 扩展商店: which tab (浏览商店 / 已安装扩展 / 管理增强包) is open.
+    int settingsStoreTab = 0;
     int scrollbarDragStartX = 0;
     int scrollbarDragStartY = 0;
     float scrollbarGrabOffset = 0.0f;
@@ -474,6 +476,8 @@ struct AppState {
     // GUI verification for the tray card deck: stage a few files pre-shot.
     bool shot_tray = false;
     int shot_tray_count = 4;
+    // GUI verification for 收藏栏: show it without touching the saved prefs.
+    bool shot_favorites_bar = false;
     // GUI verification for tab colors: three tabs, red/yellow/blue strips.
     bool shot_tab_colors = false;
     // GUI verification for pinned-tab spacing and the adjacent new-tab button.
@@ -612,6 +616,8 @@ struct AppState {
     int dropSidebar = -1;
     bool dropTray = false;
     bool dropQuickAccess = false;  // folders over the Quick access header: pin
+    bool dropFavorites = false;    // over the favorites bar: star the dropped items
+    int favoritesFocus = -1;       // F6 put the keyboard on the favorites bar (-1 = elsewhere)
     std::wstring dropBadge;
     float dropBadgeX = 0.0f;
     float dropBadgeY = 0.0f;

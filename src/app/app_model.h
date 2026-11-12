@@ -9,6 +9,7 @@
 #include "column_view_model.h"
 #include "explorer_handoff.h"
 #include "entry_order_hold.h"
+#include "entry_group.h"
 #include "create_rename_intent.h"
 #include "pane_header_animation.h"
 #include "../index/content_result_store.h"
@@ -64,6 +65,10 @@ struct Tab {
     // views keep the plain order.
     int group_by = 0;
     int EffectiveGroup() const {
+        // This PC always groups its rows (磁盘 / 网盘程序入口), as Explorer does.
+        if (current_path.empty() &&
+            (view_mode == ui::ViewMode::Details || view_mode == ui::ViewMode::Content))
+            return static_cast<int>(GroupBy::ThisPc);
         return view_mode == ui::ViewMode::Details || view_mode == ui::ViewMode::Content
             ? group_by : 0;
     }
@@ -542,6 +547,8 @@ struct SidebarEntry {
     std::wstring path;
     bool is_drive = false;
     float used_ratio = 0.0f;
+    uint64_t drive_free_bytes = 0;
+    uint64_t drive_total_bytes = 0;
     bool expandable = false;
     // Built-in quick-access link (BuiltinQuickAccess), -1 for user entries.
     // The quick-access menu toggles these one by one.

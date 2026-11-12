@@ -380,6 +380,7 @@ void ClearTextWidthCache() {
             (!source.is_dir && IsShortcutName(source.name));
         entry.link_destination = source.link_destination;
         entry.cloud_recall = source.cloud_recall;
+        entry.empty_dir = !penetrated && source.is_dir && source.empty_dir;
         if (vm.svn_items && !vm.svn_items->empty()) {
             std::wstring key = source.name;
             for (wchar_t& c : key) {
@@ -401,10 +402,25 @@ void ClearTextWidthCache() {
             entry.type_text = FormatListType(
                 penetrated ? fs::StripLnkSuffix(source.name) : source.name, entry.is_dir);
         }
-        if (source.drive_type != 0) entry.type_text = DriveTypeText(source.drive_type);
+        if (source.drive_type != 0) {
+            entry.type_text = DriveTypeText(source.drive_type);
+            // Explorer adds the file system: "本地磁盘 · NTFS".
+            if (!source.drive_fs.empty()) entry.type_text += L" \x00B7 " + source.drive_fs;
+        }
+        if (source.pc_launcher) {
+            wchar_t type_text[256]{};
+            swprintf_s(type_text,
+                       luling::l10n::Get(luling::l10n::StringId::ThisPcLauncherType).c_str(),
+                       source.name.c_str());
+            entry.type_text = type_text;
+        } else if (source.pc_device) {
+            entry.type_text = luling::l10n::Get(luling::l10n::StringId::ThisPcDevice);
+        }
         if (entry.link_kind != fs::LinkKind::None) entry.type_text = LinkTypeText(entry.link_kind);
         if (source.drive_type != 0 && source.drive_total > 0) {
             const uint64_t free_bytes = std::min(source.drive_free, source.drive_total);
+            entry.drive_free = free_bytes;
+            entry.drive_total = source.drive_total;
             entry.drive_used = static_cast<float>(
                 static_cast<double>(source.drive_total - free_bytes) /
                 static_cast<double>(source.drive_total));
@@ -415,6 +431,8 @@ void ClearTextWidthCache() {
             entry.drive_space_text = space;
         }
         entry.record_only = source.change_record_only;
+        entry.pc_launcher = source.pc_launcher != 0;
+        entry.pc_device = source.pc_device;
         if (!source.change_type_text.empty()) entry.type_text = source.change_type_text;
         entry.starred = vm.tag_catalog && !entry.path.empty() &&
             vm.tag_catalog->IsStarred(entry.path);
@@ -426,6 +444,12 @@ void ClearTextWidthCache() {
                 entry.badge = starred->badge;
                 entry.badge_color = HexColor(starred->badge_rgb);
             }
+        }
+        // An empty folder carries a quiet 「空」 chip so the row reads as
+        // deliberately empty rather than still loading.
+        if (entry.empty_dir && entry.badge.empty()) {
+            entry.badge = luling::l10n::Get(luling::l10n::StringId::EmptyFolderMarker);
+            entry.badge_color = HexColor(0x8A8F98);
         }
         constexpr size_t kMaxCachedRows = 256;
         if (cache.rows.size() >= kMaxCachedRows && !cache.order.empty()) {
@@ -465,7 +489,7 @@ void ClearTextWidthCache() {
         float pad = 8.0f;
         float headerH = 36.0f;
         float itemH = 32.0f;
-        float driveH = 48.0f;
+        float driveH = 60.0f;   // name + percent, bar, free · total
         float tagH = 26.0f;
         float itemGap = 2.0f;
         float groupGap = 16.0f;
@@ -483,7 +507,7 @@ void ClearTextWidthCache() {
         m.pad = 8.0f * scale;
         m.headerH = 36.0f * scale;
         m.itemH = 32.0f * scale;
-        m.driveH = 48.0f * scale;
+        m.driveH = 60.0f * scale;
         m.tagH = 26.0f * scale;
         m.itemGap = 2.0f * scale;
         m.groupGap = 16.0f * scale;
@@ -500,6 +524,9 @@ void ClearTextWidthCache() {
     constexpr float kSidebarTabsDividerGapDip = 8.0f;
 
     float SidebarItemHeight(const SidebarItem& item, const SidebarMetrics& m) {
+        if (item.group_heading) return 26.0f * m.scale;
+        if (item.workspace_row) return 52.0f * m.scale;
+        if (item.workspace_empty) return 100.0f * m.scale;
         if (item.is_drive) return m.driveH;
         if (item.is_tag) return m.tagH;
         return m.itemH;
@@ -592,7 +619,7 @@ void ClearTextWidthCache() {
     float ExpandedTrayHeight(const WindowViewModel& vm, const SidebarMetrics& m) {
         if (vm.tray_deck.hidden) return 0.0f;
         if (vm.tray_deck.cards.empty())
-            return 112.0f * m.scale; // header + dashed empty state
+            return 86.0f * m.scale; // header + dashed empty state
         // Card stack: header (38) + top card + peeking layers when fanned
         // out (25) + gap + footer row (31) + destination chips when any.
         const float card = TrayCardHeightDip(vm.tray_deck.thumb_dip);
@@ -899,11 +926,58 @@ void ClearTextWidthCache() {
         diff = D2D1::RectF(exit.left - dw, bar.top, exit.left, bar.bottom);
     }
 
+    constexpr float kDriveOverviewDip = 102.0f;
+    float DriveOverviewHeight(const PaneViewModel& pane, float scale) {
+        return pane.this_pc_columns && pane.drive_overview.On() ? kDriveOverviewDip * scale : 0.0f;
+    }
+
     float PaneExtraTop(const PaneViewModel& pane, float scale, float width, Compositor* compositor) {
         return PaneBannerHeight(pane, width, scale, compositor) +
+               DriveOverviewHeight(pane, scale) +
                (pane.is_recent ? kRecentControlsDip * scale : 0.0f) +
                (pane.is_query_search ? kSearchFiltersDip * scale : 0.0f) +
                (pane.is_changes ? 36.0f * scale : 0.0f);
+    }
+
+    struct FavoritesBarGeom {
+        D2D1_RECT_F band{};
+        D2D1_RECT_F toggle{};
+        std::vector<D2D1_RECT_F> items;
+        std::vector<float> dividers;   // x of each group rule
+    };
+    // 收藏栏 under the command row: item slots left to right, the collapse
+    // button pinned at the right edge. Widths are measured from the label so
+    // the row and its hit tests always agree.
+    inline FavoritesBarGeom LayoutFavoritesBar(const WindowViewModel& vm,
+                                               const D2D1_RECT_F& toolbar, float left,
+                                               float scale) {
+        FavoritesBarGeom g;
+        const float band_h = kFavoritesBarDip * scale;
+        g.band = D2D1::RectF(left, toolbar.bottom - band_h, toolbar.right, toolbar.bottom);
+        const float item_h = 26.0f * scale;
+        const float top = g.band.bottom - item_h - 5.0f * scale;
+        float x = g.band.left + 8.0f * scale;
+        const float right_limit = g.band.right - 44.0f * scale;
+        std::wstring group;
+        bool first = true;
+        for (const auto& item : vm.favorites_bar_items) {
+            const float w = (std::min)(150.0f,
+                34.0f + static_cast<float>(item.label.size()) * 8.0f) * scale;
+            if (x + w > right_limit) break;
+            // A new group starts after a rule; the rule itself never takes space
+            // when the two neighbours share a group.
+            if (!first && item.group != group) {
+                g.dividers.push_back(x + 4.0f * scale);
+                x += 13.0f * scale;
+            }
+            group = item.group;
+            first = false;
+            g.items.push_back(D2D1::RectF(x, top, x + w, top + item_h));
+            x += w + 4.0f * scale;
+        }
+        g.toggle = D2D1::RectF(g.band.right - 36.0f * scale, top,
+                               g.band.right - 8.0f * scale, top + item_h);
+        return g;
     }
 
     void FillSearchFilterChipLabels(const std::wstring& query, std::wstring labels[5]) {
@@ -1029,7 +1103,9 @@ void ClearTextWidthCache() {
     }
 
     bool SidebarItemHasUnpin(const SidebarItem& item) {
-        return item.tab_row || (item.indent == 0 && item.path.starts_with(L"luling:workspace:"));
+        return item.tab_row ||
+               (!item.workspace_row && item.indent == 0 &&
+                item.path.starts_with(L"luling:workspace:"));
     }
 
     D2D1_RECT_F WorkspaceUnpinRect(const D2D1_RECT_F& row, float scale) {
@@ -1040,9 +1116,26 @@ void ClearTextWidthCache() {
         return D2D1::RectF(right - size, top, right, top + size);
     }
 
+    // The "save current panes" button pinned to the bottom of the empty
+    // workspace card.
+    D2D1_RECT_F WorkspaceActionRect(const D2D1_RECT_F& row, float scale) {
+        return D2D1::RectF(row.left + 8.0f * scale, row.top + 68.0f * scale,
+                           row.right - 8.0f * scale, row.top + 96.0f * scale);
+    }
+
     D2D1_RECT_F SidebarExpandRect(const D2D1_RECT_F& row, float scale) {
         const float size = 22.0f * scale;
         const float right = row.right - 6.0f * scale;
+        const float top = row.top + ((row.bottom - row.top) - size) * 0.5f;
+        return D2D1::RectF(right - size, top, right, top + size);
+    }
+
+    // 收藏夹 root row: the dock button that moves the list into the horizontal
+    // 收藏栏, just left of the expand chevron.
+    D2D1_RECT_F FavoritesBarToggleRect(const D2D1_RECT_F& row, float scale) {
+        const float size = 18.0f * scale;
+        const auto expand = SidebarExpandRect(row, scale);
+        const float right = expand.left - 4.0f * scale;
         const float top = row.top + ((row.bottom - row.top) - size) * 0.5f;
         return D2D1::RectF(right - size, top, right, top + size);
     }
@@ -1916,6 +2009,7 @@ inline constexpr SettingsNavItem kSettingsNav[] = {
     {1, 3},   // 搜索与索引
     {5, 3},   // 快速预览
     {14, 3},  // 增强包 (downloads only)
+    {15, 3},  // 扩展商店
     {12, 3},  // AI 助手
     {11, 3},  // AI 与 MCP
     {2, 3},   // 右键菜单
@@ -2272,6 +2366,105 @@ struct SettingsLayout {
     float content_origin = 0.0f;
     float content_h = 0.0f;
 };
+
+// 扩展商店 tabs: three equal segments under the page title, shared by the
+// drawing and the hit test.
+inline D2D1_RECT_F SettingsStoreTabRect(const SettingsLayout& lay, float scale, int index) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float right = lay.content.right - 20.0f * scale;
+    const float width = std::min((right - left) / 3.0f, 180.0f * scale);
+    const float top = lay.content.top + 92.0f * scale;
+    const float x = left + static_cast<float>(index) * (width + 6.0f * scale);
+    return D2D1::RectF(x, top, x + width, top + 34.0f * scale);
+}
+
+inline float SettingsStoreBodyTop(const SettingsLayout& lay, float scale) {
+    return SettingsStoreTabRect(lay, scale, 0).bottom + 14.0f * scale;
+}
+
+// 管理增强包 tab: the button that opens the 增强包 page, below the pack rows.
+inline D2D1_RECT_F SettingsStoreOpenPacksRect(const SettingsLayout& lay, float scale) {
+    const float top = SettingsStoreBodyTop(lay, scale) + 74.0f * scale + 3.0f * 52.0f * scale;
+    const float left = lay.content.left + 20.0f * scale;
+    return D2D1::RectF(left, top, left + 180.0f * scale, top + 32.0f * scale);
+}
+
+// Pack rows: the note above them depends on the tab.
+inline float SettingsStoreRowsTop(const SettingsLayout& lay, float scale, int tab) {
+    float y = SettingsStoreBodyTop(lay, scale);
+    if (tab == 0) y += 88.0f * scale;       // 76 note + 12 gap
+    else if (tab == 2) y += 74.0f * scale;  // 62 note + 12 gap
+    return y;
+}
+
+inline D2D1_RECT_F SettingsStorePackRowRect(const SettingsLayout& lay, float scale, int tab,
+                                            int index) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float right = lay.content.right - 20.0f * scale;
+    const float y = SettingsStoreRowsTop(lay, scale, tab) + static_cast<float>(index) * 52.0f * scale;
+    return D2D1::RectF(left, y, right, y + 46.0f * scale);
+}
+
+// 浏览商店 (tab 0), Pulse-style: refresh and status, the trust notice, the
+// official link, three official cards and the community list.
+inline float SettingsStoreBrowseTop(const SettingsLayout& lay, float scale) {
+    return SettingsStoreBodyTop(lay, scale);
+}
+
+inline D2D1_RECT_F SettingsStoreRefreshRect(const SettingsLayout& lay, float scale) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float top = SettingsStoreBrowseTop(lay, scale);
+    return D2D1::RectF(left, top, left + 72.0f * scale, top + 30.0f * scale);
+}
+
+inline D2D1_RECT_F SettingsStoreStatusRect(const SettingsLayout& lay, float scale) {
+    const float left = lay.content.left + 20.0f * scale + 80.0f * scale;
+    const float top = SettingsStoreBrowseTop(lay, scale) + 4.0f * scale;
+    return D2D1::RectF(left, top, left + 98.0f * scale, top + 22.0f * scale);
+}
+
+inline D2D1_RECT_F SettingsStoreNoticeRect(const SettingsLayout& lay, float scale) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float right = lay.content.right - 20.0f * scale;
+    const float top = SettingsStoreBrowseTop(lay, scale) + 42.0f * scale;
+    return D2D1::RectF(left, top, right, top + 40.0f * scale);
+}
+
+inline D2D1_RECT_F SettingsStoreLinkRect(const SettingsLayout& lay, float scale) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float top = SettingsStoreBrowseTop(lay, scale) + 88.0f * scale;
+    return D2D1::RectF(left, top, lay.content.right - 20.0f * scale, top + 24.0f * scale);
+}
+
+inline float SettingsStoreOfficialTop(const SettingsLayout& lay, float scale) {
+    return SettingsStoreBrowseTop(lay, scale) + 142.0f * scale;
+}
+
+inline D2D1_RECT_F SettingsStoreOfficialCardRect(const SettingsLayout& lay, float scale,
+                                                 int index) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float right = lay.content.right - 20.0f * scale;
+    const float top = SettingsStoreOfficialTop(lay, scale) + static_cast<float>(index) * 100.0f * scale;
+    return D2D1::RectF(left, top, right, top + 92.0f * scale);
+}
+
+inline float SettingsStoreCommunityTop(const SettingsLayout& lay, float scale) {
+    return SettingsStoreOfficialTop(lay, scale) + 3.0f * 100.0f * scale + 20.0f * scale;
+}
+
+inline D2D1_RECT_F SettingsStoreCommunityCardRect(const SettingsLayout& lay, float scale,
+                                                  int index) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float right = lay.content.right - 20.0f * scale;
+    const float top = SettingsStoreCommunityTop(lay, scale) + static_cast<float>(index) * 100.0f * scale;
+    return D2D1::RectF(left, top, right, top + 92.0f * scale);
+}
+
+inline D2D1_RECT_F SettingsStoreCardButtonRect(const D2D1_RECT_F& card, float scale) {
+    return D2D1::RectF(card.right - 16.0f * scale - 104.0f * scale,
+                       card.bottom - 14.0f * scale - 32.0f * scale,
+                       card.right - 16.0f * scale, card.bottom - 14.0f * scale);
+}
 
 std::wstring FileNameOf(const std::wstring& path) {
     const size_t slash = path.find_last_of(L"\\/");

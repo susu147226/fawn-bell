@@ -256,6 +256,7 @@ std::wstring AppPrefs::ToJson() const {
     out += L",\n  \"cloud_status\":" + std::wstring(cloud_status ? L"true" : L"false");
     out += L",\n  \"sticky_parent\":" + std::wstring(sticky_parent ? L"true" : L"false");
     out += L",\n  \"tree_view\":" + std::wstring(tree_view ? L"true" : L"false");
+    out += L",\n  \"favorites_bar\":" + std::wstring(favorites_bar ? L"true" : L"false");
     out += L",\n  \"svn_status\":" + std::wstring(svn_status ? L"true" : L"false");
     out += L",\n  \"change_tracking_enabled\":";
     out += change_tracking_enabled ? L"true" : L"false";
@@ -439,6 +440,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     cloud_status = luling::json::ExtractBool(json, L"cloud_status", true);
     sticky_parent = luling::json::ExtractBool(json, L"sticky_parent", true);
     tree_view = luling::json::ExtractBool(json, L"tree_view", true);
+    favorites_bar = luling::json::ExtractBool(json, L"favorites_bar", false);
     svn_status = luling::json::ExtractBool(json, L"svn_status", false);
     change_tracking_enabled = luling::json::ExtractBool(json, L"change_tracking_enabled", false);
     change_tracking_days = luling::json::ExtractInt(json, L"change_tracking_days", 7);

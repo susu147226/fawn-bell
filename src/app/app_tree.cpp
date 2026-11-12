@@ -106,9 +106,11 @@ std::wstring TreePathKey(const std::wstring& path) {
 }
 
 void RebuildTreeRows(Tab& tab) {
+    // This PC keeps flat rows: grouping (磁盘 / 设备 / 网盘程序入口) owns the
+    // order, so expanding a drive or phone inline would fight it.
     if (!TreeViewEnabled() || !tab.snapshot || tab.view_mode != ui::ViewMode::Details ||
         tab.content_results || !tab.filter_text.empty() || tab.group_by != 0 ||
-        fs::IsVirtualPath(tab.current_path)) {
+        tab.current_path.empty() || fs::IsVirtualPath(tab.current_path)) {
         tab.tree_rows.reset();
         return;
     }

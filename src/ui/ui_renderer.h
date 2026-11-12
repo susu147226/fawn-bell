@@ -108,6 +108,7 @@ struct ListEntryView {
     bool is_reparse = false;
     fs::LinkKind link_kind = fs::LinkKind::None;
     bool cloud_recall = false;
+    bool empty_dir = false;   // folder with nothing inside: paler icon + 空 badge
     // OneDrive Files On-Demand: 1 local, 2 online only, 3 always keep.
     uint8_t cloud_state = 0;
     // SVN wc-status item: 0 none, 1 modified, 2 added, 3 deleted, 4 unversioned,
@@ -124,6 +125,10 @@ struct ListEntryView {
     // This PC tiles: used fraction (-1 = unknown) and "X free of Y".
     float drive_used = -1.0f;
     std::wstring drive_space_text;
+    uint64_t drive_free = 0;
+    uint64_t drive_total = 0;
+    bool pc_launcher = false;   // This PC: a cloud app shortcut, not a file
+    bool pc_device = false;     // This PC: a phone or camera
     // Inline file tree: indent level and this folder's chevron state.
     int tree_depth = 0;
     bool tree_expanded = false;
@@ -186,6 +191,25 @@ struct ColumnStripView {
 // Folder compare (two panes): per-entry status relative to the other pane.
 enum class CompareMark : uint8_t { Same = 0, OnlyHere = 1, Newer = 2, Older = 3, Differs = 4 };
 
+// This PC in details view with two or more drives: the 存储总览 card above the
+// list. Each drive is one segment of a stacked bar, as wide as its share of the
+// total capacity and filled as far as it is used.
+struct DriveOverviewView {
+    struct Drive {
+        std::wstring letter;    // "C:"
+        float used = 0.0f;      // 0..1
+        uint64_t free = 0;
+        uint64_t total = 0;
+    };
+    std::vector<Drive> drives;  // fewer than two: no card
+    uint64_t free = 0;
+    uint64_t total = 0;
+    bool On() const { return drives.size() >= 2; }
+};
+
+// 收藏栏: the starred row's height (DIPs), also part of the toolbar's height.
+inline constexpr float kFavoritesBarDip = 36.0f;
+
 struct PaneViewModel {
     using FilterMap = std::vector<int>;
     using TagDots = std::unordered_map<int, std::vector<D2D1_COLOR_F>>;
@@ -213,6 +237,10 @@ struct PaneViewModel {
     std::wstring banner_title;
     std::wstring banner_message;
     int banner_kind = 0; // 0 info, 1 success, 2 warning, 3 error
+    // This PC in details view: its own columns (使用情况/可用/总大小) and the
+    // 存储总览 card over two or more local drives.
+    bool this_pc_columns = false;
+    DriveOverviewView drive_overview;
     // Derived data is shared with the tab cache. Search views can contain
     // 100k rows, so copying these containers for every animation frame is not
     // acceptable.
@@ -363,11 +391,14 @@ struct SidebarItem {
     D2D1_COLOR_F tag_dot = {};
     bool danger = false;
     bool is_tag = false;
+    bool group_heading = false;    // 标签组 heading row: label only, never navigates
     bool show_count = false;
     int count = 0;
     std::wstring path;
     bool is_drive = false;
     float used_ratio = 0.0f;       // For drives: 0..1.
+    uint64_t drive_free_bytes = 0;
+    uint64_t drive_total_bytes = 0;
     float y_offset = 0.0f;         // Tags: slide-animation offset added at layout.
     int indent = 0;
     bool status_dot = false;
@@ -375,6 +406,9 @@ struct SidebarItem {
     bool editing = false;
     bool expandable = false;
     bool expanded = false;
+    bool workspace_empty = false;  // "Workspaces" placeholder card with a save button
+    bool workspace_row = false;    // 工作区 entry card: tile + name + folder + 当前
+    bool favorites_root = false;   // 收藏夹 root row: its own 收藏栏 toggle button
     bool starred_child = false;
     bool tab_row = false;          // vertical tabs: row stands for a window tab
     int tab_number = 0;            // 1-based position, badged on the icon rail
@@ -382,7 +416,7 @@ struct SidebarItem {
     float flash = 0.0f;            // tab rows: attention luling, see TabView::flash
 };
 
-enum class SidebarAddAction { None, CreateTag, AddNetwork, AddQuickAccess, NewTab };
+enum class SidebarAddAction { None, CreateTag, AddNetwork, AddQuickAccess, NewTab, SaveWorkspace };
 
 struct SidebarGroup {
     // Logical section id (luling::app::SidebarSectionId). Collapse/hide masks and
@@ -723,6 +757,17 @@ struct WindowViewModel {
     std::vector<PaneSlotView> pane_slots;
     std::vector<SplitterView> splitters;
     std::vector<SidebarGroup> sidebar;
+    // 收藏栏: the starred list laid out as a row under the toolbar instead of
+    // standing up in the sidebar (both come from places.starred_items).
+    struct FavoritesBarItem {
+        std::wstring label;
+        std::wstring path;
+        bool is_dir = false;
+        std::wstring group;   // items sharing a name sit in one run
+    };
+    bool favorites_bar = false;
+    std::vector<FavoritesBarItem> favorites_bar_items;
+    int favorites_focus = -1;   // keyboard focus on the favorites bar (F6)
     float sidebar_scroll = 0.0f;
     // Sidebar scrollbar fade (#44): 0 hidden .. 1 shown; expand 0 thin thumb .. 1 thumb + track.
     float sidebar_scrollbar_opacity = 1.0f;
@@ -858,6 +903,29 @@ struct WindowViewModel {
     int settings_theme = 0; // system, light, dark
     bool settings_open = false;
     int settings_page = 0; // 0 general, 1 search/index, 2 context menu, 3 about, 4 duplicates
+    // 扩展商店 tabs: 0 浏览商店, 1 已安装扩展, 2 管理增强包.
+    int settings_store_tab = 0;
+    // The GitHub catalog: state 1 loading, 2 ready, 3 offline.
+    int settings_store_catalog_state = 0;
+    bool settings_store_from_cache = false;
+    struct StoreItemView {
+        std::wstring id;
+        std::wstring name;
+        std::wstring desc;
+        std::wstring version;
+        std::wstring size_text;
+        bool installed = false;
+    };
+    std::vector<StoreItemView> settings_store_community;
+    struct StoreInstalledView {
+        std::wstring id;
+        std::wstring name;
+        std::wstring version;
+        std::wstring permissions;
+        bool enabled = true;
+    };
+    std::vector<StoreInstalledView> settings_store_installed;
+    std::wstring settings_store_install_error;
     // Settings > AI 助手 (page 12): the MCP page view (ai_settings_ui.cpp).
     std::shared_ptr<const AiPageView> settings_ai;
     // Settings > AI 助手 (page 12): the model service page view.
@@ -1059,6 +1127,8 @@ struct HitTestResult {
         ToolbarSort,
         ToolbarMore,
         ToolbarSelAction,   // selection chip: quick actions, kSelChipMore, kSelChipClear, -1 chip body
+        FavoritesBarItem,   // 收藏栏 entry: index into favorites_bar_items
+        FavoritesBarToggle, // 收藏栏 dock button: back to the sidebar
         ToolbarPin,         // pinned command or app (自定义工具栏): index into layout.pins
         ToolbarPinLabel,    // drop mode: the label ahead of the pinned apps
         NewButtonArrow,     // chevron segment of the split New button: open the New menu
@@ -1117,6 +1187,7 @@ struct HitTestResult {
         SidebarItem,
         SidebarItemAction,
         SidebarItemExpand,
+        SidebarWorkspaceAction,   // save button inside the empty workspace card
         SidebarBlank,             // empty space in the sidebar: section menu
         TrayRelease,
         TrayClose,
@@ -1153,6 +1224,13 @@ struct HitTestResult {
         StatusBarCancelSearch,
         StatusBarAi,
         SettingsNav,
+        SettingsStoreTab,       // 扩展商店: 0 浏览商店, 1 已安装扩展, 2 管理增强包
+        SettingsStoreOpenPacks, // 扩展商店: open the 增强包 page
+        SettingsStorePackRow,   // 扩展商店: a pack row (index into the pack list)
+        SettingsStoreRefresh,   // 浏览商店: fetch the GitHub catalog again
+        SettingsStoreLinkPacks, // 浏览商店: jump to the 快速预览 page (packs, sources)
+        SettingsStoreOfficial,  // 浏览商店: an official card's button (index)
+        SettingsStoreInstall,   // 浏览商店: a community card's button (index)
         SettingsAiAction,    // Settings > AI 助手: see kAiAction* in ui_settings_ai.cpp
         SettingsToggle,
         SettingsIntegration, // 0 master, 1 folders, 2 Win+E, 3 This PC, 4 experimental, 5 retry, 6 restore
@@ -1289,8 +1367,19 @@ public:
     // keeps only its command row.
     void SetVerticalTabs(bool on) {
         vertical_tabs_ = on && !embedded_;
-        toolbar_height_ = (vertical_tabs_ || embedded_ ? 44.0f : 88.0f) * scale_;
+        RefreshToolbarHeight();
     }
+    // 收藏栏 under the command row: its band joins the toolbar's height so the
+    // panes, the assistant column and every hit test move down with it.
+    void SetFavoritesBar(bool on) {
+        favorites_bar_ = on;
+        RefreshToolbarHeight();
+    }
+    bool FavoritesBar() const { return favorites_bar_; }
+    // True when (x, y) is inside the favorites band, so a drop there stars
+    // the dragged items instead of moving files.
+    bool FavoritesBarBandContains(const WindowViewModel& vm, const D2D1_RECT_F& rect,
+                                  float x, float y) const;
     // Hosted inside another window (the file picker): no title bar, tabs,
     // command row, status bar or details panel; only the address row, the
     // sidebar and the pane. `top_dip` is the host's own strip above the
@@ -1505,7 +1594,12 @@ public:
     void ToggleDetailsPreviewFit(float x, float y);
 
     // Date = modified. Values double as details_column_set.h bits: append only.
-    enum class ColumnKind : uint8_t { Name, Path, Date, Type, Size, Created, Accessed };
+    enum class ColumnKind : uint8_t {
+        Name, Path, Date, Type, Size, Created, Accessed,
+        // This PC's own columns (constructed by ThisPcColumns, never stored in
+        // the column mask): usage bar, free space, total size.
+        Usage, Free, Total
+    };
     static constexpr size_t kMaxDetailsColumns = 7;
     static_assert(kDetailsColumnModified == 1u << static_cast<uint32_t>(ColumnKind::Date) &&
                   kDetailsColumnType == 1u << static_cast<uint32_t>(ColumnKind::Type) &&
@@ -1605,6 +1699,16 @@ public:
         const std::array<float, 4>& search_dividers = {}) const;
     DetailsColumnLayout DetailsColumns(const D2D1_RECT_F& pane_bounds,
                                        const PaneViewModel& vm) const;
+    // 收藏栏 band under the command row (空状态: a hint, no items).
+    void DrawFavoritesBar(const WindowViewModel& vm, const D2D1_RECT_F& toolbar_rect,
+                          const Theme& theme);
+    DetailsColumnLayout ThisPcColumns(const D2D1_RECT_F& pane_bounds,
+                                      const PaneViewModel& vm) const;
+    // The 存储总览 card (DriveOverviewView) in `card`.
+    void DrawDriveOverview(const PaneViewModel& pane, const D2D1_RECT_F& card,
+                           float reveal, const Theme& theme);
+    // 0..1 for the bar fill: plays once each time This PC comes into view.
+    float DriveOverviewReveal(const PaneViewModel& pane, int pane_index);
     DetailsColumnWidths ResizeDetailsColumnDivider(
         const D2D1_RECT_F& pane_bounds,
         const DetailsColumnWidths& dividers,
@@ -1799,6 +1903,7 @@ private:
     void DrawSettingsPacks(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     // 增强包 (page 14): the downloadable packs only.
     void DrawSettingsEnhance(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    void DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsAi(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSettingsAiModel(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     // Pages 0 and 7-10 plus the shortcut list (page 13).
@@ -1919,7 +2024,12 @@ private:
     int title_clock_page_ = 0;
     ULONGLONG title_clock_page_since_ = 0;
     ULONGLONG title_clock_slide_start_ = 0;
+    void RefreshToolbarHeight() {
+        toolbar_height_ = (vertical_tabs_ || embedded_ ? 44.0f : 88.0f) * scale_ +
+                          (favorites_bar_ ? kFavoritesBarDip * scale_ : 0.0f);
+    }
     float toolbar_height_ = 88.0f;
+    bool favorites_bar_ = false;
     float status_height_ = 28.0f;
     float sidebar_width_ = 224.0f;
     float sidebar_width_dip_ = 224.0f;
@@ -1979,6 +2089,9 @@ private:
     // Motion state: highlight plates glide between items (ui_motion.h).
     uint64_t motion_frame_ = 0;
     uint64_t motion_now_ = 0;  // motion::NowMs() sampled once per Render
+    // 存储总览: the moment This PC came into view, per pane, so the bars fill.
+    std::array<uint64_t, 4> drive_overview_start_{};
+    std::array<std::wstring, 4> drive_overview_key_;
     AiPanelView ai_panel_;
     motion::RectMotion sidebar_pill_;
     motion::RectMotion settings_nav_pill_;

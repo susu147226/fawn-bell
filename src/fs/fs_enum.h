@@ -30,6 +30,8 @@ struct DirEntry {
     bool is_reparse = false;
     DWORD reparse_tag = 0; // Unknown tags, including cloud placeholders, are not links.
     bool cloud_recall = false;
+    // Local folder with no entries beyond . and .. (empty-folder badge).
+    bool empty_dir = false;
     uint8_t drive_type = 0; // GetDriveTypeW for "This PC" rows, 0 otherwise
     std::wstring full_path; // set for virtual views (search/tag); empty = parent+name
     std::wstring recycle_path; // $R payload when listing luling:recycle; not a .lnk target
@@ -50,6 +52,13 @@ struct DirEntry {
     uint64_t drive_total = 0;
     uint64_t drive_free = 0;
     bool drive_locked = false; // "This PC" rows: BitLocker volume not unlocked yet
+    // "This PC" program icons (网盘程序入口): 0 = not a launcher, otherwise the
+    // brand tint (1 other, 2 Baidu, 3 WPS). full_path is shell:::{CLSID}.
+    uint8_t pc_launcher = 0;
+    // "This PC" portable devices (phones, cameras) from the Shell namespace.
+    bool pc_device = false;
+    // "This PC" rows: the volume's file system ("NTFS", "exFAT"), when known.
+    std::wstring drive_fs;
     // Flattened tree view (details list with expanded folders): indent level,
     // whether this folder is expanded, and whether a chevron belongs on it.
     // Zero/false for ordinary listings.

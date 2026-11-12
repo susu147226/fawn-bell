@@ -73,5 +73,9 @@ constexpr UINT WM_TREE_CHILDREN = WM_APP + 88;          // wParam token: a folde
 constexpr UINT WM_TREE_STAMPS = WM_APP + 89;            // wParam token: expanded folders' directory stamps were checked
 // The address editor took a keystroke and its completion debounce is armed.
 constexpr UINT WM_ADDRESS_COMPLETE = WM_APP + 90;
+// 扩展商店: the GitHub catalog finished loading, or one extension finished
+// installing (wParam 1 ok, 0 failed).
+constexpr UINT WM_STORE_CATALOG = WM_APP + 91;
+constexpr UINT WM_STORE_INSTALLED = WM_APP + 92;
 
 } // namespace luling

@@ -1106,7 +1106,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 RememberPath(*s, t->current_path);
         } else {
         // Shots accept the This PC arguments too (GUI checks of the drive view).
-        std::wstring startPath = !s->shot.active ? L"C:\\"
+        // Without a session Luling opens This PC, the same as its default home.
+        std::wstring startPath = !s->shot.active ? std::wstring()
             : app::IsThisPcArgument(s->shot.path) ? std::wstring() : s->shot.path;
         if (!s->shot.active && !s->session_path.empty()) startPath = s->session_path;
         else if (!s->shot.active && !s->open_path.empty())
@@ -1380,6 +1381,10 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             rc->right - rc->left, rc->bottom - rc->top,
             SWP_NOZORDER | SWP_NOACTIVATE);
         s->compositor.RecreateTextFormats(s->scale);
+        // Cached layouts and file-name widths were measured for the old scale;
+        // keeping them would draw names at the previous DPI.
+        ui::typography::InvalidateCaches();
+        s->renderer.InvalidateTypography();
         s->renderer.SetScale(s->scale);
         if (s->editFont) {
             DeleteObject(s->editFont);
@@ -1933,6 +1938,25 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     case WM_MOUSEWHEEL:
         return HandleMouseWheel(s, hwnd, msg, wParam, lParam);
 
+    case WM_MOUSEHWHEEL: {
+        // Horizontal wheels browse an overflowing tab strip, same as the
+        // vertical wheel does.
+        if (!s) break;
+        POINT tp{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ScreenToClient(hwnd, &tp);
+        if (tp.y >= 0 && static_cast<float>(tp.y) < s->renderer.TitleBarHeight()) {
+            const float steps = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) /
+                                static_cast<float>(WHEEL_DELTA);
+            if (s->renderer.ScrollTabStrip(BuildVm(*s, false),
+                    static_cast<float>(s->compositor.Width()), static_cast<float>(tp.x),
+                    static_cast<float>(tp.y), -steps)) {
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            }
+        }
+        break;
+    }
+
     case WM_APPCOMMAND:
         // DefWindowProc translates side-button releases, including child controls.
         if (s && HandleBrowserNavigation(*s, lParam)) return TRUE;
@@ -2453,6 +2477,12 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return 0;
     case WM_ADDRESS_COMPLETE:
         if (s) TickAddressCompletion(*s);
+        return 0;
+    case WM_STORE_CATALOG:
+    case WM_STORE_INSTALLED:
+        // The catalog or an install finished: the settings page reads the
+        // snapshot again on the next frame.
+        if (s) InvalidateRect(s->hwnd, nullptr, FALSE);
         return 0;
     case WM_UPDATE_INSTALL:
         if (s) InstallUpdate(*s);
@@ -3198,6 +3228,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             // Optional item count: --shot-tray 1 stages a single file.
             if (i + 1 < __argc && __wargv[i + 1][0] >= L'0' && __wargv[i + 1][0] <= L'9')
                 state.shot_tray_count = std::max(1, _wtoi(__wargv[++i]));
+        } else if (wcscmp(__wargv[i], L"--shot-favorites-bar") == 0) {
+            state.shot_favorites_bar = true;
         } else if (wcscmp(__wargv[i], L"--shot-tab-colors") == 0) {
             state.shot_tab_colors = true;
         } else if (wcscmp(__wargv[i], L"--shot-pinned-tab") == 0) {

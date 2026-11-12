@@ -14,6 +14,8 @@
 #include "app_column_view.h"
 #include "folder_sizes_ui.h"
 #include "update_status.h"
+#include "store_catalog.h"
+#include "extension_manager.h"
 #include "about_info.h"
 #include "../ui/lumatext_renderer.h"
 #include "../ui/link_type_text.h"
@@ -587,6 +589,43 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
         if (app::ParseLulingPath(tab->current_path, &kind, &rest) && kind == L"settings") {
             vm.settings_open = true;
             vm.settings_page = app::SettingsController::PageFromName(rest);
+            vm.settings_store_tab = s.settingsStoreTab;
+            {
+                const auto store = app::StoreCatalogSnapshotCopy();
+                vm.settings_store_catalog_state =
+                    store.state == app::StoreCatalogState::Loading ? 1
+                    : store.state == app::StoreCatalogState::Ready ? 2 : 3;
+                vm.settings_store_from_cache = store.from_cache;
+                vm.settings_store_install_error = app::StoreInstallError();
+                vm.settings_store_community.clear();
+                for (const auto& ext : store.extensions) {
+                    ui::WindowViewModel::StoreItemView item;
+                    item.id = ext.id;
+                    item.name = ext.name;
+                    item.desc = ext.desc;
+                    item.version = ext.version;
+                    if (ext.size)
+                        item.size_text = luling::format::ByteSize(
+                            ext.size, false, luling::format::ByteSizeStyle::Compact);
+                    item.installed = !app::InstalledStoreExtensionVersion(ext.id).empty();
+                    vm.settings_store_community.push_back(std::move(item));
+                }
+                if (vm.settings_page == 15 && store.state == app::StoreCatalogState::Idle)
+                    app::StartStoreCatalogFetch(s.hwnd);
+                vm.settings_store_installed.clear();
+                for (const auto& ext : app::LoadInstalledExtensions()) {
+                    ui::WindowViewModel::StoreInstalledView item;
+                    item.id = ext.id;
+                    item.name = ext.name;
+                    item.version = ext.version;
+                    item.enabled = ext.enabled;
+                    for (const auto& line : app::ExtensionPermissionLines(ext)) {
+                        if (!item.permissions.empty()) item.permissions += L" \x00B7 ";
+                        item.permissions += line;
+                    }
+                    vm.settings_store_installed.push_back(std::move(item));
+                }
+            }
             vm.settings_scroll = s.settings.scroll();
             vm.settings_nav_scroll = s.settings.nav_scroll();
             vm.settings_launch_on_startup = s.appPrefs.launch_on_startup;
@@ -2253,10 +2292,32 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         }
     });
     SyncColumnStrips(s);
+    // 收藏栏 and the sidebar's 收藏夹 are the same list: only one stands.
+    const bool favorites_bar_shown = s.appPrefs.favorites_bar || s.shot_favorites_bar;
+    uint32_t sidebar_hidden = s.sidebarHiddenMask;
+    if (favorites_bar_shown)
+        sidebar_hidden |= 1u << static_cast<unsigned>(app::SidebarSectionId::Starred);
     ui::WindowViewModel vm = app::BuildWindowViewModel(*s.pane, s.sidebar,
         s.pane->focused, s.maximized, s.darkMode, &s.places, s.sidebarCollapsedMask,
-        s.sidebarHiddenMask, s.starredExpanded, &s.sidebarOrder,
+        sidebar_hidden, s.starredExpanded, &s.sidebarOrder,
         s.sidebarQuickAccessHiddenMask);
+    vm.favorites_bar = favorites_bar_shown;
+    vm.favorites_bar_items.clear();
+    if (vm.favorites_bar) {
+        for (const auto& item : s.places.starred_items) {
+            if (item.path.empty()) continue;
+            ui::WindowViewModel::FavoritesBarItem fav;
+            fav.label = app::TabTitle(item.path);
+            fav.path = item.path;
+            fav.is_dir = item.kind == app::PlaceItemKind::Folder;
+            fav.group = item.group;
+            vm.favorites_bar_items.push_back(std::move(fav));
+        }
+    }
+    vm.favorites_focus = -1;
+    if (vm.favorites_bar && s.favoritesFocus >= 0 && !vm.favorites_bar_items.empty())
+        vm.favorites_focus = std::clamp(s.favoritesFocus, 0,
+            static_cast<int>(vm.favorites_bar_items.size()) - 1);
     app::FillWindowTabStrip(vm, s.window_tabs);
     vm.show_pinned_tab_names = s.appPrefs.show_pinned_tab_names;
     vm.settings_list_smart_date = s.appPrefs.list_smart_date;
@@ -2642,6 +2703,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     }
     // Vertical tabs join the sidebar before its scroll range is measured.
     ApplyVerticalTabs(s, vm);
+    s.renderer.SetFavoritesBar(vm.favorites_bar);
     // The tray (including exiting cards) determines the sidebar viewport.
     // Clamp only after it is populated, using the same model as draw/hit-test.
     s.sidebarScroll = std::clamp(s.sidebarScroll, 0.0f, s.renderer.SidebarMaxScroll(

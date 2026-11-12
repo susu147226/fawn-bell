@@ -14,10 +14,13 @@ namespace luling::app {
 // "Group by" for real folders (details view). Values are persisted.
 // Location groups by parent folder and only applies to multi-folder views
 // (search results, tag views).
-enum class GroupBy : uint8_t { None = 0, Name = 1, Date = 2, Type = 3, Size = 4, Tag = 5, Location = 6 };
+// ThisPc is This PC's fixed grouping (磁盘 / 网盘程序入口): never offered to the
+// user and never saved.
+enum class GroupBy : uint8_t { None = 0, Name = 1, Date = 2, Type = 3, Size = 4, Tag = 5, Location = 6,
+                               ThisPc = 7 };
 
 constexpr GroupBy GroupByFromInt(int v) noexcept {
-    return v >= 1 && v <= 6 ? static_cast<GroupBy>(v) : GroupBy::None;
+    return v >= 1 && v <= 7 ? static_cast<GroupBy>(v) : GroupBy::None;
 }
 
 // Parent folder of a virtual-view entry (full_path), without the \\?\ prefix.

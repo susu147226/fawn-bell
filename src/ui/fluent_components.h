@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui_compositor.h"
+#include "drive_capacity.h"
 
 #include <array>
 #include <cstddef>
@@ -264,6 +265,11 @@ struct DriveSidebarItemSpec {
     std::wstring_view detail;
     std::wstring_view glyph;
     float capacity = 0.0f;
+    // Bytes left, for the "under 1 GB" red (kCapacityUnknownFree: by percent only).
+    std::uint64_t free_bytes = kCapacityUnknownFree;
+    // Capacity in bytes. Known: the name with its percent, the bar, then the
+    // free and total sizes. 0: `detail` beside the name instead.
+    std::uint64_t total_bytes = 0;
     ControlState state{};
     bool drop_target = false;
     bool skip_glyph = false;
@@ -439,8 +445,14 @@ public:
     D2D1_RECT_F SidebarItemIconRect(const D2D1_RECT_F& bounds, bool status_dot) const;
     D2D1_RECT_F DriveSidebarItemIconRect(const D2D1_RECT_F& bounds) const;
     void DrawDriveSidebarItem(const DriveSidebarItemSpec& spec);
-    // Drive usage track (sidebar drives, This PC tiles); 90% used turns danger.
-    void DrawCapacityBar(const D2D1_RECT_F& track, float capacity, D2D1_COLOR_F value_color);
+    // Drive usage track (sidebar drives, This PC tiles). Free bytes let a nearly
+    // full drive turn amber, then red.
+    void DrawCapacityBar(const D2D1_RECT_F& track, float capacity, D2D1_COLOR_F value_color,
+                         float reveal = 1.0f,
+                         std::uint64_t free_bytes = kCapacityUnknownFree);
+    D2D1_COLOR_F CapacityInk(CapacityLevel level) const;
+    void DrawCapacitySpaceLine(const DriveSpaceText& space, CapacityLevel level,
+                               const D2D1_RECT_F& bounds, bool enabled);
     void DrawPaneHeader(const PaneHeaderSpec& spec);
     void DrawColumnHeader(const ColumnHeaderSpec& spec);
     void DrawFileRowContent(const FileRowContentSpec& spec);

@@ -2446,6 +2446,36 @@ void Painter::DrawDriveSidebarItem(const DriveSidebarItemSpec& spec) {
                   icon_color);
     }
     const float text_left = content.left + icon_slot + Px(8.0f);
+    const CapacityLevel level = CapacityLevelFor(spec.capacity, spec.free_bytes);
+    const D2D1_COLOR_F bar_color = spec.bar_color.a > 0.0f ? spec.bar_color
+                                 : spec.icon_color.a > 0.0f ? spec.icon_color
+                                                            : theme_->accent;
+    if (spec.total_bytes > 0) {
+        // Name and percent, a 6 px bar, then the free and total sizes.
+        const std::wstring percent = CapacityPercentText(spec.capacity);
+        const float percent_width = MeasureTextWidth(compositor_->DwriteFactory(),
+                                                     CaptionFormat(), percent) + Px(6.0f);
+        DrawText(spec.name,
+                 D2D1::RectF(text_left, content.top, content.right - percent_width,
+                            content.top + text_row),
+                 NavFormat(), foreground);
+        DrawText(percent,
+                 D2D1::RectF(content.right - percent_width, content.top, content.right,
+                            content.top + text_row),
+                 CaptionFormat(), spec.state.enabled ? CapacityInk(level) : theme_->text_disabled,
+                 HorizontalAlignment::Right);
+        const float bar_top = content.top + text_row + Px(4.0f);
+        DrawCapacityBar(D2D1::RectF(text_left, bar_top, content.right, bar_top + Px(6.0f)),
+                        spec.capacity, bar_color, 1.0f, spec.free_bytes);
+        const float line_top = bar_top + Px(6.0f) + Px(3.0f);
+        DrawCapacitySpaceLine(DriveTileSpaceText(spec.free_bytes, spec.total_bytes), level,
+                              D2D1::RectF(text_left, line_top, content.right, line_top + Px(16.0f)),
+                              spec.state.enabled);
+        if (spec.state.keyboard_focus) {
+            DrawFocusRing(spec.bounds, radius);
+        }
+        return;
+    }
     const float detail_width = MeasureTextWidth(compositor_->DwriteFactory(),
                                                 CaptionFormat(), spec.detail) + Px(6.0f);
     DrawText(spec.name,
@@ -2455,35 +2485,82 @@ void Painter::DrawDriveSidebarItem(const DriveSidebarItemSpec& spec) {
     DrawText(spec.detail,
              D2D1::RectF(content.right - detail_width, content.top, content.right,
                         content.top + text_row),
-             CaptionFormat(), theme_->text_secondary, HorizontalAlignment::Right);
+             CaptionFormat(), spec.state.enabled ? CapacityInk(level) : theme_->text_disabled,
+             HorizontalAlignment::Right);
 
-    const auto track = D2D1::RectF(text_left, content.bottom - Px(4.0f), content.right,
+    const auto track = D2D1::RectF(text_left, content.bottom - Px(5.0f), content.right,
                                    content.bottom);
-    DrawCapacityBar(track, spec.capacity,
-                    spec.bar_color.a > 0.0f ? spec.bar_color
-                    : spec.icon_color.a > 0.0f ? spec.icon_color
-                                               : theme_->accent);
+    DrawCapacityBar(track, spec.capacity, bar_color, 1.0f, spec.free_bytes);
     if (spec.state.keyboard_focus) {
         DrawFocusRing(spec.bounds, radius);
     }
 }
 
-void Painter::DrawCapacityBar(const D2D1_RECT_F& track, float capacity, D2D1_COLOR_F value_color) {
+D2D1_COLOR_F Painter::CapacityInk(CapacityLevel level) const {
+    if (!theme_) return D2D1::ColorF(0, 0, 0, 0);
+    switch (level) {
+    case CapacityLevel::Warning:
+        return dark_ ? HexColor(0xF5C26B) : HexColor(0x985A00);
+    case CapacityLevel::Critical:
+        return theme_->danger;
+    case CapacityLevel::Normal:
+    default:
+        return theme_->text_secondary;
+    }
+}
+
+void Painter::DrawCapacitySpaceLine(const DriveSpaceText& space, CapacityLevel level,
+                                    const D2D1_RECT_F& bounds, bool enabled) {
+    if (!theme_ || !dc_ || space.text.empty() || Width(bounds) <= 1.0f ||
+        Height(bounds) <= 0.0f) {
+        return;
+    }
+    const D2D1_COLOR_F ink = !enabled ? theme_->text_disabled
+                            : level == CapacityLevel::Critical ? CapacityInk(level)
+                                                              : theme_->text_secondary;
+    DrawText(space.text, bounds, CaptionFormat(), ink);
+}
+
+void Painter::DrawCapacityBar(const D2D1_RECT_F& track, float capacity,
+                              D2D1_COLOR_F value_color, float reveal,
+                              std::uint64_t free_bytes) {
     if (!theme_ || !dc_ || Width(track) <= 0.0f || Height(track) <= 0.0f) {
         return;
     }
     const float radius = Height(track) * 0.5f;
-    FillRoundedRect(track, radius, dark_ ? Rgba(0xFFFFFF, 20) : Rgba(0x000000, 18));
+    // A quiet groove, so an empty drive still reads as a track.
+    FillRoundedRect(track, radius, dark_ ? Rgba(0xFFFFFF, 26) : Rgba(0x000000, 19));
+    if (!high_contrast_ && Height(track) >= Px(4.0f)) {
+        StrokeRoundedRect(track, (std::max)(0.0f, radius - 0.5f),
+                          dark_ ? Rgba(0xFFFFFF, 10) : Rgba(0x000000, 9));
+    }
     const float value = Clamp01(capacity);
-    if (value <= 0.0f) {
+    const float grow = Clamp01(reveal);
+    if (value <= 0.0f || grow <= 0.0f) {
         return;
     }
+    // A sliver of use still shows as a round dot rather than vanishing.
+    const float full = (std::min)(Width(track), (std::max)(Width(track) * value, Height(track)));
     auto value_rect = track;
-    value_rect.right = track.left + Width(track) * value;
-    if (value >= 0.90f) {
-        value_color = theme_->danger;
+    value_rect.right = track.left + full * grow;
+    const CapacityLevel level = CapacityLevelFor(value, free_bytes);
+    D2D1_COLOR_F fill = value_color;
+    if (high_contrast_) {
+        if (level != CapacityLevel::Normal) fill = theme_->danger;
+    } else {
+        switch (level) {
+        case CapacityLevel::Warning:
+            fill = dark_ ? HexColor(0xF2C068) : HexColor(0xE2A04A);
+            break;
+        case CapacityLevel::Critical:
+            fill = dark_ ? HexColor(0xE5533F) : HexColor(0xC42B1C);
+            break;
+        case CapacityLevel::Normal:
+        default:
+            break;
+        }
     }
-    FillRoundedRect(value_rect, radius, value_color);
+    FillRoundedRect(value_rect, radius, fill);
 }
 
 void Painter::DrawPaneHeader(const PaneHeaderSpec& spec) {

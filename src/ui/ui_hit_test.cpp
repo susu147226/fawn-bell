@@ -167,10 +167,13 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         };
         if (!vertical_tabs_) {
         if (strip.overflow && y >= strip.y && y < strip.y + strip.h) {
-            if (x >= strip.view_left - strip.arrow_w && x < strip.view_left) {
+            // A hidden arrow (list already at that end) takes no clicks.
+            if (x >= strip.view_left - strip.arrow_w && x < strip.view_left &&
+                strip.scroll > 0.5f) {
                 r.region = HitTestResult::TabScroll; r.index = -1; return r;
             }
-            if (x >= strip.view_right && x < strip.view_right + strip.arrow_w) {
+            if (x >= strip.view_right && x < strip.view_right + strip.arrow_w &&
+                strip.scroll < strip.max_scroll - 0.5f) {
                 r.region = HitTestResult::TabScroll; r.index = 1; return r;
             }
         }
@@ -245,6 +248,53 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             r.region = StatusBarHitRegion(vm, rect, x, y, scale_, status_height_,
                                           compositor_);
             return r;
+        }
+        if (vm.settings_page == 15) {
+            for (int i = 0; i < 3; ++i) {
+                if (!ContainsPt(SettingsStoreTabRect(lay, scale_, i), x, y)) continue;
+                r.region = HitTestResult::SettingsStoreTab;
+                r.index = i;
+                return r;
+            }
+            if (vm.settings_store_tab == 2 &&
+                ContainsPt(SettingsStoreOpenPacksRect(lay, scale_), x, y)) {
+                r.region = HitTestResult::SettingsStoreOpenPacks;
+                return r;
+            }
+            if (vm.settings_store_tab == 0) {
+                if (ContainsPt(SettingsStoreRefreshRect(lay, scale_), x, y)) {
+                    r.region = HitTestResult::SettingsStoreRefresh;
+                    return r;
+                }
+                if (ContainsPt(SettingsStoreLinkRect(lay, scale_), x, y)) {
+                    r.region = HitTestResult::SettingsStoreLinkPacks;
+                    return r;
+                }
+                for (int i = 0; i < 3; ++i) {
+                    const auto rc = SettingsStoreCardButtonRect(
+                        SettingsStoreOfficialCardRect(lay, scale_, i), scale_);
+                    if (!ContainsPt(rc, x, y)) continue;
+                    r.region = HitTestResult::SettingsStoreOfficial;
+                    r.index = i;
+                    return r;
+                }
+                for (int i = 0; i < static_cast<int>(vm.settings_store_community.size()); ++i) {
+                    const auto rc = SettingsStoreCardButtonRect(
+                        SettingsStoreCommunityCardRect(lay, scale_, i), scale_);
+                    if (!ContainsPt(rc, x, y)) continue;
+                    r.region = HitTestResult::SettingsStoreInstall;
+                    r.index = i;
+                    return r;
+                }
+            } else if (vm.settings_store_tab == 2) {
+                for (int i = 0; i < 3; ++i) {
+                    if (!ContainsPt(SettingsStorePackRowRect(lay, scale_, vm.settings_store_tab, i),
+                                    x, y)) continue;
+                    r.region = HitTestResult::SettingsStorePackRow;
+                    r.index = i;
+                    return r;
+                }
+            }
         }
         for (int i = 0; i < kSettingsNavItemCount; ++i) {
             if (ContainsPt(lay.nav_row[i], x, y)) {
@@ -908,6 +958,23 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             }
             return r;
         }
+        if (vm.favorites_bar) {
+            const D2D1_RECT_F bar = D2D1::RectF(0.0f, title_bar_height_,
+                                                rect.right, title_bar_height_ + toolbar_height_);
+            const auto fav = LayoutFavoritesBar(vm, bar,
+                                                EffectiveSidebarWidth(rect.right), scale_);
+            if (ContainsPt(fav.toggle, x, y)) {
+                r.region = HitTestResult::FavoritesBarToggle;
+                return r;
+            }
+            for (size_t i = 0; i < fav.items.size(); ++i) {
+                if (!ContainsPt(fav.items[i], x, y)) continue;
+                r.region = HitTestResult::FavoritesBarItem;
+                r.index = static_cast<int>(i);
+                r.path = vm.favorites_bar_items[i].path;
+                return r;
+            }
+        }
         if (ContainsPt(toolbar.address,x,y)) {
             r.region=HitTestResult::AddressBar;
             if (!vm.address_editing && x < toolbar.address.right-28*scale_) {
@@ -1124,6 +1191,19 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 slot.kind == SidebarSlot::Tag) {
                 if (slot.group >= 0 && slot.item >= 0) {
                     const auto& item = vm.sidebar[slot.group].items[slot.item];
+                    if (!compact && item.workspace_empty &&
+                        ContainsPt(WorkspaceActionRect(slot.rc, scale_), x, y)) {
+                        r.region = HitTestResult::SidebarWorkspaceAction;
+                        r.index = slot.run;
+                        return r;
+                    }
+                    if (!compact && item.favorites_root &&
+                        ContainsPt(FavoritesBarToggleRect(slot.rc, scale_), x, y)) {
+                        r.region = HitTestResult::SidebarItemAction;
+                        r.index = slot.run;
+                        r.path = item.path;
+                        return r;
+                    }
                     if (!compact && SidebarItemHasUnpin(item) &&
                         ContainsPt(WorkspaceUnpinRect(slot.rc, scale_), x, y)) {
                         r.region = HitTestResult::SidebarItemAction;

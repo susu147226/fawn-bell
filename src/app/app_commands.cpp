@@ -1,6 +1,8 @@
 #include "tag_color_commands.h"
 #include "tag_ads_sync.h"
+#include "tags_io.h"
 #include <atomic>
+#include <commdlg.h>
 #include <cstdio>
 #include "../ui/shortcut_help.h"
 // app_commands.cpp — extracted from app_main.cpp.
@@ -9,6 +11,9 @@
 #include "app_column_view.h"
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
+#include "extension_manager.h"
+#include "../ui/confirm_dialog.h"
+#include "../ui/sort_dialog.h"
 #include "app_tree.h"
 #include "app_navigation.h"
 #include "window_factory.h"
@@ -729,6 +734,8 @@ void ShowTagSidebarMenu(AppState& s, const app::TagId& tag_id, POINT screen_pt) 
     constexpr int kRename = 31000;
     constexpr int kColorBase = 31100;
     constexpr int kDelete = 31200;
+    constexpr int kGroup = 31400;
+    constexpr int kRule = 31600;
     const std::vector<uint32_t>& palette = TagColorPalette(s);
     std::vector<ui::FluentMenuItem> items;
     ui::FluentMenuItem rename;
@@ -736,6 +743,14 @@ void ShowTagSidebarMenu(AppState& s, const app::TagId& tag_id, POINT screen_pt) 
     rename.text = l10n::Get(l10n::StringId::TagRename);
     rename.glyph = L"\xE8AC";
     items.push_back(std::move(rename));
+    ui::FluentMenuItem group_item;
+    group_item.command = kGroup;
+    group_item.text = l10n::Pick(L"移到分组…", L"Move to group…");
+    items.push_back(std::move(group_item));
+    ui::FluentMenuItem rule_item;
+    rule_item.command = kRule;
+    rule_item.text = l10n::Pick(L"自动添加到匹配路径…", L"Auto-tag matching paths…");
+    items.push_back(std::move(rule_item));
     for (int i = 0; i < static_cast<int>(palette.size()); ++i) {
         const uint32_t rgb = palette[static_cast<size_t>(i)];
         ui::FluentMenuItem color;
@@ -788,6 +803,85 @@ void ShowTagSidebarMenu(AppState& s, const app::TagId& tag_id, POINT screen_pt) 
             if (s.places.RenameTag(tag_id, name))
                 QueueTagAds(s, BuildTagAdsUpdates(s.places, affected));
         }
+    } else if (command == kGroup) {
+        // 标签组: names live on the tags themselves, so the menu doubles as the
+        // name field and existing groups are one click away.
+        std::vector<std::wstring> groups;
+        for (const auto& entry : s.places.tags) {
+            if (entry.group.empty()) continue;
+            if (std::find(groups.begin(), groups.end(), entry.group) == groups.end())
+                groups.push_back(entry.group);
+        }
+        const std::wstring current_group = tag->group;
+        constexpr int kApplyGroup = 31500;
+        auto rebuild_group = [&groups, current_group](const std::wstring& query) {
+            std::vector<ui::FluentMenuItem> list;
+            ui::FluentMenuItem apply;
+            apply.command = kApplyGroup;
+            apply.text = query.empty()
+                ? l10n::Pick(L"不分组", L"No group")
+                : std::wstring(l10n::Pick(L"使用「", L"Use \"")) + query + L"」";
+            apply.separator_after = !groups.empty();
+            list.push_back(std::move(apply));
+            for (size_t i = 0; i < groups.size(); ++i) {
+                ui::FluentMenuItem entry;
+                entry.command = kApplyGroup + 1 + static_cast<int>(i);
+                entry.text = groups[i];
+                entry.checked = groups[i] == current_group;
+                list.push_back(std::move(entry));
+            }
+            return list;
+        };
+        s.menu->SetFilterPlaceholder(l10n::Pick(L"分组名称", L"Group name"));
+        s.menu->SetInitialFilterText(current_group);
+        s.menu->SetFilterMinWidth(220.0f);
+        const int pick = s.menu->TrackPopup(screen_pt, rebuild_group(current_group),
+                                            rebuild_group);
+        std::wstring next;
+        if (pick == kApplyGroup) next = s.menu->LastFilterQuery();
+        else if (pick > kApplyGroup && pick <= kApplyGroup + static_cast<int>(groups.size()))
+            next = groups[static_cast<size_t>(pick - kApplyGroup - 1)];
+        else return;
+        s.menu->SetFilterPlaceholder(l10n::Get(l10n::StringId::TabMenuSearch));
+        if (s.places.SetTagGroup(tag_id, next)) {
+            SyncTagGroups(s);
+            InvalidateRect(s.hwnd, nullptr, FALSE);
+        }
+    } else if (command == kRule) {
+        // 自动规则: a glob whose matches count as tagged.
+        const std::vector<std::wstring> existing = s.places.RulesForTag(tag_id);
+        constexpr int kApplyRule = 31700;
+        auto rebuild_rule = [&existing](const std::wstring& query) {
+            std::vector<ui::FluentMenuItem> list;
+            ui::FluentMenuItem apply;
+            apply.command = kApplyRule;
+            apply.text = query.empty()
+                ? l10n::Pick(L"输入通配符，如 D:\\项目\\*", L"Type a glob, e.g. D:\\Projects\\*")
+                : std::wstring(l10n::Pick(L"添加规则：", L"Add rule: ")) + query;
+            apply.enabled = !query.empty();
+            apply.separator_after = !existing.empty();
+            list.push_back(std::move(apply));
+            for (size_t i = 0; i < existing.size(); ++i) {
+                ui::FluentMenuItem row;
+                row.command = kApplyRule + 1 + static_cast<int>(i);
+                row.text = std::wstring(l10n::Pick(L"移除：", L"Remove: ")) + existing[i];
+                list.push_back(std::move(row));
+            }
+            return list;
+        };
+        s.menu->SetFilterPlaceholder(
+            l10n::Pick(L"通配符，如 D:\\项目\\*", L"Glob, e.g. D:\\Projects\\*"));
+        s.menu->SetFilterMinWidth(300.0f);
+        const int pick = s.menu->TrackPopup(screen_pt, rebuild_rule(L""), rebuild_rule);
+        bool changed = false;
+        if (pick == kApplyRule) {
+            changed = s.places.AddTagRule(tag_id, s.menu->LastFilterQuery());
+        } else if (pick > kApplyRule && pick <= kApplyRule + static_cast<int>(existing.size())) {
+            changed = s.places.RemoveTagRule(
+                tag_id, existing[static_cast<size_t>(pick - kApplyRule - 1)]);
+        }
+        s.menu->SetFilterPlaceholder(l10n::Get(l10n::StringId::TabMenuSearch));
+        if (changed) InvalidateRect(s.hwnd, nullptr, FALSE);
     } else if (command >= kColorBase && command < kColorBase + static_cast<int>(palette.size())) {
         const std::vector<std::wstring> affected = s.places.PathsForTag(tag_id);
         if (s.places.SetTagColor(tag_id, palette[static_cast<size_t>(command - kColorBase)]))
@@ -830,6 +924,35 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
     return true;
 }
 
+static bool PickSaveTagsFile(HWND owner, std::wstring& path) {
+    wchar_t file[MAX_PATH] = L"luling-tags.json";
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = owner;
+    ofn.lpstrFilter = L"JSON (*.json)\0*.json\0";
+    ofn.lpstrFile = file;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrDefExt = L"json";
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!GetSaveFileNameW(&ofn)) return false;
+    path = file;
+    return true;
+}
+
+static bool PickOpenTagsFile(HWND owner, std::wstring& path) {
+    wchar_t file[MAX_PATH]{};
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = owner;
+    ofn.lpstrFilter = L"JSON (*.json)\0*.json\0";
+    ofn.lpstrFile = file;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!GetOpenFileNameW(&ofn)) return false;
+    path = file;
+    return true;
+}
+
 void ShowTagManager(AppState& s) {
     ui::TagManagerSpec spec;
     spec.title = l10n::Get(l10n::StringId::TagManagerTitle);
@@ -842,6 +965,9 @@ void ShowTagManager(AppState& s) {
     spec.merge_text = l10n::Get(l10n::StringId::TagManagerMerge);
     spec.delete_text = l10n::Get(l10n::StringId::TagManagerDelete);
     spec.invalid_note = l10n::Get(l10n::StringId::TagManagerInvalidNote);
+    spec.combine_text = l10n::Pick(L"组合视图", L"Combined view");
+    spec.export_text = l10n::Pick(L"导出…", L"Export…");
+    spec.import_text = l10n::Pick(L"导入…", L"Import…");
     for (const app::ColorTag& tag : s.places.tags) {
         ui::TagManagerRow row;
         row.id = tag.id;
@@ -862,6 +988,42 @@ void ShowTagManager(AppState& s) {
     }
     ui::TagManagerResult result;
     if (!ui::ShowTagManagerDialog(s.hwnd, spec, result, s.darkMode, s.accentColor)) return;
+    if (result.action == 1 && result.checked_ids.size() >= 2) {
+        // Combined view: one list holding every file of the chosen tags.
+        std::wstring view = L"luling:tags:";
+        for (size_t i = 0; i < result.checked_ids.size(); ++i) {
+            if (i) view += L'|';
+            view += result.checked_ids[i];
+        }
+        NavigateTo(s, view);
+        return;
+    }
+    if (result.action == 2) {
+        std::wstring path;
+        if (!PickSaveTagsFile(s.hwnd, path)) return;
+        if (!ExportTagsFile(s.places, path))
+            MessageBoxW(s.hwnd, l10n::Pick(L"无法写入标签文件。", L"Could not write the tag file."),
+                        l10n::Pick(L"导出标签", L"Export tags"), MB_OK | MB_ICONWARNING);
+        return;
+    }
+    if (result.action == 3) {
+        std::wstring path;
+        if (!PickOpenTagsFile(s.hwnd, path)) return;
+        std::wstring error;
+        const int applied = ImportTagsFile(s.places, path, error);
+        if (applied <= 0) {
+            std::wstring message = error.empty()
+                ? l10n::Pick(L"文件里没有可导入的标签。", L"No tags to import.")
+                : error;
+            MessageBoxW(s.hwnd, message.c_str(), l10n::Pick(L"导入标签", L"Import tags"),
+                        MB_OK | MB_ICONWARNING);
+            return;
+        }
+        SyncTagGroups(s);
+        RefreshStarredViews(s);
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        return;
+    }
     if (result.merge_ids.empty() && result.delete_ids.empty()) return;
 
     std::vector<app::TagAdsUpdate> updates;
@@ -1673,6 +1835,33 @@ bool HandleShellMenuCommand(AppState& s, int cmd) {
         [&s] { WaitForShellMenuReady(s); }, [&s] { ScheduleFolderRefresh(s); });
 }
 
+// Extension commands run only after the user approves the manifest's
+// permissions; "allow and remember" keeps the grant in extensions/state.json.
+static void RunExtensionWithPermission(AppState& s, const app::InstalledExtension& ext,
+                                       const app::ExtensionCommand& cmd,
+                                       const std::vector<std::wstring>& paths) {
+    if (!ext.granted) {
+        ui::ConfirmDialogSpec spec;
+        spec.title = l10n::Pick(L"允许扩展运行？", L"Allow this extension to run?");
+        spec.message = ext.name + l10n::Pick(L" 请求以下权限：", L" requests these permissions:");
+        spec.items = app::ExtensionPermissionLines(ext);
+        spec.confirm_text = l10n::Pick(L"允许并记住", L"Allow and remember");
+        spec.secondary_text = l10n::Pick(L"仅运行一次", L"Run once");
+        spec.cancel_text = l10n::Pick(L"取消", L"Cancel");
+        spec.default_choice = ui::ConfirmChoice::Cancel;
+        const ui::ConfirmChoice choice =
+            ui::ShowConfirmDialogEx(s.hwnd, spec, s.darkMode, s.accentColor);
+        if (choice == ui::ConfirmChoice::Confirm)
+            app::GrantExtensionPermissions(ext.id);
+        else if (choice != ui::ConfirmChoice::Secondary)
+            return;
+    }
+    std::wstring error;
+    if (!app::RunExtensionCommand(ext, cmd, paths, error))
+        s.notification_toast.Show(s.hwnd, l10n::Pick(L"扩展无法运行", L"Extension failed to run"),
+                                  error);
+}
+
 void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip) {
     if(DeferContentSelection(s,[=](AppState& v){ShowItemContextMenu(v,screen_pt,from_chip);})) return;
     if (!EnsureMenu(s)) return;
@@ -1693,6 +1882,35 @@ void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip) {
     auto display = IsRecycleTab(tab) ? std::move(base_items)
                                      : ExplorerMenu(s, s.context_menu.base_items());
     InsertSelectionVerbs(s, display);
+    // Installed extensions: one submenu of their commands, permissions checked
+    // when a command runs.
+    std::vector<app::InstalledExtension> extensions;
+    if (!IsRecycleTab(tab)) {
+        extensions = app::LoadInstalledExtensions();
+        std::vector<ui::FluentMenuItem> ext_items;
+        for (size_t e = 0; e < extensions.size() && e < 8; ++e) {
+            const auto& ext = extensions[e];
+            if (!ext.enabled) continue;
+            for (size_t c = 0;
+                 c < ext.commands.size() && c < static_cast<size_t>(app::kExtensionCommandsPerExtension);
+                 ++c) {
+                ui::FluentMenuItem item;
+                item.command = app::ExtensionCommandId(static_cast<int>(e), static_cast<int>(c));
+                item.text = ext.name + L" · " + ext.commands[c].name;
+                item.glyph = L"\xE7B8";
+                ext_items.push_back(std::move(item));
+            }
+        }
+        if (!ext_items.empty()) {
+            ui::FluentMenuItem menu;
+            menu.command = app::CmdNone;
+            menu.text = l10n::Pick(L"扩展", L"Extensions");
+            menu.glyph = L"\xE7B8";
+            menu.children = std::move(ext_items);
+            menu.separator_after = true;
+            display.push_back(std::move(menu));
+        }
+    }
     if (from_chip && !IsRecycleTab(tab)) {
         // Chip ⋯ : 用 <pinned app> 打开 and 固定到工具栏 ▸ lead the item menu.
         auto apps = ToolbarAppMenuItems(s);
@@ -1706,6 +1924,21 @@ void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip) {
 
     const int cmd = s.menu->TrackPopup(screen_pt, std::move(display));
     s.context_menu.CloseMenu();
+    {
+        int ext_index = -1;
+        int cmd_index = -1;
+        if (app::ParseExtensionCommandId(cmd, ext_index, cmd_index)) {
+            if (ext_index >= 0 && ext_index < static_cast<int>(extensions.size()) &&
+                cmd_index >= 0 &&
+                cmd_index < static_cast<int>(
+                    extensions[static_cast<size_t>(ext_index)].commands.size())) {
+                const auto& ext = extensions[static_cast<size_t>(ext_index)];
+                RunExtensionWithPermission(s, ext,
+                                           ext.commands[static_cast<size_t>(cmd_index)], paths);
+            }
+            return;
+        }
+    }
     if (from_chip && RunToolbarAppMenuCommand(s, cmd)) return;
     if (HandleShellMenuCommand(s, cmd)) return;
     if (HandleQuickAccessCommand(s, cmd, quick_paths)) return;
@@ -2113,6 +2346,40 @@ void ShowViewDropdown(AppState& s, int pane_index) {
 constexpr bool kSortWheel = true;
 
 void ShowSortDropdown(AppState& s) {
+    if (auto* active = ActiveTab(s)) {
+        std::wstring kind;
+        app::ParseLulingPath(active->current_path, &kind, nullptr);
+        if (kind != L"starred" && kind != L"recent") {
+            // 排序 panel: keys, a sample list, direction and folder order. It
+            // drops down from the toolbar's Sort button.
+            ui::SortDialogSpec spec;
+            spec.column = static_cast<int>(active->sort_column);
+            spec.direction = active->sort_direction == ui::SortDirection::Desc ? 1 : 0;
+            spec.folder_mode = s.appPrefs.folder_sort_mode;
+            const float width = static_cast<float>(s.compositor.Width());
+            const float left = s.renderer.EffectiveSidebarWidth(width);
+            const auto layout = s.renderer.ToolbarLayoutAt(width,
+                s.renderer.NewButtonWidthPx(width - left < 600 * s.scale),
+                s.pane ? s.pane->filter_expand : 0.0f);
+            POINT anchor{static_cast<LONG>(layout.sort.left),
+                         static_cast<LONG>(layout.sort.bottom)};
+            ClientToScreen(s.hwnd, &anchor);
+            if (ui::ShowSortDialog(s.hwnd, anchor, spec, s.darkMode, s.accentColor)) {
+                const ui::SortColumn columns[] = {
+                    ui::SortColumn::Name,    ui::SortColumn::Mtime,   ui::SortColumn::Type,
+                    ui::SortColumn::Size,    ui::SortColumn::Created, ui::SortColumn::Accessed,
+                    ui::SortColumn::Path,
+                };
+                const int index = std::clamp(spec.column, 0, 6);
+                SetSort(s, columns[index], spec.direction == 1 ? ui::SortDirection::Desc
+                                                               : ui::SortDirection::Asc);
+                s.appPrefs.folder_sort_mode = std::clamp(spec.folder_mode, 0, 2);
+                app::SetFolderSortMode(app::FolderSortModeFromInt(s.appPrefs.folder_sort_mode));
+                s.appPrefs.Save();
+            }
+            return;
+        }
+    }
     if (!EnsureMenu(s)) return;
     auto* tab = ActiveTab(s);
     if (!tab) return;

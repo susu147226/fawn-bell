@@ -115,6 +115,29 @@ static bool EqualI(const std::wstring& a, const std::wstring& b) {
     return _wcsicmp(a.c_str(), b.c_str()) == 0;
 }
 
+// Case-insensitive glob for 自动规则: '*' any run, '?' one character.
+static bool GlobMatch(const std::wstring& pattern, const std::wstring& text) {
+    size_t p = 0, t = 0;
+    size_t star = std::wstring::npos, mark = 0;
+    while (t < text.size()) {
+        if (p < pattern.size() && (pattern[p] == L'?' ||
+            std::towlower(pattern[p]) == std::towlower(text[t]))) {
+            ++p;
+            ++t;
+        } else if (p < pattern.size() && pattern[p] == L'*') {
+            star = p++;
+            mark = t;
+        } else if (star != std::wstring::npos) {
+            p = star + 1;
+            t = ++mark;
+        } else {
+            return false;
+        }
+    }
+    while (p < pattern.size() && pattern[p] == L'*') ++p;
+    return p == pattern.size();
+}
+
 static bool PathIsOrDescendant(const std::wstring& path, const std::wstring& root) {
     if (EqualI(path, root)) return true;
     if (path.size() <= root.size() || _wcsnicmp(path.c_str(), root.c_str(), root.size()) != 0)
@@ -202,13 +225,16 @@ bool PlacesCatalog::SaveTagFile(const std::vector<ColorTag>& snapshot, uint64_t 
     };
     file << L"{\n  \"version\":2,\n  \"tags_generation\":\"" << generation << L"\",\n  \"tags\":[\n";
     for (size_t i = 0; i < snapshot.size(); ++i) {
-        std::wstring id, name;
+        std::wstring id, name, group;
         luling::json::Escape(snapshot[i].id, id);
         luling::json::Escape(snapshot[i].name, name);
+        luling::json::Escape(snapshot[i].group, group);
         wchar_t rgb[16]{};
         swprintf_s(rgb, L"0x%06X", snapshot[i].rgb & 0xFFFFFFu);
         file << L"    {\"id\":\"" << id << L"\",\"name\":\"" << name
-             << L"\",\"rgb\":" << rgb << L",\"paths\":";
+             << L"\",\"rgb\":" << rgb;
+        if (!group.empty()) file << L",\"group\":\"" << group << L"\"";
+        file << L",\"paths\":";
         write_array(snapshot[i].paths);
         file << L"}" << (i + 1 < snapshot.size() ? L"," : L"") << L"\n";
     }
@@ -396,6 +422,7 @@ bool PlacesCatalog::Load() {
     if (!ReadTagsGeneration(tag_json, tag_generation)) { load_failed = true; return false; }
     workspaces.clear();
     tags.clear();
+    tag_rules.clear();
     networks.clear();
     quick_access_paths.clear();
     starred_items.clear();
@@ -414,6 +441,7 @@ bool PlacesCatalog::Load() {
         w.root = luling::json::ExtractString(block, L"root");
         w.layout = luling::json::ExtractInt(block, L"layout");
         w.pane_paths = luling::json::ExtractStringArray(block, L"panes");
+        w.expanded = luling::json::ExtractBool(block, L"expanded", true);
         for (const auto& value : luling::json::ExtractStringArray(block, L"views"))
             w.pane_views.push_back(ui::ParseViewMode(value));
         while (w.pane_views.size() < w.pane_paths.size())
@@ -444,6 +472,13 @@ bool PlacesCatalog::Load() {
         if (!t.name.empty()) tags.push_back(std::move(t));
     }
 
+    for (const auto& block : ExtractObjectArray(json, L"tag_rules")) {
+        TagRule rule;
+        rule.tag = luling::json::ExtractString(block, L"tag");
+        rule.pattern = TrimBadge(luling::json::ExtractString(block, L"pattern"));
+        if (!rule.tag.empty() && !rule.pattern.empty()) tag_rules.push_back(std::move(rule));
+    }
+
     for (const auto& block : ExtractObjectArray(json, L"networks")) {
         NetworkPlace n;
         n.name = luling::json::ExtractString(block, L"name");
@@ -465,6 +500,7 @@ bool PlacesCatalog::Load() {
         item.kind = ParseKind(luling::json::ExtractString(block, L"kind"));
         item.badge = TrimBadge(luling::json::ExtractString(block, L"badge"));
         item.badge_rgb = ExtractRgb(block);
+        item.group = TrimBadge(luling::json::ExtractString(block, L"group"));
         if (!item.path.empty() && !fs::IsVirtualPath(item.path) &&
             std::none_of(starred_items.begin(), starred_items.end(), [&](const StarredItem& old) {
                 return EqualI(old.path, item.path);
@@ -515,6 +551,7 @@ bool PlacesCatalog::Load() {
             tag.name = luling::json::ExtractString(block, L"name");
             tag.rgb = ExtractRgb(block);
             tag.paths = luling::json::ExtractStringArray(block, L"paths");
+            tag.group = TrimBadge(luling::json::ExtractString(block, L"group"));
             if (!tag.id.empty() && !tag.name.empty()) loaded.push_back(std::move(tag));
         }
         const auto position = luling::json::ValuePosition(tag_json, L"tags");
@@ -561,6 +598,7 @@ PlacesCatalog::SaveSnapshot PlacesCatalog::CaptureSaveSnapshot() const {
     SaveSnapshot snapshot;
     snapshot.workspaces = workspaces;
     snapshot.tags = tags;
+    snapshot.tag_rules = tag_rules;
     {
         std::lock_guard lock(tag_save_mutex_);
         snapshot.tags_generation = tags_generation_;
@@ -690,7 +728,8 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
         luling::json::Escape(w.name, name);
         luling::json::Escape(w.root, root);
         f << L"    {\"name\":\"" << name << L"\",\"root\":\"" << root
-          << L"\",\"layout\":" << w.layout << L",\"panes\":";
+          << L"\",\"layout\":" << w.layout
+          << L",\"expanded\":" << (w.expanded ? L"true" : L"false") << L",\"panes\":";
         writeArr(w.pane_paths);
         std::vector<std::wstring> views;
         views.reserve(w.pane_views.size());
@@ -722,6 +761,16 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
         if (i + 1 < snapshot.tags.size()) f << L",";
         f << L"\n";
     }
+    f << L"  ],\n  \"tag_rules\":[\n";
+    for (size_t i = 0; i < snapshot.tag_rules.size(); ++i) {
+        const auto& rule = snapshot.tag_rules[i];
+        std::wstring tag, pattern;
+        luling::json::Escape(rule.tag, tag);
+        luling::json::Escape(rule.pattern, pattern);
+        f << L"    {\"tag\":\"" << tag << L"\",\"pattern\":\"" << pattern << L"\"}";
+        if (i + 1 < snapshot.tag_rules.size()) f << L",";
+        f << L"\n";
+    }
     f << L"  ],\n  \"networks\":[\n";
     for (size_t i = 0; i < snapshot.networks.size(); ++i) {
         const auto& n = snapshot.networks[i];
@@ -742,14 +791,17 @@ bool PlacesCatalog::SaveSnapshotFile(const SaveSnapshot& snapshot) {
     f << L",\n  \"starred_items\":[\n";
     for (size_t i = 0; i < snapshot.starred_items.size(); ++i) {
         const auto& item = snapshot.starred_items[i];
-        std::wstring path, badge;
+        std::wstring path, badge, group;
         luling::json::Escape(item.path, path);
         luling::json::Escape(item.badge, badge);
+        luling::json::Escape(item.group, group);
         wchar_t rgb[16]{};
         swprintf_s(rgb, L"0x%06X", item.badge_rgb & 0xFFFFFFu);
         f << L"    {\"path\":\"" << path << L"\",\"kind\":\""
           << KindName(item.kind) << L"\",\"badge\":\"" << badge
-          << L"\",\"rgb\":" << rgb << L"}";
+          << L"\",\"rgb\":" << rgb;
+        if (!group.empty()) f << L",\"group\":\"" << group << L"\"";
+        f << L"}";
         if (i + 1 < snapshot.starred_items.size()) f << L",";
         f << L"\n";
     }
@@ -854,6 +906,14 @@ void PlacesCatalog::UpdateWorkspaceSnapshot(int index, int layout,
         w.pane_views.push_back(ui::ViewMode::Details);
 }
 
+bool PlacesCatalog::ToggleWorkspaceExpanded(int index) {
+    if (index < 0 || index >= static_cast<int>(workspaces.size())) return false;
+    auto& w = workspaces[static_cast<size_t>(index)];
+    w.expanded = !w.expanded;
+    Save();
+    return w.expanded;
+}
+
 int PlacesCatalog::FindNetwork(const std::wstring& unc) const {
     const std::wstring n = Norm(unc);
     for (int i = 0; i < static_cast<int>(networks.size()); ++i)
@@ -935,14 +995,27 @@ bool PlacesCatalog::PathHasTag(const std::wstring& path, int tag_index) const {
     if (tag_index < 0 || tag_index >= static_cast<int>(tags.size())) return false;
     const std::wstring n = TagKey(path);
     const auto it = tag_index_.find(n);
-    return it != tag_index_.end() &&
-        std::find(it->second.begin(), it->second.end(), tag_index) != it->second.end();
+    if (it != tag_index_.end() &&
+        std::find(it->second.begin(), it->second.end(), tag_index) != it->second.end())
+        return true;
+    // 自动规则 count as tagged without being written to the item.
+    const TagId& id = tags[static_cast<size_t>(tag_index)].id;
+    for (const TagRule& rule : tag_rules)
+        if (EqualI(rule.tag, id) && GlobMatch(rule.pattern, path)) return true;
+    return false;
 }
 
 std::vector<int> PlacesCatalog::TagsForPath(const std::wstring& path) const {
+    std::vector<int> out;
     const std::wstring n = TagKey(path);
-    const auto it = tag_index_.find(n);
-    return it == tag_index_.end() ? std::vector<int>{} : it->second;
+    if (const auto it = tag_index_.find(n); it != tag_index_.end()) out = it->second;
+    for (const TagRule& rule : tag_rules) {
+        if (!GlobMatch(rule.pattern, path)) continue;
+        const int index = FindTagIndex(rule.tag);
+        if (index >= 0 && std::find(out.begin(), out.end(), index) == out.end())
+            out.push_back(index);
+    }
+    return out;
 }
 
 const std::vector<int>* PlacesCatalog::TagIndicesForPath(const std::wstring& path) const {
@@ -1004,8 +1077,47 @@ bool PlacesCatalog::RenameTag(const TagId& id, const std::wstring& raw_name) {
     return true;
 }
 
-bool PlacesCatalog::SetTagColor(const TagId& id, uint32_t rgb) {
+bool PlacesCatalog::SetTagGroup(const TagId& id, const std::wstring& raw_group) {
     const int index = FindTagIndex(id);
+    if (index < 0) return false;
+    const std::wstring group = TrimTagName(raw_group);
+    if (tags[static_cast<size_t>(index)].group == group) return false;
+    tags[static_cast<size_t>(index)].group = group;
+    ++tag_revision_;
+    QueueTagSave();
+    return true;
+}
+
+bool PlacesCatalog::AddTagRule(const TagId& id, const std::wstring& raw_pattern) {
+    const std::wstring pattern = TrimBadge(raw_pattern);
+    if (pattern.empty() || FindTagIndex(id) < 0) return false;
+    for (const TagRule& rule : tag_rules)
+        if (EqualI(rule.tag, id) && EqualI(rule.pattern, pattern)) return false;
+    tag_rules.push_back({ id, pattern });
+    ++tag_revision_;
+    MarkPlacesDirty();
+    return true;
+}
+
+bool PlacesCatalog::RemoveTagRule(const TagId& id, const std::wstring& pattern) {
+    const size_t before = tag_rules.size();
+    std::erase_if(tag_rules, [&](const TagRule& rule) {
+        return EqualI(rule.tag, id) && EqualI(rule.pattern, pattern);
+    });
+    if (tag_rules.size() == before) return false;
+    ++tag_revision_;
+    MarkPlacesDirty();
+    return true;
+}
+
+std::vector<std::wstring> PlacesCatalog::RulesForTag(const TagId& id) const {
+    std::vector<std::wstring> out;
+    for (const TagRule& rule : tag_rules)
+        if (EqualI(rule.tag, id)) out.push_back(rule.pattern);
+    return out;
+}
+
+bool PlacesCatalog::SetTagColor(const TagId& id, uint32_t rgb) {    const int index = FindTagIndex(id);
     if (index < 0) return false;
     rgb &= 0xFFFFFFu;
     if (tags[static_cast<size_t>(index)].rgb == rgb) return false;
@@ -1113,8 +1225,18 @@ bool PlacesCatalog::SetStarredBadge(const std::wstring& path, const std::wstring
     return true;
 }
 
-const QuickAccessBadge* PlacesCatalog::FindQuickAccessBadge(const std::wstring& path) const {
-    if (path.empty()) return nullptr;
+bool PlacesCatalog::SetStarredGroup(const std::wstring& path, const std::wstring& group) {
+    StarredItem* item = FindStarred(path);
+    if (!item) return false;
+    const std::wstring name = TrimBadge(group);
+    if (item->group == name) return false;
+    item->group = name;
+    ++tag_revision_;
+    Save();
+    return true;
+}
+
+const QuickAccessBadge* PlacesCatalog::FindQuickAccessBadge(const std::wstring& path) const {    if (path.empty()) return nullptr;
     const std::wstring key = Norm(path);
     const auto it = std::find_if(quick_access_badges.begin(), quick_access_badges.end(),
         [&](const QuickAccessBadge& item) { return EqualI(item.path, key); });

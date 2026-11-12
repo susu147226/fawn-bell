@@ -366,6 +366,7 @@ D2D1_RECT_F MainRenderer::FilterEditRect(const D2D1_RECT_F& pane_bounds, float e
 
 MainRenderer::DetailsColumnLayout MainRenderer::DetailsColumns(
     const D2D1_RECT_F& pane_bounds, const PaneViewModel& vm) const {
+    if (vm.this_pc_columns) return ThisPcColumns(pane_bounds, vm);
     auto columns = DetailsColumns(pane_bounds, vm.details_column_dividers, vm.is_search,
                                   vm.search_column_dividers);
     // Explicit divider positions remain a manual override. A drag starts by
@@ -465,6 +466,168 @@ MainRenderer::ColumnAutoWidths MainRenderer::AutoColumnWidths() const {
     auto_widths_scale_ = scale_;
     auto_widths_language_ = language;
     return out;
+}
+
+MainRenderer::DetailsColumnLayout MainRenderer::ThisPcColumns(
+    const D2D1_RECT_F& pane_bounds, const PaneViewModel& /*vm*/) const {
+    DetailsColumnLayout out;
+    const auto content = DetailsContentRect(pane_bounds, scale_);
+    out.left = content.left + margin_;
+    out.right = std::max(out.left, content.right - margin_ * 3.0f);
+    const float total = out.right - out.left;
+    out.count = 1;
+    out.kinds[0] = ColumnKind::Name;
+    out.widths[0] = std::max(0.0f, total);
+    if (total <= 0.0f) return out;
+
+    // 使用情况 (bar + percent), 可用, 总大小, 类型.
+    struct Col { ColumnKind kind; float width; };
+    std::array<Col, 4> cols{{{ColumnKind::Usage, 190.0f * scale_},
+                             {ColumnKind::Free, 108.0f * scale_},
+                             {ColumnKind::Total, 108.0f * scale_},
+                             {ColumnKind::Type, 96.0f * scale_}}};
+    size_t count = cols.size();
+    const float name_min = 180.0f * scale_;
+    // A narrow pane drops 类型 first, then 总大小, then the usage bar.
+    const ColumnKind drop_order[] = {ColumnKind::Type, ColumnKind::Total,
+                                     ColumnKind::Usage, ColumnKind::Free};
+    for (const ColumnKind kind : drop_order) {
+        float used = 0.0f;
+        for (size_t i = 0; i < count; ++i) used += cols[i].width;
+        if (total - used >= name_min) break;
+        const auto end = std::remove_if(cols.begin(),
+            cols.begin() + static_cast<std::ptrdiff_t>(count),
+            [kind](const Col& c) { return c.kind == kind; });
+        count = static_cast<size_t>(end - cols.begin());
+    }
+    float used = 0.0f;
+    for (size_t i = 0; i < count; ++i) used += cols[i].width;
+    out.widths[0] = std::max(0.0f, total - used);
+    int n = 1;
+    for (size_t i = 0; i < count; ++i) {
+        out.kinds[static_cast<size_t>(n)] = cols[i].kind;
+        out.widths[static_cast<size_t>(n)] = cols[i].width;
+        ++n;
+    }
+    out.count = n;
+    return out;
+}
+
+float MainRenderer::DriveOverviewReveal(const PaneViewModel& pane, int pane_index) {
+    const int slot = std::clamp(pane_index, 0, 3);
+    auto& last = drive_overview_key_[static_cast<size_t>(slot)];
+    auto& start = drive_overview_start_[static_cast<size_t>(slot)];
+    if (!pane.this_pc_columns || !pane.drive_overview.On()) {
+        // Leaving This PC arms the animation for the next visit.
+        last.clear();
+        start = 0;
+        return 1.0f;
+    }
+    const std::wstring key = pane.path.empty() ? std::wstring(L"thispc") : pane.path;
+    if (last != key || start == 0) {
+        last = key;
+        start = motion_now_;
+    }
+    const uint64_t elapsed = motion_now_ > start ? motion_now_ - start : 0;
+    const float t = std::clamp(static_cast<float>(elapsed) / 420.0f, 0.0f, 1.0f);
+    const float eased = 1.0f - (1.0f - t) * (1.0f - t);
+    if (t < 1.0f && notify_hwnd_) InvalidateRect(notify_hwnd_, nullptr, FALSE);
+    return eased;
+}
+
+void MainRenderer::DrawDriveOverview(const PaneViewModel& pane, const D2D1_RECT_F& card,
+                                     float reveal, const Theme& theme) {
+    // 存储总览: the title and drive count, the free / used / total sizes on the
+    // right; a stacked bar, one segment per drive sized by capacity and filled
+    // by use; then each drive's letter and percent.
+    ID2D1DeviceContext* dc = compositor_ ? compositor_->Dc() : nullptr;
+    const DriveOverviewView& ov = pane.drive_overview;
+    if (!dc || !ov.On() || ov.total == 0 || card.right - card.left < 160.0f * scale_) return;
+    IDWriteFactory2* factory = compositor_->DwriteFactory();
+    IDWriteTextFormat* small_fmt = compositor_->SmallFormat();
+    IDWriteTextFormat* title_fmt = compositor_->FileNameFormat();
+    if (!factory || !small_fmt || !title_fmt) return;
+    const float radius = 8.0f * scale_;
+    painter_.FillRoundedRect(card, radius, theme.surface_card);
+    painter_.StrokeRoundedRect(card, radius, theme.stroke_card);
+    const float left = card.left + 16.0f * scale_;
+    const float right = card.right - 16.0f * scale_;
+    const float width = right - left;
+    using l10n::StringId;
+
+    // Title row: 存储总览, "N 块磁盘", then the sizes on the right.
+    const float row_top = card.top + 12.0f * scale_, row_h = 22.0f * scale_;
+    const std::wstring title = l10n::Get(StringId::ThisPcOverviewTitle);
+    const float title_w = std::min(width, CellTextWidth(title, false) + 2.0f * scale_);
+    MakeBrush(dc, theme.text, brText_);
+    DrawTextEndEllipsis(dc, factory, title_fmt, brText_.get(), title, left, row_top, title_w, row_h);
+    std::wstring count = l10n::Get(StringId::ThisPcOverviewDrives);
+    ReplaceCapacityToken(count, L"{count}", std::to_wstring(ov.drives.size()));
+    const float count_left = left + title_w + 10.0f * scale_;
+    const float count_w = CellTextWidth(count, true) + 2.0f * scale_;
+    MakeBrush(dc, theme.text_secondary, brTextSecondary_);
+    if (count_left + count_w <= right)
+        DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), count, count_left,
+                            row_top + scale_, count_w, row_h);
+    std::wstring space = l10n::Get(StringId::ThisPcOverviewSpace);
+    ReplaceCapacityToken(space, L"{used}",
+                         luling::format::ByteSize(ov.total - std::min(ov.free, ov.total)));
+    ReplaceCapacityToken(space, L"{total}", luling::format::ByteSize(ov.total));
+    ReplaceCapacityToken(space, L"{free}", luling::format::ByteSize(ov.free));
+    const float space_w = CellTextWidth(space, true) + 2.0f * scale_;
+    if (right - space_w > count_left + count_w + 8.0f * scale_)
+        DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), space,
+                            right - space_w, row_top + scale_, space_w, row_h);
+    MakeBrush(dc, theme.text_secondary, brTextSecondary_);
+
+    // Stacked bar: every drive gets at least 6% of the width, so a small stick
+    // next to a large disk is still there to see.
+    const float bar_top = row_top + row_h + 10.0f * scale_;
+    const float bar_h = 10.0f * scale_, gap = 3.0f * scale_;
+    const size_t n = ov.drives.size();
+    double weight_sum = 0.0;
+    std::vector<double> weights(n);
+    for (size_t i = 0; i < n; ++i) {
+        weights[i] = std::max(static_cast<double>(ov.drives[i].total),
+                              static_cast<double>(ov.total) * 0.06);
+        weight_sum += weights[i];
+    }
+    const float bar_room = std::max(0.0f, width - gap * static_cast<float>(n - 1));
+    float seg_left = left;
+    for (size_t i = 0; i < n && weight_sum > 0.0; ++i) {
+        const float seg_w = i + 1 == n ? right - seg_left
+                                       : std::round(bar_room * static_cast<float>(weights[i] / weight_sum));
+        const D2D1_RECT_F seg = D2D1::RectF(seg_left, bar_top, seg_left + std::max(0.0f, seg_w),
+                                            bar_top + bar_h);
+        painter_.DrawCapacityBar(seg, ov.drives[i].used, theme.accent, reveal, ov.drives[i].free);
+        seg_left += seg_w + gap;
+    }
+
+    // Legend: a swatch in the drive's level colour, "C:" and its percent.
+    float lx = left;
+    const float legend_top = bar_top + bar_h + 9.0f * scale_, legend_h = 18.0f * scale_;
+    for (const DriveOverviewView::Drive& drive : ov.drives) {
+        const CapacityLevel level = CapacityLevelFor(drive.used, drive.free);
+        const std::wstring pct = CapacityPercentText(drive.used);
+        const float letter_w = CellTextWidth(drive.letter, true) + 2.0f * scale_;
+        const float pct_w = CellTextWidth(pct, true) + 2.0f * scale_;
+        const float item_w = 14.0f * scale_ + letter_w + 4.0f * scale_ + pct_w;
+        if (lx + item_w > right) break;
+        const float sw = 8.0f * scale_;
+        const float sy = std::round(legend_top + (legend_h - sw) * 0.5f);
+        painter_.FillRoundedRect(D2D1::RectF(lx, sy, lx + sw, sy + sw), 2.0f * scale_,
+                                 level == CapacityLevel::Normal ? theme.accent
+                                                                : painter_.CapacityInk(level));
+        MakeBrush(dc, theme.text_secondary, brTextSecondary_);
+        DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), drive.letter,
+                            lx + 14.0f * scale_, legend_top, letter_w, legend_h);
+        MakeBrush(dc, painter_.CapacityInk(level), brTextSecondary_);
+        DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), pct,
+                            lx + 14.0f * scale_ + letter_w + 4.0f * scale_, legend_top, pct_w,
+                            legend_h);
+        lx += item_w + 16.0f * scale_;
+    }
+    MakeBrush(dc, theme.text_secondary, brTextSecondary_);
 }
 
 float MainRenderer::TypeChipWidthDip(const std::wstring& chip) const {
@@ -1029,6 +1192,9 @@ void MainRenderer::DrawThumbnailBadges(const ListEntryView& entry, const D2D1_RE
 void MainRenderer::DrawEntryIcon(const ListEntryView& entry, float x, float y, float size,
                                  const Theme& theme, float opacity) {
     const auto dest = D2D1::RectF(x, y, x + size, y + size);
+    // An empty folder draws its folder icon faded, so the row reads as hollow
+    // next to folders that hold something.
+    if (entry.empty_dir) opacity *= 0.55f;
     if (entry.record_only && compositor_ && compositor_->Dc()) {
         auto* dc = compositor_->Dc();
         MakeBrush(dc, WithAlpha(theme.text_secondary, 0.65f * opacity), brTextSecondary_);
@@ -1678,6 +1844,12 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
         }
         y += bannerH;
     }
+    if (const float overviewH = DriveOverviewHeight(pane, scale_); overviewH > 0.0f) {
+        const D2D1_RECT_F card = D2D1::RectF(x + 8.0f * scale_, y + 4.0f * scale_,
+                                             x + w - 8.0f * scale_, y + overviewH - 8.0f * scale_);
+        DrawDriveOverview(pane, card, DriveOverviewReveal(pane, pane_index), theme);
+        y += overviewH;
+    }
     if (pane.is_recent) {
         D2D1_RECT_F track = RecentFilterRect(bounds, pane_header_height_ + bannerH, scale_, 0);
         track.right = RecentFilterRect(bounds, pane_header_height_ + bannerH, scale_, 2).right;
@@ -1857,16 +2029,33 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnPath), SortColumn::Path, cw, false);
                 break;
             case ColumnKind::Date:
-                drawCol(pane.date_column_label.empty()
-                            ? luling::l10n::Get(luling::l10n::StringId::ColumnModified)
-                            : pane.date_column_label,
+                drawCol(pane.this_pc_columns
+                            ? luling::l10n::Get(luling::l10n::StringId::ColumnUsage)
+                            : pane.date_column_label.empty()
+                                ? luling::l10n::Get(luling::l10n::StringId::ColumnModified)
+                                : pane.date_column_label,
                         SortColumn::Mtime, cw, false);
                 break;
             case ColumnKind::Type:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnType), SortColumn::Type, cw, false);
                 break;
             case ColumnKind::Size:
-                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnSize), SortColumn::Size, cw, true);
+                drawCol(luling::l10n::Get(pane.this_pc_columns
+                                              ? luling::l10n::StringId::ColumnFree
+                                              : luling::l10n::StringId::ColumnSize),
+                        SortColumn::Size, cw, true);
+                break;
+            case ColumnKind::Total:
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnTotalSize),
+                        SortColumn::Size, cw, true);
+                break;
+            case ColumnKind::Usage:
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnUsage),
+                        SortColumn::Mtime, cw, false);
+                break;
+            case ColumnKind::Free:
+                drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnFree),
+                        SortColumn::Size, cw, true);
                 break;
             case ColumnKind::Created:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnCreated), SortColumn::Created, cw, false);
@@ -2582,7 +2771,8 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     if (settled) {
                         const D2D1_RECT_F dest = D2D1::RectF(iconX, iconY, iconX + renderedIconSize,
                                                              iconY + renderedIconSize);
-                        dc->DrawBitmap(settled, &dest, hidden_alpha, D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC,
+                        const float art_alpha = e.empty_dir ? hidden_alpha * 0.55f : hidden_alpha;
+                        dc->DrawBitmap(settled, &dest, art_alpha, D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC,
                                        nullptr, nullptr);
                     } else if (morphing && !e.record_only) {
                         if (e.is_dir) DrawFolderIcon(iconX, iconY, renderedIconSize, theme, hidden_alpha);
@@ -2856,7 +3046,60 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         }
                         break;
                     }
+                    case ColumnKind::Usage: {
+                        // This PC 使用情况: the bar plus "47%" beside it.
+                        if (e.drive_total == 0 || e.drive_used < 0.0f) break;
+                        const float cy = (cell.top + cell.bottom) * 0.5f;
+                        const float pct_w = 40.0f * scale_;
+                        const float bar_h = 6.0f * scale_;
+                        const float bar_w = std::max(0.0f,
+                            std::min(avail - pct_w - 8.0f * scale_, 130.0f * scale_));
+                        if (bar_w > 0.0f) {
+                            painter_.DrawCapacityBar(
+                                D2D1::RectF(left, cy - bar_h * 0.5f, left + bar_w,
+                                            cy + bar_h * 0.5f),
+                                e.drive_used, theme.accent, 1.0f, e.drive_free);
+                            const std::wstring pct = CapacityPercentText(e.drive_used);
+                            MakeBrush(dc, painter_.CapacityInk(
+                                CapacityLevelFor(e.drive_used, e.drive_free)), brTextSecondary_);
+                            draw_detail_text(fit(pct, pct_w), left + bar_w + 8.0f * scale_,
+                                             pct_w, DWRITE_TEXT_ALIGNMENT_LEADING);
+                            MakeBrush(dc, secondary, brTextSecondary_);
+                        }
+                        break;
+                    }
+                    case ColumnKind::Free: {
+                        // This PC 可用: the free bytes, not the file size.
+                        if (e.drive_total == 0) break;
+                        const std::wstring free_text = luling::format::ByteSize(e.drive_free);
+                        draw_detail_text(fit(free_text, avail), left, avail,
+                                         DWRITE_TEXT_ALIGNMENT_LEADING);
+                        break;
+                    }
                     case ColumnKind::Date: {
+                        if (vm.this_pc_columns) {
+                            // 使用情况: the bar plus "47%" beside it.
+                            if (e.drive_total == 0 || e.drive_used < 0.0f) break;
+                            const float cy = (cell.top + cell.bottom) * 0.5f;
+                            const float pct_w = 40.0f * scale_;
+                            const float bar_h = 6.0f * scale_;
+                            const float bar_w = std::max(0.0f,
+                                std::min(avail - pct_w - 8.0f * scale_, 130.0f * scale_));
+                            if (bar_w > 0.0f) {
+                                painter_.DrawCapacityBar(
+                                    D2D1::RectF(left, cy - bar_h * 0.5f, left + bar_w,
+                                                cy + bar_h * 0.5f),
+                                    e.drive_used, theme.accent, 1.0f, e.drive_free);
+                                const std::wstring pct = CapacityPercentText(e.drive_used);
+                                const D2D1_COLOR_F ink = painter_.CapacityInk(
+                                    CapacityLevelFor(e.drive_used, e.drive_free));
+                                MakeBrush(dc, ink, brTextSecondary_);
+                                draw_detail_text(fit(pct, pct_w), left + bar_w + 8.0f * scale_,
+                                                 pct_w, DWRITE_TEXT_ALIGNMENT_LEADING);
+                                MakeBrush(dc, secondary, brTextSecondary_);
+                            }
+                            break;
+                        }
                         const std::wstring date = list_smart_date_ && e.modified_value && !e.date_text.empty()
                             ? SmartListDate(e.modified_value) : e.date_text;
                         const MtimeMarkInfo mark = MtimeMarkFor(vm, e, mtime_now_ft);
@@ -2890,6 +3133,15 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         }
                         break;
                     }
+                    case ColumnKind::Total: {
+                        // 总大小 (This PC): display-only.
+                        if (e.drive_total == 0) break;
+                        const std::wstring total_text =
+                            luling::format::ByteSize(e.drive_total);
+                        draw_detail_text(fit(total_text, avail), left, avail,
+                                         DWRITE_TEXT_ALIGNMENT_LEADING);
+                        break;
+                    }
                     case ColumnKind::Created:
                     case ColumnKind::Accessed: {
                         const bool created = detailsColumns.kinds[static_cast<size_t>(col)] == ColumnKind::Created;
@@ -2904,7 +3156,8 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         const bool deleted_change = vm.is_changes &&
                             e.type_text == luling::l10n::Get(luling::l10n::StringId::ChangeDeleted);
                         float typeLeft = left;
-                        const std::wstring chip = vm.is_changes ? std::wstring() : TypeChipLabel(e.name, e.is_dir);
+                        const std::wstring chip = (vm.is_changes || e.pc_launcher || e.pc_device)
+                            ? std::wstring() : TypeChipLabel(e.name, e.is_dir);
                         const float chipW = TypeChipWidthDip(chip) * scale_;
                         if (!chip.empty() && chipW < avail * 0.6f && !IsHighContrast()) {
                             const float chipBoxW = chipW - kTypeChipGapDip * scale_;
@@ -2956,6 +3209,15 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         break;
                     }
                     case ColumnKind::Size: {
+                        if (vm.this_pc_columns) {
+                            // 可用: the free bytes, not the file size.
+                            if (e.drive_total == 0) break;
+                            const std::wstring free_text =
+                                luling::format::ByteSize(e.drive_free);
+                            draw_detail_text(fit(free_text, avail), left, avail,
+                                             DWRITE_TEXT_ALIGNMENT_LEADING);
+                            break;
+                        }
                         const auto folder_size = vm.folder_size_labels.find(src);
                         const std::wstring* size_text = &e.size_text;
                         float size_left = left, size_avail = avail;
@@ -3279,6 +3541,10 @@ std::wstring MainRenderer::GroupLabel(const PaneViewModel& vm, const ListGroup& 
         return g.label.empty() ? l10n::Get(StringId::GroupUntagged) : g.label;
     case 6:
         return g.label.empty() ? std::wstring(L"-") : g.label;
+    case 7:
+        return l10n::Get(g.rank >= 2 ? StringId::GroupThisPcLaunchers
+                                     : g.rank == 1 ? StringId::GroupThisPcDevices
+                                                   : StringId::GroupThisPcDrives);
     default:
         return {};
     }
@@ -3350,6 +3616,16 @@ void MainRenderer::DrawGroupHeaders(const PaneViewModel& vm, const ViewLayout& l
         if (x + count_w <= text_right)
             DrawTextRect(dc, small_fmt, brTextSecondary_.get(), count_text, x, hr.top, count_w, h);
         x += count_w + 10.0f * scale_;
+
+        // 网盘程序入口: the group header explains itself, as Explorer's does.
+        if (vm.group_by == 7 && g.rank >= 2 && x + 40.0f * scale_ < text_right) {
+            const std::wstring note = l10n::Get(l10n::StringId::GroupThisPcLaunchersNote);
+            const float note_w = std::min(text_right - x,
+                MeasureLayoutText(compositor_, factory, small_fmt, note) + 1.0f);
+            DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), note, x, hr.top,
+                                note_w, h);
+            x += note_w + 8.0f * scale_;
+        }
 
         float rule_right = text_right;
         if (!show_select && g.bytes > 0) {
