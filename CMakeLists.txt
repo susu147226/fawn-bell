@@ -1399,6 +1399,8 @@ target_link_libraries(luling_enum_cancel_test PRIVATE luling_localization shell3
 
 add_executable(luling_worker_enum_cancel_test src/bench/worker_enum_cancel_test.cpp
     src/app/this_pc_launchers.cpp)
+target_link_libraries(luling_worker_enum_cancel_test PRIVATE
+    user32 shell32 ole32 uuid advapi32 shlwapi netapi32 mpr luling_localization)
 
 add_executable(luling_shell_benchmark_test src/bench/shell_benchmark_test.cpp)
 target_link_libraries(luling_shell_benchmark_test PRIVATE ole32 shell32 uuid comctl32)
@@ -1515,6 +1517,8 @@ target_link_libraries(luling_config_capacity_test PRIVATE user32 shell32 ole32 u
 
 add_executable(luling_virtual_worker_consumers_test src/bench/virtual_worker_consumers_test.cpp
     src/app/this_pc_launchers.cpp)
+target_link_libraries(luling_virtual_worker_consumers_test PRIVATE
+    user32 shell32 ole32 uuid advapi32 shlwapi netapi32 mpr luling_localization)
 
 target_sources(luling_persistence_test PRIVATE src/app/this_pc_argument.cpp)
 target_sources(luling_app_controllers_test PRIVATE src/app/this_pc_argument.cpp src/app/update_download_cleanup.cpp)

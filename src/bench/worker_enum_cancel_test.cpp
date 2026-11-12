@@ -4,6 +4,7 @@ static HANDLE blocked, release_io, delivered;
 static std::atomic<int> block_count{0}, callbacks{0};
 namespace luling::fs {
 bool IsVirtualPath(const std::wstring& p) { return p.starts_with(L"luling:"); }
+bool IsShellPath(const std::wstring& p) { return p.starts_with(L"shell:::"); }
 bool IsUncPath(const std::wstring& p) { return p.starts_with(L"\\\\"); }
 DWORD ReadReparseTag(const std::wstring&) { return 0; }
 void EnumerateDirectory(const std::wstring& path, std::vector<DirEntry>&, const std::atomic_bool*) {
