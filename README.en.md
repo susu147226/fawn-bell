@@ -26,6 +26,8 @@ The UI ships in Simplified Chinese, Traditional Chinese and English; it follows 
 - Seven sort keys, ascending or descending, with three folder-first modes; group by name, date, type or size with sticky headers; view, sort and grouping are remembered per folder and can be applied to all folders at once.
 - The details view offers smart dates ("Today 14:32"), zebra rows, colour-coded extension chips, size-ratio bars, content-fitted column widths, and a column picker on the header.
 - Compare two folders side by side to see what differs, what is missing and what is newer; folder sizes are computed in the background.
+- The address bar completes paths as you type — matching folders and files, and relative paths from the current folder; entering a file's full path and pressing Enter opens its folder with that file selected.
+- The arrow on each breadcrumb segment lists that folder's subfolders, one click away.
 
 ![Grouped view](docs/images/group.png)
 
@@ -44,6 +46,7 @@ The UI ships in Simplified Chinese, Traditional Chinese and English; it follows 
 - **Content search** covers text and code, PDF, Word, Excel, PowerPoint and more, streaming results as they arrive; opening a location keeps a way back to the results.
 - Advanced search (Ctrl+Shift+F) filters by type, date and size; the global quick search (Alt+Space) is always one keystroke away and can hand results to the main window.
 - Type `cmd`, `powershell`, `pwsh` or `wt` in the address bar to open a terminal in the current folder.
+- The filter box above the list matches pinyin too: `bg` narrows the list to names such as 报告.
 
 ## Quick Look
 
@@ -77,12 +80,31 @@ Selecting a file shows a preview, its basic properties and its tags in the detai
 - Seven colour labels for files and folders, summarized in the sidebar and available from the Explorer context menu too.
 - Sidebar sections can be reordered, collapsed and hidden.
 
+## AI assistant
+
+The assistant panel on the left sees the folder that is open and what you have selected: ask it in plain words to find files, tidy up, rename in bulk or tag them, or start with "What takes the most space on C:?".
+
+- Every change is listed in Luling first and waits for your confirmation; finished work can be undone.
+- Conversations are saved with the window, so you can pick them up after a restart.
+- Settings → AI assistant keeps a separate API key per service, a default model and a connection check.
+
+![Luling assistant](docs/images/ai.png)
+
 ## Windows integration
 
 - Set Luling as the default file manager so folders, `Win+E` and "This PC" on the desktop open it; "Open file location" then selects the file in Luling. It can be turned off again, restoring the original setup.
 - The context menu merges Explorer's and Windows 11's modern entries (VS Code, Windows Terminal, NanaZip and others); Luling's own entries can be hidden.
 - Start minimized to the tray, choose a default location, and list the processes holding a file that cannot be deleted, with an option to end them and retry.
 - "This PC" shows drive types and capacity bars.
+
+## Settings
+
+Settings groups its pages under Personalisation, Browsing, System, Features and Tools.
+
+- Quick Look lists every previewable format and marks each one as built in, provided by a pack or by a system extension; Packs manages the image, RAW, archive and FFmpeg downloads.
+- System context menu controls which third-party rows appear inside Luling, hiding them in the app without touching Windows.
+
+![Settings](docs/images/settings.png)
 
 ## Automatic updates
 
@@ -108,6 +130,10 @@ pwsh ./scripts/run_tests.ps1
 The stack is C++20, Win32, Direct2D and DirectComposition; filesystem, index, preview and Shell work live in their own modules so nothing blocks the UI. Release scripts verify the pinned LumaText SDK (`cmake/lumatext-sdk.json` pins the manifest SHA-256) and fall back to DirectWrite when it is missing.
 
 More: [Updates and releases](docs/automatic-updates.md) · [Windows compatibility](docs/windows-compatibility.md) · [Index storage and migration](docs/index-migration.md)
+
+## Star history
+
+[![Star History Chart](https://api.star-history.com/svg?repos=susu147226/fawn-bell&type=Date)](https://star-history.com/#susu147226/fawn-bell&Date)
 
 ## License and credits
 
