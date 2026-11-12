@@ -126,6 +126,15 @@ bool ShellClient::IsHostPid(DWORD pid) {
     return child_started_ && child_.dwProcessId == pid;
 }
 
+void ShellClient::RecycleHost() {
+    if (!running_.load()) return;
+    std::lock_guard<std::mutex> lock(send_mutex_);
+    // Retiring cancels the pipe and kills the child; the reader treats it as a
+    // disconnect and resends pending requests to the replacement host.
+    if (connection_) RetireConnectionLocked(connection_);
+    else KillChild();
+}
+
 // Caller must hold send_mutex_.
 bool ShellClient::EnsureConnected() {
     if (!running_.load()) return false;

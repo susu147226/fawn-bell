@@ -84,6 +84,11 @@ public:
     void Cancel(uint32_t id);
     void Abort(uint32_t id);
     bool Ping();
+    // Drops the current host process. The reader reconnects and resends any
+    // in-flight request to a freshly started host, exactly once. Used when a
+    // request reports no progress for too long: a menu extension that hung
+    // inside the host also stalls the file operation sharing that process.
+    void RecycleHost();
     // True when `pid` is the luling_shell.exe this client spawned. Lets the
     // lock-owner report offer to end our own host instead of hiding it.
     bool IsHostPid(DWORD pid);

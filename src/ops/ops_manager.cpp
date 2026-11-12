@@ -5108,7 +5108,9 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
     uint32_t hr = 0;
     bool cancelled = false;
     std::wstring error;
-    if (!WaitShellDone(id, hr, cancelled, error)) return;
+    // Delete/copy/move run inside the menu host, so a menu extension that hung
+    // there stops them too; a silent stretch now restarts that host.
+    if (!WaitShellDone(id, hr, cancelled, error, true)) return;
     diagnostics::runtime::Event("file_operation_shell_result", {{"task", task_id},
         {"request", id}, {"hresult", hr}, {"cancelled", cancelled}});
 
@@ -5144,17 +5146,31 @@ void OpsManager::RegisterShellRequest(uint32_t id) {
     current_req_id_.store(id);
 }
 
-bool OpsManager::WaitShellDone(uint32_t id, uint32_t& hr, bool& cancelled, std::wstring& error) {
+bool OpsManager::WaitShellDone(uint32_t id, uint32_t& hr, bool& cancelled, std::wstring& error,
+                               bool recycle_on_stall) {
     auto& client = ipc::ShellClient::Instance();
     constexpr ULONGLONG kShellInactivityTimeoutMs = 10ull * 60ull * 1000ull;
+    // A file operation that reports nothing for this long is stuck behind an
+    // extension that hung inside the host: recycling the process makes the
+    // client resend the request to a fresh one, once.
+    constexpr ULONGLONG kShellStallTimeoutMs = 15000;
     bool interrupted = false;
+    bool stall_recycled = false;
     {
         std::unique_lock<std::mutex> lock(done_mutex_);
         while (!done_results_.contains(id) && !stopping_.load()) {
-            done_cv_.wait_for(lock, std::chrono::seconds(5));
+            done_cv_.wait_for(lock, std::chrono::seconds(1));
             if (done_results_.contains(id)) break;
-            const ULONGLONG activity = shell_activity_tick_.load();
-            if (GetTickCount64() - activity < kShellInactivityTimeoutMs) continue;
+            const ULONGLONG idle = GetTickCount64() - shell_activity_tick_.load();
+            if (recycle_on_stall && !stall_recycled && idle >= kShellStallTimeoutMs) {
+                stall_recycled = true;
+                lock.unlock();
+                client.RecycleHost();
+                lock.lock();
+                shell_activity_tick_.store(GetTickCount64()); // a fresh window for the retry
+                continue;
+            }
+            if (idle < kShellInactivityTimeoutMs) continue;
             lock.unlock();
             client.Abort(id);
             lock.lock();

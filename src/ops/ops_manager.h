@@ -506,7 +506,8 @@ private:
     // queued opens so the dialog answers the click. Plain opens keep FIFO order.
     void EnqueueOpen(QueueItem item, bool front = false);
     void RunShellOp(const OpRequest& req, uint64_t task_id);
-    bool WaitShellDone(uint32_t id, uint32_t& hr, bool& cancelled, std::wstring& error);
+    bool WaitShellDone(uint32_t id, uint32_t& hr, bool& cancelled, std::wstring& error,
+                       bool recycle_on_stall = false);
     void RunTransfer(const OpRequest& req, uint64_t task_id);
     void RunAuthorizedTransfer(const OpRequest& req, uint64_t task_id);
     void RunAuthorizedDelete(const OpRequest& req, uint64_t task_id);
