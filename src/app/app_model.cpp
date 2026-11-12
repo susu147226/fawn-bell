@@ -1280,10 +1280,14 @@ void RefreshSidebarDriveCapacity(std::vector<SidebarEntry>& drives) {
         entry.detail.clear();
         entry.used_ratio = 0.0f;
         entry.danger = false;
+        entry.drive_free_bytes = 0;
+        entry.drive_total_bytes = 0;
         if (!GetDiskFreeSpaceExW(entry.path.c_str(), &free_bytes, &total_bytes, nullptr))
             continue;
         const uint64_t total = total_bytes.QuadPart;
         const uint64_t free = std::min(free_bytes.QuadPart, total_bytes.QuadPart);
+        entry.drive_free_bytes = free;
+        entry.drive_total_bytes = total;
         entry.detail = luling::format::ByteSize(free, false, luling::format::ByteSizeStyle::Compact)
             + L" / " + luling::format::ByteSize(total, false, luling::format::ByteSizeStyle::Compact);
         if (total > 0) {
@@ -1466,6 +1470,8 @@ static ui::SidebarGroup ConvertGroup(const std::wstring& header, const std::vect
         it.path = e.path;
         it.is_drive = e.is_drive;
         it.used_ratio = e.used_ratio;
+        it.drive_free_bytes = e.drive_free_bytes;
+        it.drive_total_bytes = e.drive_total_bytes;
         it.badge = e.badge;
         it.badge_color = ui::HexColor(e.badge_rgb);
         it.is_tag = e.is_tag;
@@ -1796,6 +1802,32 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     // "Group by": the worker sorted with the same key, so each group is one
     // run of view rows. Spans are cached until an input changes.
     out.group_by = tab->EffectiveGroup();
+    // This PC in details view: its own columns, and 存储总览 over two or more
+    // local drives whose sizes are known.
+    out.this_pc_columns = tab->current_path.empty() && tab->view_mode == ui::ViewMode::Details &&
+                          tab->snapshot != nullptr;
+    out.drive_overview = {};
+    if (out.this_pc_columns) {
+        const auto& entries = *tab->snapshot;
+        for (size_t i = 0; i < entries.size(); ++i) {
+            const fs::DirEntry& e = entries[i];
+            if (!e.drive_type || e.drive_total == 0 || e.drive_type == DRIVE_REMOTE) continue;
+            ui::DriveOverviewView::Drive drive;
+            const size_t colon = e.full_path.find(L':');
+            if (colon != std::wstring::npos && colon > 0)
+                drive.letter = e.full_path.substr(colon - 1, 2);
+            drive.total = e.drive_total;
+            drive.free = std::min(e.drive_free, e.drive_total);
+            drive.used = static_cast<float>(static_cast<double>(drive.total - drive.free) /
+                                            static_cast<double>(drive.total));
+            out.drive_overview.free += drive.free;
+            out.drive_overview.total += drive.total;
+            out.drive_overview.drives.push_back(std::move(drive));
+        }
+        // Drive letter order, whatever the rows are sorted by.
+        std::sort(out.drive_overview.drives.begin(), out.drive_overview.drives.end(),
+                  [](const auto& a, const auto& b) { return a.letter < b.letter; });
+    }
     if (out.group_by != 0 && tab->snapshot && !tab->content_results && !out.compare_active) {
         const GroupBy by = GroupByFromInt(out.group_by);
         GroupClock clock = by == GroupBy::Date ? MakeGroupClock(tab->sort_column) : GroupClock{};
@@ -2043,21 +2075,24 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
     }
 
     workspaces.header = l10n::Get(l10n::StringId::SidebarWorkspaces);
+    workspaces.add_action = ui::SidebarAddAction::SaveWorkspace;
     if (places) {
         for (int i = 0; i < static_cast<int>(places->workspaces.size()); ++i) {
             const auto& w = places->workspaces[static_cast<size_t>(i)];
             ui::SidebarItem it;
             it.label = w.name.empty() ? TabTitle(w.root) : w.name;
-            it.detail = DisplayPath(w.root);
+            it.workspace_row = true;
+            it.detail = TabTitle(w.root);
             it.path = MakeWorkspacePath(i);
+            it.expandable = true;
+            it.expanded = w.expanded;
             const bool unc = fs::IsUncPath(w.root);
             it.icon_glyph = unc ? L"\xE968" : L"\xE8B7";
             it.fallback_text = L"WS";
             it.icon_color = ui::HexColor(unc ? 0x38BDF8 : 0x34D399);
-            if (unc) it.badge = l10n::Get(l10n::StringId::Server);
-            if (i == places->active_workspace)
-                it.badge = l10n::Get(unc ? l10n::StringId::CurrentServer
-                                         : l10n::StringId::Current);
+            // One short badge only: a full path next to it overflows the row.
+            if (i == places->active_workspace) it.badge = l10n::Get(l10n::StringId::Current);
+            else if (unc) it.badge = l10n::Get(l10n::StringId::Server);
             // The saved split is what sets a workspace apart from a Quick
             // access link; show it when there is more than one pane.
             const auto panes = std::count_if(w.pane_paths.begin(), w.pane_paths.end(),
@@ -2067,11 +2102,29 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
                 swprintf_s(pane_text, l10n::Get(l10n::StringId::WorkspacePanes).c_str(),
                            static_cast<int>(panes));
                 if (it.badge.empty()) it.badge = pane_text;
-                it.detail += L" \x00B7 ";
-                it.detail += pane_text;
             }
             workspaces.items.push_back(std::move(it));
+            if (!w.expanded) continue;
+            // The saved panes, numbered like the split they restore.
+            std::vector<std::wstring> pane_rows;
+            for (const std::wstring& pane_path : w.pane_paths) {
+                if (pane_path.empty()) continue;
+                if (std::find(pane_rows.begin(), pane_rows.end(), pane_path) != pane_rows.end())
+                    continue;
+                pane_rows.push_back(pane_path);
+                ui::SidebarItem sub;
+                sub.label = std::to_wstring(pane_rows.size()) + L"  " + TabTitle(pane_path);
+                sub.path = pane_path;
+                sub.indent = 1;
+                const bool pane_unc = fs::IsUncPath(pane_path);
+                sub.icon_glyph = pane_unc ? L"\xE968" : L"\xE8B7";
+                sub.fallback_text = L"Dir";
+                sub.icon_color = ui::HexColor(pane_unc ? 0x38BDF8 : 0x94A3B8);
+                workspaces.items.push_back(std::move(sub));
+            }
             for (const auto& child : places->FrequentChildren(i, 8)) {
+                if (std::find(pane_rows.begin(), pane_rows.end(), child) != pane_rows.end())
+                    continue;
                 ui::SidebarItem sub;
                 sub.label = TabTitle(child);
                 sub.path = child;
@@ -2082,6 +2135,14 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
                 workspaces.items.push_back(std::move(sub));
             }
         }
+    }
+
+    if (workspaces.items.empty()) {
+        ui::SidebarItem empty;
+        empty.workspace_empty = true;
+        empty.label = l10n::Get(l10n::StringId::WorkspaceEmptyHint);
+        empty.detail = l10n::Get(l10n::StringId::WorkspaceSaveCurrent);
+        workspaces.items.push_back(std::move(empty));
     }
 
     // Built-in quick-access links the user switched off in the section menu.
@@ -2100,6 +2161,7 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
     if (!starred_section.items.empty()) {
         starred_section.items[0].expandable = true;
         starred_section.items[0].expanded = starred_expanded;
+        starred_section.items[0].favorites_root = true;
     }
     if (places && starred_expanded) {
         size_t starred_insert = starred_section.items.size();
@@ -2178,8 +2240,7 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
     tags.header = l10n::Get(l10n::StringId::SidebarTags);
     tags.add_action = ui::SidebarAddAction::CreateTag;
     if (places) {
-        for (int i = 0; i < static_cast<int>(places->tags.size()); ++i) {
-            const auto& t = places->tags[static_cast<size_t>(i)];
+        auto add_tag_item = [&](const app::ColorTag& t) {
             ui::SidebarItem tag;
             tag.label = t.name;
             tag.path = MakeTagPath(t.id);
@@ -2188,6 +2249,23 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
             tag.count = static_cast<int>(t.paths.size());
             tag.tag_dot = ui::HexColor(t.rgb);
             tags.items.push_back(std::move(tag));
+        };
+        std::vector<std::wstring> tag_groups;
+        for (const auto& t : places->tags) {
+            if (t.group.empty()) continue;
+            if (std::find(tag_groups.begin(), tag_groups.end(), t.group) == tag_groups.end())
+                tag_groups.push_back(t.group);
+        }
+        // Ungrouped tags first, then one heading per 标签组.
+        for (const auto& t : places->tags)
+            if (t.group.empty()) add_tag_item(t);
+        for (const auto& group : tag_groups) {
+            ui::SidebarItem heading;
+            heading.label = group;
+            heading.group_heading = true;
+            tags.items.push_back(std::move(heading));
+            for (const auto& t : places->tags)
+                if (t.group == group) add_tag_item(t);
         }
         // 管理标签 entry: opens the sheet instead of navigating (see NavigateTo).
         ui::SidebarItem all_tags;

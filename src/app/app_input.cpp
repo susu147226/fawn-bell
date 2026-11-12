@@ -7,6 +7,8 @@
 #include "tab_controller.h"
 #include "app_shortcuts.h"
 #include "app_prompts.h"
+#include "favorites_bar.h"
+#include "store_catalog.h"
 #include "vertical_tabs.h"
 #include "tab_shortcuts.h"
 #include "app_updates.h"
@@ -118,6 +120,7 @@ void ClearDropFeedback(AppState& s) {
     s.dropSidebar = -1;
     s.dropTray = false;
     s.dropQuickAccess = false;
+    s.dropFavorites = false;
     s.dropBadge.clear();
     s.dropBadgeMove = false;
     s.dropDestDir.clear();
@@ -191,6 +194,7 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
     s.dropSidebar = -1;
     s.dropTray = false;
     s.dropQuickAccess = false;
+    s.dropFavorites = false;
     s.dropDestDir.clear();
     s.dropBadge.clear();
     s.dropBadgeMove = false;
@@ -213,6 +217,18 @@ DWORD ResolveDropTarget(AppState& s, const std::vector<std::wstring>& sources,
     DWORD toolbar_effect = DROPEFFECT_NONE;
     if (ResolveToolbarAppDrop(s, vm, hit, sources, pt, key_state, allowed, toolbar_effect))
         return toolbar_effect;
+
+    // Dropping on the favorites bar stars the items; nothing moves.
+    if (s.renderer.FavoritesBarBandContains(vm, rect, static_cast<float>(pt.x),
+                                            static_cast<float>(pt.y))) {
+        s.dropFavorites = true;
+        s.springRow = -1;
+        s.dropBadge = l10n::Pick(L"添加到收藏夹", L"Add to favorites");
+        s.dropBadgeX = static_cast<float>(pt.x);
+        s.dropBadgeY = static_cast<float>(pt.y);
+        InvalidateRect(s.hwnd, nullptr, FALSE);
+        return (allowed & DROPEFFECT_COPY) ? DROPEFFECT_COPY : DROPEFFECT_LINK;
+    }
 
     app::Pane* hitPane = PaneAtSlot(s, hit.pane_index);
     app::Tab* tab = hitPane ? hitPane->ActiveTab() : ActiveTab(s);
@@ -435,6 +451,7 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
     const bool header = s.dropHeader;
     const int header_pane = s.dropPaneIndex;
     const bool pin_quick_access = s.dropQuickAccess;
+    const bool favorites = s.dropFavorites;
     ClearDropFeedback(s);
     s.springEntered = false;
     if (effect == DROPEFFECT_NONE || !(effect & allowed)) return DROPEFFECT_NONE;
@@ -467,6 +484,19 @@ DWORD DropExecute(AppState& s, const std::vector<std::wstring>& sources,
         s.places.SetQuickAccessPinned(folders, true);
         InvalidateRect(s.hwnd, nullptr, FALSE);
         return effect;  // nothing is copied; the source keeps its files
+    }
+
+    if (favorites) {
+        for (const auto& source : sources) {
+            if (source.empty() || fs::IsVirtualPath(source) || s.places.IsStarred(source))
+                continue;
+            const DWORD attrs = GetFileAttributesW(source.c_str());
+            const bool is_folder = attrs != INVALID_FILE_ATTRIBUTES &&
+                (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
+            ToggleStarred(s, source, is_folder ? app::PlaceItemKind::Folder
+                                               : app::PlaceItemKind::File);
+        }
+        return DROPEFFECT_COPY;
     }
 
     if (header) {
@@ -2434,6 +2464,7 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         DismissPathEditorOutside(*s, mx, my);
         CancelRenameClick(*s);
         CancelScrollAnimation(*s);
+        s->favoritesFocus = -1;
         // Commit explicitly before changing pane/selection; a click on a
         // non-focusable part of the owner need not produce WM_KILLFOCUS.
         if (s->renameIndex >= 0) HideRenameOverlay(*s, true);
@@ -2912,8 +2943,34 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             ToggleTheme(*s);
         } else if (hit.region == ui::HitTestResult::SettingsButton) {
             OpenSettingsTab(*s, 0);
-        } else if (hit.region == ui::HitTestResult::SettingsNav) {
-            OpenSettingsTab(*s, hit.index);
+        } else if (hit.region == ui::HitTestResult::SettingsNav ||
+                   hit.region == ui::HitTestResult::SettingsStoreTab ||
+                   hit.region == ui::HitTestResult::SettingsStoreOpenPacks ||
+                   hit.region == ui::HitTestResult::SettingsStorePackRow ||
+                   hit.region == ui::HitTestResult::SettingsStoreRefresh ||
+                   hit.region == ui::HitTestResult::SettingsStoreLinkPacks ||
+                   hit.region == ui::HitTestResult::SettingsStoreOfficial ||
+                   hit.region == ui::HitTestResult::SettingsStoreInstall) {
+            using R = ui::HitTestResult;
+            if (hit.region == R::SettingsNav) {
+                OpenSettingsTab(*s, hit.index);
+            } else if (hit.region == R::SettingsStoreTab) {
+                s->settingsStoreTab = std::clamp(hit.index, 0, 2);
+                InvalidateRect(hwnd, nullptr, FALSE);
+            } else if (hit.region == R::SettingsStoreRefresh) {
+                app::StartStoreCatalogFetch(s->hwnd);
+            } else if (hit.region == R::SettingsStoreLinkPacks) {
+                OpenSettingsTab(*s, 5);
+            } else if (hit.region == R::SettingsStoreOfficial) {
+                OpenSettingsTab(*s, 14);
+            } else if (hit.region == R::SettingsStoreInstall) {
+                const auto store = app::StoreCatalogSnapshotCopy();
+                if (hit.index >= 0 && hit.index < static_cast<int>(store.extensions.size()))
+                    app::StartStoreExtensionInstall(
+                        s->hwnd, store.extensions[static_cast<size_t>(hit.index)]);
+            } else {
+                OpenSettingsTab(*s, 14);
+            }
         } else if (HandleSettingsControl(*s, hit)) {
         } else if (hit.region == ui::HitTestResult::SettingsToggle) {
             if (hit.index >= 100) {
@@ -3332,8 +3389,12 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             if (hit.region == ui::HitTestResult::ToolbarSort) ShowSortDropdown(*s);
             else if (hit.region == ui::HitTestResult::ToolbarGroup) ShowGroupDropdown(*s);
             else SetGroupBy(*s, 0);
-        } else if (hit.region == ui::HitTestResult::ToolbarMore) {
-            ShowToolbarMore(*s);
+        } else if (hit.region == ui::HitTestResult::ToolbarMore ||
+                   hit.region == ui::HitTestResult::FavoritesBarToggle ||
+                   hit.region == ui::HitTestResult::FavoritesBarItem) {
+            if (hit.region == ui::HitTestResult::ToolbarMore) ShowToolbarMore(*s);
+            else if (hit.region == ui::HitTestResult::FavoritesBarToggle) ToggleFavoritesBar(*s);
+            else if (!hit.path.empty()) NavigateTo(*s, hit.path);
         } else if (hit.region == ui::HitTestResult::PaneViewButton) {
             ShowViewDropdown(*s, hit.pane_index);
         } else if (hit.region == ui::HitTestResult::FilterBox) {
@@ -3407,7 +3468,9 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         } else if (HandleVerticalTabPress(*s, hit)) {
             // Tab rows, the tabs header and the sidebar toggle.
         } else if (hit.region == ui::HitTestResult::SidebarHeaderAction) {
-            if (hit.sidebar_action == ui::SidebarAddAction::AddNetwork) {
+            if (hit.sidebar_action == ui::SidebarAddAction::SaveWorkspace) {
+                SaveCurrentWorkspace(*s);
+            } else if (hit.sidebar_action == ui::SidebarAddAction::AddNetwork) {
                 s->settings.NetworkAction(0, true);
             } else if (hit.sidebar_action == ui::SidebarAddAction::CreateTag) {
                 POINT point{ mx, my };
@@ -3437,15 +3500,28 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 s->groupGapLineY = 0.0f;
                 SetCapture(hwnd);
             }
-        } else if (hit.region == ui::HitTestResult::SidebarItemAction) {
-            std::wstring kind, rest;
-            if (app::ParseLulingPath(hit.path, &kind, &rest) && kind == L"workspace")
-                s->places.UnpinWorkspace(_wtoi(rest.c_str()));
+        } else if (hit.region == ui::HitTestResult::SidebarItemAction ||
+                   hit.region == ui::HitTestResult::SidebarWorkspaceAction) {
+            if (hit.region == ui::HitTestResult::SidebarWorkspaceAction) {
+                SaveCurrentWorkspace(*s);
+            } else if (hit.path == app::MakeStarredPath()) {
+                ToggleFavoritesBar(*s);
+            } else {
+                std::wstring kind, rest;
+                if (app::ParseLulingPath(hit.path, &kind, &rest) && kind == L"workspace")
+                    s->places.UnpinWorkspace(_wtoi(rest.c_str()));
+            }
             InvalidateRect(hwnd, nullptr, FALSE);
         } else if (hit.region == ui::HitTestResult::SidebarItemExpand) {
             if (hit.path == app::MakeStarredPath()) {
                 s->starredExpanded = !s->starredExpanded;
                 InvalidateRect(hwnd, nullptr, FALSE);
+            } else {
+                std::wstring kind, rest;
+                if (app::ParseLulingPath(hit.path, &kind, &rest) && kind == L"workspace") {
+                    s->places.ToggleWorkspaceExpanded(_wtoi(rest.c_str()));
+                    InvalidateRect(hwnd, nullptr, FALSE);
+                }
             }
         } else if (hit.region == ui::HitTestResult::SidebarItem) {
             // A section whose rows are the section itself (the starred root, the
@@ -4280,6 +4356,12 @@ LRESULT HandleRButtonUp(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             return 0;
         }
         bool shown = false;
+        if (hit.region == ui::HitTestResult::FavoritesBarItem && hit.index >= 0) {
+            POINT screen{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+            ClientToScreen(hwnd, &screen);
+            ShowFavoritesBarMenu(*s, hit.index, screen);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::TabGroup && hit.index >= 0 &&
             hit.index < static_cast<int>(vm.tab_groups.size())) {
             // Group chip right-click: the Edge-style editor bubble.
@@ -4603,6 +4685,32 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
             }
         }
 
+        // 收藏栏 keyboard focus (F6): ←/→ move, Enter opens, Esc/F6 leaves.
+        if (s->favoritesFocus >= 0) {
+            const int count = static_cast<int>(s->places.starred_items.size());
+            if (count <= 0) {
+                s->favoritesFocus = -1;
+            } else if (wParam == VK_LEFT || wParam == VK_RIGHT) {
+                const int step = wParam == VK_RIGHT ? 1 : -1;
+                s->favoritesFocus = std::clamp(s->favoritesFocus + step, 0, count - 1);
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            } else if (wParam == VK_RETURN) {
+                const int index = std::clamp(s->favoritesFocus, 0, count - 1);
+                const std::wstring path = s->places.starred_items[static_cast<size_t>(index)].path;
+                s->favoritesFocus = -1;
+                if (!path.empty()) NavigateTo(*s, path);
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            } else if (wParam == VK_ESCAPE || wParam == VK_F6 || wParam == VK_TAB) {
+                s->favoritesFocus = -1;
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            } else if (wParam != VK_UP && wParam != VK_DOWN) {
+                return 0;  // the bar owns the keyboard while focused
+            }
+        }
+
         if (app::IsTabShortcut(static_cast<UINT>(wParam), ctrl, shift, alt)) {
             const auto target = app::TabShortcutTarget(s->window_tabs, shift);
             if (target && *target != s->window_tabs.active) {
@@ -4626,7 +4734,13 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         } else if (shift && !ctrl && wParam == L'D') {
             MarkTargetPane(*s);
         } else if (wParam == VK_F6) {
-            CycleFocus(*s);
+            // F6 reaches the 收藏栏 when it is showing; otherwise it cycles panes.
+            if (s->appPrefs.favorites_bar && !s->places.starred_items.empty()) {
+                s->favoritesFocus = 0;
+                InvalidateRect(hwnd, nullptr, FALSE);
+            } else {
+                CycleFocus(*s);
+            }
         } else if (ctrl && alt && wParam == L'C') {
             TransferToTarget(*s, false);
         } else if (ctrl && alt && wParam == L'X') {

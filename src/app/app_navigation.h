@@ -6,6 +6,7 @@ namespace luling {
 constexpr UINT_PTR kTimerUncProbeRetry = 0x554e;
 std::vector<std::wstring> CollectPanePaths(const AppState& s);
 std::vector<ui::ViewMode> CollectPaneViews(const AppState& s);
+void SaveCurrentWorkspace(AppState& s);
 bool IsUncPath(const std::wstring& p);
 void PumpUncProbe(AppState& s);
 void RequestUncProbe(AppState& s, std::wstring unc);

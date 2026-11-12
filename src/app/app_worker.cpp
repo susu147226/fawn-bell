@@ -3,6 +3,7 @@
 #include "app_model.h"
 #include "entry_sort.h"
 #include "entry_group.h"
+#include "this_pc_launchers.h"
 #include "link_resolve.h"
 #include "../fs/fs_enum.h"
 #include "../fs/shell_namespace.h"
@@ -225,6 +226,20 @@ WorkResult WorkerPool::Process(const WorkItem& item) {
                     Listing result;
                     fs::EnumerateDirectory(path, result.entries, &cancel);
                     if (cancel) throw fs::EnumerationCancelled();
+                    if (path.empty()) {
+                        // This PC: the program icons Windows shows there (网盘程序入口).
+                        for (auto& launcher : app::CurrentThisPcLaunchers()) {
+                            fs::DirEntry e;
+                            e.name = std::move(launcher.label);
+                            e.full_path = app::kThisPcLauncherPrefix + launcher.clsid;
+                            e.attrs = FILE_ATTRIBUTE_NORMAL;
+                            e.pc_launcher = launcher.brand;
+                            result.entries.push_back(std::move(e));
+                        }
+                        // Phones and cameras arrive as encoded Shell PIDLs.
+                        for (auto& entry : result.entries)
+                            if (fs::IsShellPath(entry.full_path)) entry.pc_device = true;
+                    }
                     fs::QueryDirectoryIdentity(path, result.identity);
                     if (cancel) throw fs::EnumerationCancelled();
                     if (!fs::IsVirtualPath(path) && !fs::IsUncPath(path))

@@ -10,6 +10,7 @@
 #include "app_messages.h"
 #include "ai_assistant.h"
 #include "vertical_tabs.h"
+#include "favorites_bar.h"
 #include "window_merge.h"
 #include "../common/localization.h"
 
@@ -71,6 +72,7 @@ bool RunShortcutCommand(AppState& s, int command) {
     case C::LayoutThree: ApplyLayoutPreset(s, LayoutPreset::Three); return true;
     case C::LayoutFour: ApplyLayoutPreset(s, LayoutPreset::FourGrid); return true;
     case C::CustomizeToolbar: ShowToolbarCustomize(s); return true;
+    case C::FavoritesBar: ToggleFavoritesBar(s); return true;
     default: return false;
     }
 }

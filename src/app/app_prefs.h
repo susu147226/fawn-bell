@@ -96,6 +96,9 @@ struct AppPrefs {
     uint32_t global_search_modifiers = 1; // MOD_ALT
     uint32_t global_search_key = 32; // VK_SPACE
     bool show_hidden_files = false;
+    // 收藏栏: the starred list as a row under the toolbar instead of the
+    // sidebar's 收藏夹 section (Ctrl+Shift+B).
+    bool favorites_bar = false;
     // Hidden + system attributes; File Explorer keeps these behind a separate option.
     bool show_protected_os_files = false;
     // Double click on empty list space: 0 nothing, 1 back, 2 up (blank_pane_click.h).

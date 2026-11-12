@@ -36,6 +36,29 @@
 namespace luling::fs {
 namespace {
 std::atomic<bool> g_show_server_hidden_shares{false};
+
+// True when the folder holds nothing but . and .. . Used for the empty-folder
+// badge; a failed probe reports "not empty" so no false badge is shown.
+bool DirectoryIsEmpty(const std::wstring& parent, const std::wstring& name) noexcept {
+    std::wstring pattern = parent;
+    if (!pattern.ends_with(L'\\')) pattern += L'\\';
+    pattern += name;
+    pattern += L"\\*";
+    WIN32_FIND_DATAW fd{};
+    HANDLE h = FindFirstFileExW(pattern.c_str(), FindExInfoBasic, &fd,
+                                FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH);
+    if (h == INVALID_HANDLE_VALUE) return false;
+    bool empty = true;
+    do {
+        if (fd.cFileName[0] == L'.' &&
+            (fd.cFileName[1] == L'\0' || (fd.cFileName[1] == L'.' && fd.cFileName[2] == L'\0')))
+            continue;
+        empty = false;
+        break;
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+    return empty;
+}
 }
 
 void SetShowServerHiddenShares(bool on) noexcept {
@@ -258,6 +281,8 @@ static void EnumerateFindFirstFileEx(const std::wstring& path, std::vector<DirEn
         e.is_reparse = (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
         e.reparse_tag = e.is_reparse ? fd.dwReserved0 : 0;
         e.cloud_recall = (fd.dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0;
+        if (e.is_dir && !e.is_reparse && !IsUncPath(path))
+            e.empty_dir = DirectoryIsEmpty(path, e.name);
         out.push_back(std::move(e));
     } while (FindNextFileW(h, &fd));
     const DWORD error = GetLastError();
@@ -380,6 +405,8 @@ static void EnumerateNtQuery(const std::wstring& path, std::vector<DirEntry>& ou
                 // FileFullDirectoryInformation returns the reparse tag in EaSize.
                 e.reparse_tag = e.is_reparse ? info->EaSize : 0;
                 e.cloud_recall = (info->FileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0;
+                if (e.is_dir && !e.is_reparse && !IsUncPath(path))
+                    e.empty_dir = DirectoryIsEmpty(path, e.name);
                 out.push_back(std::move(e));
             }
 
@@ -428,13 +455,16 @@ static void EnumerateThisPc(std::vector<DirEntry>& out) {
         if (!(drives & (1 << i))) continue;
         wchar_t root[4] = { wchar_t(L'A' + i), L':', L'\\', L'\0' };
         wchar_t volName[MAX_PATH + 1] = {};
-        GetVolumeInformationW(root, volName, MAX_PATH, nullptr, nullptr, nullptr, nullptr, 0);
+        wchar_t fsName[MAX_PATH + 1] = {};
+        GetVolumeInformationW(root, volName, MAX_PATH, nullptr, nullptr, nullptr, fsName,
+                              MAX_PATH);
         DirEntry e;
         e.name = DriveLabel(root[0], volName, l10n::Pick(L"本地磁盘", L"Local Disk")) +
                  L" (" + root[0] + L":)";
         e.full_path = NormalizePath(root);
         e.is_dir = true;
         e.attrs = FILE_ATTRIBUTE_DIRECTORY;
+        e.drive_fs = fsName;
         // Local metadata only (no media access): the UI shows it as the type.
         e.drive_type = static_cast<uint8_t>(GetDriveTypeW(root));
         // Same figures as the sidebar drive rows; the tile view draws them.

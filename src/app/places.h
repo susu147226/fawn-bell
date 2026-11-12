@@ -29,6 +29,7 @@ struct Workspace {
     std::vector<std::wstring> pane_paths;
     std::vector<ui::ViewMode> pane_views;
     std::vector<std::pair<std::wstring, int>> frequent; // path, visit count
+    bool expanded = true;                               // sidebar card shows its panes
 };
 
 struct ColorTag {
@@ -36,6 +37,14 @@ struct ColorTag {
     std::wstring name;
     uint32_t rgb = 0xEF4444;
     std::vector<std::wstring> paths;
+    // 标签组: tags sharing a name are listed under one heading in the sidebar.
+    std::wstring group;
+};
+
+// 自动规则: every path matching `pattern` (glob: * and ?) counts as tagged.
+struct TagRule {
+    TagId tag;
+    std::wstring pattern;
 };
 
 struct TagAdsRecord {
@@ -58,6 +67,9 @@ struct StarredItem {
     PlaceItemKind kind = PlaceItemKind::Unknown;
     std::wstring badge;
     uint32_t badge_rgb = 0x0078D4;
+    // 收藏栏 grouping: items with the same non-empty group sit together,
+    // separated from the next group by a rule.
+    std::wstring group;
 };
 
 inline constexpr uint32_t kDefaultBadgeRgb = 0x0078D4;
@@ -90,6 +102,7 @@ public:
     ~PlacesCatalog();
     std::vector<Workspace> workspaces;
     std::vector<ColorTag> tags;
+    std::vector<TagRule> tag_rules;
     std::vector<NetworkPlace> networks;
     std::vector<std::wstring> quick_access_paths;
     std::vector<StarredItem> starred_items;
@@ -113,6 +126,8 @@ public:
     bool UnpinWorkspace(const std::wstring& root);
     void UpdateWorkspaceSnapshot(int index, int layout, const std::vector<std::wstring>& pane_paths,
                                  const std::vector<ui::ViewMode>& pane_views = {});
+    // Sidebar card fold state; saved with the workspace.
+    bool ToggleWorkspaceExpanded(int index);
 
     int FindNetwork(const std::wstring& unc) const;
     int PinNetwork(const std::wstring& unc, const std::wstring& name);
@@ -141,6 +156,12 @@ public:
 
     TagId CreateTag(const std::wstring& name, uint32_t rgb);
     bool RenameTag(const TagId& id, const std::wstring& name);
+    // 标签组 heading; an empty name removes the tag from its group.
+    bool SetTagGroup(const TagId& id, const std::wstring& group);
+    // 自动规则: paths matching the glob pick up the tag without being stored.
+    bool AddTagRule(const TagId& id, const std::wstring& pattern);
+    bool RemoveTagRule(const TagId& id, const std::wstring& pattern);
+    std::vector<std::wstring> RulesForTag(const TagId& id) const;
     bool SetTagColor(const TagId& id, uint32_t rgb);
     size_t DeleteTag(const TagId& id, std::vector<TagAdsUpdate>* deferred_ads = nullptr);
     bool SetTagsBatch(const TagId& id, const std::vector<std::wstring>& paths, bool tagged,
@@ -163,6 +184,8 @@ public:
                        PlaceItemKind kind = PlaceItemKind::Unknown);
     bool SetStarredBadge(const std::wstring& path, const std::wstring& text,
                          uint32_t rgb);
+    // 收藏栏 group; an empty name puts the item back in the ungrouped run.
+    bool SetStarredGroup(const std::wstring& path, const std::wstring& group);
     bool SetStarredKind(const std::wstring& path, PlaceItemKind kind);
     const QuickAccessBadge* FindQuickAccessBadge(const std::wstring& path) const;
     // Empty text with the default color removes the badge.
@@ -195,6 +218,7 @@ private:
     struct SaveSnapshot {
         std::vector<Workspace> workspaces;
         std::vector<ColorTag> tags;
+        std::vector<TagRule> tag_rules;
         std::vector<NetworkPlace> networks;
         std::vector<std::wstring> quick_access_paths;
         std::vector<StarredItem> starred_items;

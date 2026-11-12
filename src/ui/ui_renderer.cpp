@@ -95,7 +95,7 @@ void MainRenderer::SetScale(float scale) {
     }
     scale_ = scale;
     title_bar_height_ = (embedded_ ? embedded_top_dip_ : kTitleBarHeight) * scale;
-    toolbar_height_ = (vertical_tabs_ || embedded_ ? 44.0f : 88.0f) * scale;
+    RefreshToolbarHeight();
     status_height_ = (embedded_ ? embedded_bottom_dip_ : 28.0f) * scale;
     sidebar_width_ = sidebar_width_dip_ * scale;
     pane_header_height_ = 40.0f * scale;
@@ -1369,12 +1369,14 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         for (const int direction : {-1, 1}) {
             const float ax = direction < 0 ? strip.view_left - strip.arrow_w : strip.view_right;
             const bool enabled = direction < 0 ? strip.scroll > 0.5f : strip.scroll < strip.max_scroll - 0.5f;
-            const bool hot = enabled && IsHovered(vm, HitTestResult::TabScroll, direction);
+            // At either end the arrow disappears; its slot stays empty so the
+            // tabs do not shift.
+            if (!enabled) continue;
+            const bool hot = IsHovered(vm, HitTestResult::TabScroll, direction);
             DrawButton(D2D1::RectF(ax, tabY, ax + strip.arrow_w, tabY + tabH), theme,
                        hot ? theme.fill_hover : kTransparent,
                        direction < 0 ? kIconChevronLeft : kIconChevronRight, direction < 0 ? L"<" : L">",
-                       enabled ? theme.text_secondary : WithAlpha(theme.text_secondary, theme.text_secondary.a * 0.35f),
-                       true, true, 0.7f);
+                       theme.text_secondary, true, true, 0.7f);
         }
     }
     x = strip.new_x;
@@ -1824,16 +1826,12 @@ MainRenderer::TabStripMetrics MainRenderer::ComputeTabStrip(
         m.w = visibleCount == 0 ? 0.0f : std::min(kTabMaxW * scale_, normalW);
         m.active_w = m.w;
     } else {
-        // Crowded: inactive tabs keep only their icon, the active one its title.
-        const float activeW = m.active >= 0 ? kTabActiveMinW * scale_ : 0.0f;
-        const size_t rest = visibleCount - (m.active >= 0 ? 1 : 0);
-        float iconW = rest == 0 ? minW
-            : (spare - (m.active >= 0 ? activeW + control_gap_ : 0.0f)) / static_cast<float>(rest) - control_gap_;
-        iconW = std::min(iconW, minW);
-        m.compact = true;
-        m.overflow = iconW < kTabCompactW * scale_;
-        m.w = m.overflow ? kTabCompactW * scale_ : iconW;
-        m.active_w = m.active >= 0 ? activeW : m.w;
+        // Too many tabs for their minimum width: every tab keeps a readable
+        // slot and the strip scrolls, instead of squeezing them thinner.
+        m.compact = false;
+        m.overflow = true;
+        m.w = minW;
+        m.active_w = minW;
     }
     if (m.active < 0) m.active_w = m.w;
     m.y = 4.0f * scale_;

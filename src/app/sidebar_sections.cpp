@@ -5,6 +5,7 @@
 // same idea becomes one checked entry per section plus a bulk expand/collapse pair.
 #include "app_internal.h"
 #include "app_commands.h"
+#include "favorites_bar.h"
 #include "../common/localization.h"
 #include "../ui/fluent_menu.h"
 
@@ -24,6 +25,7 @@ constexpr int kBuiltinBase = 32200; // + BuiltinQuickAccess
 constexpr int kCollapseSection = 32300;
 constexpr int kExpandSection = 32301;
 constexpr int kHideSection = 32302;
+constexpr int kFavoritesBarToggle = 32303;
 
 constexpr int kSectionCount = app::kSidebarSectionCount;
 
@@ -131,6 +133,16 @@ void ShowSidebarSectionMenu(AppState& s, int section, POINT screen_pt) {
         }
         if (!items.empty()) items.back().separator_after = true;
     }
+    // 收藏栏: the same starred list, laid out as a row under the toolbar.
+    if (section == static_cast<int>(app::SidebarSectionId::Starred)) {
+        ui::FluentMenuItem bar;
+        bar.command = kFavoritesBarToggle;
+        bar.text = l10n::Get(s.appPrefs.favorites_bar
+                                 ? I::FavoritesBarMoveToSidebar
+                                 : I::FavoritesBarMoveToBar);
+        items.push_back(std::move(bar));
+        items.back().separator_after = true;
+    }
     // A header-less section has nothing to fold: its rows are the section.
     if (!app::IsHeaderlessSection(static_cast<app::SidebarSectionId>(section))) {
         const bool collapsed = ((s.sidebarCollapsedMask >> section) & 1u) != 0;
@@ -169,6 +181,8 @@ void ShowSidebarSectionMenu(AppState& s, int section, POINT screen_pt) {
         s.sidebarCollapsedMask &= ~(1u << section);
     } else if (command == kHideSection) {
         s.sidebarHiddenMask |= 1u << section;
+    } else if (command == kFavoritesBarToggle) {
+        ToggleFavoritesBar(s);
     } else if (command >= kToggleBase && command < kToggleBase + kSectionCount) {
         if (((s.sidebarHiddenMask >> (command - kToggleBase)) & 1u) != 0)
             ToggleSidebarSection(s, command - kToggleBase);

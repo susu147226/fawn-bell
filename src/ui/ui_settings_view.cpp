@@ -52,6 +52,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         kIconSearch,    // 搜索与索引
         L"\xE890",      // 快速预览
         L"\xE7B8",      // 增强包
+        L"\xE719",      // 扩展商店
         L"\xE945",      // AI 助手
         L"\xE8F1",      // AI 与 MCP
         L"\xE700",      // 右键菜单
@@ -76,6 +77,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         case 12: return std::wstring(L"AI 助手");
         case 13: return std::wstring(L"快捷键");
         case 14: return std::wstring(L"增强包");
+        case 15: return std::wstring(L"扩展商店");
         default: return luling::l10n::Get(luling::l10n::StringId::SettingsAboutDiagnostics);
         }
     };
@@ -200,6 +202,8 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         DrawSettingsAiModel(vm, rect, theme);
     } else if (vm.settings_page == 14) {
         DrawSettingsEnhance(vm, rect, theme);
+    } else if (vm.settings_page == 15) {
+        DrawSettingsStore(vm, rect, theme);
     } else if (vm.settings_page == 1) {
         auto draw_card = [&](const D2D1_RECT_F& card) {
             MakeBrush(dc, theme.fill_input, brFillInput_);

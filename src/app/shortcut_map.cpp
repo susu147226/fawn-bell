@@ -59,6 +59,7 @@ constexpr DefaultBinding kDefaults[] = {
     {ShortcutCommand::LayoutThree, {{L'3', kCtrl}, {}}, 1},
     {ShortcutCommand::LayoutFour, {{L'4', kCtrl}, {}}, 1},
     {ShortcutCommand::CustomizeToolbar, {{VK_OEM_2, kCtrl}, {}}, 1},
+    {ShortcutCommand::FavoritesBar, {{L'B', kCtrl | kShift}, {}}, 1},
 };
 
 const DefaultBinding* FindDefault(ShortcutCommand command) {
@@ -233,6 +234,7 @@ std::wstring ShortcutCommandName(ShortcutCommand command) {
     case ShortcutCommand::LayoutThree: return l10n::Get(StringId::LayoutThree);
     case ShortcutCommand::LayoutFour: return l10n::Get(StringId::LayoutFour);
     case ShortcutCommand::CustomizeToolbar: return l10n::Pick(L"自定义工具栏", L"Customize toolbar");
+    case ShortcutCommand::FavoritesBar: return l10n::Pick(L"收藏栏", L"Favorites bar");
     default: return {};
     }
 }
@@ -294,6 +296,7 @@ std::vector<ui::ShortcutGroupView> ShortcutGroupsWithPrefs(
           Row(ShortcutCommand::LayoutThree, overrides),
           Row(ShortcutCommand::LayoutFour, overrides),
           Row(ShortcutCommand::CustomizeToolbar, overrides),
+          Row(ShortcutCommand::FavoritesBar, overrides),
           StaticRow(StringId::HelpSwitchTab, L"Ctrl Tab / Ctrl Shift Tab"),
           StaticRow(StringId::HelpNextPane, L"F6"),
           StaticRow(StringId::HelpMarkTarget, L"Ctrl D"),

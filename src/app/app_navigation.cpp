@@ -8,6 +8,7 @@
 #include "../fs/shell_namespace.h"
 #include "network_locations.h"
 #include "shell_window_sync.h"
+#include "this_pc_launchers.h"
 #include "app_column_view.h"
 #include "listing_selection_restore.h"
 #include "content_navigation.h"
@@ -89,6 +90,16 @@ std::vector<ui::ViewMode> CollectPaneViews(const AppState& s) {
 
 bool IsUncPath(const std::wstring& p) {
     return fs::IsUncPath(p);
+}
+
+void SaveCurrentWorkspace(AppState& s) {
+    const auto paths = CollectPanePaths(s);
+    if (paths.empty() || paths.front().empty() || fs::IsVirtualPath(paths.front())) return;
+    s.places.PinWorkspace(paths.front(), L"", static_cast<int>(LayoutOf(s)), paths,
+                          CollectPaneViews(s));
+    // A saved workspace is useless while its section is folded away.
+    s.sidebarCollapsedMask &= ~(1u << static_cast<unsigned>(app::SidebarSectionId::Workspaces));
+    InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
 void PumpUncProbe(AppState& s) {
@@ -945,6 +956,35 @@ void LoadVirtualView(AppState& s, app::Tab& tab, const std::wstring& path, PathL
             return;
         }
         tab.virtual_title = l10n::Pick(L"标签已删除", L"Tag deleted");
+    } else if (kind == L"tags") {
+        // Combined view: the union of several tags' files (luling:tags:a|b).
+        std::vector<std::wstring> combined;
+        std::wstring title;
+        size_t start = 0;
+        for (;;) {
+            const size_t sep = rest.find(L'|', start);
+            const std::wstring piece = rest.substr(start, sep == std::wstring::npos
+                ? std::wstring::npos : sep - start);
+            if (!piece.empty()) {
+                const app::TagId id = s.places.ResolveTagRef(piece);
+                if (const app::ColorTag* tag = s.places.FindTag(id)) {
+                    for (const std::wstring& p : tag->paths)
+                        if (std::find(combined.begin(), combined.end(), p) == combined.end())
+                            combined.push_back(p);
+                    if (!title.empty()) title += L" + ";
+                    title += tag->name;
+                }
+            }
+            if (sep == std::wstring::npos) break;
+            start = sep + 1;
+        }
+        tab.virtual_title = title;
+        tab.loading = true;
+        tab.SetSnapshot(nullptr);
+        tab.pending_generation = s.worker.LoadPaths(
+            tab.current_path, combined, tab.sort_column, tab.sort_direction, false, {},
+            tab.EffectiveGroup());
+        return;
     } else if (kind == L"search") {
         wchar_t title[512]{};
         swprintf_s(title, l10n::Get(l10n::StringId::SearchLoadingFormat).c_str(),
@@ -2137,6 +2177,33 @@ void SetGroupBy(AppState& s, int group_by) {
     InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
+// 网盘程序入口 (This PC): a launcher that names a folder opens it here; the
+// others start their program the way Explorer does (shell:::{CLSID}).
+static void OpenThisPcLauncher(AppState& s, const fs::DirEntry& e) {
+    const std::wstring_view prefix = app::kThisPcLauncherPrefix;
+    if (!std::wstring_view(e.full_path).starts_with(prefix)) return;
+    const std::wstring clsid = e.full_path.substr(prefix.size());
+    for (const auto& launcher : app::CurrentThisPcLaunchers()) {
+        if (_wcsicmp(launcher.clsid.c_str(), clsid.c_str()) != 0) continue;
+        if (!launcher.target.empty()) {
+            NavigateTo(s, launcher.target);
+            return;
+        }
+        break;
+    }
+    // Off the UI thread: the shell may take a moment to start the program.
+    std::thread([owner = s.hwnd, file = e.full_path] {
+        const HRESULT co = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        SHELLEXECUTEINFOW info{sizeof(info)};
+        info.fMask = SEE_MASK_NOASYNC;
+        info.hwnd = owner;
+        info.lpFile = file.c_str();
+        info.nShow = SW_SHOWNORMAL;
+        ShellExecuteExW(&info);
+        if (SUCCEEDED(co)) CoUninitialize();
+    }).detach();
+}
+
 void OpenSelected(AppState& s, bool folder_in_new_window) {
     if(DeferContentSelection(s,[=](AppState& v){OpenSelected(v, folder_in_new_window);})) return;
     app::Tab* tab = ActiveTab(s);
@@ -2156,6 +2223,10 @@ void OpenSelected(AppState& s, bool folder_in_new_window) {
     if (indices.size() == 1) {
         const fs::DirEntry& e = tab->EntryAt(static_cast<size_t>(indices[0]));
         if (e.change_record_only) return;
+        if (e.pc_launcher) {
+            OpenThisPcLauncher(s, e);
+            return;
+        }
         if (!e.link_target.empty()) {
             if (e.link_target_is_dir) open_folder(e.link_target);
             else {

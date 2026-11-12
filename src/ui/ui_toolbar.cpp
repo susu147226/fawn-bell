@@ -385,7 +385,72 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
             FillRect(dc,brStrokeDivider_.get(),b.right+4.5f*scale_,b.top+7*scale_,scale_,b.bottom-b.top-14*scale_);
         }
     }
+    if (vm.favorites_bar) DrawFavoritesBar(vm, rect, theme);
 }
+
+void MainRenderer::DrawFavoritesBar(const WindowViewModel& vm, const D2D1_RECT_F& rect,
+                                    const Theme& theme) {
+    auto* dc = compositor_ ? compositor_->Dc() : nullptr;
+    if (!dc) return;
+    const float left = EffectiveSidebarWidth(rect.right);
+    const D2D1_RECT_F toolbar_rect = ToolbarRect(rect.right);
+    const auto g = LayoutFavoritesBar(vm, toolbar_rect, left, scale_);
+    MakeBrush(dc, theme.stroke_divider, brStrokeDivider_);
+    FillRect(dc, brStrokeDivider_.get(), g.band.left, g.band.top,
+             g.band.right - g.band.left, 1.0f * scale_);
+    if (vm.favorites_bar_items.empty()) {
+        painter_.DrawText(l10n::Get(l10n::StringId::FavoritesBarEmpty),
+            D2D1::RectF(g.band.left + 12.0f * scale_, g.band.top + 6.0f * scale_,
+                        g.toggle.left - 8.0f * scale_, g.band.bottom - 4.0f * scale_),
+            compositor_->SmallFormat(), theme.text_secondary);
+    } else {
+        if (!g.dividers.empty() && !g.items.empty()) {
+            // Group rules between runs, never inside one.
+            const float top = g.items.front().top + 4.0f * scale_;
+            const float bottom = g.items.front().bottom - 4.0f * scale_;
+            MakeBrush(dc, WithAlpha(theme.text_secondary, 0.28f), brTextSecondary_);
+            for (const float dx : g.dividers)
+                FillRect(dc, brTextSecondary_.get(), dx, top, 1.0f * scale_, bottom - top);
+        }
+        for (size_t i = 0; i < g.items.size(); ++i) {
+            const auto& rc = g.items[i];
+            if (IsHovered(vm, HitTestResult::FavoritesBarItem, static_cast<int>(i))) {
+                MakeBrush(dc, theme.fill_hover, brFillHover_);
+                FillRoundedRect(dc, brFillHover_.get(), rc.left, rc.top,
+                                rc.right - rc.left, rc.bottom - rc.top,
+                                theme.radius_control * scale_);
+            }
+            if (vm.favorites_focus == static_cast<int>(i)) {
+                // F6 focus: the keyboard is on this slot.
+                painter_.StrokeRoundedRect(rc, theme.radius_control * scale_,
+                                           theme.accent, 1.0f * scale_);
+            }
+            DrawIconText(rc.left + 6.0f * scale_, rc.top, 18.0f * scale_,
+                         rc.bottom - rc.top, L"\xE735", L"*", theme.accent, 0.8f);
+            painter_.DrawText(vm.favorites_bar_items[i].label,
+                D2D1::RectF(rc.left + 24.0f * scale_, rc.top, rc.right - 6.0f * scale_, rc.bottom),
+                compositor_->SmallFormat(), theme.text);
+        }
+    }
+    // Back to the sidebar: the dock button at the band's right edge.
+    const bool hot = IsHovered(vm, HitTestResult::FavoritesBarToggle);
+    MakeBrush(dc, hot ? theme.fill_hover : theme.surface_card, brFillHover_);
+    FillRoundedRect(dc, brFillHover_.get(), g.toggle.left, g.toggle.top,
+                    g.toggle.right - g.toggle.left, g.toggle.bottom - g.toggle.top,
+                    theme.radius_control * scale_);
+    DrawIconText(g.toggle.left, g.toggle.top, g.toggle.right - g.toggle.left,
+                 g.toggle.bottom - g.toggle.top, L"\xE700", L"<", theme.text_secondary, 0.7f);
+}
+
+bool MainRenderer::FavoritesBarBandContains(const WindowViewModel& vm,
+                                            const D2D1_RECT_F& rect, float x, float y) const {
+    if (!vm.favorites_bar) return false;
+    const float left = EffectiveSidebarWidth(rect.right);
+    const D2D1_RECT_F toolbar_rect = ToolbarRect(rect.right);
+    const auto g = LayoutFavoritesBar(vm, toolbar_rect, left, scale_);
+    return x >= g.band.left && x < g.band.right && y >= g.band.top && y < g.band.bottom;
+}
+
 std::wstring MainRenderer::ToolbarGroupLabel() const {
     constexpr l10n::StringId names[]={l10n::StringId::GroupByName,l10n::StringId::GroupByDate,
         l10n::StringId::GroupByType,l10n::StringId::GroupBySize,l10n::StringId::GroupByTag,

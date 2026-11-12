@@ -5,6 +5,7 @@
 
 #include <commoncontrols.h>
 #include <shellapi.h>
+#include <shlobj_core.h>
 #include <commctrl.h>
 #include <wincodec.h>
 #include <cwctype>
@@ -266,6 +267,19 @@ void ShellIconCache::WorkerLoop() {
                     if (victim != generic_index_.end()) generic_index_.erase(victim);
                 }
                 generic_index_[key] = index;
+            }
+        } else if (path.starts_with(L"shell:::")) {
+            // This PC's program icons (网盘程序入口): resolve the CLSID through
+            // the shell so WPS/百度/迅雷 show their own icons, not a blank file.
+            PIDLIST_ABSOLUTE pidl = nullptr;
+            SFGAOF attrs = 0;
+            if (SUCCEEDED(SHParseDisplayName(path.c_str(), nullptr, &pidl, 0, &attrs)) && pidl) {
+                SHFILEINFOW shell_info{};
+                if (SHGetFileInfoW(reinterpret_cast<LPCWSTR>(pidl), 0, &shell_info,
+                                   sizeof(shell_info),
+                                   SHGFI_PIDL | SHGFI_SYSICONINDEX | SHGFI_SMALLICON))
+                    index = shell_info.iIcon;
+                CoTaskMemFree(pidl);
             }
         } else if (luling::fs::IsShellPath(path)) {
             // Portable devices (MTP phones, cameras): the path is an encoded

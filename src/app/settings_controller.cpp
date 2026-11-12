@@ -55,6 +55,7 @@ int SettingsController::PageFromName(std::wstring_view name) noexcept {
     if (name == L"ai") return 12;
     if (name == L"shortcuts") return 13;
     if (name == L"enhance") return 14;
+    if (name == L"store") return 15;
     return 0;
 }
 
@@ -73,12 +74,13 @@ const wchar_t* SettingsController::PageName(int page) noexcept {
     if (page == 12) return L"ai";
     if (page == 13) return L"shortcuts";
     if (page == 14) return L"enhance";
+    if (page == 15) return L"store";
     return L"general";
 }
 
 void SettingsController::SelectPage(int page) noexcept {
     CancelGlobalSearchHotkeyCapture();
-    page_ = std::clamp(page, 0, 14);
+    page_ = std::clamp(page, 0, 15);
     scroll_ = 0.0f;
     nav_scroll_ = 0.0f;
     packs_checked_ = 0;  // re-read the packs when their page opens

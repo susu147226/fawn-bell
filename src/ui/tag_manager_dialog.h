@@ -26,6 +26,9 @@ struct TagManagerSpec {
     std::wstring done_text;
     std::wstring merge_text;
     std::wstring delete_text;
+    std::wstring combine_text;
+    std::wstring export_text;
+    std::wstring import_text;
     std::wstring invalid_note;
     std::vector<TagManagerRow> rows;
 };
@@ -34,6 +37,10 @@ struct TagManagerResult {
     // First id is the merge target; the rest are folded into it.
     std::vector<std::wstring> merge_ids;
     std::vector<std::wstring> delete_ids;
+    // 1 = combined view, 2 = export, 3 = import; `checked_ids` carries the
+    // selection when the sheet closes for one of those actions.
+    int action = 0;
+    std::vector<std::wstring> checked_ids;
 };
 
 // Modal. True when the user pressed Done; `result` then holds the requested
