@@ -625,8 +625,7 @@ void MainRenderer::DrawDriveOverview(const PaneViewModel& pane, const D2D1_RECT_
         const float sw = 8.0f * scale_;
         const float sy = std::round(legend_top + (legend_h - sw) * 0.5f);
         painter_.FillRoundedRect(D2D1::RectF(lx, sy, lx + sw, sy + sw), 2.0f * scale_,
-                                 level == CapacityLevel::Normal ? theme.accent
-                                                                : painter_.CapacityInk(level));
+                                 painter_.CapacityFill(level));
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
         DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(), drive.letter,
                             lx + 14.0f * scale_, legend_top, letter_w, legend_h);
@@ -1955,7 +1954,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             const bool partial = !all && pane.selected_count > 0;
             const bool hot = vm.hover_region == static_cast<int>(HitTestResult::RowSelectAll) &&
                 vm.hover_pane_index == pane_index;
-            const float radius = 2.5f * scale_;
+            const float radius = 4.0f * scale_;
             if (all || partial) {
                 MakeBrush(dc, theme.accent, brAccent_);
                 dc->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius), brAccent_.get());
@@ -1974,7 +1973,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
                 MakeBrush(dc, hot ? theme.accent : WithAlpha(theme.text_secondary, 0.9f),
                           brTextSecondary_);
                 dc->DrawRoundedRectangle(D2D1::RoundedRect(box, radius, radius),
-                                         brTextSecondary_.get(), std::max(1.0f, scale_));
+                                         brTextSecondary_.get(), 1.0f / scale_);
             }
         }
         if (pane_index >= 0 && pane_index < static_cast<int>(painted_columns_.size())) {
@@ -2420,6 +2419,9 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
     }
     if (pane_index >= 0 && pane_index < static_cast<int>(list_loading_since_.size()))
         list_loading_since_[pane_index] = 0;
+    // 存储总览 and the 使用情况 column fill together, replayed on every return
+    // to This PC; everywhere else this is 1.0 and armless.
+    const float drive_reveal = DriveOverviewReveal(vm, pane_index);
     // Folder size answers usually land within ~50 ms; placeholders only show
     // for slower ones so fast navigation never flashes them.
     uint64_t folder_size_pending_age = 0;
@@ -2657,7 +2659,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     MakeBrush(dc, box_hot ? theme.accent : WithAlpha(theme.text_secondary, 0.9f),
                               brTextSecondary_);
                     dc->DrawRoundedRectangle(D2D1::RoundedRect(box, radius, radius),
-                                             brTextSecondary_.get(), std::max(1.0f, scale_));
+                                             brTextSecondary_.get(), 1.0f / scale_);
                 }
             }
             if (draw_shapes && row_flash > 0.0f && !IsHighContrast()) {
@@ -3064,7 +3066,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                             painter_.DrawCapacityBar(
                                 D2D1::RectF(left, cy - bar_h * 0.5f, left + bar_w,
                                             cy + bar_h * 0.5f),
-                                e.drive_used, theme.accent, 1.0f, e.drive_free);
+                                e.drive_used, theme.accent, drive_reveal, e.drive_free);
                             const std::wstring pct = CapacityPercentText(e.drive_used);
                             MakeBrush(dc, painter_.CapacityInk(
                                 CapacityLevelFor(e.drive_used, e.drive_free)), brTextSecondary_);
@@ -3095,7 +3097,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                                 painter_.DrawCapacityBar(
                                     D2D1::RectF(left, cy - bar_h * 0.5f, left + bar_w,
                                                 cy + bar_h * 0.5f),
-                                    e.drive_used, theme.accent, 1.0f, e.drive_free);
+                                    e.drive_used, theme.accent, drive_reveal, e.drive_free);
                                 const std::wstring pct = CapacityPercentText(e.drive_used);
                                 const D2D1_COLOR_F ink = painter_.CapacityInk(
                                     CapacityLevelFor(e.drive_used, e.drive_free));
@@ -3320,7 +3322,8 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 const float barTop = nameRc.top + 27.0f * scale_;
                 const D2D1_RECT_F bar{ nameRc.left, barTop,
                     nameRc.left + std::min(textW, 240.0f * scale_), barTop + 6.0f * scale_ };
-                painter_.DrawCapacityBar(bar, e.drive_used, theme.accent);
+                painter_.DrawCapacityBar(bar, e.drive_used, theme.accent, drive_reveal,
+                                         e.drive_free);
                 DrawTextEndEllipsis(dc, compositor_->DwriteFactory(), compositor_->SmallFormat(),
                     brTextSecondary_.get(), e.drive_space_text,
                     nameRc.left, bar.bottom + 2.0f * scale_, textW, 20.0f * scale_);
