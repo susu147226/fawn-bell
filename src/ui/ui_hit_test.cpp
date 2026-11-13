@@ -469,9 +469,10 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         r.region = HitTestResult::SettingsMtimePalette; r.index = i; return r;
                     }
                 }
-                for (int i = 0; i < 5; ++i) {
+                constexpr int kMtimeToggle[4] = {41, 43, 44, 45};
+                for (int i = 0; i < 4; ++i) {
                     if (ContainsPt(lay.mtime_opt_row[i], x, y)) {
-                        r.region = HitTestResult::SettingsToggle; r.index = 41 + i; return r;
+                        r.region = HitTestResult::SettingsToggle; r.index = kMtimeToggle[i]; return r;
                     }
                 }
                 if (ContainsPt(lay.cloud_status_row, x, y)) {

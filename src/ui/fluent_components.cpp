@@ -1016,10 +1016,10 @@ void Painter::DrawCheckBox(const D2D1_RECT_F& bounds, std::wstring_view text,
     if (!theme_ || !compositor_) {
         return;
     }
-    const float indicator = Px(18.0f);
+    const float indicator = Px(16.0f);
     const float top = bounds.top + (Height(bounds) - indicator) * 0.5f;
     const auto box = D2D1::RectF(bounds.left, top, bounds.left + indicator, top + indicator);
-    const float radius = Px(4.5f);
+    const float radius = Px(4.0f);
     D2D1_COLOR_F border;
     D2D1_COLOR_F fill;
     D2D1_COLOR_F foreground = state.enabled ? theme_->text : theme_->text_disabled;
@@ -1038,18 +1038,21 @@ void Painter::DrawCheckBox(const D2D1_RECT_F& bounds, std::wstring_view text,
         fill = dark_ ? Rgba(0xFFFFFF, 41) : Rgba(0x000000, 56);
         border = Rgba(0x000000, 0);
     } else if (dark_) {
-        border = !state.enabled ? Rgba(0xFFFFFF, 41)
-                 : state.pressed ? Rgba(0xFFFFFF, 40) : Rgba(0xFFFFFF, 141);
+        // Quiet outline by default; the fill and border strengthen on hover so
+        // the control stays flat in a long list.
+        border = !state.enabled ? Rgba(0xFFFFFF, 30)
+                 : state.pressed ? Rgba(0xFFFFFF, 90)
+                 : state.hovered ? Rgba(0xFFFFFF, 78) : Rgba(0xFFFFFF, 52);
         fill = !state.enabled ? Rgba(0x000000, 0)
-               : state.pressed ? Rgba(0xFFFFFF, 18)
-               : state.hovered ? Rgba(0xFFFFFF, 11) : Rgba(0x000000, 26);
+               : state.pressed ? Rgba(0xFFFFFF, 16)
+               : state.hovered ? Rgba(0xFFFFFF, 8) : Rgba(0xFFFFFF, 0);
     } else {
-        border = !state.enabled ? Rgba(0x000000, 56)
-                 : state.pressed ? Rgba(0x000000, 69)
-                 : state.hovered ? Rgba(0x000000, 143) : Rgba(0x000000, 122);
+        border = !state.enabled ? Rgba(0x000000, 30)
+                 : state.pressed ? Rgba(0x000000, 120)
+                 : state.hovered ? Rgba(0x000000, 100) : Rgba(0x000000, 64);
         fill = !state.enabled ? Rgba(0x000000, 0)
-               : state.pressed ? Rgba(0x000000, 31)
-               : state.hovered ? Rgba(0x000000, 13) : Rgba(0x000000, 6);
+               : state.pressed ? Rgba(0x000000, 18)
+               : state.hovered ? Rgba(0x000000, 8) : Rgba(0x000000, 0);
     }
     FillRoundedRect(box, radius, fill);
     StrokeRoundedRect(box, radius, border);

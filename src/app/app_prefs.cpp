@@ -103,7 +103,7 @@ void AppPrefs::ResetToDefaults() {
     mtime_days = 7;
     mtime_palette = 0;
     mtime_dim_old = true;
-    mtime_bold_today = true;
+    mtime_bold_today = false;
     mtime_in_icons = true;
     mtime_folders = false;
     mtime_flash = true;
@@ -433,7 +433,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     if (mtime_days != 1 && mtime_days != 3 && mtime_days != 7 && mtime_days != 30) mtime_days = 7;
     mtime_palette = std::clamp(luling::json::ExtractInt(json, L"mtime_palette", 0), 0, 5);
     mtime_dim_old = luling::json::ExtractBool(json, L"mtime_dim_old", true);
-    mtime_bold_today = luling::json::ExtractBool(json, L"mtime_bold_today", true);
+    mtime_bold_today = luling::json::ExtractBool(json, L"mtime_bold_today", false);
     mtime_in_icons = luling::json::ExtractBool(json, L"mtime_in_icons", true);
     mtime_folders = luling::json::ExtractBool(json, L"mtime_folders", false);
     mtime_flash = luling::json::ExtractBool(json, L"mtime_flash", true);

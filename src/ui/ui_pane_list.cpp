@@ -485,7 +485,7 @@ MainRenderer::DetailsColumnLayout MainRenderer::ThisPcColumns(
     std::array<Col, 4> cols{{{ColumnKind::Usage, 190.0f * scale_},
                              {ColumnKind::Free, 108.0f * scale_},
                              {ColumnKind::Total, 108.0f * scale_},
-                             {ColumnKind::Type, 96.0f * scale_}}};
+                             {ColumnKind::Type, 132.0f * scale_}}};
     size_t count = cols.size();
     const float name_min = 180.0f * scale_;
     // A narrow pane drops 类型 first, then 总大小, then the usage bar.
@@ -502,7 +502,16 @@ MainRenderer::DetailsColumnLayout MainRenderer::ThisPcColumns(
     }
     float used = 0.0f;
     for (size_t i = 0; i < count; ++i) used += cols[i].width;
-    out.widths[0] = std::max(0.0f, total - used);
+    float name_w = std::max(0.0f, total - used);
+    // Keep the name column from swallowing the usage block on wide panes: any
+    // width beyond ~46% is shared with 使用情况 / 可用 / 总大小 / 类型.
+    const float name_cap = total * 0.46f;
+    if (name_w > name_cap && count > 0) {
+        const float share = (name_w - name_cap) / static_cast<float>(count);
+        for (size_t i = 0; i < count; ++i) cols[i].width += share;
+        name_w = name_cap;
+    }
+    out.widths[0] = name_w;
     int n = 1;
     for (size_t i = 0; i < count; ++i) {
         out.kinds[static_cast<size_t>(n)] = cols[i].kind;
@@ -2040,14 +2049,16 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnType), SortColumn::Type, cw, false);
                 break;
             case ColumnKind::Size:
+                // This PC's 可用 column keeps the header on the same leading
+                // edge as the values; a normal size column stays right-aligned.
                 drawCol(luling::l10n::Get(pane.this_pc_columns
                                               ? luling::l10n::StringId::ColumnFree
                                               : luling::l10n::StringId::ColumnSize),
-                        SortColumn::Size, cw, true);
+                        SortColumn::Size, cw, !pane.this_pc_columns);
                 break;
             case ColumnKind::Total:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnTotalSize),
-                        SortColumn::Size, cw, true);
+                        SortColumn::Size, cw, false);
                 break;
             case ColumnKind::Usage:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnUsage),
@@ -2055,7 +2066,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
                 break;
             case ColumnKind::Free:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnFree),
-                        SortColumn::Size, cw, true);
+                        SortColumn::Size, cw, false);
                 break;
             case ColumnKind::Created:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnCreated), SortColumn::Created, cw, false);
@@ -2631,7 +2642,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 const bool box_hot =
                     hover_region == static_cast<int>(HitTestResult::RowCheck) &&
                     hover_control_index == src;
-                const float radius = 2.5f * scale_;
+                const float radius = 4.0f * scale_;
                 if (selected) {
                     MakeBrush(dc, theme.accent, brAccent_);
                     dc->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius), brAccent_.get());
@@ -2849,12 +2860,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 src != vm.rename_index && !change && e.badge.empty();
             const float badgeW = change && !iconGrid ? ChangeBadgeWidth(*change, scale_, compositor_) : vm.view_mode == ViewMode::Details && !e.badge.empty()
                 ? std::min(108.0f * scale_, painter_.MeasureTagWidth(e.badge)) : 0.0f;
-            // Files modified today are drawn semi-bold; measure with that same
-            // face so a name is not fitted to the narrower regular width and
-            // then ellipsized by the wider bold layout.
-            const bool name_bold = vm.mtime_bold_today && MtimeMarkFor(vm, e, mtime_now_ft).today;
-            IDWriteTextFormat* name_fmt = name_bold && compositor_->BoldFileNameFormat()
-                ? compositor_->BoldFileNameFormat() : compositor_->FileNameFormat();
+            IDWriteTextFormat* name_fmt = compositor_->FileNameFormat();
             const NameTrail trail = LayoutNameTrail(
                 nameX, textY, textH, nameColRight, cell.top, cell.bottom, scale_,
                 e.name, tagDotCount, badgeW, showStar, showNewTab, showMore,
@@ -2900,7 +2906,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     name_theme.text = nameColor;
                     name_truncated = DrawTruncatedName(e.name, trail.name_x, textY, trail.name_w, textH, name_theme,
                                                        selected, name_matches, detailsView && !e.is_dir,
-                                                       name_bold);
+                                                       false);
                 }
                 // OneDrive placeholder state after the name (Files On-Demand).
                 if (!iconGrid && vm.cloud_status && e.cloud_state != 0) {
