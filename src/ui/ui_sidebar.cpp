@@ -8,6 +8,7 @@
 #include "../app/resource.h"
 #include "../app/places.h"
 #include "../common/text_format.h"
+#include "../fs/drive_kind.h"
 #include <windowsx.h>
 #include <d2d1effects.h>
 #include <shlwapi.h>
@@ -620,6 +621,21 @@ void MainRenderer::DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rec
             drive.capacity = item.used_ratio;
             drive.free_bytes = item.drive_free_bytes;
             drive.total_bytes = item.drive_total_bytes;
+            // One colour per drive, so the sidebar's disks stay apart; a nearly
+            // full drive still turns amber, then red.
+            const wchar_t drive_letter = fs::DriveLetterOf(item.path);
+            const CapacityLevel drive_level =
+                CapacityLevelFor(item.used_ratio, item.drive_free_bytes);
+            if (IsHighContrast()
+                    ? (drive_level == CapacityLevel::Warning ||
+                       drive_level == CapacityLevel::Critical)
+                    : drive_level == CapacityLevel::Critical) {
+                drive.bar_color = theme.danger;
+            } else if (!IsHighContrast() && drive_level == CapacityLevel::Warning) {
+                drive.bar_color = HexColor(vm.dark ? 0xF2C068 : 0xE2A04A);
+            } else {
+                drive.bar_color = HexColor(DriveAccentRgb(drive_letter, vm.dark));
+            }
             drive.state = state;
             drive.drop_target = slot.run == vm.sidebar_drop_index;
             drive.icon_color = item.icon_color;

@@ -2657,10 +2657,14 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             return 0;
         }
         if (hit.region == ui::HitTestResult::RowSelectAll) {
-            // The header checkbox: all rows, or none.
+            // The header checkbox: all visible rows, or none. The denominator is
+            // the filtered view, not the whole folder, or a filtered list could
+            // never read as "all selected" and every click would re-select.
             if (app::Pane* pane = PaneAtSlot(*s, hit.pane_index)) FocusPane(*s, pane);
             if (app::Tab* tab = ActiveTab(*s); tab && !tab->net_readonly && !tab->loading) {
-                const size_t count = tab->EntryCount();
+                std::vector<int> matches;
+                app::CollectFilterMatches(*tab, &s->places, matches);
+                const size_t count = matches.size();
                 if (tab->all_selected ||
                     (count > 0 && static_cast<size_t>(tab->SelectedCount()) >= count))
                     tab->ClearSelection();

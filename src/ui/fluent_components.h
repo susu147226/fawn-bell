@@ -449,8 +449,12 @@ public:
     // full drive turn amber, then red.
     void DrawCapacityBar(const D2D1_RECT_F& track, float capacity, D2D1_COLOR_F value_color,
                          float reveal = 1.0f,
-                         std::uint64_t free_bytes = kCapacityUnknownFree);
+                         std::uint64_t free_bytes = kCapacityUnknownFree,
+                         bool capacity_levels = true);
     D2D1_COLOR_F CapacityInk(CapacityLevel level) const;
+    // The bar's own colour for a level: green under 50%, accent 50-79%, amber
+    // 80-94%, red from 95%. Shared by every capacity bar and its legend.
+    D2D1_COLOR_F CapacityFill(CapacityLevel level) const;
     void DrawCapacitySpaceLine(const DriveSpaceText& space, CapacityLevel level,
                                const D2D1_RECT_F& bounds, bool enabled);
     void DrawPaneHeader(const PaneHeaderSpec& spec);

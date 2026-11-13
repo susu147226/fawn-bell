@@ -463,7 +463,9 @@ void Painter::StrokeRoundedRect(const D2D1_RECT_F& bounds, float radius,
     if (!dc_ || Width(bounds) <= 0.0f || Height(bounds) <= 0.0f) {
         return;
     }
-    const float stroke = std::max(1.0f, width);
+    // At least one physical pixel: callers pass 1/scale to ask for the thinnest
+    // line that still renders crisply.
+    const float stroke = std::max(1.0f / scale_, width);
     const auto aligned = Inset(bounds, stroke * 0.5f);
     dc_->DrawRoundedRectangle(D2D1::RoundedRect(aligned, radius, radius),
                               ScratchBrush(color), stroke, round_stroke_.get());
@@ -1055,7 +1057,7 @@ void Painter::DrawCheckBox(const D2D1_RECT_F& bounds, std::wstring_view text,
                : state.hovered ? Rgba(0x000000, 8) : Rgba(0x000000, 0);
     }
     FillRoundedRect(box, radius, fill);
-    StrokeRoundedRect(box, radius, border);
+    StrokeRoundedRect(box, radius, border, 1.0f / scale_);
     if (state.checked) {
         D2D1_COLOR_F check_color = high_contrast_ ? theme_->accent_text
                                                   : dark_ ? HexColor(0x000000)
@@ -2469,7 +2471,7 @@ void Painter::DrawDriveSidebarItem(const DriveSidebarItemSpec& spec) {
                  HorizontalAlignment::Right);
         const float bar_top = content.top + text_row + Px(4.0f);
         DrawCapacityBar(D2D1::RectF(text_left, bar_top, content.right, bar_top + Px(6.0f)),
-                        spec.capacity, bar_color, 1.0f, spec.free_bytes);
+                        spec.capacity, bar_color, 1.0f, spec.free_bytes, false);
         const float line_top = bar_top + Px(6.0f) + Px(3.0f);
         DrawCapacitySpaceLine(DriveTileSpaceText(spec.free_bytes, spec.total_bytes), level,
                               D2D1::RectF(text_left, line_top, content.right, line_top + Px(16.0f)),
@@ -2493,7 +2495,7 @@ void Painter::DrawDriveSidebarItem(const DriveSidebarItemSpec& spec) {
 
     const auto track = D2D1::RectF(text_left, content.bottom - Px(5.0f), content.right,
                                    content.bottom);
-    DrawCapacityBar(track, spec.capacity, bar_color, 1.0f, spec.free_bytes);
+    DrawCapacityBar(track, spec.capacity, bar_color, 1.0f, spec.free_bytes, false);
     if (spec.state.keyboard_focus) {
         DrawFocusRing(spec.bounds, radius);
     }
@@ -2512,6 +2514,22 @@ D2D1_COLOR_F Painter::CapacityInk(CapacityLevel level) const {
     }
 }
 
+D2D1_COLOR_F Painter::CapacityFill(CapacityLevel level) const {
+    if (!theme_) return D2D1::ColorF(0, 0, 0, 0);
+    if (high_contrast_) return level == CapacityLevel::Normal ? theme_->accent : theme_->danger;
+    switch (level) {
+    case CapacityLevel::Low:
+        return HexColor(0x34D399);
+    case CapacityLevel::Warning:
+        return dark_ ? HexColor(0xF2C068) : HexColor(0xE2A04A);
+    case CapacityLevel::Critical:
+        return dark_ ? HexColor(0xE5533F) : HexColor(0xC42B1C);
+    case CapacityLevel::Normal:
+    default:
+        return theme_->accent;
+    }
+}
+
 void Painter::DrawCapacitySpaceLine(const DriveSpaceText& space, CapacityLevel level,
                                     const D2D1_RECT_F& bounds, bool enabled) {
     if (!theme_ || !dc_ || space.text.empty() || Width(bounds) <= 1.0f ||
@@ -2526,7 +2544,7 @@ void Painter::DrawCapacitySpaceLine(const DriveSpaceText& space, CapacityLevel l
 
 void Painter::DrawCapacityBar(const D2D1_RECT_F& track, float capacity,
                               D2D1_COLOR_F value_color, float reveal,
-                              std::uint64_t free_bytes) {
+                              std::uint64_t free_bytes, bool capacity_levels) {
     if (!theme_ || !dc_ || Width(track) <= 0.0f || Height(track) <= 0.0f) {
         return;
     }
@@ -2548,10 +2566,16 @@ void Painter::DrawCapacityBar(const D2D1_RECT_F& track, float capacity,
     value_rect.right = track.left + full * grow;
     const CapacityLevel level = CapacityLevelFor(value, free_bytes);
     D2D1_COLOR_F fill = value_color;
-    if (high_contrast_) {
-        if (level != CapacityLevel::Normal) fill = theme_->danger;
+    if (!capacity_levels) {
+        // The caller already chose the colour (sidebar drives keep one colour
+        // per drive, with its own warning handling).
+    } else if (high_contrast_) {
+        if (level == CapacityLevel::Warning || level == CapacityLevel::Critical) fill = theme_->danger;
     } else {
         switch (level) {
+        case CapacityLevel::Low:
+            fill = HexColor(0x34D399);
+            break;
         case CapacityLevel::Warning:
             fill = dark_ ? HexColor(0xF2C068) : HexColor(0xE2A04A);
             break;
