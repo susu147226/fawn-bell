@@ -2009,7 +2009,11 @@ private:
     ThumbnailCache thumbnail_cache_{24ull * 1024ull * 1024ull, 256};
     FolderThumbnailCache folder_thumbnail_cache_;
     bool folder_thumbnails_enabled_ = true;
-    ThumbnailCache details_cache_{16ull * 1024ull * 1024ull, 16};
+    // The details pane keeps one big preview (2048 px square = 16 MB) plus the
+    // previous one for the switch, so its budget must exceed two of them: at
+    // exactly 16 MB the entry evicted itself the moment it was stored and the
+    // pane asked again every frame.
+    ThumbnailCache details_cache_{64ull * 1024ull * 1024ull, 8};
     PreviewHandlerHost preview_handler_;
     HWND notify_hwnd_ = nullptr;
     bool embedded_ = false;

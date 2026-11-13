@@ -156,14 +156,30 @@ struct ThumbnailCacheTestAccess {
             item.cost = cost;
             cache.StoreResult(request(key), std::move(item));
         };
-        for (int i = 0; i < 128; ++i) insert(std::to_wstring(i));
+        // The default cache holds 96 items: fill it, touch the oldest, then add
+        // one more so the untouched neighbour is the one that leaves.
+        for (int i = 0; i < 96; ++i) insert(std::to_wstring(i));
         cache.Touch(cache.items_.at(L"0"));
-        insert(L"128");
+        insert(L"96");
         check(cache.items_.contains(L"0") && !cache.items_.contains(L"1"),
               "recently used preview survives capacity eviction");
         insert(L"0", 3);
-        check(cache.items_.size() == 128 && cache.lru_.size() == 128 &&
-              cache.cache_bytes_ == 130, "replacement has one LRU entry and exact accounting");
+        check(cache.items_.size() == 96 && cache.lru_.size() == 96 &&
+              cache.cache_bytes_ == 98, "replacement has one LRU entry and exact accounting");
+
+        {
+            // A 2048 px preview costs more than the details cache's old 16 MB
+            // budget; it must stay resident rather than evict itself on arrival.
+            ThumbnailCache tiny(1024, 2);
+            ThumbnailCache::Request oversize;
+            oversize.key = L"oversize";
+            oversize.epoch = tiny.epoch_.load();
+            ThumbnailCache::Item big;
+            big.cost = 4096;
+            tiny.StoreResult(oversize, std::move(big));
+            check(tiny.items_.contains(L"oversize"),
+                  "a result larger than the budget is kept instead of evicting itself");
+        }
 
         auto old = request(L"old");
         cache.Evict();
@@ -181,12 +197,12 @@ struct ThumbnailCacheTestAccess {
               "rapid selection change preserves existing cache accounting");
 
         cache.Evict();
-        insert(L"cold", 8 * 1024 * 1024);
-        insert(L"hot", 8 * 1024 * 1024);
+        insert(L"cold", 4 * 1024 * 1024);
+        insert(L"hot", 4 * 1024 * 1024);
         cache.Touch(cache.items_.at(L"cold"));
         insert(L"new", 1);
         check(cache.items_.contains(L"cold") && !cache.items_.contains(L"hot") &&
-              cache.cache_bytes_ == 8 * 1024 * 1024 + 1,
+              cache.cache_bytes_ == 4 * 1024 * 1024 + 1,
               "byte budget evicts least recently used preview");
         cache.Evict();
         for (int i = 0; i < 5; ++i) {

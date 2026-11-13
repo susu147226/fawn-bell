@@ -887,6 +887,9 @@ bool ThumbnailCache::StoreResult(const Request& req, Item result) {
     result.lru_position = std::prev(lru_.end());
     items_.emplace(req.key, std::move(result));
     while (!lru_.empty() && (lru_.size() > max_items_ || cache_bytes_ > budget_bytes_)) {
+        // Never evict the only entry: it is the one just stored, and dropping it
+        // would leave the next frame with nothing to draw and no way to stop.
+        if (lru_.size() == 1) break;
         auto victim = lru_.begin();
         if (req.flags & ipc::kPreviewRequestFlagFolderThumbnail) {
             // Negative entries must not evict useful folder artwork. This also
