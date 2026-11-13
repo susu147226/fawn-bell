@@ -121,7 +121,7 @@ struct AppPrefs {
     int mtime_days = 7;
     int mtime_palette = 0;
     bool mtime_dim_old = true;
-    bool mtime_bold_today = true;
+    bool mtime_bold_today = false;
     bool mtime_in_icons = true;
     bool mtime_folders = false;
     bool mtime_flash = true;

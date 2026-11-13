@@ -633,20 +633,17 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
         segmented(lay.mtime_palette_card, lay.mtime_palette_row, mtime_palette, mtime_palette_values,
                   vm.settings_mtime_palette, H::SettingsMtimePalette, I::SettingsMtimePalette,
                   I::SettingsMtimePaletteDesc, 6, L"\xE790");
-        draw_card(span(lay.mtime_opt_row[0], lay.mtime_opt_row[4]));
+        draw_card(span(lay.mtime_opt_row[0], lay.mtime_opt_row[3]));
         toggle(lay.mtime_opt_row[0], I::SettingsMtimeDimOld, I::SettingsMtimeDimOldDesc,
                L"\xE70F", vm.settings_mtime_dim_old, 41);
         divider(lay.mtime_opt_row[0]);
-        toggle(lay.mtime_opt_row[1], I::SettingsMtimeBoldToday, I::SettingsMtimeBoldTodayDesc,
-               L"\xE8D3", vm.settings_mtime_bold_today, 42);
-        divider(lay.mtime_opt_row[1]);
-        toggle(lay.mtime_opt_row[2], I::SettingsMtimeIcons, I::SettingsMtimeIconsDesc,
+        toggle(lay.mtime_opt_row[1], I::SettingsMtimeIcons, I::SettingsMtimeIconsDesc,
                L"\xE71D", vm.settings_mtime_icons, 43);
-        divider(lay.mtime_opt_row[2]);
-        toggle(lay.mtime_opt_row[3], I::SettingsMtimeFolders, I::SettingsMtimeFoldersDesc,
+        divider(lay.mtime_opt_row[1]);
+        toggle(lay.mtime_opt_row[2], I::SettingsMtimeFolders, I::SettingsMtimeFoldersDesc,
                L"\xE8B7", vm.settings_mtime_folders, 44);
-        divider(lay.mtime_opt_row[3]);
-        toggle(lay.mtime_opt_row[4], I::SettingsMtimeFlash, I::SettingsMtimeFlashDesc,
+        divider(lay.mtime_opt_row[2]);
+        toggle(lay.mtime_opt_row[3], I::SettingsMtimeFlash, I::SettingsMtimeFlashDesc,
                L"\xE945", vm.settings_mtime_flash, 45);
 
         section_title(4, l10n::Get(I::SettingsSyncSection).c_str());

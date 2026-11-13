@@ -2288,7 +2288,7 @@ struct SettingsLayout {
     D2D1_RECT_F tab_manage_card{};
     D2D1_RECT_F mtime_style_card{}, mtime_days_card{}, mtime_palette_card{};
     D2D1_RECT_F mtime_style_row[4]{}, mtime_days_row[4]{}, mtime_palette_row[6]{};
-    D2D1_RECT_F mtime_opt_row[5]{};
+    D2D1_RECT_F mtime_opt_row[4]{};
     D2D1_RECT_F cloud_status_row{};
     D2D1_RECT_F sticky_parent_row{};
     D2D1_RECT_F tree_view_row{};

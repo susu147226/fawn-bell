@@ -649,7 +649,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 sysctx.SetAppHidden(s.ctxMenuPrefs.HiddenCatalogKeys());
                 vm.settings_sysctx = sysctx.View();
             }
-            if (vm.settings_page == 5 || vm.settings_page == 14) {
+            if (vm.settings_page == 5 || vm.settings_page == 14 || vm.settings_page == 15) {
                 // 快速预览 reads the pack state for its format list; 增强包
                 // owns the download buttons. Both need the same snapshot.
                 // Cached in the controller: the disk is read at most every 2 s.
