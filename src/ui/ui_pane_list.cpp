@@ -1980,8 +1980,9 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             // Header select-all: same box as the rows, at the gutter's left edge.
             const float size = kCheckboxSizeDip * scale_;
             const float cy = y + column_header_height_ * 0.5f;
-            const D2D1_RECT_F box = D2D1::RectF(bounds.left + 2 * scale_, cy - size * 0.5f,
-                                                bounds.left + 2 * scale_ + size, cy + size * 0.5f);
+            const D2D1_RECT_F box = D2D1::RectF(bounds.left + 8.0f * scale_, cy - size * 0.5f,
+                                                bounds.left + 8.0f * scale_ + size,
+                                                cy + size * 0.5f);
             const bool all = pane.all_selected ||
                 (pane.selected_count > 0 &&
                  static_cast<size_t>(pane.selected_count) >= pane.EntryCount());
@@ -2813,14 +2814,14 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 // Ancestor guide lines keep deep nesting readable.
                 MakeBrush(dc, WithAlpha(theme.text_secondary, 0.18f), brTextSecondary_);
                 for (int d = 0; d < e.tree_depth; ++d) {
-                    const float gx = std::round(iconRect.left - 8.0f * scale_ -
+                    const float gx = std::round(iconRect.left - 13.0f * scale_ -
                                                 static_cast<float>(e.tree_depth - d) * tree_indent);
                     dc->DrawLine(D2D1::Point2F(gx, cell.top + 3.0f * scale_),
                                  D2D1::Point2F(gx, cell.bottom - 3.0f * scale_),
                                  brTextSecondary_.get(), 1.0f * scale_);
                 }
                 if (e.tree_has_children) {
-                    const float cx = std::round(iconRect.left - 8.0f * scale_);
+                    const float cx = std::round(iconRect.left - 13.0f * scale_);
                     const float cy = (cell.top + cell.bottom) * 0.5f;
                     const float half = 4.0f * scale_;
                     MakeBrush(dc, theme.text_secondary, brTextSecondary_);
