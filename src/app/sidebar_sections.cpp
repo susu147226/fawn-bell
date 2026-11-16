@@ -48,6 +48,12 @@ std::wstring SectionTitle(int section) {
     if (section == static_cast<int>(app::SidebarSectionId::Cloud)) return L"OneDrive";
     if (section == static_cast<int>(app::SidebarSectionId::Starred))
         return l10n::Get(I::StarredItems);
+    const int first_plugin = static_cast<int>(app::SidebarSectionId::PluginPanel1);
+    if (section >= first_plugin) {
+        const auto panels = ui::PluginPanels::Instance().Panels();
+        const size_t index = static_cast<size_t>(section - first_plugin);
+        return index < panels.size() ? panels[index].title : std::wstring();
+    }
     if (section < 0 || section >= static_cast<int>(std::size(kSectionTitles))) return {};
     return l10n::Get(kSectionTitles[section]);
 }

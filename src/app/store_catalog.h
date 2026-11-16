@@ -9,6 +9,7 @@
 // extension host's job (not part of this store yet).
 
 #include "../common/windows_compat.h"
+#include "store_install_util.h"
 
 #include <cstdint>
 #include <string>
@@ -22,8 +23,12 @@ struct StoreExtension {
     std::wstring desc;
     std::wstring version;
     std::wstring url;
-    std::wstring sha256;
+    std::wstring sha256;  // required: the installer refuses a package without it
     uint64_t size = 0;
+    // Catalog v2 fields; 0 / empty for a v1 entry.
+    int schema = 0;
+    int api_version = 0;
+    std::vector<std::wstring> capabilities;
 };
 
 enum class StoreCatalogState : uint32_t { Idle, Loading, Ready, Offline };
@@ -49,5 +54,8 @@ void StartStoreExtensionInstall(HWND notify, StoreExtension extension);
 
 // Latest install error, for the page's status line ("" after success).
 std::wstring StoreInstallError();
+
+// Removes an extension in the real data folder.
+void UninstallExtension(const std::wstring& id);
 
 } // namespace luling::app

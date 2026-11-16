@@ -65,7 +65,7 @@ class BloomAccentPicker;
 int FluentSvgIdForGlyph(std::wstring_view glyph);
 
 // Values are persisted (folder sort prefs, session): append only.
-enum class SortColumn { Name, Mtime, Type, Size, Path, Created, Accessed };
+enum class SortColumn { Name, Mtime, Type, Size, Path, Created, Accessed, Plugin1, Plugin2 };
 enum class SortDirection { Asc, Desc };
 
 struct TabView {
@@ -923,6 +923,7 @@ struct WindowViewModel {
         std::wstring version;
         std::wstring permissions;
         bool enabled = true;
+        bool legacy = false;  // schema-1 extension: no plugin host features
     };
     std::vector<StoreInstalledView> settings_store_installed;
     std::wstring settings_store_install_error;
@@ -1227,6 +1228,7 @@ struct HitTestResult {
         SettingsStoreTab,       // 扩展商店: 0 浏览商店, 1 已安装扩展, 2 管理增强包
         SettingsStoreOpenPacks, // 扩展商店: open the 增强包 page
         SettingsStorePackRow,   // 扩展商店: a pack row (index into the pack list)
+        SettingsStoreInstalledRow, // 扩展商店 › 已安装: a community extension row
         SettingsStoreRefresh,   // 浏览商店: fetch the GitHub catalog again
         SettingsStoreLinkPacks, // 浏览商店: jump to the 快速预览 page (packs, sources)
         SettingsStoreOfficial,  // 浏览商店: an official card's button (index)
@@ -1598,9 +1600,11 @@ public:
         Name, Path, Date, Type, Size, Created, Accessed,
         // This PC's own columns (constructed by ThisPcColumns, never stored in
         // the column mask): usage bar, free space, total size.
-        Usage, Free, Total
+        Usage, Free, Total,
+        // Two optional plugin columns (ui.column); values come from the host.
+        Plugin1, Plugin2
     };
-    static constexpr size_t kMaxDetailsColumns = 7;
+    static constexpr size_t kMaxDetailsColumns = 9;
     static_assert(kDetailsColumnModified == 1u << static_cast<uint32_t>(ColumnKind::Date) &&
                   kDetailsColumnType == 1u << static_cast<uint32_t>(ColumnKind::Type) &&
                   kDetailsColumnSize == 1u << static_cast<uint32_t>(ColumnKind::Size) &&
@@ -1616,7 +1620,8 @@ public:
         std::array<float, kMaxDetailsColumns> widths{};
         std::array<ColumnKind, kMaxDetailsColumns> kinds{ColumnKind::Name, ColumnKind::Date,
                                         ColumnKind::Type, ColumnKind::Size, ColumnKind::Size,
-                                        ColumnKind::Size, ColumnKind::Size};
+                                        ColumnKind::Size, ColumnKind::Size, ColumnKind::Size,
+                                        ColumnKind::Size};
         int count = 4;
         // Narrow search view: the folder path is drawn under the name.
         bool two_line = false;
@@ -1647,6 +1652,7 @@ public:
     // hit testing and painting always agree.
     struct ColumnAutoWidths {
         float date = 130.0f, type = 128.0f, size = 90.0f, created = 130.0f, accessed = 130.0f;
+        float plugin1 = 120.0f, plugin2 = 120.0f;
     };
     ColumnAutoWidths AutoColumnWidths() const;
     float TypeChipWidthDip(const std::wstring& chip) const;
@@ -2009,7 +2015,11 @@ private:
     ThumbnailCache thumbnail_cache_{24ull * 1024ull * 1024ull, 256};
     FolderThumbnailCache folder_thumbnail_cache_;
     bool folder_thumbnails_enabled_ = true;
-    ThumbnailCache details_cache_{16ull * 1024ull * 1024ull, 16};
+    // The details pane keeps one big preview (2048 px square = 16 MB) plus the
+    // previous one for the switch, so its budget must exceed two of them: at
+    // exactly 16 MB the entry evicted itself the moment it was stored and the
+    // pane asked again every frame.
+    ThumbnailCache details_cache_{64ull * 1024ull * 1024ull, 8};
     PreviewHandlerHost preview_handler_;
     HWND notify_hwnd_ = nullptr;
     bool embedded_ = false;
@@ -2086,6 +2096,8 @@ private:
     bool thumbnail_badges_ = true;
     unsigned row_actions_ = 7u;
     uint32_t details_columns_ = kDetailsColumnsDefault;
+    // Last time the visible rows were queued for plugin-column values.
+    ULONGLONG plugin_columns_request_at_ = 0;
     // Motion state: highlight plates glide between items (ui_motion.h).
     uint64_t motion_frame_ = 0;
     uint64_t motion_now_ = 0;  // motion::NowMs() sampled once per Render

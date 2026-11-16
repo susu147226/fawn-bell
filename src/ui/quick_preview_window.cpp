@@ -4,6 +4,7 @@
 #include "../common/windows_compat.h"
 #include "../common/preview_extensions.h"
 #include "quick_preview_window.h"
+#include "plugin_preview.h"
 #include "preview_notice.h"
 #include "../app/shell_verbs.h"
 #include "../common/localization.h"
@@ -2816,12 +2817,23 @@ void QuickPreviewWindow::Render() {
             dc->SetTransform(saved);
             return turned;
         };
-        PreviewDrawResult result = draw_at(want, requested);
-        if (result == PreviewDrawResult::Pending && preview_pixels_ != 0 &&
-            preview_pixels_ != want) {
-            result = draw_at(preview_pixels_, requested);
-        } else if (result != PreviewDrawResult::Pending) {
-            preview_pixels_ = want;
+        PreviewDrawResult result = PreviewDrawResult::Failed;
+        bool plugin_pending = false;
+        std::wstring plugin_error;
+        if (!folder &&
+            PluginPreview::Instance().Draw(dc, draw, item_.path, &plugin_pending,
+                                           &plugin_error)) {
+            // A plugin previewer owns this file: draw its bitmap or keep the
+            // card's loading state until the host answers.
+            result = plugin_pending ? PreviewDrawResult::Pending : PreviewDrawResult::Bitmap;
+        } else {
+            result = draw_at(want, requested);
+            if (result == PreviewDrawResult::Pending && preview_pixels_ != 0 &&
+                preview_pixels_ != want) {
+                result = draw_at(preview_pixels_, requested);
+            } else if (result != PreviewDrawResult::Pending) {
+                preview_pixels_ = want;
+            }
         }
         if (folder && result == PreviewDrawResult::Archive &&
             text.rfind(L"PULSEARC\t1\tDIR\t-\t2", 0) == 0) {

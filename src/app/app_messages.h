@@ -77,5 +77,14 @@ constexpr UINT WM_ADDRESS_COMPLETE = WM_APP + 90;
 // installing (wParam 1 ok, 0 failed).
 constexpr UINT WM_STORE_CATALOG = WM_APP + 91;
 constexpr UINT WM_STORE_INSTALLED = WM_APP + 92;
+// 插件命令执行完毕: lParam owes an app::PluginCommandResult.
+constexpr UINT WM_PLUGIN_COMMAND_DONE = WM_APP + 93;
+// 插件预览渲染完毕: lParam owes an app::PluginPreviewResult.
+constexpr UINT WM_PLUGIN_PREVIEW_DONE = WM_APP + 94;
+// 插件列取值完毕: lParam owes an app::PluginColumnsResult.
+constexpr UINT WM_PLUGIN_COLUMNS_DONE = WM_APP + 95;
+// 插件侧栏面板取条目完毕 / 面板动作执行完毕.
+constexpr UINT WM_PLUGIN_PANEL_DONE = WM_APP + 96;
+constexpr UINT WM_PLUGIN_PANEL_ACTION_DONE = WM_APP + 97;
 
 } // namespace luling

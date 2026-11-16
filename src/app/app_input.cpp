@@ -9,6 +9,7 @@
 #include "app_prompts.h"
 #include "favorites_bar.h"
 #include "store_catalog.h"
+#include "app_commands.h"
 #include "vertical_tabs.h"
 #include "tab_shortcuts.h"
 #include "app_updates.h"
@@ -2454,6 +2455,18 @@ static void StartWindowMoveFromTab(HWND hwnd, int mx, int my) {
     SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, MAKELPARAM(screen.x, screen.y));
 }
 
+// A plugin panel row's path carries its panel id and action id.
+static bool HandlePluginPanelRow(AppState& s, const ui::HitTestResult& hit) {
+    (void)s;
+    if (hit.region != ui::HitTestResult::SidebarItem) return false;
+    if (hit.path.rfind(L"luling:plugin\x1F", 0) != 0) return false;
+    const std::wstring rest = hit.path.substr(std::wstring(L"luling:plugin\x1F").size());
+    const size_t sep = rest.find(L'\x1F');
+    if (sep == std::wstring::npos) return true;
+    ui::PluginPanels::Instance().RunAction(rest.substr(0, sep), rest.substr(sep + 1));
+    return true;
+}
+
 LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (!s) return DefWindowProcW(hwnd, msg, wParam, lParam);
         s->blankDoubleTab = nullptr;
@@ -2486,6 +2499,14 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             POINT sp{mx, my};
             ClientToScreen(hwnd, &sp);
             ShowBreadcrumbChildrenMenu(*s, hit.path, sp);
+            return 0;
+        }
+        // Early return, same reason as above.
+        if (HandlePluginPanelRow(*s, hit)) return 0;
+        if (hit.region == ui::HitTestResult::SettingsStoreInstalledRow) {
+            POINT sp{mx, my};
+            ClientToScreen(hwnd, &sp);
+            ShowInstalledExtensionMenu(*s, hit.index, sp);
             return 0;
         }
         if (hit.region == ui::HitTestResult::TitleClock) {

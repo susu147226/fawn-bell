@@ -408,11 +408,14 @@ void ClearTextWidthCache() {
             if (!source.drive_fs.empty()) entry.type_text += L" \x00B7 " + source.drive_fs;
         }
         if (source.pc_launcher) {
-            wchar_t type_text[256]{};
-            swprintf_s(type_text,
-                       luling::l10n::Get(luling::l10n::StringId::ThisPcLauncherType).c_str(),
-                       source.name.c_str());
-            entry.type_text = type_text;
+            // The localized template carries a literal {name} placeholder, not
+            // a printf conversion: substitute it here.
+            std::wstring type_text =
+                luling::l10n::Get(luling::l10n::StringId::ThisPcLauncherType);
+            const size_t marker = type_text.find(L"{name}");
+            if (marker != std::wstring::npos)
+                type_text.replace(marker, std::wstring(L"{name}").size(), source.name);
+            entry.type_text = std::move(type_text);
         } else if (source.pc_device) {
             entry.type_text = luling::l10n::Get(luling::l10n::StringId::ThisPcDevice);
         }
@@ -2403,6 +2406,16 @@ inline D2D1_RECT_F SettingsStorePackRowRect(const SettingsLayout& lay, float sca
     const float right = lay.content.right - 20.0f * scale;
     const float y = SettingsStoreRowsTop(lay, scale, tab) + static_cast<float>(index) * 52.0f * scale;
     return D2D1::RectF(left, y, right, y + 46.0f * scale);
+}
+
+// 扩展商店 › 已安装: community rows sit under a 26 DIP section header.
+inline D2D1_RECT_F SettingsStoreInstalledRowRect(const SettingsLayout& lay, float scale,
+                                                 int index) {
+    const float left = lay.content.left + 20.0f * scale;
+    const float right = lay.content.right - 20.0f * scale;
+    const float y = SettingsStoreBodyTop(lay, scale) + 26.0f * scale +
+                    static_cast<float>(index) * 70.0f * scale;
+    return D2D1::RectF(left, y, right, y + 64.0f * scale);
 }
 
 // 浏览商店 (tab 0), Pulse-style: refresh and status, the trust notice, the

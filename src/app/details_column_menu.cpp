@@ -5,6 +5,7 @@
 #include "app_hosted_edit.h"
 #include "../common/localization.h"
 #include "../ui/details_column_set.h"
+#include "../ui/plugin_columns.h"
 #include "../ui/ui_renderer.h"
 
 namespace luling {
@@ -60,6 +61,25 @@ std::vector<ui::FluentMenuItem> BuildDetailsColumnMenu(uint32_t mask, uint32_t v
         }
         items.push_back(std::move(item));
     }
+    // Plugin columns, when an approved extension declares one. Search views
+    // never show them, so the menu omits them there.
+    if (!search) {
+        for (int i = 0; i < 2; ++i) {
+            if (!ui::PluginColumns::Instance().Available(i)) continue;
+            const K kind = i == 0 ? K::Plugin1 : K::Plugin2;
+            const bool checked = (mask & Bit(kind)) != 0;
+            ui::FluentMenuItem item;
+            item.command = kDetailsColumnToggleBase + static_cast<int>(kind);
+            item.text = ui::PluginColumns::Instance().Title(i);
+            item.checked = checked;
+            if (checked) item.glyph = kIconCheck;
+            if (checked && !(visible & Bit(kind))) {
+                item.badge_text = l10n::Get(I::DetailsColumnNoRoom);
+                item.tooltip = l10n::Get(I::DetailsColumnNoRoomTip);
+            }
+            items.push_back(std::move(item));
+        }
+    }
     items.back().separator_after = true;
     ui::FluentMenuItem reset;
     reset.command = kDetailsColumnsReset;
@@ -75,6 +95,11 @@ uint32_t ApplyDetailsColumnCommand(uint32_t mask, int command) {
     for (const auto& row : kRows) {
         if (command == kDetailsColumnToggleBase + static_cast<int>(row.kind))
             return mask ^ Bit(row.kind);
+    }
+    for (int i = 0; i < 2; ++i) {
+        const K kind = i == 0 ? K::Plugin1 : K::Plugin2;
+        if (command == kDetailsColumnToggleBase + static_cast<int>(kind))
+            return mask ^ Bit(kind);
     }
     return mask;
 }

@@ -439,7 +439,8 @@ target_link_libraries(luling_command_icon_test PRIVATE d2d1 dwrite dwmapi ole32 
 
 # ---- Luling.exe: main UI process ----
 file(GLOB_RECURSE LULING_APP_SOURCES CONFIGURE_DEPENDS
-    src/app/*.cpp src/ui/*.cpp src/fs/*.cpp src/ops/*.cpp src/ipc/*.cpp src/index/*.cpp)
+    src/app/*.cpp src/ui/*.cpp src/fs/*.cpp src/ops/*.cpp src/ipc/*.cpp src/index/*.cpp
+    src/plugin/*.cpp)
 list(FILTER LULING_APP_SOURCES EXCLUDE REGEX "index_host\\.cpp$")
 list(FILTER LULING_APP_SOURCES EXCLUDE REGEX "network_agent_main\\.cpp$")
 list(FILTER LULING_APP_SOURCES EXCLUDE REGEX "content_(agent|index|search|task_search|hit_aliases|instant_session)\\.cpp$")
@@ -624,6 +625,41 @@ if(LULING_SHELL_SOURCES)
 target_link_libraries(luling_shell PRIVATE ole32 shell32 uuid advapi32 shlwapi version luling_crash_reporter)
     luling_add_version_resource(luling_shell "Luling Shell host" "luling_shell" "luling_shell.exe")
 endif()
+
+# ---- Luling.Plugin.exe: loads plugin DLLs outside the UI process. The host
+# re-validates every manifest and routes command invocations over a pipe.
+add_executable(luling_plugin_host WIN32
+    src/plugin_host/main.cpp
+    src/plugin/plugin_manifest.cpp
+    src/common/json_value.cpp)
+set_target_properties(luling_plugin_host PROPERTIES OUTPUT_NAME "Luling.Plugin")
+target_link_libraries(luling_plugin_host PRIVATE ole32 shell32 uuid advapi32 version luling_crash_reporter)
+luling_add_version_resource(luling_plugin_host "Luling plugin host" "Luling.Plugin" "Luling.Plugin.exe")
+
+# Manifest validation: the host and the UI process share this parser.
+add_executable(luling_plugin_manifest_test
+    src/bench/plugin_manifest_test.cpp
+    src/plugin/plugin_manifest.cpp
+    src/common/json_value.cpp)
+target_link_libraries(luling_plugin_manifest_test PRIVATE ole32 shell32 advapi32)
+
+# The fixture plugin and the pipe round trip through a real host process.
+add_library(luling_fixture_plugin SHARED src/bench/fixture_plugin.cpp)
+set_target_properties(luling_fixture_plugin PROPERTIES OUTPUT_NAME "fixture")
+add_custom_command(TARGET luling_fixture_plugin POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:luling_fixture_plugin>/fixture_plugin"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:luling_fixture_plugin>"
+            "$<TARGET_FILE_DIR:luling_fixture_plugin>/fixture_plugin/fixture.dll")
+add_executable(luling_plugin_host_test src/bench/plugin_host_test.cpp)
+add_dependencies(luling_plugin_host_test luling_plugin_host luling_fixture_plugin)
+
+# Package checksums and extension removal.
+add_executable(luling_store_install_test
+    src/bench/store_install_test.cpp
+    src/app/store_install_util.cpp
+    src/common/json_value.cpp)
+target_link_libraries(luling_store_install_test PRIVATE bcrypt shell32 ole32 advapi32)
 
 # ---- Luling.AI.exe: MCP over stdio. Permissions, confirmations, the five
 # tools and the activity log stay in luling.exe (src/app/ai_broker.cpp).
@@ -860,6 +896,9 @@ target_link_libraries(luling_app_controllers_test PRIVATE
 # Filename search goes through Luling.Index.exe (never Engine::Start in the UI).
 if(TARGET luling AND TARGET luling_shell)
     add_dependencies(luling luling_shell)
+endif()
+if(TARGET luling AND TARGET luling_plugin_host)
+    add_dependencies(luling luling_plugin_host)
 endif()
 if(TARGET luling AND TARGET luling_integration)
     add_dependencies(luling luling_integration)

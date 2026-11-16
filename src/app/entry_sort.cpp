@@ -1,5 +1,6 @@
 #include "entry_sort.h"
 #include "entry_group.h"
+#include "../ui/plugin_columns.h"
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 #include <algorithm>
@@ -178,6 +179,27 @@ bool Less(const fs::DirEntry& a, const fs::DirEntry& b, ui::SortColumn col,
         cmp = _wcsicmp(a.full_path.c_str(), b.full_path.c_str());
         if (cmp == 0) cmp = ItemNameCompare(a, b, na, nb);
         break;
+    case ui::SortColumn::Plugin1:
+    case ui::SortColumn::Plugin2: {
+        // Values come from the plugin host's cache; rows without one sort as
+        // empty text until the next re-sort. Ordinary folder entries have no
+        // full_path, so the cache is also indexed by leaf name.
+        const int index = col == ui::SortColumn::Plugin1 ? 0 : 1;
+        const auto lookup = [&](const fs::DirEntry& entry) {
+            if (!entry.full_path.empty())
+                return ui::PluginColumns::Instance().Value(entry.full_path, index);
+            return ui::PluginColumns::Instance().ValueByLeaf(entry.name, index);
+        };
+        const std::wstring va = lookup(a);
+        const std::wstring vb = lookup(b);
+        if (va.empty() != vb.empty()) {
+            cmp = va.empty() ? 1 : -1;
+        } else {
+            cmp = StrCmpLogicalW(va.c_str(), vb.c_str());
+            if (cmp == 0) cmp = ItemNameCompare(a, b, na, nb);
+        }
+        break;
+    }
     }
     if (dir == ui::SortDirection::Desc) cmp = -cmp;
     return cmp < 0;

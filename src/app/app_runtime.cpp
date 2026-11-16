@@ -619,6 +619,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                     item.name = ext.name;
                     item.version = ext.version;
                     item.enabled = ext.enabled;
+                    item.legacy = !ext.is_plugin();
                     for (const auto& line : app::ExtensionPermissionLines(ext)) {
                         if (!item.permissions.empty()) item.permissions += L" \x00B7 ";
                         item.permissions += line;

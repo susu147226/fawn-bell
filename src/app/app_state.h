@@ -304,6 +304,8 @@ struct AppState {
     std::vector<index::Hit> paletteHits;
     size_t paletteTotal = 0;
     std::wstring paletteQuery;
+    // Extension commands shown by the command palette; refreshed when it opens.
+    std::vector<std::pair<int, std::wstring>> palettePluginCommands;
     std::wstring paletteIssuedNeedle;
     std::wstring paletteIssuedPrefix;
     bool paletteIssuedFolders = false;
@@ -467,6 +469,23 @@ struct AppState {
     std::wstring menushot_out;
     // Menushot variant: pretend the active tab is a search results view.
     bool menushot_search = false;
+    // Developer self-check: run one plugin command through the real host and
+    // print the result (no permission dialog, no menu interaction).
+    std::wstring plugin_run_id;
+    std::wstring plugin_run_command;
+    // Show the real permission dialog for that command instead of self-checking.
+    bool plugin_ask = false;
+    // Self-check: ask one plugin column for one path and print the answer.
+    std::wstring plugin_column_plugin;
+    std::wstring plugin_column_id;
+    std::wstring plugin_column_path;
+    // Self-check through the UI cache rather than the raw client.
+    std::wstring plugin_column_ui_path;
+    // Self-check: print the sidebar panels the provider knows about.
+    bool plugin_panels_probe = false;
+    // Self-check: enable/disable one extension and print the round trip.
+    std::wstring ext_toggle_id;
+    int ext_toggle_value = -1;
     // GUI verification for the color picker popup (QFluent replica).
     bool colorpickshot = false;
     bool colorpickshot_dark = true;

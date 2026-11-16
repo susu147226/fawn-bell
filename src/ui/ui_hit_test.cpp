@@ -286,6 +286,14 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     r.index = i;
                     return r;
                 }
+            } else if (vm.settings_store_tab == 1) {
+                for (int i = 0; i < static_cast<int>(vm.settings_store_installed.size()); ++i) {
+                    if (!ContainsPt(SettingsStoreInstalledRowRect(lay, scale_, i), x, y))
+                        continue;
+                    r.region = HitTestResult::SettingsStoreInstalledRow;
+                    r.index = i;
+                    return r;
+                }
             } else if (vm.settings_store_tab == 2) {
                 for (int i = 0; i < 3; ++i) {
                     if (!ContainsPt(SettingsStorePackRowRect(lay, scale_, vm.settings_store_tab, i),
@@ -1475,6 +1483,9 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             case ColumnKind::Size: out.column = SortColumn::Size; break;
             case ColumnKind::Created: out.column = SortColumn::Created; break;
             case ColumnKind::Accessed: out.column = SortColumn::Accessed; break;
+            // Plugin columns sort by their plugin-provided text.
+            case ColumnKind::Plugin1: out.column = SortColumn::Plugin1; break;
+            case ColumnKind::Plugin2: out.column = SortColumn::Plugin2; break;
             }
             return out;
         }

@@ -733,7 +733,9 @@ std::vector<ui::FluentMenuItem> BuildCommandPalette(const std::wstring& query,
                                                     const std::vector<index::Hit>& hits,
                                                     bool project_only,
                                                     size_t total,
-                                                    const std::wstring& current_path) {
+                                                    const std::wstring& current_path,
+                                                    const std::vector<std::pair<int, std::wstring>>&
+                                                        plugin_commands) {
     std::vector<ui::FluentMenuItem> items;
     const OmnibarQuery parsed = ParseOmnibarQuery(query, project_only);
     const std::wstring& needle = parsed.needle;
@@ -814,6 +816,14 @@ std::vector<ui::FluentMenuItem> BuildCommandPalette(const std::wstring& query,
         items.back().text = title;
         items.back().badge_text = l10n::Get(l10n::StringId::HistoryPath);
         ++recent_added;
+    }
+    // Commands contributed by installed extensions. The caller refreshes the
+    // list when the palette opens, so this stays free of disk access.
+    if (!project_only && !search_mode && !path_like && !plugin_commands.empty()) {
+        for (const auto& [command, text] : plugin_commands) {
+            if (!ContainsI(text, needle)) continue;
+            items.push_back(Item(command, text.c_str(), L"\xE7B8"));
+        }
     }
     return items;
 }
