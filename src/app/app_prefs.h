@@ -116,10 +116,11 @@ struct AppPrefs {
     bool explorer_fallback = true;
     // 修改时间提示: mark items whose mtime is recent. Style: 0 off, 1 dot,
     // 2 time bar, 3 text only. Days: 1 / 3 / 7 / 30. Palette: 0 accent,
-    // 1 cool-warm, 2 teal, 3 amber, 4 aurora, 5 graphite.
+    // 1 cool-warm, 2 teal, 3 amber, 4 aurora, 5 graphite, 6 custom.
     int mtime_style = 0;
     int mtime_days = 7;
     int mtime_palette = 0;
+    std::wstring mtime_custom_rgb;  // "#RRGGBB" for palette 6
     bool mtime_dim_old = true;
     bool mtime_bold_today = false;
     bool mtime_in_icons = true;

@@ -476,7 +476,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         r.region = HitTestResult::SettingsMtimeDays; r.index = i; return r;
                     }
                 }
-                for (int i = 0; i < 6; ++i) {
+                for (int i = 0; i < 7; ++i) {
                     if (ContainsPt(lay.mtime_palette_row[i], x, y)) {
                         r.region = HitTestResult::SettingsMtimePalette; r.index = i; return r;
                     }

@@ -1194,6 +1194,7 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
             slot.pane.mtime_marks = s.appPrefs.mtime_style > 0;
             slot.pane.mtime_days = s.appPrefs.mtime_days;
             slot.pane.mtime_palette = s.appPrefs.mtime_palette;
+            slot.pane.mtime_custom_rgb = s.appPrefs.mtime_custom_rgb;
             slot.pane.mtime_dim_old = s.appPrefs.mtime_dim_old;
             slot.pane.mtime_bold_today = s.appPrefs.mtime_bold_today;
             slot.pane.mtime_in_icons = s.appPrefs.mtime_in_icons;
@@ -2331,6 +2332,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.settings_mtime_style = s.appPrefs.mtime_style;
     vm.settings_mtime_days = s.appPrefs.mtime_days;
     vm.settings_mtime_palette = s.appPrefs.mtime_palette;
+    vm.settings_mtime_custom_rgb = s.appPrefs.mtime_custom_rgb;
     vm.settings_mtime_dim_old = s.appPrefs.mtime_dim_old;
     vm.settings_mtime_bold_today = s.appPrefs.mtime_bold_today;
     vm.settings_mtime_icons = s.appPrefs.mtime_in_icons;
@@ -2495,6 +2497,7 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.pane.mtime_marks = s.appPrefs.mtime_style > 0;
     vm.pane.mtime_days = s.appPrefs.mtime_days;
     vm.pane.mtime_palette = s.appPrefs.mtime_palette;
+    vm.pane.mtime_custom_rgb = s.appPrefs.mtime_custom_rgb;
     vm.pane.mtime_dim_old = s.appPrefs.mtime_dim_old;
     vm.pane.mtime_bold_today = s.appPrefs.mtime_bold_today;
     vm.pane.mtime_in_icons = s.appPrefs.mtime_in_icons;

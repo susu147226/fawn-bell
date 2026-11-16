@@ -2631,6 +2631,21 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         }
         if (hit.region == ui::HitTestResult::SettingsMtimePalette) {
             s->settings.MtimePalette(hit.index);
+            if (hit.index == 6) {
+                // 自定义: choose the colour right away.
+                uint32_t initial = 0;
+                if (!app::ParseAccentRgb(s->appPrefs.mtime_custom_rgb, initial)) {
+                    initial = (static_cast<uint32_t>(s->accentColor.r * 255.0f) << 16) |
+                              (static_cast<uint32_t>(s->accentColor.g * 255.0f) << 8) |
+                              static_cast<uint32_t>(s->accentColor.b * 255.0f);
+                }
+                uint32_t picked = initial;
+                POINT screen_pt{};
+                GetCursorPos(&screen_pt);
+                if (ui::ColorPickerPopup::Pick(s->hwnd, &s->compositor, s->menu.get(), s->scale,
+                                               screen_pt, initial, s->darkMode, picked))
+                    s->settings.MtimeCustomColor(picked);
+            }
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }

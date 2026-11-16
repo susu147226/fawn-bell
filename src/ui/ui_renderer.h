@@ -306,6 +306,7 @@ struct PaneViewModel {
     int mtime_style = 0;
     int mtime_days = 7;
     int mtime_palette = 0;
+    std::wstring mtime_custom_rgb;  // "RRGGBB" for palette 6
     bool mtime_dim_old = true;
     bool mtime_bold_today = true;
     bool mtime_in_icons = true;
@@ -957,6 +958,7 @@ struct WindowViewModel {
     int settings_mtime_style = 0;
     int settings_mtime_days = 7;
     int settings_mtime_palette = 0;
+    std::wstring settings_mtime_custom_rgb;  // "#RRGGBB" for palette 6
     bool settings_mtime_dim_old = true;
     bool settings_mtime_bold_today = true;
     bool settings_mtime_icons = true;

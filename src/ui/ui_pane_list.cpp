@@ -3,6 +3,7 @@
 #include "ui_renderer.h"
 #include "file_item_selection.h"
 #include "ui_renderer_internal.h"
+#include "mtime_palette.h"
 #include "../common/localization.h"
 #include "tab_shape.h"
 #include "bloom_accent_picker.h"
@@ -84,11 +85,19 @@ MtimeMarkInfo MtimeMarkFor(const PaneViewModel& vm, const ListEntryView& entry, 
     return mark;
 }
 
-D2D1_COLOR_F MtimeMarkColor(const PaneViewModel& vm, const Theme& theme, float freshness) {
-    static const uint32_t kPalettes[5] = {0xE74856, 0x00809D, 0xC19C00, 0x8764B8, 0x69797E};
+D2D1_COLOR_F MtimeMarkColor(const PaneViewModel& vm, const Theme& theme, int bucket,
+                            float freshness) {
     D2D1_COLOR_F color = theme.accent;
-    if (vm.mtime_palette > 0 && vm.mtime_palette <= 5)
-        color = HexColor(kPalettes[vm.mtime_palette - 1]);
+    if (vm.mtime_palette == 6 && !vm.mtime_custom_rgb.empty()) {
+        wchar_t* end = nullptr;
+        const unsigned long rgb = std::wcstoul(vm.mtime_custom_rgb.c_str(), &end, 16);
+        if (end && *end == L'\0') color = HexColor(static_cast<uint32_t>(rgb & 0xFFFFFFul));
+    } else if (vm.mtime_palette >= 1 && vm.mtime_palette <= 5) {
+        // Six steps from just now to thirty days, in the palette's own hues.
+        const auto& palette = MtimePaletteAt(vm.mtime_palette);
+        const bool dark = theme.bg.r < 0.5f;
+        color = HexColor((dark ? palette.dark : palette.light)[MtimePaletteStep(bucket)]);
+    }
     color.a = 0.35f + 0.65f * std::clamp(freshness, 0.0f, 1.0f);
     return color;
 }
@@ -3277,7 +3286,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         const MtimeMarkInfo mark = MtimeMarkFor(vm, e, mtime_now_ft);
                         if (mark.on && vm.mtime_style != 0) {
                             const D2D1_COLOR_F mark_color =
-                                MtimeMarkColor(vm, theme, mark.today ? 1.0f : mark.freshness);
+                                MtimeMarkColor(vm, theme, mark.bucket, mark.today ? 1.0f : mark.freshness);
                             MakeBrush(dc, mark_color, brTextSecondary_);
                             if (vm.mtime_style == 2) {
                                 // A bar as long as the time left in the range,
@@ -3541,7 +3550,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                 const MtimeMarkInfo mark = MtimeMarkFor(vm, e, mtime_now_ft);
                 if (mark.on) {
                     const D2D1_COLOR_F color =
-                        MtimeMarkColor(vm, theme, mark.today ? 1.0f : mark.freshness);
+                        MtimeMarkColor(vm, theme, mark.bucket, mark.today ? 1.0f : mark.freshness);
                     MakeBrush(dc, color, brFillInput_);
                     if (vm.mtime_style == 2) {
                         const float width = std::round(

@@ -5,6 +5,7 @@
 #include "../common/windows_compat.h"
 #include "ui_renderer.h"
 #include "ui_renderer_internal.h"
+#include "mtime_palette.h"
 #include "bloom_accent_picker.h"
 #include "../common/localization.h"
 
@@ -639,30 +640,63 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
         draw_card(lay.mtime_palette_card);
         const I mtime_palette[] = {I::SettingsMtimeAccent, I::SettingsMtimeCoolwarm,
                                    I::SettingsMtimeTeal, I::SettingsMtimeAmber,
-                                   I::SettingsMtimeAurora, I::SettingsMtimeGraphite};
-        const int mtime_palette_values[] = {0, 1, 2, 3, 4, 5};
+                                   I::SettingsMtimeAurora, I::SettingsMtimeGraphite,
+                                   I::SettingsAccentCustom};
+        const int mtime_palette_values[] = {0, 1, 2, 3, 4, 5, 6};
         segmented(lay.mtime_palette_card, lay.mtime_palette_row, mtime_palette, mtime_palette_values,
                   vm.settings_mtime_palette, H::SettingsMtimePalette, I::SettingsMtimePalette,
-                  I::SettingsMtimePaletteDesc, 6, L"\xE790");
+                  I::SettingsMtimePaletteDesc, 7, L"\xE790");
         // Swatches after the title: the palette names mean little until you
         // see which fade the marks will take (newest first).
         {
-            static const uint32_t kSwatch[5] = {0xE74856, 0x00809D, 0xC19C00, 0x8764B8, 0x69797E};
             const std::wstring title_text = l10n::Get(I::SettingsMtimePalette);
             const float title_w = MeasureTextWidth(compositor_->DwriteFactory(),
                                                    compositor_->TextFormat(), title_text);
-            const int palette = std::clamp(vm.settings_mtime_palette, 0, 5);
-            const D2D1_COLOR_F base = palette > 0 ? HexColor(kSwatch[palette - 1]) : theme.accent;
+            const int palette = std::clamp(vm.settings_mtime_palette, 0, 6);
+            D2D1_COLOR_F custom = theme.accent;
+            if (palette == 6 && !vm.settings_mtime_custom_rgb.empty()) {
+                wchar_t* end = nullptr;
+                const unsigned long rgb =
+                    std::wcstoul(vm.settings_mtime_custom_rgb.c_str(), &end, 16);
+                if (end && *end == L'\0')
+                    custom = HexColor(static_cast<uint32_t>(rgb & 0xFFFFFFul));
+            }
+            static constexpr float kRamp[6] = {1.0f, 0.9f, 0.72f, 0.58f, 0.46f, 0.36f};
+            static constexpr float kFlat[6] = {1.0f, 1.0f, 0.95f, 0.9f, 0.85f, 0.8f};
             const float x = lay.mtime_palette_card.left + 54 * scale_ + title_w + 10 * scale_;
             const float y = lay.mtime_palette_card.top + 22 * scale_;
+            const int style = std::clamp(vm.settings_mtime_style, 0, 3);
             for (int i = 0; i < 5; ++i) {
-                D2D1_COLOR_F dot = base;
-                dot.a = 0.32f + 0.17f * static_cast<float>(i);
+                // The palette's own six steps, newest first.
+                D2D1_COLOR_F dot = custom;
+                float strength = kRamp[i];
+                if (palette >= 1 && palette <= 5) {
+                    const auto& seq = MtimePaletteAt(palette);
+                    dot = HexColor((theme.bg.r < 0.5f ? seq.dark : seq.light)[MtimePaletteStep(i)]);
+                    strength = seq.ramp ? kRamp[i] : kFlat[i];
+                }
+                dot.a = strength;
+                const float cx = x + static_cast<float>(i) * 26.0f * scale_;
                 MakeBrush(dc, dot, brTagDot_);
-                dc->FillEllipse(
-                    D2D1::Ellipse(D2D1::Point2F(x + static_cast<float>(i) * 10 * scale_, y),
-                                  2.5f * scale_, 2.5f * scale_),
-                    brTagDot_.get());
+                if (style == 2) {
+                    // 时间条: a short bar, newest longest.
+                    const float w = (16.0f - static_cast<float>(i) * 1.5f) * scale_;
+                    FillRoundedRect(dc, brTagDot_.get(), cx, y - 2.0f * scale_, w,
+                                    4.0f * scale_, 2.0f * scale_);
+                } else if (style == 1) {
+                    // 徽点: the dot-and-ring mark.
+                    dc->FillEllipse(D2D1::Ellipse(D2D1::Point2F(cx, y), 2.6f * scale_,
+                                                  2.6f * scale_), brTagDot_.get());
+                    D2D1_COLOR_F ring = dot;
+                    ring.a *= 0.55f;
+                    MakeBrush(dc, ring, brTagDot_);
+                    dc->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(cx, y), 4.4f * scale_,
+                                                  4.4f * scale_), brTagDot_.get(), 1.2f * scale_);
+                } else {
+                    // 仅文字: the colour alone.
+                    dc->FillEllipse(D2D1::Ellipse(D2D1::Point2F(cx, y), 2.5f * scale_,
+                                                  2.5f * scale_), brTagDot_.get());
+                }
             }
         }
         draw_card(span(lay.mtime_opt_row[0], lay.mtime_opt_row[3]));

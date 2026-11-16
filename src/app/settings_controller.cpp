@@ -805,9 +805,18 @@ void SettingsController::MtimeMarkDays(int index) {
 }
 
 void SettingsController::MtimePalette(int index) {
-    static constexpr int values[] = {0, 1, 2, 3, 4, 5};
+    static constexpr int values[] = {0, 1, 2, 3, 4, 5, 6};
     if (prefs_ && SelectValue(index, values, prefs_->mtime_palette))
         SaveAndApply(SettingsEffect::None);
+}
+
+void SettingsController::MtimeCustomColor(uint32_t rgb) {
+    if (!prefs_) return;
+    wchar_t hex[8]{};
+    swprintf_s(hex, L"%06X", rgb & 0xFFFFFFu);
+    prefs_->mtime_custom_rgb = hex;
+    prefs_->mtime_palette = 6;
+    SaveAndApply(SettingsEffect::None);
 }
 
 void SettingsController::FolderSort(int index) {

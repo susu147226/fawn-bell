@@ -227,7 +227,7 @@ inline float LayoutSettingsFileList(SettingsLayout& l, const WindowViewModel& vm
     l.mtime_days_card = row(narrow ? 98.0f : 72.0f);
     segments(l.mtime_days_card, l.mtime_days_row, 4, 360);
     l.mtime_palette_card = row(narrow ? 98.0f : 72.0f);
-    segments(l.mtime_palette_card, l.mtime_palette_row, 6, 520);
+    segments(l.mtime_palette_card, l.mtime_palette_row, 7, 600);
     for (auto& mtime_row : l.mtime_opt_row) mtime_row = row(64);
     y += 24 * scale; l.section[4] = row(28);
     l.cloud_status_row = row(narrow ? 98.0f : 64.0f);

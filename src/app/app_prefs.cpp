@@ -102,6 +102,7 @@ void AppPrefs::ResetToDefaults() {
     mtime_style = 0;
     mtime_days = 7;
     mtime_palette = 0;
+    mtime_custom_rgb.clear();
     mtime_dim_old = true;
     mtime_bold_today = false;
     mtime_in_icons = true;
@@ -248,6 +249,13 @@ std::wstring AppPrefs::ToJson() const {
     out += L",\n  \"mtime_style\":" + std::to_wstring(mtime_style);
     out += L",\n  \"mtime_days\":" + std::to_wstring(mtime_days);
     out += L",\n  \"mtime_palette\":" + std::to_wstring(mtime_palette);
+    out += L",\n  \"mtime_custom_rgb\":\"";
+    {
+        std::wstring escaped_custom;
+        luling::json::Escape(mtime_custom_rgb, escaped_custom);
+        out += escaped_custom;
+    }
+    out += L"\"";
     out += L",\n  \"mtime_dim_old\":" + std::wstring(mtime_dim_old ? L"true" : L"false");
     out += L",\n  \"mtime_bold_today\":" + std::wstring(mtime_bold_today ? L"true" : L"false");
     out += L",\n  \"mtime_in_icons\":" + std::wstring(mtime_in_icons ? L"true" : L"false");
@@ -431,7 +439,13 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     mtime_style = std::clamp(luling::json::ExtractInt(json, L"mtime_style", 0), 0, 3);
     mtime_days = luling::json::ExtractInt(json, L"mtime_days", 7);
     if (mtime_days != 1 && mtime_days != 3 && mtime_days != 7 && mtime_days != 30) mtime_days = 7;
-    mtime_palette = std::clamp(luling::json::ExtractInt(json, L"mtime_palette", 0), 0, 5);
+    mtime_palette = std::clamp(luling::json::ExtractInt(json, L"mtime_palette", 0), 0, 6);
+    mtime_custom_rgb = luling::json::ExtractString(json, L"mtime_custom_rgb");
+    {
+        uint32_t parsed = 0;
+        if (mtime_custom_rgb.empty() || !ParseAccentRgb(mtime_custom_rgb, parsed))
+            mtime_custom_rgb.clear();
+    }
     mtime_dim_old = luling::json::ExtractBool(json, L"mtime_dim_old", true);
     mtime_bold_today = luling::json::ExtractBool(json, L"mtime_bold_today", false);
     mtime_in_icons = luling::json::ExtractBool(json, L"mtime_in_icons", true);

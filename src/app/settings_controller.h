@@ -232,6 +232,7 @@ public:
     void MtimeStyle(int index);
     void MtimeMarkDays(int index);
     void MtimePalette(int index);
+    void MtimeCustomColor(uint32_t rgb);
     void FolderSort(int index);
     // Optional Details columns (ui/details_column_set.h bits), every folder.
     void DetailsColumns(uint32_t mask);
