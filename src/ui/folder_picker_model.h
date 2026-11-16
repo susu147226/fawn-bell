@@ -15,7 +15,7 @@
 
 namespace luling::ui {
 
-enum class PickerMode { Folder, Image, File };
+enum class PickerMode { Folder, Image, File, Save };
 enum class PickerEntryKind { Folder, Image, Drive, File };
 
 struct PickerFilter { std::wstring label; std::wstring pattern; };

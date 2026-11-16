@@ -1,6 +1,7 @@
 #pragma once
 
 #include "folder_picker_model.h"
+#include "file_save_model.h"
 #include <memory>
 
 namespace luling::ui {
@@ -11,6 +12,8 @@ struct PickerValidation {
     std::wstring navigate;
     DWORD error = ERROR_SUCCESS;
     std::wstring failed_path;
+    bool save_mode = false;
+    SaveTargetResult save;
 };
 
 // Two bounded workers share a latest-only queue; closing never waits on a network request.
@@ -23,6 +26,7 @@ public:
     void Load(uint64_t generation, std::wstring path, PickerMode mode, PickerOptions options = {});
     void Validate(uint64_t generation, std::wstring current, std::vector<std::wstring> names,
                   PickerMode mode, PickerOptions options = {});
+    void ValidateSave(uint64_t generation, SaveTargetRequest request);
     void CreateFolder(uint64_t generation, std::wstring current, std::wstring name);
     static std::unique_ptr<PickerListing> Take(LPARAM lparam);
     static std::unique_ptr<PickerValidation> TakeValidation(LPARAM lparam);

@@ -270,8 +270,23 @@ void PickerLoader::Validate(uint64_t generation, std::wstring current, std::vect
     target_->changed.notify_one();
 }
 
-void PickerLoader::CreateFolder(uint64_t generation, std::wstring current, std::wstring name) {
+void PickerLoader::ValidateSave(uint64_t generation, SaveTargetRequest request) {
     std::lock_guard guard(target_->lock);
+    ++target_->serial;
+    target_->pending = [target = target_.get(), generation, request = std::move(request)](uint64_t serial) {
+        auto cancelled = [&] { return target->serial.load() != serial; };
+        auto result = std::make_unique<PickerValidation>();
+        result->generation = generation;
+        result->save_mode = true;
+        if (cancelled()) result->error = ERROR_CANCELLED;
+        else result->save = ValidateSaveTarget(request);
+        std::lock_guard guard(target->lock);
+        if (!target->closed && !cancelled() && target->validation_message && PostMessageW(target->hwnd, target->validation_message, 0, reinterpret_cast<LPARAM>(result.get()))) result.release();
+    };
+    target_->changed.notify_one();
+}
+
+void PickerLoader::CreateFolder(uint64_t generation, std::wstring current, std::wstring name) {    std::lock_guard guard(target_->lock);
     ++target_->serial;
     target_->pending = [target = target_.get(), generation, current = std::move(current), name = std::move(name)](uint64_t serial) {
         if (target->serial.load() != serial) return;

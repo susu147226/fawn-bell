@@ -59,8 +59,9 @@ constexpr int kGroupDrives = 3;
 
 // Where the last pick of each mode was made, and how it was viewed, for this
 // session.
-std::wstring g_last_folder[3];
-ViewMode g_last_view[3] = {ViewMode::Details, ViewMode::LargeIcons, ViewMode::Details};
+std::wstring g_last_folder[4];
+ViewMode g_last_view[4] = {ViewMode::Details, ViewMode::LargeIcons, ViewMode::Details,
+                           ViewMode::Details};
 
 bool KeyDown(int key) { return (GetKeyState(key) & 0x8000) != 0; }
 
@@ -229,8 +230,10 @@ public:
         accent_ = accent;
         spec_ = spec;
         mode_ = spec.mode;
-        mode_index_ = mode_ == PickerMode::Image ? 1 : mode_ == PickerMode::File ? 2 : 0;
-        allow_multiselect_ = spec.allow_multiselect && mode_ != PickerMode::Folder;
+        mode_index_ = mode_ == PickerMode::Image ? 1 : mode_ == PickerMode::File ? 2
+                   : mode_ == PickerMode::Save ? 3 : 0;
+        allow_multiselect_ = spec.allow_multiselect && mode_ != PickerMode::Folder &&
+                             mode_ != PickerMode::Save;
         options_.filters = spec.filters;
         options_.show_hidden = spec.show_hidden;
         if (options_.filters.empty() && mode_ != PickerMode::Folder) {
@@ -246,13 +249,16 @@ public:
 
         chrome_.mode = mode_;
         chrome_.title = !spec.title.empty() ? spec.title
+            : mode_ == PickerMode::Save ? l10n::Pick(L"另存为", L"Save as")
             : mode_ == PickerMode::File ? l10n::Pick(L"打开", L"Open")
             : l10n::Get(mode_ == PickerMode::Image ? l10n::StringId::TooltipChooseBackground
                                                    : l10n::StringId::PickerTitleFolder);
         chrome_.filename_label = l10n::Pick(L"文件名(N):", L"File name:");
-        chrome_.primary_text = l10n::Get(mode_ != PickerMode::Folder
-                                             ? l10n::StringId::PickerSelect
-                                             : l10n::StringId::PickerSelectFolder);
+        chrome_.primary_text = mode_ == PickerMode::Save
+            ? l10n::Pick(L"保存", L"Save")
+            : l10n::Get(mode_ != PickerMode::Folder
+                            ? l10n::StringId::PickerSelect
+                            : l10n::StringId::PickerSelectFolder);
         chrome_.cancel_text = l10n::Get(l10n::StringId::Cancel);
         chrome_.hosted_edit = true;
         UpdateFilterText();
@@ -486,10 +492,20 @@ private:
 
     void SetFilename(std::wstring text) {
         filename_text_ = std::move(text);
+        // A new name needs its own overwrite confirmation.
+        save_confirmed_path_.clear();
         setting_edits_ = true;
         if (filename_edit_) SetWindowTextW(filename_edit_, filename_text_.c_str());
         setting_edits_ = false;
         UpdateChosen();
+    }
+
+    void FinishSave(const std::wstring& path) {
+        result_.assign(1, path);
+        g_last_folder[mode_index_] = current_.empty() ? PickerParent(path) : current_;
+        g_last_view[mode_index_] = view_mode_;
+        done_ = true;
+        PostMessageW(hwnd_, WM_NULL, 0, 0);
     }
 
     void SyncSelectedNames() {
@@ -539,7 +555,7 @@ private:
         selected_ = -1;
         selected_set_.clear();
         anchor_ = -1;
-        if (mode_ != PickerMode::Folder) SetFilename(L"");
+        if (mode_ == PickerMode::File || mode_ == PickerMode::Image) SetFilename(L"");
         UpdateChosen();
         Invalidate();
     }
@@ -548,9 +564,16 @@ private:
         if (index < 0 || index >= static_cast<int>(entries_.size())) return;
         const PickerEntry entry = entries_[static_cast<size_t>(index)];
         if (entry.kind == PickerEntryKind::Image || entry.kind == PickerEntryKind::File) {
+            if (mode_ == PickerMode::Save) {
+                // Clicking an existing file arms it as the overwrite target;
+                // the name field keeps its text, so a save can be retyped.
+                SetFilename(entry.name);
+                FocusFilename();
+                return;
+            }
             SubmitSelection();
         } else {
-            if (mode_ != PickerMode::Folder) SetFilename(L"");
+            if (mode_ != PickerMode::Folder && mode_ != PickerMode::Save) SetFilename(L"");
             Navigate(entry.path, true, {}, true);
         }
     }
@@ -566,14 +589,28 @@ private:
         validating_ = true;
         chrome_.notice = l10n::Pick(L"正在检查所选项目…", L"Checking the selected items…");
         UpdateChosen();
-        loader_->Validate(++generation_, current_, std::move(names), mode_, options_);
+        if (mode_ == PickerMode::Save) {
+            SaveTargetRequest request;
+            request.directory = current_;
+            request.filename = names.front();
+            request.filters = options_.filters;
+            request.filter_index = options_.filter_index;
+            request.default_extension = spec_.default_extension;
+            request.filter_changed = true;
+            loader_->ValidateSave(++generation_, std::move(request));
+        } else {
+            loader_->Validate(++generation_, current_, std::move(names), mode_, options_);
+        }
         Invalidate();
     }
 
     void SubmitSelection() {
         if (validating_) return;
         std::vector<std::wstring> names;
-        if (mode_ != PickerMode::Folder && !filename_text_.empty()) {
+        if (mode_ == PickerMode::Save) {
+            // One exact leaf; a separated path would be ambiguous here.
+            if (!filename_text_.empty()) names.push_back(filename_text_);
+        } else if (mode_ != PickerMode::Folder && !filename_text_.empty()) {
             if (!ParsePickerNames(filename_text_, names)) {
                 chrome_.notice = l10n::Pick(L"请为每个文件名使用配对的引号。", L"Use matching quotes around each filename.");
                 Invalidate();
@@ -589,6 +626,48 @@ private:
         if (!validation || validation->generation != generation_ || !validating_) return;
         validating_ = false;
         chrome_.notice.clear();
+        if (validation->save_mode) {
+            const SaveTargetResult& save = validation->save;
+            if (save.state == SaveTargetState::Ready) {
+                FinishSave(save.path);
+                return;
+            }
+            if (save.state == SaveTargetState::ConfirmOverwrite) {
+                if (save.read_only) {
+                    chrome_.notice = l10n::Pick(L"该文件是只读的，无法覆盖。", L"That file is read-only.");
+                } else if (!save_confirmed_path_.empty() &&
+                           SamePickerPath(save_confirmed_path_, save.path)) {
+                    FinishSave(save.path);
+                    return;
+                } else {
+                    save_confirmed_path_ = save.path;
+                    chrome_.notice = l10n::Pick(L"文件已存在；再次点击「保存」将覆盖它。",
+                                                L"The file exists; press Save again to overwrite it.");
+                }
+            } else if (save.state == SaveTargetState::TargetDirectory) {
+                chrome_.notice = l10n::Pick(L"同名文件夹已存在。", L"A folder with that name already exists.");
+            } else if (save.state == SaveTargetState::InvalidName) {
+                chrome_.notice = l10n::Pick(L"文件名无效。", L"That file name is not valid.");
+            } else if (save.state == SaveTargetState::InvalidDirectory) {
+                chrome_.notice = l10n::Pick(L"目标文件夹无效。", L"The destination folder is not valid.");
+            } else if (save.state == SaveTargetState::ParentMissing) {
+                chrome_.notice = l10n::Pick(L"目标文件夹不存在。", L"The destination folder does not exist.");
+            } else if (save.state == SaveTargetState::ParentNotDirectory) {
+                chrome_.notice = l10n::Pick(L"目标路径不是文件夹。", L"The destination is not a folder.");
+            } else if (save.state == SaveTargetState::InvalidFilter) {
+                chrome_.notice = l10n::Pick(L"文件类型无效。", L"That file type is not valid.");
+            } else if (save.state == SaveTargetState::IoError) {
+                chrome_.notice = ErrorText(save.error, save.path);
+            } else {
+                chrome_.notice = l10n::Pick(L"该文件名或扩展名不受支持。",
+                                            L"That name or extension is not supported.");
+            }
+            if (chrome_.notice.empty())
+                chrome_.notice = l10n::Pick(L"无法保存到此位置。", L"Cannot save to this location.");
+            UpdateChosen();
+            Invalidate();
+            return;
+        }
         if (validation->error != ERROR_SUCCESS) {
             chrome_.notice = validation->error == ERROR_UNSUPPORTED_TYPE
                 ? l10n::Pick(L"所选文件不符合当前文件类型。", L"The selected file does not match the file type.")
@@ -600,7 +679,7 @@ private:
             return;
         }
         if (!validation->navigate.empty()) {
-            if (mode_ != PickerMode::Folder) SetFilename(L"");
+            if (mode_ == PickerMode::File || mode_ == PickerMode::Image) SetFilename(L"");
             Navigate(validation->navigate, true);
             FocusList();
             return;
@@ -2067,6 +2146,7 @@ private:
     FolderPickerChromeLayout chrome_layout_;
     FolderPickerSpec spec_;
     PickerMode mode_ = PickerMode::Folder;
+    std::wstring save_confirmed_path_;
     PickerHistory history_;
     PickerOptions options_;
     std::unique_ptr<PickerLoader> loader_;

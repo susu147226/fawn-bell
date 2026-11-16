@@ -196,6 +196,50 @@ int main() {
         bool only_images = listing.error == ERROR_SUCCESS;
         for (const auto& entry : listing.entries) if (entry.kind != PickerEntryKind::Folder && entry.name != L"b.PNG" && entry.name.find(L".lnk") == std::wstring::npos) only_images = false;
         Check(only_images, "image listing keeps navigable shortcuts and filters unrelated files");
+        // Save targets: extension completion, name rules and overwrite states.
+        {
+            SaveTargetRequest request;
+            request.directory = base.wstring();
+            request.filters = {{L"JSON (*.json)", L"*.json"}};
+            request.default_extension = L"json";
+            request.filename = L"tags";
+            auto save_result = ResolveSaveTarget(request);
+            Check(save_result.state == SaveTargetState::Resolved &&
+                  save_result.path == (base / L"tags.json").wstring(),
+                  "save adds the default extension");
+            request.filename = L"tags.JSON";
+            save_result = ResolveSaveTarget(request);
+            Check(save_result.state == SaveTargetState::Resolved &&
+                  save_result.path == (base / L"tags.JSON").wstring(),
+                  "save keeps an explicit extension");
+            request.filename = L"bad:name";
+            Check(ResolveSaveTarget(request).state == SaveTargetState::InvalidName,
+                  "save rejects reserved characters");
+            request.filename = L"name.";
+            Check(ResolveSaveTarget(request).state == SaveTargetState::Unsupported,
+                  "save rejects a trailing dot");
+            request.filename = L"CON";
+            Check(ResolveSaveTarget(request).state == SaveTargetState::InvalidName,
+                  "save rejects reserved device names");
+            request.directory = L"relative";
+            request.filename = L"ok";
+            Check(ResolveSaveTarget(request).state == SaveTargetState::InvalidDirectory,
+                  "save needs an absolute directory");
+        }
+        {
+            std::ofstream(base / L"exists.json") << "{}";
+            SaveTargetRequest request;
+            request.directory = base.wstring();
+            request.filename = L"exists";
+            request.default_extension = L"json";
+            const auto save_result = ValidateSaveTarget(request);
+            Check(save_result.state == SaveTargetState::ConfirmOverwrite && save_result.target_exists &&
+                  save_result.path == (base / L"exists.json").wstring(),
+                  "save reports an existing target");
+            request.filename = L"fresh";
+            Check(ValidateSaveTarget(request).state == SaveTargetState::Ready,
+                  "save reports a new target ready");
+        }
     }
     MSG leftover{};
     Check(!PeekMessageW(&leftover, window, kListing, kValidation, PM_REMOVE), "close drains posted payloads");

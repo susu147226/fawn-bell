@@ -356,7 +356,8 @@ target_link_libraries(luling_file_picker_view_test PRIVATE d3d11 d2d1 dwrite dxg
 target_link_options(luling_file_picker_view_test PRIVATE /MANIFEST:NO)
 luling_enable_lumatext(luling_file_picker_view_test)
 add_executable(luling_file_picker_model_test src/bench/file_picker_model_test.cpp
-    src/bench/localization_test.rc src/ui/folder_picker_model.cpp src/ui/folder_picker_loader.cpp)
+    src/bench/localization_test.rc src/ui/folder_picker_model.cpp src/ui/folder_picker_loader.cpp
+    src/ui/file_save_model.cpp)
 target_link_libraries(luling_file_picker_model_test PRIVATE shell32 ole32 uuid luling_localization)
 # The loader enumerates with the main window's fs::EnumerateDirectory.
 target_link_libraries(luling_file_picker_model_test PRIVATE luling_fs_watch)
@@ -368,6 +369,7 @@ add_executable(luling_dialogs_test
     src/ui/fluent_components.cpp
     src/ui/folder_picker_loader.cpp
     src/ui/folder_picker_model.cpp
+    src/ui/file_save_model.cpp
     src/ui/tab_shape.cpp
     src/ui/typography.cpp
     src/ui/ui_compositor.cpp

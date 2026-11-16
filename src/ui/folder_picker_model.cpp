@@ -48,6 +48,9 @@ bool IsPickerImageName(std::wstring_view name) {
 
 bool PickerMatchesFilter(std::wstring_view name, PickerMode mode, const PickerOptions& options) {
     if (mode == PickerMode::Folder) return false;
+    // Saving accepts any leaf name; the filter only supplies the default
+    // extension, so other files stay visible as overwrite targets.
+    if (mode == PickerMode::Save) return true;
     if (mode == PickerMode::Image && !IsPickerImageName(name)) return false;
     if (options.filters.empty()) return true;
     const auto& patterns = options.filters[std::min(options.filter_index, options.filters.size() - 1)].pattern;
@@ -203,10 +206,12 @@ std::wstring PickerChosenPath(PickerMode mode, std::wstring_view current,
     const bool shortcut = selected && selected->name.size() >= 4 &&
         CompareStringOrdinal(selected->name.data() + selected->name.size() - 4, 4, L".lnk", 4, TRUE) == CSTR_EQUAL;
     if (shortcut) return selected->path;
-    if (mode != PickerMode::Folder) {
-        return selected && (selected->kind == PickerEntryKind::Image || (mode == PickerMode::File && selected->kind == PickerEntryKind::File)) ? selected->path
-                                                                     : std::wstring();
+    if (mode == PickerMode::File || mode == PickerMode::Image) {
+        return selected && (selected->kind == PickerEntryKind::Image ||
+            (mode == PickerMode::File && selected->kind == PickerEntryKind::File)) ? selected->path
+                                                                                    : std::wstring();
     }
+    if (mode == PickerMode::Save) return std::wstring();
     if (selected && (selected->kind == PickerEntryKind::Folder || selected->kind == PickerEntryKind::Drive)) return selected->path;
     return std::wstring(current);
 }

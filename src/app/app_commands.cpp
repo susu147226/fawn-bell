@@ -927,32 +927,29 @@ bool DeleteTagAndRefreshViews(AppState& s, const app::TagId& tag_id) {
     return true;
 }
 
-static bool PickSaveTagsFile(HWND owner, std::wstring& path) {
-    wchar_t file[MAX_PATH] = L"luling-tags.json";
-    OPENFILENAMEW ofn{};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = owner;
-    ofn.lpstrFilter = L"JSON (*.json)\0*.json\0";
-    ofn.lpstrFile = file;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrDefExt = L"json";
-    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-    if (!GetSaveFileNameW(&ofn)) return false;
-    path = file;
+static ui::FolderPickerSpec MakePickerSpec(const AppState& s, ui::PickerMode mode);
+
+static bool PickSaveTagsFile(const AppState& s, std::wstring& path) {
+    ui::FolderPickerSpec spec = MakePickerSpec(s, ui::PickerMode::Save);
+    spec.title = l10n::Pick(L"导出标签", L"Export tags");
+    spec.filters = {{L"JSON (*.json)", L"*.json"}};
+    spec.filename = L"luling-tags.json";
+    spec.default_extension = L"json";
+    ui::FilePickerResult result;
+    if (!ui::ShowFilePicker(s.hwnd, spec, s.darkMode, s.accentColor, result) ||
+        result.paths.empty()) return false;
+    path = result.paths.front();
     return true;
 }
 
-static bool PickOpenTagsFile(HWND owner, std::wstring& path) {
-    wchar_t file[MAX_PATH]{};
-    OPENFILENAMEW ofn{};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = owner;
-    ofn.lpstrFilter = L"JSON (*.json)\0*.json\0";
-    ofn.lpstrFile = file;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-    if (!GetOpenFileNameW(&ofn)) return false;
-    path = file;
+static bool PickOpenTagsFile(const AppState& s, std::wstring& path) {
+    ui::FolderPickerSpec spec = MakePickerSpec(s, ui::PickerMode::File);
+    spec.title = l10n::Pick(L"导入标签", L"Import tags");
+    spec.filters = {{L"JSON (*.json)", L"*.json"}};
+    ui::FilePickerResult result;
+    if (!ui::ShowFilePicker(s.hwnd, spec, s.darkMode, s.accentColor, result) ||
+        result.paths.empty()) return false;
+    path = result.paths.front();
     return true;
 }
 
@@ -1003,7 +1000,7 @@ void ShowTagManager(AppState& s) {
     }
     if (result.action == 2) {
         std::wstring path;
-        if (!PickSaveTagsFile(s.hwnd, path)) return;
+        if (!PickSaveTagsFile(s, path)) return;
         if (!ExportTagsFile(s.places, path))
             MessageBoxW(s.hwnd, l10n::Pick(L"无法写入标签文件。", L"Could not write the tag file."),
                         l10n::Pick(L"导出标签", L"Export tags"), MB_OK | MB_ICONWARNING);
@@ -1011,7 +1008,7 @@ void ShowTagManager(AppState& s) {
     }
     if (result.action == 3) {
         std::wstring path;
-        if (!PickOpenTagsFile(s.hwnd, path)) return;
+        if (!PickOpenTagsFile(s, path)) return;
         std::wstring error;
         const int applied = ImportTagsFile(s.places, path, error);
         if (applied <= 0) {

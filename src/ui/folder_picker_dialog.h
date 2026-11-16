@@ -32,6 +32,8 @@ struct FolderPickerSpec {
     std::vector<PickerFilter> filters;
     size_t filter_index = 0;
     std::wstring filename;
+    // Save mode: appended when the typed name has no dot. No leading dot.
+    std::wstring default_extension;
     bool allow_multiselect = false;
     bool show_hidden = false;
     // The main window's list style, so rows look the same in both places.
