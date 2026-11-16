@@ -1714,11 +1714,11 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     }
     out.selected_index = tab->selected_index;
     out.selected_count = tab->SelectedCount();
-    // The checkbox gutter is always shown; hovering a row brightens its box and
-    // a single selection ticks only that row. The preference is kept for
-    // sessions that still carry it, but the gutter no longer depends on it.
+    // The gutter stays reserved so rows never shift, but a row's box only
+    // appears when the row is hovered or selected; the header box is always
+    // there. `always_checkboxes` would keep every row's box visible.
     (void)list_checkboxes;
-    out.always_checkboxes = true;
+    out.always_checkboxes = false;
     out.list_checkboxes = true;
     out.all_selected = tab->all_selected;
     out.selected_indices = tab->all_selected ? nullptr : &tab->selected;
