@@ -425,6 +425,20 @@ ID2D1SolidColorBrush* Painter::ScratchBrush(const D2D1_COLOR_F& color) {
     return scratch_brush_.get();
 }
 
+// A second scratch brush so a two-tone icon can hold the ink and its accent
+// part at the same time.
+ID2D1SolidColorBrush* Painter::ToneBrush(const D2D1_COLOR_F& color) {
+    if (!dc_) {
+        return nullptr;
+    }
+    if (tone_brush_.get()) {
+        tone_brush_->SetColor(color);
+    } else {
+        dc_->CreateSolidColorBrush(color, &tone_brush_);
+    }
+    return tone_brush_.get();
+}
+
 float Painter::Px(float dips) const noexcept {
     return dips * scale_;
 }
@@ -704,8 +718,17 @@ void Painter::DrawCommandButton(const ButtonSpec& spec) {
     const auto color = !state.enabled ? theme_->text_disabled : state.selected ? theme_->accent : theme_->text_secondary;
     const auto command = command_icons::FromGlyph(spec.glyph);
     EnsureStrokeStyle();
-    if (!command_icons::Draw(dc_, ScratchBrush(color), round_stroke_.get(), command,
-        command_icons::CenteredBounds(spec.bounds, Px(20.0f))))
+    const auto bounds = command_icons::CenteredBounds(spec.bounds, Px(20.0f));
+    // Accent parts only at rest: pressed, toggled and disabled buttons read as
+    // one command, like the Pulse toolbar.
+    ID2D1Brush* accent = nullptr;
+    if (icon_tones_ && !high_contrast_ && state.enabled && !state.selected) {
+        const auto tone = command_icons::ToneOf(command);
+        if (tone != command_icons::Tone::None)
+            accent = ToneBrush(icon_tones_[static_cast<size_t>(tone)]);
+    }
+    if (!command_icons::DrawTwoTone(dc_, ScratchBrush(color), accent, round_stroke_.get(),
+                                    command, bounds))
         DrawGlyph(spec.glyph, spec.bounds, color);
     if (state.keyboard_focus) DrawFocusRing(spec.bounds, Px(theme_->radius_control));
 }
