@@ -2447,6 +2447,13 @@ inline D2D1_RECT_F SettingsStoreRefreshRect(const SettingsLayout& lay, float sca
     return D2D1::RectF(left, top, left + 72.0f * scale, top + 30.0f * scale);
 }
 
+// Install a package the user picked from disk (no catalog entry).
+inline D2D1_RECT_F SettingsStoreInstallFileRect(const SettingsLayout& lay, float scale) {
+    const float right = lay.content.right - 20.0f * scale;
+    const float top = SettingsStoreBrowseTop(lay, scale);
+    return D2D1::RectF(right - 152.0f * scale, top, right - 20.0f * scale, top + 30.0f * scale);
+}
+
 inline D2D1_RECT_F SettingsStoreStatusRect(const SettingsLayout& lay, float scale) {
     const float left = lay.content.left + 20.0f * scale + 80.0f * scale;
     const float top = SettingsStoreBrowseTop(lay, scale) + 4.0f * scale;

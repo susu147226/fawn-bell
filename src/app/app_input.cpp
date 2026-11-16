@@ -2495,6 +2495,13 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
+        if (hit.region == ui::HitTestResult::SettingsStoreInstallFile) {
+            std::wstring package;
+            if (luling::PickExtensionPackage(*s, package))
+                app::StartStoreExtensionInstallFromFile(s->hwnd, package);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::SettingsStoreFilter) {
             s->settingsStoreFilter = std::clamp(hit.index, 0, 5);
             InvalidateRect(hwnd, nullptr, FALSE);

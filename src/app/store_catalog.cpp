@@ -567,6 +567,68 @@ bool InstallOne(const StoreExtension& extension, const StorePublisher& publisher
     return ok;
 }
 
+bool InstallFromFile(const std::wstring& zip, std::wstring& error) {
+    const std::wstring root = ExtensionsRoot();
+    const std::wstring staging = root + L"\\.staging";
+    CreateDirectoryW(root.c_str(), nullptr);
+    CreateDirectoryW(staging.c_str(), nullptr);
+    const std::wstring work = staging + L"\\file." + std::to_wstring(GetTickCount64());
+    std::error_code ec;
+    std::filesystem::create_directories(work, ec);
+    if (ec) {
+        error = L"could not create the staging directory";
+        return false;
+    }
+    const std::wstring unpacked = work + L"\\unpacked";
+    std::filesystem::create_directories(unpacked, ec);
+    if (!ExtractZip(zip, unpacked, error)) {
+        std::filesystem::remove_all(work, ec);
+        return false;
+    }
+    std::string manifest;
+    if (!ReadAllBytes(unpacked + L"\\manifest.json", manifest)) {
+        error = L"the package has no manifest.json";
+        std::filesystem::remove_all(work, ec);
+        return false;
+    }
+    json::Value document;
+    if (!json::Parse(manifest, document, nullptr) || !document.is_object()) {
+        error = L"the manifest is not JSON";
+        std::filesystem::remove_all(work, ec);
+        return false;
+    }
+    const std::wstring id = Field(document, "id");
+    const std::wstring version = Field(document, "version");
+    if (!ValidId(id)) {
+        error = L"the manifest has no valid id";
+        std::filesystem::remove_all(work, ec);
+        return false;
+    }
+    const std::wstring target = root + L"\\" + id;
+    const std::wstring backup = root + L"\\." + id + L".old";
+    std::filesystem::remove_all(backup, ec);
+    const bool had_old = std::filesystem::exists(target, ec);
+    if (had_old && !MoveFileExW(target.c_str(), backup.c_str(), 0)) {
+        error = L"could not replace the installed extension";
+        std::filesystem::remove_all(work, ec);
+        return false;
+    }
+    if (!MoveFileExW(unpacked.c_str(), target.c_str(), 0)) {
+        if (had_old) MoveFileExW(backup.c_str(), target.c_str(), 0);
+        error = L"could not move the extension into place";
+        std::filesystem::remove_all(work, ec);
+        return false;
+    }
+    std::filesystem::remove_all(backup, ec);
+    StoreExtension extension;
+    extension.id = id;
+    StoreRelease release;
+    release.version = version;
+    RecordInstalled(extension, release);
+    std::filesystem::remove_all(work, ec);
+    return true;
+}
+
 } // namespace
 
 StoreCatalogSnapshot StoreCatalogSnapshotCopy() {
@@ -689,6 +751,23 @@ void StartStoreExtensionInstall(HWND notify, StoreExtension extension,
     std::thread([notify, extension = std::move(extension), publisher = std::move(publisher)] {
         std::wstring error;
         const bool ok = InstallOne(extension, publisher, error);
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_install_error = ok ? std::wstring() : error;
+        }
+        if (notify) PostMessageW(notify, WM_STORE_INSTALLED, ok ? 1 : 0, 0);
+    }).detach();
+}
+
+void StartStoreExtensionInstallFromFile(HWND notify, std::wstring zip_path) {
+    if (zip_path.empty()) return;
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_install_error.clear();
+    }
+    std::thread([notify, zip_path = std::move(zip_path)] {
+        std::wstring error;
+        const bool ok = InstallFromFile(zip_path, error);
         {
             std::lock_guard<std::mutex> lock(g_mutex);
             g_install_error = ok ? std::wstring() : error;

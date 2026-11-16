@@ -2876,6 +2876,19 @@ bool PickToolbarAppFile(AppState& s, HWND owner, std::wstring& path) {
 }
 
 
+bool PickExtensionPackage(AppState& s, std::wstring& path) {
+    ui::FolderPickerSpec spec = MakePickerSpec(s, ui::PickerMode::File);
+    spec.title = l10n::Pick(L"安装扩展包", L"Install extension package");
+    spec.filters = {{std::wstring(l10n::Pick(L"扩展包", L"Extension package")) + L" (*.zip)",
+                     L"*.zip"}};
+    ui::FilePickerResult result;
+    if (!ui::ShowFilePicker(s.hwnd, spec, s.darkMode, s.accentColor, result) ||
+        result.paths.empty())
+        return false;
+    path = result.paths.front();
+    return true;
+}
+
 bool PickFolder(AppState& s, std::wstring& path, const wchar_t* title) {
     ui::FolderPickerSpec spec = MakePickerSpec(s, ui::PickerMode::Folder);
     spec.title = title ? title : L"";

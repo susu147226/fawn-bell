@@ -270,6 +270,10 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     r.region = HitTestResult::SettingsStoreLinkPacks;
                     return r;
                 }
+                if (ContainsPt(SettingsStoreInstallFileRect(lay, scale_), x, y)) {
+                    r.region = HitTestResult::SettingsStoreInstallFile;
+                    return r;
+                }
                 for (int i = 0; i < 6; ++i) {
                     if (!ContainsPt(SettingsStoreFilterRect(lay, scale_, i), x, y)) continue;
                     r.region = HitTestResult::SettingsStoreFilter;
