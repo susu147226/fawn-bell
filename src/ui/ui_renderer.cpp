@@ -2,6 +2,7 @@
 #include "legacy_icons.h"
 #include "ui_renderer.h"
 #include "command_icons.h"
+#include "pane_header_icons.h"
 #include "toolbar_layout.h"
 #include "ui_renderer_internal.h"
 #include "plugin_preview.h"
@@ -732,6 +733,7 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
         const bool peek = SidebarPeekVisible(rect.right);
         if (!peek) DrawSidebar(vm, rect, theme);
         DrawPane(vm, rect, theme);
+        DrawLayoutPreview(vm, rect, theme);
         if (vm.details_visible) DrawDetailsPanel(vm, rect, theme);
         else preview_handler_.Sync(notify_hwnd_, {}, L"", 0, 0, 0, 0, vm.dark,
                                    theme.bg, theme.text, false);
@@ -1540,6 +1542,102 @@ void MainRenderer::DrawTeachBubble(const WindowViewModel& vm, const D2D1_RECT_F&
     text_background_ = saved_bg;
 }
 
+void MainRenderer::DrawLayoutPreview(const WindowViewModel& vm, const D2D1_RECT_F& rect,
+                                     const Theme& theme) {
+    const bool hovered = vm.hover_region == static_cast<int>(HitTestResult::StatusBarLayout);
+    const int hover = hovered ? std::clamp(vm.hover_control_index, 0, 4) : -1;
+    if (hover != layout_preview_index_) {
+        layout_preview_index_ = hover;
+        layout_preview_at_ = motion_now_;
+    }
+    if (hover < 0) return;
+    const float fade = motion::SystemAnimationsEnabled()
+        ? std::clamp(static_cast<float>(motion_now_ - layout_preview_at_) / 120.0f, 0.0f, 1.0f)
+        : 1.0f;
+    // The pointer stops producing WM_MOUSEMOVE while it rests on a button, so
+    // the fade has to ask for its next frame; otherwise the preview can stay
+    // at its first (invisible) frame, which reads as "sometimes nothing".
+    if (fade < 1.0f && notify_hwnd_) InvalidateRect(notify_hwnd_, nullptr, FALSE);
+    if (fade <= 0.0f) return;
+    auto* dc = compositor_->Dc();
+    const D2D1_RECT_F area = ContentRect(rect.right, rect.bottom);
+    if (area.right <= area.left || area.bottom <= area.top) return;
+    const float gap = 8.0f * scale_;
+    const float mid_x = (area.left + area.right) * 0.5f;
+    const float mid_y = (area.top + area.bottom) * 0.5f;
+    D2D1_RECT_F panes[4]{};
+    int count = 1;
+    switch (hover) {
+    case 1:  // side by side
+        panes[0] = D2D1::RectF(area.left, area.top, mid_x - gap * 0.5f, area.bottom);
+        panes[1] = D2D1::RectF(mid_x + gap * 0.5f, area.top, area.right, area.bottom);
+        count = 2;
+        break;
+    case 2:  // stacked
+        panes[0] = D2D1::RectF(area.left, area.top, area.right, mid_y - gap * 0.5f);
+        panes[1] = D2D1::RectF(area.left, mid_y + gap * 0.5f, area.right, area.bottom);
+        count = 2;
+        break;
+    case 3:  // three: one left, two right
+        panes[0] = D2D1::RectF(area.left, area.top, mid_x - gap * 0.5f, area.bottom);
+        panes[1] = D2D1::RectF(mid_x + gap * 0.5f, area.top, area.right, mid_y - gap * 0.5f);
+        panes[2] = D2D1::RectF(mid_x + gap * 0.5f, mid_y + gap * 0.5f, area.right, area.bottom);
+        count = 3;
+        break;
+    case 4:  // four
+        panes[0] = D2D1::RectF(area.left, area.top, mid_x - gap * 0.5f, mid_y - gap * 0.5f);
+        panes[1] = D2D1::RectF(mid_x + gap * 0.5f, area.top, area.right, mid_y - gap * 0.5f);
+        panes[2] = D2D1::RectF(area.left, mid_y + gap * 0.5f, mid_x - gap * 0.5f, area.bottom);
+        panes[3] = D2D1::RectF(mid_x + gap * 0.5f, mid_y + gap * 0.5f, area.right, area.bottom);
+        count = 4;
+        break;
+    default:
+        panes[0] = area;
+        break;
+    }
+    D2D1_COLOR_F fill = theme.accent;
+    fill.a = 0.08f * fade;
+    D2D1_COLOR_F line = theme.accent;
+    line.a = 0.72f * fade;
+    ComPtr<ID2D1SolidColorBrush> fill_brush;
+    ComPtr<ID2D1SolidColorBrush> line_brush;
+    dc->CreateSolidColorBrush(fill, &fill_brush);
+    dc->CreateSolidColorBrush(line, &line_brush);
+    const float radius = 6.0f * scale_;
+    for (int i = 0; i < count; ++i) {
+        const auto& pane = panes[i];
+        if (fill_brush.get())
+            dc->FillRoundedRectangle(D2D1::RoundedRect(pane, radius, radius), fill_brush.get());
+        if (line_brush.get())
+            dc->DrawRoundedRectangle(D2D1::RoundedRect(pane, radius, radius), line_brush.get(),
+                                     1.5f * scale_);
+    }
+    const l10n::StringId label_id =
+        hover == 1 ? l10n::StringId::LayoutVertical
+        : hover == 2 ? l10n::StringId::LayoutHorizontal
+        : hover == 3 ? l10n::StringId::LayoutThree
+        : hover == 4 ? l10n::StringId::LayoutFour
+                     : l10n::StringId::LayoutSingle;
+    const std::wstring label = l10n::Get(label_id);
+    IDWriteTextFormat* fmt = compositor_->SmallFormat();
+    if (!fmt) return;
+    const float text_w = MeasureTextWidth(compositor_->DwriteFactory(), fmt, label);
+    const float pill_h = 24.0f * scale_;
+    const float pill_w = text_w + 24.0f * scale_;
+    const float pill_x = (area.left + area.right - pill_w) * 0.5f;
+    const float pill_y = area.bottom - pill_h - 14.0f * scale_;
+    ComPtr<ID2D1SolidColorBrush> pill_bg;
+    dc->CreateSolidColorBrush(D2D1::ColorF(0.09f, 0.09f, 0.11f, 0.92f * fade), &pill_bg);
+    if (pill_bg.get())
+        FillRoundedRect(dc, pill_bg.get(), pill_x, pill_y, pill_w, pill_h, pill_h * 0.5f);
+    ComPtr<ID2D1SolidColorBrush> pill_text;
+    dc->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, fade), &pill_text);
+    fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+    if (pill_text.get())
+        DrawTextRect(dc, fmt, pill_text.get(), label, pill_x, pill_y, pill_w, pill_h);
+    fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+}
+
 void MainRenderer::DrawStatusBar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     ID2D1DeviceContext* dc = compositor_->Dc();
     IDWriteFactory2* factory = compositor_->DwriteFactory();
@@ -1597,8 +1695,9 @@ void MainRenderer::DrawStatusBar(const WindowViewModel& vm, const D2D1_RECT_F& r
     if (!centered_progress && !vm.status.performance_text.empty()) {
         const std::wstring& perfText = rect.right < 1100.0f * scale_
             ? vm.status.performance_compact_text : vm.status.performance_text;
-        const float perfWidth = std::min(rect.right * 0.50f,
-            MeasureTextWidth(factory, small_fmt, perfText) + 16.0f * scale_);
+        const float perfWidth = std::min({rect.right * 0.50f,
+            MeasureTextWidth(factory, small_fmt, perfText) + 16.0f * scale_,
+            std::max(0.0f, rightReserved - sb.pad)});
         small_fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
         MakeBrush(dc, theme.text_secondary, brTextSecondary_);
         DrawTextRect(dc, small_fmt, brTextSecondary_.get(), perfText,
@@ -1659,6 +1758,23 @@ void MainRenderer::DrawStatusBar(const WindowViewModel& vm, const D2D1_RECT_F& r
         task_pill_done_at_ = 0;
     }
 
+    // Layout buttons: single / side by side / stacked / three / four. The
+    // toolbar keeps its own split button; this is the far-right shortcut.
+    constexpr PaneHeaderIcon kLayoutIcons[] = {
+        PaneHeaderIcon::SplitSingle, PaneHeaderIcon::Split, PaneHeaderIcon::SplitStacked,
+        PaneHeaderIcon::SplitThree, PaneHeaderIcon::SplitFour};
+    const int preset = std::clamp(vm.layout_preset, 0, 4);
+    for (int i = 0; i < 5; ++i) {
+        const auto& rc = sb.layout[i];
+        if (rc.right <= rc.left) continue;
+        if (IsHovered(vm, HitTestResult::StatusBarLayout, i)) {
+            MakeBrush(dc, theme.fill_hover, brFillHover_);
+            FillRoundedRect(dc, brFillHover_.get(), rc.left, rc.top, rc.right - rc.left,
+                            rc.bottom - rc.top, theme.radius_control * scale_);
+        }
+        DrawPaneHeaderIcon(rc, kLayoutIcons[i],
+                           i == preset ? theme.accent : theme.text_secondary);
+    }
 }
 
 namespace {

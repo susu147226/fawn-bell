@@ -1727,6 +1727,8 @@ struct StatusBarMetrics {
     D2D1_RECT_F cancel_search{};
     D2D1_RECT_F hint_action{};   // empty unless the hint carries a clickable action
     D2D1_RECT_F ai_chip{};       // the AI chip at the far left; empty when hidden
+    D2D1_RECT_F layout[5]{};     // layout buttons at the far right
+    float layout_bar_width = 0.0f;
     bool ai_chip_text = false;   // the chip has room for its words (else "✦ AI" only)
     float pad = 0.0f;
     float content_left = 0.0f;   // where the status text starts (right of the chip)
@@ -1744,6 +1746,21 @@ StatusBarMetrics MakeStatusBarMetrics(const WindowViewModel& vm, const D2D1_RECT
     m.content_left = rect.left + m.pad;
     m.content_right = rect.right;
     m.right_reserved = m.pad;
+    // Layout buttons at the far right: single / side by side / stacked /
+    // three / four. Everything else in the bar ends left of them.
+    {
+        const float height = 24.0f * scale;
+        const float width = 26.0f * scale;
+        const float gap = 2.0f * scale;
+        const float top = std::round(m.bar.top + (status_height - height) * 0.5f);
+        float right = rect.right - m.pad;
+        for (int i = 4; i >= 0; --i) {
+            m.layout[i] = D2D1::RectF(right - width, top, right, top + height);
+            right -= width + gap;
+        }
+        m.layout_bar_width = (rect.right - m.pad) - right - gap;
+        m.right_reserved += m.layout_bar_width + 4.0f * scale;
+    }
     // 鹿铃助手's chip takes the far left; the status text starts right of it.
     if (vm.status.ai_state != StatusAiState::Hidden) {
         // Widths measured in the small face, scaled to the chip's 12.5 DIP.
@@ -1783,7 +1800,7 @@ StatusBarMetrics MakeStatusBarMetrics(const WindowViewModel& vm, const D2D1_RECT
     if (trailing && factory && small_format) {
         const float perfWidth = std::min(rect.right * 0.50f,
             MeasureTextWidth(factory, small_format, *trailing) + 16.0f * scale);
-        m.right_reserved = perfWidth + m.pad;
+        m.right_reserved += perfWidth + m.pad;
     }
     if (trailing == &vm.status.hint_text && !vm.status.hint_action_text.empty() &&
         !vm.status.query_cancellable && factory && small_format) {
@@ -3032,12 +3049,17 @@ bool ContainsPt(const D2D1_RECT_F& rc, float x, float y) {
 
 HitTestResult::Region StatusBarHitRegion(const WindowViewModel& vm, const D2D1_RECT_F& rect,
                                          float x, float y, float scale, float status_height,
-                                         Compositor* compositor) {
+                                         Compositor* compositor, int* out_index = nullptr) {
     IDWriteFactory2* factory = compositor ? compositor->DwriteFactory() : nullptr;
     IDWriteTextFormat* fmt = compositor ? compositor->SmallFormat() : nullptr;
     const StatusBarMetrics sb = MakeStatusBarMetrics(
         vm, rect, scale, status_height, factory, fmt);
     if (sb.ai_chip.right > sb.ai_chip.left && ContainsPt(sb.ai_chip, x, y)) return HitTestResult::StatusBarAi;
+    for (int i = 0; i < 5; ++i) {
+        if (sb.layout[i].right <= sb.layout[i].left || !ContainsPt(sb.layout[i], x, y)) continue;
+        if (out_index) *out_index = i;
+        return HitTestResult::StatusBarLayout;
+    }
     if (vm.status.query_cancellable && ContainsPt(sb.cancel_search, x, y)) return HitTestResult::StatusBarCancelSearch;
     if (sb.hint_action.right > sb.hint_action.left && ContainsPt(sb.hint_action, x, y))
         return HitTestResult::StatusHintAction;
