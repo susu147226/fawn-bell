@@ -1714,6 +1714,12 @@ void FillPaneViewModel(ui::PaneViewModel& out, const Pane& pane, const PlacesCat
     }
     out.selected_index = tab->selected_index;
     out.selected_count = tab->SelectedCount();
+    // The checkbox gutter is always shown; hovering a row brightens its box and
+    // a single selection ticks only that row. The preference is kept for
+    // sessions that still carry it, but the gutter no longer depends on it.
+    (void)list_checkboxes;
+    out.always_checkboxes = true;
+    out.list_checkboxes = true;
     out.all_selected = tab->all_selected;
     out.selected_indices = tab->all_selected ? nullptr : &tab->selected;
     out.focus_first_hint = tab->HasFocusHint();

@@ -294,6 +294,7 @@ struct PaneViewModel {
     int rename_index = -1;        // name column is in edit mode; do not draw the label
     bool focus_first_hint = false; // first view row has keyboard focus but no selection
     bool list_checkboxes = false;  // a selection checkbox leads each row (gutter reserved)
+    bool always_checkboxes = false; // the preference: show every box, not just while selecting
     bool cloud_status = true;      // OneDrive placeholder state after the name
     // A pinned parent row (the folder above) at the top of a scrolled list.
     bool sticky_parent = true;
