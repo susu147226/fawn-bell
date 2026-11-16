@@ -14,18 +14,24 @@ inline constexpr uint32_t kDetailsColumnType = 1u << 3;
 inline constexpr uint32_t kDetailsColumnSize = 1u << 4;
 inline constexpr uint32_t kDetailsColumnCreated = 1u << 5;
 inline constexpr uint32_t kDetailsColumnAccessed = 1u << 6;
+// Two optional columns contributed by installed plugins (ui.column). They stay
+// off until the user enables them from the column header menu.
+inline constexpr uint32_t kDetailsColumnPlugin1 = 1u << 10;
+inline constexpr uint32_t kDetailsColumnPlugin2 = 1u << 11;
 
 inline constexpr uint32_t kDetailsColumnsDefault =
     kDetailsColumnModified | kDetailsColumnType | kDetailsColumnSize;
 inline constexpr uint32_t kDetailsColumnsAll = kDetailsColumnsDefault |
-    kDetailsColumnCreated | kDetailsColumnAccessed;
+    kDetailsColumnCreated | kDetailsColumnAccessed |
+    kDetailsColumnPlugin1 | kDetailsColumnPlugin2;
 
 constexpr uint32_t NormalizeDetailsColumns(uint32_t mask) noexcept {
     return mask & kDetailsColumnsAll;
 }
 
 // Manual widths (DIP) of the folder-view metadata columns, by slot:
-// 0 modified, 1 type, 2 size, 3 created, 4 accessed. 0 = automatic.
-using DetailsColumnWidths = std::array<float, 5>;
+// 0 modified, 1 type, 2 size, 3 created, 4 accessed, 5-6 plugin columns.
+// 0 = automatic.
+using DetailsColumnWidths = std::array<float, 7>;
 
 } // namespace luling::ui

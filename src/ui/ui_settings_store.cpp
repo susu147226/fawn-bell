@@ -263,14 +263,20 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
                 const D2D1_RECT_F row = D2D1::RectF(left, y, right, y + 64 * s);
                 card(row);
                 painter_.DrawText(ext.name + (ext.version.empty() ? L"" : L"  v" + ext.version),
-                    D2D1::RectF(row.left + 16 * s, row.top + 10 * s, row.right - 120 * s,
+                    D2D1::RectF(row.left + 16 * s, row.top + 10 * s, row.right - 220 * s,
                                 row.top + 32 * s),
                     compositor_->TextFormat(), theme.text);
                 if (!ext.permissions.empty())
                     DrawTextEndEllipsis(dc, compositor_->DwriteFactory(),
                                         compositor_->SmallFormat(), brTextSecondary_.get(),
                                         ext.permissions, row.left + 16 * s, row.top + 34 * s,
-                                        (std::max)(1.0f, row.right - 140 * s - row.left), 20 * s);
+                                        (std::max)(1.0f, row.right - 240 * s - row.left), 20 * s);
+                if (ext.legacy) {
+                    painter_.DrawBadge({D2D1::RectF(row.right - 208 * s, row.top + 16 * s,
+                                                    row.right - 120 * s, row.top + 40 * s),
+                                        l10n::Pick(L"旧版扩展", L"Legacy extension"),
+                                        fluent::BadgeKind::Neutral});
+                }
                 painter_.DrawBadge({D2D1::RectF(row.right - 112 * s, row.top + 16 * s,
                                                 row.right - 16 * s, row.top + 40 * s),
                                     l10n::Pick(ext.enabled ? L"已启用" : L"已停用",

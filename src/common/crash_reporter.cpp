@@ -127,6 +127,7 @@ const wchar_t* RoleToken(ProcessRole role) noexcept {
     case ProcessRole::Preview: return L"preview";
     case ProcessRole::Shell: return L"shell";
     case ProcessRole::Test: return L"test";
+    case ProcessRole::Plugin: return L"plugin";
     }
     return L"unknown";
 }

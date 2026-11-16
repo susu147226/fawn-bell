@@ -4,6 +4,7 @@
 #include "../fs/fs_recycle.h"
 #include "../fs/fs_snapshot.h"
 #include "../ui/ui_renderer.h"
+#include "../ui/plugin_panels.h"
 #include "places.h"
 #include "tag_ads_sync.h"
 #include "column_view_model.h"
@@ -580,6 +581,9 @@ enum class SidebarSectionId : int {
     Networks,
     Cloud,   // OneDrive accounts; leads the pane, the way Explorer shows them.
     Starred, // Starred items: a section of their own, next to quick access.
+    // Sections contributed by installed plugins (ui.panel), at most two.
+    PluginPanel1,
+    PluginPanel2,
     Count,
 };
 

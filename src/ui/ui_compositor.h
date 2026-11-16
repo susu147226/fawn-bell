@@ -74,6 +74,8 @@ public:
     IDWriteTextFormat* BoldFileNameFormat() const { return boldFileNameFormat_.get(); }
     IDWriteTextFormat* SmallFormat() const { return smallFormat_.get(); }
     IDWriteTextFormat* HeaderFormat() const { return headerFormat_.get(); }
+    // File-list column headers: same face as HeaderFormat, regular weight.
+    IDWriteTextFormat* ColumnHeaderFormat() const { return columnHeaderFormat_.get(); }
     IDWriteTextFormat* TabFormat() const { return tabFormat_.get(); }
     IDWriteTextFormat* AddressFormat() const { return addressFormat_.get(); }
     IDWriteTextFormat* IconFormat() const { return iconFormat_.get(); }
@@ -137,6 +139,7 @@ private:
     ComPtr<IDWriteTextFormat> boldFileNameFormat_;
     ComPtr<IDWriteTextFormat> smallFormat_;
     ComPtr<IDWriteTextFormat> headerFormat_;
+    ComPtr<IDWriteTextFormat> columnHeaderFormat_;
     ComPtr<IDWriteTextFormat> tabFormat_;
     ComPtr<IDWriteTextFormat> addressFormat_;
     ComPtr<IDWriteTextFormat> iconFormat_;

@@ -116,6 +116,7 @@ void Compositor::Shutdown() {
     boldFileNameFormat_.reset();
     smallFormat_.reset();
     headerFormat_.reset();
+    columnHeaderFormat_.reset();
     tabFormat_.reset();
     addressFormat_.reset();
     iconFormat_.reset();
@@ -565,6 +566,7 @@ void Compositor::RecreateTextFormats(float scale) {
     boldFileNameFormat_.reset();
     smallFormat_.reset();
     headerFormat_.reset();
+    columnHeaderFormat_.reset();
     tabFormat_.reset();
     addressFormat_.reset();
     iconFormat_.reset();
@@ -583,6 +585,8 @@ void Compositor::RecreateTextFormats(float scale) {
     if (smallFormat_.get()) smallFormat_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
     CreateFormat(dwriteFactory_.get(), 14.0f * scale, DWRITE_FONT_WEIGHT_SEMI_BOLD,
         typography::FontRole::Display, headerFormat_);
+    CreateFormat(dwriteFactory_.get(), 14.0f * scale, DWRITE_FONT_WEIGHT_NORMAL,
+        typography::FontRole::Display, columnHeaderFormat_);
     CreateFormat(dwriteFactory_.get(), 13.0f * scale, DWRITE_FONT_WEIGHT_NORMAL,
         typography::FontRole::Text, tabFormat_);
     if (tabFormat_.get()) {

@@ -4,6 +4,7 @@
 #include "command_icons.h"
 #include "toolbar_layout.h"
 #include "ui_renderer_internal.h"
+#include "plugin_preview.h"
 #include "../common/localization.h"
 #include "../common/display_path.h"
 #include "../fs/shell_namespace.h"
@@ -63,6 +64,7 @@ void MainRenderer::SetCompositor(Compositor* comp) {
         thumbnail_cache_.SetDeviceContext(comp->Dc());
         folder_thumbnail_cache_.SetDeviceContext(comp->Dc());
         details_cache_.SetDeviceContext(comp->Dc());
+        PluginPreview::Instance().SetDeviceContext(comp->Dc());
         hover_cache_.SetDeviceContext(comp->Dc());
     }
 }

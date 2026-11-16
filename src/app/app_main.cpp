@@ -128,6 +128,14 @@
 #include "ai_settings_edits.h"
 #include "ai_broker.h"
 #include "app_messages.h"
+#include "app_commands.h"
+#include "extension_manager.h"
+#include "extension_menu.h"
+#include "../ui/plugin_columns.h"
+#include "../ui/plugin_panels.h"
+#include "../ui/plugin_preview.h"
+#include "../plugin/plugin_client.h"
+#include "../plugin/plugin_protocol.h"
 #include "host_routing.h"
 #include "host_window.h"
 #include "window_factory.h"
@@ -615,6 +623,7 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         s->core.windows.Add(hwnd, s);
         if (!s->core.service_window) s->core.service_window = hwnd;
         AiBrokerStart(*s);
+        app::PluginClient::Instance().Start(hwnd);
         // Later windows skip the process-level setup below: services, saved
         // state and the tray already belong to the first window.
         const bool init_core = !s->core.started;
@@ -2484,6 +2493,91 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         // snapshot again on the next frame.
         if (s) InvalidateRect(s->hwnd, nullptr, FALSE);
         return 0;
+    case WM_PLUGIN_PANEL_DONE: {
+        std::unique_ptr<app::PluginPanelResult> result(
+            reinterpret_cast<app::PluginPanelResult*>(lParam));
+        if (s && result) {
+            std::vector<ui::PluginPanelRow> rows;
+            rows.reserve(result->items.size());
+            for (const app::PluginPanelItem& item : result->items) {
+                ui::PluginPanelRow row;
+                row.glyph = item.glyph;
+                row.title = item.title;
+                row.subtitle = item.subtitle;
+                row.action = item.action;
+                rows.push_back(std::move(row));
+            }
+            ui::PluginPanels::Instance().Store(result->panel_id, std::move(rows));
+            InvalidateRect(s->hwnd, nullptr, FALSE);
+        }
+        return 0;
+    }
+    case WM_PLUGIN_PANEL_ACTION_DONE: {
+        std::unique_ptr<app::PluginPanelActionResult> result(
+            reinterpret_cast<app::PluginPanelActionResult*>(lParam));
+        if (s && result && result->status != plugin::PREVIEW_OK) {
+            s->notification_toast.Show(
+                s->hwnd, l10n::Pick(L"插件面板", L"Plugin panel"),
+                result->message.empty() ? l10n::Pick(L"动作执行失败", L"The action failed")
+                                        : result->message);
+        }
+        return 0;
+    }
+    case WM_PLUGIN_COLUMNS_DONE: {
+        std::unique_ptr<app::PluginColumnsResult> result(
+            reinterpret_cast<app::PluginColumnsResult*>(lParam));
+        if (s && result) {
+            ui::PluginColumns::Instance().Store(result->index, result->paths, result->values,
+                                                result->status == plugin::PREVIEW_OK);
+            InvalidateRect(s->hwnd, nullptr, FALSE);
+        }
+        return 0;
+    }
+    case WM_PLUGIN_PREVIEW_DONE: {
+        std::unique_ptr<app::PluginPreviewResult> result(
+            reinterpret_cast<app::PluginPreviewResult*>(lParam));
+        if (s && result) {
+            ui::PluginPreview::Instance().Store(result->path, result->status, result->width,
+                                                result->height, std::move(result->bgra));
+            InvalidateRect(s->hwnd, nullptr, FALSE);
+        }
+        return 0;
+    }
+    case WM_PLUGIN_COMMAND_DONE: {
+        std::unique_ptr<app::PluginCommandResult> result(
+            reinterpret_cast<app::PluginCommandResult*>(lParam));
+        if (s && result) {
+            const bool ok = result->status == plugin::INVOKE_OK;
+            if (!ok || !result->message.empty()) {
+                std::wstring text = result->message;
+                if (!ok && text.empty()) {
+                    switch (result->status) {
+                    case plugin::INVOKE_UNKNOWN_PLUGIN:
+                        text = l10n::Pick(L"插件没有加载", L"The plugin is not loaded");
+                        break;
+                    case plugin::INVOKE_UNKNOWN_COMMAND:
+                        text = l10n::Pick(L"插件不认识这条命令",
+                                          L"The plugin does not know this command");
+                        break;
+                    case plugin::INVOKE_NOT_LOADED:
+                        text = l10n::Pick(L"插件加载失败", L"The plugin failed to load");
+                        break;
+                    case plugin::INVOKE_TIMEOUT:
+                        text = l10n::Pick(L"插件没有在限定时间内返回",
+                                          L"The plugin did not answer in time");
+                        break;
+                    default:
+                        text = l10n::Pick(L"插件命令执行失败", L"The plugin command failed");
+                        break;
+                    }
+                }
+                const std::wstring title = result->plugin_name.empty()
+                    ? l10n::Pick(L"插件", L"Plugin") : result->plugin_name;
+                s->notification_toast.Show(s->hwnd, title, text);
+            }
+        }
+        return 0;
+    }
     case WM_UPDATE_INSTALL:
         if (s) InstallUpdate(*s);
         return 0;
@@ -2709,6 +2803,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_NCDESTROY: {
         AppState* state = GetAppState(hwnd);
+        if (state && state->core.service_window == hwnd)
+            app::PluginClient::Instance().Stop();
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
         if (state) RetireWindowState(*state);
         break;
@@ -3214,6 +3310,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             state.menushot_out = __wargv[++i];
         } else if (wcscmp(__wargv[i], L"--menushot-search") == 0) {
             state.menushot_search = true;
+        } else if (wcscmp(__wargv[i], L"--plugin-run") == 0 && i + 2 < __argc) {
+            state.plugin_run_id = __wargv[++i];
+            state.plugin_run_command = __wargv[++i];
+        } else if (wcscmp(__wargv[i], L"--plugin-ask") == 0) {
+            state.plugin_ask = true;
+        } else if (wcscmp(__wargv[i], L"--plugin-columns") == 0 && i + 3 < __argc) {
+            state.plugin_column_plugin = __wargv[++i];
+            state.plugin_column_id = __wargv[++i];
+            state.plugin_column_path = __wargv[++i];
+        } else if (wcscmp(__wargv[i], L"--plugin-columns-ui") == 0 && i + 1 < __argc) {
+            state.plugin_column_ui_path = __wargv[++i];
+        } else if (wcscmp(__wargv[i], L"--plugin-panels-probe") == 0) {
+            state.plugin_panels_probe = true;
+        } else if (wcscmp(__wargv[i], L"--ext-toggle") == 0 && i + 2 < __argc) {
+            state.ext_toggle_id = __wargv[++i];
+            state.ext_toggle_value = _wtoi(__wargv[++i]);
         } else if (wcscmp(__wargv[i], L"--colorpickshot") == 0 && i + 1 < __argc) {
             state.colorpickshot = true;
             state.colorpickshot_out = __wargv[++i];
@@ -3484,7 +3596,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
 
     if (session.maximized) nCmdShow = SW_SHOWMAXIMIZED;
     wchar_t hidden_shot[4]{};
-    const bool test_hidden = (state.shot.active || state.menushot || state.colorpickshot) &&
+    const bool test_hidden = (state.shot.active || state.menushot || state.colorpickshot ||
+                              (!state.plugin_run_id.empty() && !state.plugin_ask)) &&
         GetEnvironmentVariableW(L"LULING_TEST_HIDDEN_SHOT", hidden_shot, ARRAYSIZE(hidden_shot)) == 1 &&
         hidden_shot[0] == L'1';
     // Started by the Explorer tag verb while Luling was closed: stay hidden,
@@ -3523,6 +3636,41 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
             m.SetTheme(state.darkMode, state.accentColor);
             auto debug_items = BuildFinderItemMenu(state, true, L"撤销移动 a.txt");
             wchar_t quick_menu[4]{};
+            // Verification hooks for the extension contributions: render the
+            // 扩展 submenu (LULING_TEST_EXTENSION_MENU=1) or the command palette
+            // with its plugin rows (LULING_TEST_PALETTE=1).
+            if (GetEnvironmentVariableW(L"LULING_TEST_PALETTE", quick_menu,
+                                        ARRAYSIZE(quick_menu)) == 1 &&
+                quick_menu[0] == L'1') {
+                std::vector<std::pair<int, std::wstring>> plugin_commands;
+                const auto installed = app::LoadInstalledExtensions();
+                for (size_t e = 0; e < installed.size(); ++e) {
+                    const auto& ext = installed[e];
+                    if (!ext.enabled) continue;
+                    for (size_t c = 0;
+                         c < ext.commands.size() &&
+                         c < static_cast<size_t>(plugin::kPluginCommandsPerPlugin);
+                         ++c)
+                        plugin_commands.emplace_back(
+                            plugin::PluginCommandId(static_cast<int>(e), static_cast<int>(c)),
+                            ext.name + L" · " + ext.commands[c].name);
+                }
+                debug_items = app::BuildCommandPalette(L">", {}, {}, false, 0, {},
+                                                       plugin_commands);
+            } else if (GetEnvironmentVariableW(L"LULING_TEST_EXTENSION_MENU", quick_menu,
+                                               ARRAYSIZE(quick_menu)) == 1 &&
+                       quick_menu[0] != L'0') {
+                auto rows = app::BuildExtensionMenuItems(app::LoadInstalledExtensions());
+                // 1 renders the submenu itself; 2 flattens its children so the
+                // snapshot shows the command rows.
+                if (quick_menu[0] == L'2') {
+                    for (auto& row : rows)
+                        for (auto& child : row.children)
+                            debug_items.push_back(std::move(child));
+                } else {
+                    for (auto& row : rows) debug_items.push_back(std::move(row));
+                }
+            }
             if (GetEnvironmentVariableW(L"LULING_TEST_QUICK_MENU", quick_menu, ARRAYSIZE(quick_menu)) == 1 &&
                 quick_menu[0] == L'1') {
                 debug_items = app::BuildBackgroundMenu(false, true, L"撤销移动 a.txt");
@@ -3566,6 +3714,214 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
         DestroyWindow(hwnd);
         OleUninitialize();
         return ok ? 0 : 1;
+    }
+
+    if (!state.plugin_run_id.empty() && state.plugin_ask) {
+        // The real user flow: the permission dialog appears, then the command
+        // runs and its result arrives as a toast through the message loop.
+        luling::RunExtensionCommandById(state, state.plugin_run_id, state.plugin_run_command);
+    }
+
+    if (!state.plugin_run_id.empty() && !state.plugin_ask) {
+        // Developer self-check: drive one plugin command through the real
+        // client and host, skipping the approval dialog a person would see.
+        auto& client = app::PluginClient::Instance();
+        client.Start(hwnd);
+        std::vector<plugin::PluginEntry> plugins;
+        for (const auto& ext : app::LoadInstalledExtensions())
+            if (ext.is_plugin() && ext.enabled) plugins.push_back({ext.id, ext.dir});
+        client.Invoke(state.plugin_run_id, state.plugin_run_command, L"plugin-run",
+                      L"plugin-run", {}, std::move(plugins));
+        int status = -1;
+        std::wstring message;
+        const ULONGLONG deadline = GetTickCount64() + 30000;
+        while (GetTickCount64() < deadline) {
+            MSG msg{};
+            while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_PLUGIN_COMMAND_DONE) {
+                    std::unique_ptr<app::PluginCommandResult> result(
+                        reinterpret_cast<app::PluginCommandResult*>(msg.lParam));
+                    if (result) {
+                        status = static_cast<int>(result->status);
+                        message = result->message;
+                    }
+                    continue;
+                }
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            if (status >= 0) break;
+            Sleep(10);
+        }
+        client.Stop();
+        std::wstring line = L"[plugin-run] status=" + std::to_wstring(status) +
+                            L" message=" + message + L"\n";
+        if (HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+            out && out != INVALID_HANDLE_VALUE) {
+            const int bytes = WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                                  static_cast<int>(line.size()), nullptr, 0,
+                                                  nullptr, nullptr);
+            if (bytes > 0) {
+                std::string utf8(static_cast<size_t>(bytes), '\0');
+                WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                    static_cast<int>(line.size()), utf8.data(), bytes, nullptr,
+                                    nullptr);
+                DWORD written = 0;
+                WriteFile(out, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+            }
+        }
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return status;
+    }
+
+    if (!state.plugin_column_id.empty()) {
+        // Self-check: one plugin column for one path, printed to stdout.
+        auto& client = app::PluginClient::Instance();
+        client.Start(hwnd);
+        std::vector<plugin::PluginEntry> plugins;
+        for (const auto& ext : app::LoadInstalledExtensions())
+            if (ext.is_plugin() && ext.enabled) plugins.push_back({ext.id, ext.dir});
+        client.Columns(0, state.plugin_column_plugin, state.plugin_column_id,
+                       {state.plugin_column_path}, std::move(plugins));
+        uint32_t status = 0xFFFFFFFFu;
+        std::wstring values;
+        const ULONGLONG deadline = GetTickCount64() + 15000;
+        while (GetTickCount64() < deadline) {
+            MSG msg{};
+            while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_PLUGIN_COLUMNS_DONE) {
+                    std::unique_ptr<app::PluginColumnsResult> result(
+                        reinterpret_cast<app::PluginColumnsResult*>(msg.lParam));
+                    if (result) {
+                        status = result->status;
+                        values = result->values.empty() ? std::wstring()
+                                                        : result->values.front();
+                    }
+                    continue;
+                }
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            if (status != 0xFFFFFFFFu) break;
+            Sleep(10);
+        }
+        client.Stop();
+        std::wstring line = L"[plugin-columns] status=" + std::to_wstring(status) +
+                            L" value=" + values + L"\n";
+        if (HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+            out && out != INVALID_HANDLE_VALUE) {
+            const int bytes = WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                                  static_cast<int>(line.size()), nullptr, 0,
+                                                  nullptr, nullptr);
+            if (bytes > 0) {
+                std::string utf8(static_cast<size_t>(bytes), '\0');
+                WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                    static_cast<int>(line.size()), utf8.data(), bytes, nullptr,
+                                    nullptr);
+                DWORD written = 0;
+                WriteFile(out, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+            }
+        }
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return status == 0 ? 0 : 1;
+    }
+
+    if (!state.plugin_column_ui_path.empty()) {
+        // Same path the list uses: provider cache -> client -> host.
+        ui::PluginColumns::Instance().Invalidate();
+        ui::PluginColumns::Instance().RequestMissing({state.plugin_column_ui_path});
+        std::wstring value;
+        const ULONGLONG deadline = GetTickCount64() + 15000;
+        while (GetTickCount64() < deadline) {
+            MSG msg{};
+            while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            value = ui::PluginColumns::Instance().Value(state.plugin_column_ui_path, 0);
+            if (!value.empty()) break;
+            Sleep(20);
+        }
+        std::wstring line = L"[plugin-columns-ui] available=" +
+                            std::to_wstring(ui::PluginColumns::Instance().Available(0) ? 1 : 0) +
+                            L" value=" + value + L"\n";
+        if (HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+            out && out != INVALID_HANDLE_VALUE) {
+            const int bytes = WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                                  static_cast<int>(line.size()), nullptr, 0,
+                                                  nullptr, nullptr);
+            if (bytes > 0) {
+                std::string utf8(static_cast<size_t>(bytes), '\0');
+                WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                    static_cast<int>(line.size()), utf8.data(), bytes, nullptr,
+                                    nullptr);
+                DWORD written = 0;
+                WriteFile(out, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+            }
+        }
+        app::PluginClient::Instance().Stop();
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return value.empty() ? 1 : 0;
+    }
+
+    if (!state.ext_toggle_id.empty() && state.ext_toggle_value >= 0) {
+        bool before = true;
+        for (const auto& ext : app::LoadInstalledExtensions())
+            if (ext.id == state.ext_toggle_id) before = ext.enabled;
+        app::SetExtensionEnabled(state.ext_toggle_id, state.ext_toggle_value != 0);
+        bool after = false;
+        for (const auto& ext : app::LoadInstalledExtensions())
+            if (ext.id == state.ext_toggle_id) after = ext.enabled;
+        std::wstring line = L"[ext-toggle] id=" + state.ext_toggle_id +
+                            L" before=" + std::to_wstring(before ? 1 : 0) +
+                            L" after=" + std::to_wstring(after ? 1 : 0) + L"\n";
+        if (HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+            out && out != INVALID_HANDLE_VALUE) {
+            const int bytes = WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                                  static_cast<int>(line.size()), nullptr, 0,
+                                                  nullptr, nullptr);
+            if (bytes > 0) {
+                std::string utf8(static_cast<size_t>(bytes), '\0');
+                WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                    static_cast<int>(line.size()), utf8.data(), bytes, nullptr,
+                                    nullptr);
+                DWORD written = 0;
+                WriteFile(out, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+            }
+        }
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return 0;
+    }
+
+    if (state.plugin_panels_probe) {
+        const auto panels = ui::PluginPanels::Instance().Panels();
+        std::wstring line = L"[plugin-panels] count=" + std::to_wstring(panels.size());
+        for (const auto& panel : panels) {
+            line += L" [" + panel.plugin_id + L"/" + panel.panel_id + L"/" + panel.title +
+                    L" rows=" + std::to_wstring(panel.rows.size()) + L"]";
+        }
+        line += L"\n";
+        if (HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+            out && out != INVALID_HANDLE_VALUE) {
+            const int bytes = WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                                  static_cast<int>(line.size()), nullptr, 0,
+                                                  nullptr, nullptr);
+            if (bytes > 0) {
+                std::string utf8(static_cast<size_t>(bytes), '\0');
+                WideCharToMultiByte(CP_UTF8, 0, line.c_str(),
+                                    static_cast<int>(line.size()), utf8.data(), bytes, nullptr,
+                                    nullptr);
+                DWORD written = 0;
+                WriteFile(out, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+            }
+        }
+        DestroyWindow(hwnd);
+        OleUninitialize();
+        return 0;
     }
 
     if (state.colorpickshot) {

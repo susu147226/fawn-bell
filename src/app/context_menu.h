@@ -298,7 +298,9 @@ std::vector<ui::FluentMenuItem> BuildCommandPalette(const std::wstring& query,
                                                     const std::vector<index::Hit>& hits,
                                                     bool project_only,
                                                     size_t total = 0,
-                                                    const std::wstring& current_path = {});
+                                                    const std::wstring& current_path = {},
+                                                    const std::vector<std::pair<int, std::wstring>>&
+                                                        plugin_commands = {});
 
 // "base.ext", "base (2).ext", ... — first name not colliding under dir.
 std::wstring UniqueChildName(const std::wstring& dir, const std::wstring& base,

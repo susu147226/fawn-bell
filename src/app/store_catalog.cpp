@@ -5,11 +5,15 @@
 #include "update_transport.h"
 #include "../common/json_value.h"
 
+#include <bcrypt.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cwctype>
+#include <filesystem>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 namespace luling::app {
 namespace {
@@ -51,6 +55,19 @@ bool ParseCatalog(const std::string& body, std::vector<StoreExtension>& out) {
         ext.sha256 = json::Wide(item.get_string("sha256"));
         const double size = item.find("size") ? item.find("size")->as_number(0.0) : 0.0;
         if (size > 0.0) ext.size = static_cast<uint64_t>(size);
+        int64_t schema = 0;
+        if (const json::Value* value = item.find("schema"); value && value->get_int(schema))
+            ext.schema = static_cast<int>(schema);
+        int64_t api_version = 0;
+        if (const json::Value* value = item.find("api_version");
+            value && value->get_int(api_version))
+            ext.api_version = static_cast<int>(api_version);
+        if (const json::Value* capabilities = item.find("capabilities");
+            capabilities && capabilities->is_array()) {
+            for (const auto& capability : capabilities->items())
+                if (capability.is_string())
+                    ext.capabilities.push_back(json::Wide(capability.as_string()));
+        }
         if (!ValidId(ext.id) || ext.name.empty() || ext.url.empty()) continue;
         out.push_back(std::move(ext));
     }
@@ -167,6 +184,12 @@ std::wstring StoreInstallError() {
     return g_install_error;
 }
 
+
+void UninstallExtension(const std::wstring& id) {
+    std::wstring error;
+    UninstallExtensionFrom(ExtensionsRoot(), id, error);
+}
+
 void StartStoreCatalogFetch(HWND notify) {
     {
         std::lock_guard<std::mutex> lock(g_mutex);
@@ -229,6 +252,23 @@ void StartStoreExtensionInstall(HWND notify, StoreExtension extension) {
                     return fwrite(data, 1, size, file) == size;
                 }, error, code);
             fclose(file);
+        }
+        if (ok) {
+            // A package is only installed when it matches the catalog checksum;
+            // an entry without one cannot be verified and is refused.
+            if (extension.sha256.empty()) {
+                ok = false;
+                std::lock_guard<std::mutex> lock(g_mutex);
+                g_install_error = L"catalog entry has no checksum";
+            } else {
+                std::wstring digest;
+                if (!Sha256FileHex(zip, digest) ||
+                    _wcsicmp(digest.c_str(), extension.sha256.c_str()) != 0) {
+                    ok = false;
+                    std::lock_guard<std::mutex> lock(g_mutex);
+                    g_install_error = L"checksum mismatch";
+                }
+            }
         }
         if (ok) ok = ExtractZip(zip, dir);
         DeleteFileW(zip.c_str());

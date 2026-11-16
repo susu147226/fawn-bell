@@ -3,6 +3,7 @@
 #include "preview_footer_layout.h"
 #include "preview_notice.h"
 #include "ui_renderer_internal.h"
+#include "plugin_preview.h"
 #include "../common/localization.h"
 #include "tab_shape.h"
 #include "bloom_accent_picker.h"
@@ -214,7 +215,15 @@ void MainRenderer::DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F
             std::vector<PreviewProperty> ignored;
             details_cache_.Properties(d.path, d.attrs, d.view_generation,
                                         d.modified_value, d.size_value, ignored);
-            if (!handlerPreview) {
+            bool plugin_pending = false;
+            std::wstring plugin_error;
+            const bool plugin_claimed = !handlerPreview &&
+                PluginPreview::Instance().Draw(dc, contentRc, d.path, &plugin_pending,
+                                               &plugin_error);
+            if (plugin_claimed) {
+                previewResult = plugin_pending ? PreviewDrawResult::Pending
+                                               : PreviewDrawResult::Bitmap;
+            } else if (!handlerPreview) {
                 previewResult = details_cache_.Draw(dc, contentRc, d.path, d.attrs, 2048u,
                     d.view_generation, d.modified_value, d.size_value, 1.0f,
                     &previewText, &truncated, &bytesRead, true, &previewError,

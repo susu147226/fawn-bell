@@ -15,6 +15,7 @@ enum class ProcessRole : uint8_t {
     Preview,
     Shell,
     Test,
+    Plugin,
 };
 
 struct Config {

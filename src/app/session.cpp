@@ -27,11 +27,13 @@ namespace {
 //           window from the single-window fields below.
 constexpr int kSessionVersion = 8;
 
-// Folder-view column widths: modified, type, size[, created, accessed].
-// The two date columns are only written when set, so the value stays the
-// three numbers older versions parse (they read the first three of five too).
+// Folder-view column widths: modified, type, size[, created, accessed[,
+// plugin1, plugin2]]. The trailing columns are only written when set, so the
+// value stays the three numbers older versions parse.
 std::wstring FormatDetailsWidths(const ui::DetailsColumnWidths& edges) {
-    const size_t count = edges[3] > 0.0f || edges[4] > 0.0f ? 5 : 3;
+    size_t count = 3;
+    if (edges[3] > 0.0f || edges[4] > 0.0f) count = 5;
+    if (edges[5] > 0.0f || edges[6] > 0.0f) count = 7;
     std::wstring out;
     for (size_t i = 0; i < count; ++i) {
         if (i) out += L",";
@@ -41,14 +43,14 @@ std::wstring FormatDetailsWidths(const ui::DetailsColumnWidths& edges) {
 }
 
 ui::DetailsColumnWidths ParseDetailsWidths(const std::wstring& value) {
-    std::array<int, 5> edges{};
+    std::array<int, 7> edges{};
     ui::DetailsColumnWidths ratios{};
     // Values <= 1 are pre-1.0.39 divider ratios (read back as "automatic");
     // larger values are manual column widths in DIP. 0 = automatic.
-    const int read = swscanf_s(value.c_str(), L"%d,%d,%d,%d,%d",
-                               &edges[0], &edges[1], &edges[2], &edges[3], &edges[4]);
-    if (read != 3 && read != 5) return ratios;
-    if (read == 3) edges[3] = edges[4] = 0;
+    const int read = swscanf_s(value.c_str(), L"%d,%d,%d,%d,%d,%d,%d",
+                               &edges[0], &edges[1], &edges[2], &edges[3], &edges[4],
+                               &edges[5], &edges[6]);
+    if (read != 3 && read != 5 && read != 7) return ratios;
     if (std::all_of(edges.begin(), edges.end(), [](int v) { return v >= 0 && v <= 40000000; })) {
         for (size_t i = 0; i < ratios.size(); ++i)
             ratios[i] = static_cast<float>(edges[i]) / 10000.0f;

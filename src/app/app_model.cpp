@@ -1246,7 +1246,9 @@ std::vector<int> DefaultSidebarOrder() {
              static_cast<int>(SidebarSectionId::SavedSearches),
              static_cast<int>(SidebarSectionId::Tags),
              static_cast<int>(SidebarSectionId::Drives),
-             static_cast<int>(SidebarSectionId::Networks) };
+             static_cast<int>(SidebarSectionId::Networks),
+             static_cast<int>(SidebarSectionId::PluginPanel1),
+             static_cast<int>(SidebarSectionId::PluginPanel2) };
 }
 
 int SidebarSectionIndex(const ui::WindowViewModel& vm, int section_id) {
@@ -2034,6 +2036,36 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
     auto& nets = sections[static_cast<size_t>(SidebarSectionId::Networks)];
     auto& starred_section = sections[static_cast<size_t>(SidebarSectionId::Starred)];
 
+    // Plugin panels: no header hiding, no add button; rows run plugin actions.
+    // The provider is read here rather than from SidebarModel so row updates
+    // do not wait for the next full sidebar rebuild.
+    {
+        const auto plugin_panels = ui::PluginPanels::Instance().Panels();
+        ui::PluginPanels::Instance().RequestAll();
+        for (int i = 0; i < 2; ++i) {
+            const SidebarSectionId id = i == 0 ? SidebarSectionId::PluginPanel1
+                                               : SidebarSectionId::PluginPanel2;
+            ui::SidebarGroup& group = sections[static_cast<size_t>(id)];
+            if (static_cast<size_t>(i) >= plugin_panels.size()) {
+                group.hidden = true;
+                continue;
+            }
+            const ui::PluginPanelView& panel = plugin_panels[static_cast<size_t>(i)];
+            group.header = panel.title;
+            group.icon_glyph = L"\xE7B8";
+            for (const ui::PluginPanelRow& row : panel.rows) {
+                ui::SidebarItem item;
+                item.label = row.title;
+                item.detail = row.subtitle;
+                item.icon_glyph = row.glyph;
+                // Click handling recognises this prefix and calls the plugin back.
+                item.path = std::wstring(L"luling:plugin\x1F") + panel.panel_id + L'\x1F' +
+                            row.action;
+                group.items.push_back(std::move(item));
+            }
+        }
+    }
+
     vm.focused = focused;
     vm.maximized = maximized;
     vm.dark = dark;
@@ -2305,6 +2337,9 @@ ui::WindowViewModel BuildWindowViewModel(const Pane& pane,
         if (IsHeaderlessSection(static_cast<SidebarSectionId>(id))) section.header.clear();
         section.collapsed = ((sidebar_collapsed_mask >> id) & 1u) != 0;
         section.hidden = ((sidebar_hidden_mask >> id) & 1u) != 0;
+        // A plugin section exists only while the plugin returns rows.
+        if (id >= static_cast<int>(SidebarSectionId::PluginPanel1) && section.items.empty())
+            section.hidden = true;
         vm.sidebar.push_back(std::move(section));
     }
 

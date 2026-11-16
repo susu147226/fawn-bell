@@ -8,6 +8,8 @@
 #include "bloom_accent_picker.h"
 #include "typography.h"
 #include "details_column_widths.h"
+#include "plugin_columns.h"
+#include "plugin_preview.h"
 #include "pane_header_icons.h"
 #include "toolbar_layout.h"
 #include "../app/resource.h"
@@ -394,7 +396,7 @@ MainRenderer::DetailsColumnLayout MainRenderer::DetailsColumns(
     for (size_t i = 0; i < measured.size(); ++i) {
         // Include both cell insets, ink overhang and a sort indicator. Reserving
         // the indicator for every header avoids widths jumping when sorting.
-        measured[i] = std::max(measured[i], measure(labels[i], compositor_->HeaderFormat()) + 35.0f * scale_);
+        measured[i] = std::max(measured[i], measure(labels[i], compositor_->ColumnHeaderFormat()) + 35.0f * scale_);
     }
     // Bound work for very large directories and paged searches. Only resident
     // rows near the viewport are inspected; sizing must never fetch disk data.
@@ -425,7 +427,7 @@ MainRenderer::ColumnAutoWidths MainRenderer::AutoColumnWidths() const {
     ColumnAutoWidths out;
     IDWriteFactory2* factory = compositor_ ? compositor_->DwriteFactory() : nullptr;
     IDWriteTextFormat* fmt = compositor_ ? compositor_->FileNameFormat() : nullptr;
-    IDWriteTextFormat* header = compositor_ ? compositor_->HeaderFormat() : nullptr;
+    IDWriteTextFormat* header = compositor_ ? compositor_->ColumnHeaderFormat() : nullptr;
     if (factory && fmt && header && scale_ > 0.0f) {
         // LumaText and DWrite advances differ slightly; fit the wider one.
         auto measure = [&](IDWriteTextFormat* format, const std::wstring& text) {
@@ -710,6 +712,18 @@ MainRenderer::DetailsColumnLayout MainRenderer::DetailsColumns(
                                                         : dividers[static_cast<size_t>(slot)]);
         meta.push_back({kind, (manual > 0.0f ? manual : automatic) * scale_, automatic * scale_});
     }
+    // Plugin columns sit after the built-in metadata and only exist in folder
+    // views. Their automatic width comes from the manifest.
+    for (int i = 0; i < 2; ++i) {
+        const ColumnKind kind = i == 0 ? ColumnKind::Plugin1 : ColumnKind::Plugin2;
+        if (!(details_columns_ & (1u << static_cast<uint32_t>(kind)))) continue;
+        if (!PluginColumns::Instance().Available(i)) continue;
+        const int slot = ManualColumnSlot(kind, search_view);
+        if (slot < 0) continue;
+        const float automatic = PluginColumns::Instance().Width(i);
+        const float manual = ManualWidthDip(dividers[static_cast<size_t>(slot)]);
+        meta.push_back({kind, (manual > 0.0f ? manual : automatic) * scale_, automatic * scale_});
+    }
     auto meta_sum = [&] { float sum = 0.0f; for (const auto& m : meta) sum += m.width; return sum; };
     auto automatic_sum = [&] { float sum = 0.0f; for (const auto& m : meta) sum += m.automatic; return sum; };
     auto drop = [&](ColumnKind kind) {
@@ -729,8 +743,9 @@ MainRenderer::DetailsColumnLayout MainRenderer::DetailsColumns(
     }
     // Low-value columns go first when the name would get too narrow.
     while (total - automatic_sum() < min_name + (path_column ? min_path : 0.0f) && meta.size() > 1) {
-        if (!drop(ColumnKind::Accessed) && !drop(ColumnKind::Created) && !drop(ColumnKind::Type) &&
-            !drop(ColumnKind::Date)) break;
+        if (!drop(ColumnKind::Plugin2) && !drop(ColumnKind::Plugin1) &&
+            !drop(ColumnKind::Accessed) && !drop(ColumnKind::Created) &&
+            !drop(ColumnKind::Type) && !drop(ColumnKind::Date)) break;
     }
     const float floor_flex = (kDetailsMinNameDip + (path_column ? kDetailsMinPathDip : 0.0f)) * scale_;
     const float available = std::max(0.0f, total - floor_flex);
@@ -781,6 +796,8 @@ int MainRenderer::ManualColumnSlot(ColumnKind kind, bool search_view) noexcept {
     case K::Size: return search_view ? 3 : 2;
     case K::Created: return search_view ? -1 : 3;
     case K::Accessed: return search_view ? -1 : 4;
+    case K::Plugin1: return search_view ? -1 : 5;
+    case K::Plugin2: return search_view ? -1 : 6;
     default: return -1;
     }
 }
@@ -974,6 +991,13 @@ PreviewDrawResult MainRenderer::DrawEntryThumbnail(ID2D1DeviceContext* dc,
         return folder_thumbnail_cache_.Draw(dc, dest, entry.path, entry.attrs, folder_pixels,
             generation, entry.modified_value, entry.size_value, opacity, align_bottom, artwork,
             mode == ViewMode::MediumIcons);
+    }
+    bool plugin_pending = false;
+    std::wstring plugin_error;
+    if (!entry.path.empty() &&
+        PluginPreview::Instance().Draw(dc, dest, entry.path, &plugin_pending, &plugin_error)) {
+        if (artwork) *artwork = dest;
+        return plugin_pending ? PreviewDrawResult::Pending : PreviewDrawResult::Bitmap;
     }
     return thumbnail_cache_.DrawGridThumbnail(dc, dest, entry.path, entry.attrs, pixels,
         generation, entry.modified_value, entry.size_value, opacity, align_bottom, artwork, duration);
@@ -1399,6 +1423,16 @@ void MainRenderer::DrawMorphFrom(const PaneViewModel& vm, const motion::ViewMorp
                 case ColumnKind::Accessed:
                     draw(list_smart_date_ && e.accessed_value && !e.accessed_text.empty()
                              ? SmartListDate(e.accessed_value) : e.accessed_text,
+                         left, avail, DWRITE_TEXT_ALIGNMENT_LEADING);
+                    break;
+                case ColumnKind::Plugin1:
+                    draw(e.path.empty() ? std::wstring()
+                                        : PluginColumns::Instance().Value(e.path, 0),
+                         left, avail, DWRITE_TEXT_ALIGNMENT_LEADING);
+                    break;
+                case ColumnKind::Plugin2:
+                    draw(e.path.empty() ? std::wstring()
+                                        : PluginColumns::Instance().Value(e.path, 1),
                          left, avail, DWRITE_TEXT_ALIGNMENT_LEADING);
                     break;
                 case ColumnKind::Type: {
@@ -1986,7 +2020,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
         auto drawCol = [&](const std::wstring& label, SortColumn col, float cw, bool right = false) {
             const bool active = !pane.curated_order && pane.sort_column == col;
             MakeBrush(dc, active ? theme.accent : theme.text, brText_);
-            IDWriteTextFormat* fmt = compositor_->HeaderFormat();
+            IDWriteTextFormat* fmt = compositor_->ColumnHeaderFormat();
             const float textInset = 8.0f * scale_;
             const float contentLeft = cx + textInset;
             const float availableW = std::max(0.0f, cw - textInset * 2.0f);
@@ -2072,6 +2106,12 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
                 break;
             case ColumnKind::Accessed:
                 drawCol(luling::l10n::Get(luling::l10n::StringId::ColumnAccessed), SortColumn::Accessed, cw, false);
+                break;
+            case ColumnKind::Plugin1:
+                drawCol(PluginColumns::Instance().Title(0), SortColumn::Plugin1, cw, false);
+                break;
+            case ColumnKind::Plugin2:
+                drawCol(PluginColumns::Instance().Title(1), SortColumn::Plugin2, cw, false);
                 break;
             }
         }
@@ -2416,6 +2456,33 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
         // slow folders get placeholder rows after 150 ms.
         DrawListSkeleton(D2D1::RectF(x, y, x + w, y + h), theme, pane_index);
         return;
+    }
+    {
+        // Queue plugin-column values for the rows currently on screen. Asking
+        // by scroll position keeps large folders cheap and fetches new rows as
+        // the user scrolls, instead of only the first page.
+        constexpr uint32_t kPluginBits =
+            (1u << static_cast<uint32_t>(ColumnKind::Plugin1)) |
+            (1u << static_cast<uint32_t>(ColumnKind::Plugin2));
+        if ((details_columns_ & kPluginBits) != 0 && !vm.is_search) {
+            const ULONGLONG now = GetTickCount64();
+            if (now - plugin_columns_request_at_ > 200) {
+                plugin_columns_request_at_ = now;
+                const float row_h = std::max(
+                    1.0f, ListRowHeightDip(vm, D2D1::RectF(x, y, x + w, y + h)) * scale_);
+                const int first = std::max(0, static_cast<int>(vm.scroll_y / row_h) - 1);
+                const int visible = static_cast<int>(std::ceil(h / row_h)) + 2;
+                const int last =
+                    std::min(static_cast<int>(vm.EntryCount()), first + visible);
+                std::vector<std::wstring> paths;
+                if (last > first) paths.reserve(static_cast<size_t>(last - first));
+                for (int i = first; i < last; ++i) {
+                    const ListEntryView& entry = MakeVisibleEntry(vm, static_cast<size_t>(i));
+                    if (!entry.path.empty()) paths.push_back(entry.path);
+                }
+                PluginColumns::Instance().RequestMissing(paths);
+            }
+        }
     }
     if (pane_index >= 0 && pane_index < static_cast<int>(list_loading_since_.size()))
         list_loading_since_[pane_index] = 0;
@@ -3214,6 +3281,22 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         draw_detail_text(fit(e.type_text, typeAvail), typeLeft, typeAvail,
                                          DWRITE_TEXT_ALIGNMENT_LEADING);
                         if (deleted_change) MakeBrush(dc, secondary, brTextSecondary_);
+                        break;
+                    }
+                    case ColumnKind::Plugin1:
+                    case ColumnKind::Plugin2: {
+                        if (e.path.empty()) break;
+                        const int plugin_index =
+                            detailsColumns.kinds[static_cast<size_t>(col)] == ColumnKind::Plugin1
+                                ? 0 : 1;
+                        const std::wstring plugin_text =
+                            PluginColumns::Instance().Value(e.path, plugin_index);
+                        if (plugin_text.empty()) break;
+                        MakeBrush(dc, cut ? WithAlpha(theme.text_secondary,
+                                                      theme.text_secondary.a * 0.55f)
+                                          : theme.text_secondary, brTextSecondary_);
+                        draw_detail_text(fit(plugin_text, avail), left, avail,
+                                         DWRITE_TEXT_ALIGNMENT_LEADING);
                         break;
                     }
                     case ColumnKind::Size: {

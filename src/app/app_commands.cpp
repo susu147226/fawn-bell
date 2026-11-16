@@ -12,6 +12,9 @@
 #include "../ui/toolbar_layout.h"
 #include "app_internal.h"
 #include "extension_manager.h"
+#include "extension_menu.h"
+#include "store_catalog.h"
+#include "../plugin/plugin_client.h"
 #include "../ui/confirm_dialog.h"
 #include "../ui/sort_dialog.h"
 #include "app_tree.h"
@@ -1837,6 +1840,8 @@ bool HandleShellMenuCommand(AppState& s, int cmd) {
 
 // Extension commands run only after the user approves the manifest's
 // permissions; "allow and remember" keeps the grant in extensions/state.json.
+// Schema-2 plugins run in Luling.Plugin.exe; a plugin whose version or
+// capability set changed no longer counts as granted and asks again.
 static void RunExtensionWithPermission(AppState& s, const app::InstalledExtension& ext,
                                        const app::ExtensionCommand& cmd,
                                        const std::vector<std::wstring>& paths) {
@@ -1851,15 +1856,116 @@ static void RunExtensionWithPermission(AppState& s, const app::InstalledExtensio
         spec.default_choice = ui::ConfirmChoice::Cancel;
         const ui::ConfirmChoice choice =
             ui::ShowConfirmDialogEx(s.hwnd, spec, s.darkMode, s.accentColor);
-        if (choice == ui::ConfirmChoice::Confirm)
-            app::GrantExtensionPermissions(ext.id);
-        else if (choice != ui::ConfirmChoice::Secondary)
+        if (choice == ui::ConfirmChoice::Confirm) {
+            if (ext.is_plugin())
+                app::GrantExtensionCapabilities(ext.id, ext.version, ext.capabilities);
+            else
+                app::GrantExtensionPermissions(ext.id);
+        } else if (choice != ui::ConfirmChoice::Secondary) {
             return;
+        }
+    }
+    if (ext.is_plugin()) {
+        // The host loads only approved plugins; a one-shot approval above sends
+        // this plugin alone even though it stays ungranted on disk.
+        std::vector<plugin::PluginEntry> plugins;
+        for (const app::InstalledExtension& candidate : app::LoadInstalledExtensions()) {
+            if (!candidate.is_plugin() || !candidate.enabled) continue;
+            const bool approved = candidate.granted ||
+                                  _wcsicmp(candidate.id.c_str(), ext.id.c_str()) == 0;
+            if (approved) plugins.push_back({candidate.id, candidate.dir});
+        }
+        app::PluginClient::Instance().Invoke(ext.id, cmd.id, ext.name, cmd.name, paths,
+                                             std::move(plugins));
+        return;
     }
     std::wstring error;
     if (!app::RunExtensionCommand(ext, cmd, paths, error))
         s.notification_toast.Show(s.hwnd, l10n::Pick(L"扩展无法运行", L"Extension failed to run"),
                                   error);
+}
+
+// Resolves a plugin command id from the command palette back to its installed
+// extension and runs it against the current selection.
+static void RunPluginCommandById(AppState& s, int command) {
+    int ext_index = -1;
+    int cmd_index = -1;
+    if (!plugin::ParsePluginCommandId(command, ext_index, cmd_index)) return;
+    const auto extensions = app::LoadInstalledExtensions();
+    if (ext_index < 0 || ext_index >= static_cast<int>(extensions.size())) return;
+    const app::InstalledExtension& ext = extensions[static_cast<size_t>(ext_index)];
+    if (!ext.enabled || cmd_index < 0 ||
+        cmd_index >= static_cast<int>(ext.commands.size()))
+        return;
+    app::Tab* tab = ActiveTab(s);
+    const std::vector<std::wstring> paths =
+        tab ? SelectedFullPaths(*tab) : std::vector<std::wstring>{};
+    RunExtensionWithPermission(s, ext, ext.commands[static_cast<size_t>(cmd_index)], paths);
+}
+
+void RunExtensionCommandById(AppState& s, const std::wstring& extension_id,
+                             const std::wstring& command_id) {
+    const auto extensions = app::LoadInstalledExtensions();
+    for (const app::InstalledExtension& ext : extensions) {
+        if (_wcsicmp(ext.id.c_str(), extension_id.c_str()) != 0) continue;
+        if (!ext.enabled) return;
+        for (const app::ExtensionCommand& cmd : ext.commands) {
+            if (cmd.id != command_id) continue;
+            app::Tab* tab = ActiveTab(s);
+            const std::vector<std::wstring> paths =
+                tab ? SelectedFullPaths(*tab) : std::vector<std::wstring>{};
+            RunExtensionWithPermission(s, ext, cmd, paths);
+            return;
+        }
+        return;
+    }
+}
+
+void ShowInstalledExtensionMenu(AppState& s, int index, POINT screen_pt) {
+    constexpr int kToggle = 1;
+    constexpr int kUninstall = 2;
+    if (!EnsureMenu(s)) return;
+    const auto extensions = app::LoadInstalledExtensions();
+    if (index < 0 || index >= static_cast<int>(extensions.size())) return;
+    const app::InstalledExtension& ext = extensions[static_cast<size_t>(index)];
+    std::vector<ui::FluentMenuItem> items;
+    ui::FluentMenuItem toggle;
+    toggle.command = kToggle;
+    toggle.text = ext.enabled ? l10n::Pick(L"停用", L"Disable")
+                              : l10n::Pick(L"启用", L"Enable");
+    items.push_back(std::move(toggle));
+    ui::FluentMenuItem uninstall;
+    uninstall.command = kUninstall;
+    uninstall.text = l10n::Pick(L"卸载", L"Uninstall");
+    uninstall.glyph = L"\xE74D";
+    items.push_back(std::move(uninstall));
+    const int command = s.menu->TrackPopup(screen_pt, std::move(items));
+    if (command == kToggle) {
+        app::SetExtensionEnabled(ext.id, !ext.enabled);
+    } else if (command == kUninstall) {
+        ui::ConfirmDialogSpec spec;
+        spec.title = l10n::Pick(L"卸载扩展？", L"Uninstall this extension?");
+        spec.message = ext.name +
+                       l10n::Pick(L" 将被删除，授权记录一并清除。",
+                                  L" will be removed, including its approval.");
+        spec.confirm_text = l10n::Pick(L"卸载", L"Uninstall");
+        spec.cancel_text = l10n::Pick(L"取消", L"Cancel");
+        spec.danger = true;
+        spec.default_choice = ui::ConfirmChoice::Cancel;
+        if (!ui::ShowConfirmDialog(s.hwnd, spec, s.darkMode, s.accentColor)) return;
+        std::wstring error;
+        const std::wstring root = app::GetLulingDataDir() + L"\\extensions";
+        if (!app::UninstallExtensionFrom(root, ext.id, error)) {
+            s.notification_toast.Show(s.hwnd,
+                                      l10n::Pick(L"无法卸载扩展", L"Could not uninstall"),
+                                      error);
+            return;
+        }
+    } else {
+        return;
+    }
+    RequestSidebarRefresh(s, true);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
 void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip) {
@@ -1887,29 +1993,8 @@ void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip) {
     std::vector<app::InstalledExtension> extensions;
     if (!IsRecycleTab(tab)) {
         extensions = app::LoadInstalledExtensions();
-        std::vector<ui::FluentMenuItem> ext_items;
-        for (size_t e = 0; e < extensions.size() && e < 8; ++e) {
-            const auto& ext = extensions[e];
-            if (!ext.enabled) continue;
-            for (size_t c = 0;
-                 c < ext.commands.size() && c < static_cast<size_t>(app::kExtensionCommandsPerExtension);
-                 ++c) {
-                ui::FluentMenuItem item;
-                item.command = app::ExtensionCommandId(static_cast<int>(e), static_cast<int>(c));
-                item.text = ext.name + L" · " + ext.commands[c].name;
-                item.glyph = L"\xE7B8";
-                ext_items.push_back(std::move(item));
-            }
-        }
-        if (!ext_items.empty()) {
-            ui::FluentMenuItem menu;
-            menu.command = app::CmdNone;
-            menu.text = l10n::Pick(L"扩展", L"Extensions");
-            menu.glyph = L"\xE7B8";
-            menu.children = std::move(ext_items);
-            menu.separator_after = true;
-            display.push_back(std::move(menu));
-        }
+        for (auto& row : app::BuildExtensionMenuItems(extensions))
+            display.push_back(std::move(row));
     }
     if (from_chip && !IsRecycleTab(tab)) {
         // Chip ⋯ : 用 <pinned app> 打开 and 固定到工具栏 ▸ lead the item menu.
@@ -1927,7 +2012,7 @@ void ShowItemContextMenu(AppState& s, POINT screen_pt, bool from_chip) {
     {
         int ext_index = -1;
         int cmd_index = -1;
-        if (app::ParseExtensionCommandId(cmd, ext_index, cmd_index)) {
+        if (plugin::ParsePluginCommandId(cmd, ext_index, cmd_index)) {
             if (ext_index >= 0 && ext_index < static_cast<int>(extensions.size()) &&
                 cmd_index >= 0 &&
                 cmd_index < static_cast<int>(
@@ -2617,6 +2702,23 @@ void ShowOmnibar(AppState& s, OmnibarMode mode) {
                                        l10n::StringId::OmnibarDefault));
 
     const bool project_only = mode == OmnibarMode::Project;
+    // One disk read per palette open; the filter runs on this snapshot.
+    s.palettePluginCommands.clear();
+    {
+        const auto installed = app::LoadInstalledExtensions();
+        for (size_t e = 0; e < installed.size(); ++e) {
+            const auto& ext = installed[e];
+            if (!ext.enabled) continue;
+            for (size_t c = 0;
+                 c < ext.commands.size() &&
+                 c < static_cast<size_t>(plugin::kPluginCommandsPerPlugin);
+                 ++c) {
+                s.palettePluginCommands.emplace_back(
+                    plugin::PluginCommandId(static_cast<int>(e), static_cast<int>(c)),
+                    ext.name + L" · " + ext.commands[c].name);
+            }
+        }
+    }
     auto rebuild = [&s, project_only](const std::wstring& query) {
         const auto parsed = app::ParseOmnibarQuery(query, project_only);
         s.paletteQuery = query;
@@ -2666,7 +2768,8 @@ void ShowOmnibar(AppState& s, OmnibarMode mode) {
         }
         const std::wstring current = ActiveTab(s) ? ActiveTab(s)->current_path : L"";
         auto items = app::BuildCommandPalette(query, s.places.RecentFolderPaths(), s.paletteHits,
-                                              project_only, s.paletteTotal, current);
+                                              project_only, s.paletteTotal, current,
+                                              s.palettePluginCommands);
         if (s.paletteSearching) {
             ui::FluentMenuItem wait;
             wait.text = l10n::Get(l10n::StringId::Searching);
@@ -2691,7 +2794,12 @@ void ShowOmnibar(AppState& s, OmnibarMode mode) {
     s.addressEditing = false;
     InvalidateRect(s.hwnd, nullptr, FALSE);
     if (cmd != app::CmdNone) {
-        DispatchMenuCommand(s, cmd);
+        int plugin_index = -1;
+        int plugin_command = -1;
+        if (plugin::ParsePluginCommandId(cmd, plugin_index, plugin_command))
+            RunPluginCommandById(s, cmd);
+        else
+            DispatchMenuCommand(s, cmd);
         return;
     }
     if (!s.menu->LastFilterCommitted()) return;

@@ -19,6 +19,12 @@ std::vector<app::TagAdsUpdate> BuildTagAdsUpdates(
 bool ToggleTagForSelection(AppState& s, const app::TagId& tag_id,
                                   const std::vector<std::wstring>& paths);
 std::vector<uint32_t>& TagColorPalette(AppState& s);
+// Runs one installed extension command by id, including the permission dialog
+// when the extension has not been approved yet.
+void RunExtensionCommandById(AppState& s, const std::wstring& extension_id,
+                             const std::wstring& command_id);
+// 扩展商店 › 已安装: enable/disable or uninstall one extension.
+void ShowInstalledExtensionMenu(AppState& s, int index, POINT screen_pt);
 void AppendCustomTagColor(AppState& s, uint32_t rgb);
 void ShowTagPicker(AppState& s, POINT screen_pt,
                    const std::vector<std::wstring>* paths_override = nullptr);

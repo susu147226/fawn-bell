@@ -15,6 +15,9 @@ namespace {
 struct ExtensionState {
     bool enabled = true;
     bool granted = false;
+    bool has_capabilities = false;
+    std::wstring plugin_version;
+    std::vector<std::wstring> capabilities;
 };
 
 std::wstring ExtensionsRoot() { return GetLulingDataDir() + L"\\extensions"; }
@@ -50,30 +53,42 @@ std::map<std::wstring, ExtensionState> LoadStates() {
         ExtensionState state;
         state.enabled = item.get_bool("enabled", true);
         state.granted = item.get_bool("granted", false);
+        state.plugin_version = json::Wide(item.get_string("plugin_version"));
+        if (const json::Value* capabilities = item.find("capabilities");
+            capabilities && capabilities->is_array()) {
+            state.has_capabilities = true;
+            for (const auto& capability : capabilities->items())
+                if (capability.is_string())
+                    state.capabilities.push_back(json::Wide(capability.as_string()));
+            std::sort(state.capabilities.begin(), state.capabilities.end());
+        }
         const std::wstring id = json::Wide(item.get_string("id"));
-        if (!id.empty()) states[id] = state;
+        if (!id.empty()) states[id] = std::move(state);
     }
     return states;
 }
 
 void SaveStates(const std::map<std::wstring, ExtensionState>& states) {
     json::Value root = json::Value::Object();
-    root.set("version", json::Value(1));
+    root.set("version", json::Value(2));
     json::Value list = json::Value::Array();
     for (const auto& [id, state] : states) {
         json::Value item = json::Value::Object();
         item.set("id", json::Value(json::Utf8(id)));
         item.set("enabled", json::Value(state.enabled));
         item.set("granted", json::Value(state.granted));
+        if (state.has_capabilities) {
+            item.set("plugin_version", json::Value(json::Utf8(state.plugin_version)));
+            json::Value capabilities = json::Value::Array();
+            for (const std::wstring& capability : state.capabilities)
+                capabilities.push(json::Value(json::Utf8(capability)));
+            item.set("capabilities", std::move(capabilities));
+        }
         list.push(std::move(item));
     }
     root.set("extensions", std::move(list));
     CreateDirectoryW(ExtensionsRoot().c_str(), nullptr);
     WriteUtf8(StatePath(), json::Serialize(root));
-}
-
-bool EqualsNoCase(const std::wstring& a, const std::wstring& b) {
-    return a.size() == b.size() && _wcsicmp(a.c_str(), b.c_str()) == 0;
 }
 
 std::wstring UnicodeToWide(const std::string& utf8) { return json::Wide(utf8); }
@@ -114,6 +129,58 @@ std::wstring ExpandToken(const std::wstring& arg, const std::vector<std::wstring
     return out;
 }
 
+void ReadLegacyManifest(const json::Value& manifest, const std::wstring& folder,
+                        InstalledExtension& ext) {
+    ext.id = UnicodeToWide(manifest.get_string("id"));
+    if (ext.id.empty()) ext.id = folder;
+    ext.name = UnicodeToWide(manifest.get_string("name"));
+    if (ext.name.empty()) ext.name = ext.id;
+    ext.version = UnicodeToWide(manifest.get_string("version"));
+    if (const json::Value* permissions = manifest.find("permissions");
+        permissions && permissions->is_array()) {
+        for (const auto& permission : permissions->items())
+            if (permission.is_string())
+                ext.permissions.push_back(UnicodeToWide(permission.as_string()));
+    }
+    if (const json::Value* commands = manifest.find("commands"); commands && commands->is_array()) {
+        for (const auto& item : commands->items()) {
+            if (!item.is_object()) continue;
+            ExtensionCommand cmd;
+            cmd.id = UnicodeToWide(item.get_string("id"));
+            cmd.name = UnicodeToWide(item.get_string("name"));
+            cmd.exec = UnicodeToWide(item.get_string("exec"));
+            if (cmd.name.empty() || cmd.exec.empty()) continue;
+            if (const json::Value* args = item.find("args"); args && args->is_array()) {
+                for (const auto& arg : args->items())
+                    if (arg.is_string()) cmd.args.push_back(UnicodeToWide(arg.as_string()));
+            }
+            ext.commands.push_back(std::move(cmd));
+        }
+    }
+}
+
+void ReadPluginManifest(const std::string& body, const std::wstring& folder,
+                        InstalledExtension& ext) {
+    const plugin::PluginManifest parsed = plugin::ParsePluginManifest(body, folder);
+    if (!parsed.ok()) return;
+    ext.schema = 2;
+    ext.api_version = parsed.api_version;
+    ext.id = parsed.id;
+    ext.name = parsed.name;
+    ext.version = parsed.version;
+    ext.main_module = parsed.main;
+    ext.capabilities = parsed.capabilities;
+    ext.previewers = parsed.previewers;
+    ext.columns = parsed.columns;
+    ext.panels = parsed.panels;
+    for (const plugin::PluginCommandSpec& spec : parsed.commands) {
+        ExtensionCommand cmd;
+        cmd.id = spec.id;
+        cmd.name = spec.title;
+        ext.commands.push_back(std::move(cmd));
+    }
+}
+
 } // namespace
 
 std::vector<InstalledExtension> LoadInstalledExtensions() {
@@ -138,38 +205,30 @@ std::vector<InstalledExtension> LoadInstalledExtensions() {
         json::Value manifest;
         if (!json::Parse(body, manifest, nullptr) || !manifest.is_object()) continue;
         InstalledExtension ext;
-        ext.id = UnicodeToWide(manifest.get_string("id"));
-        if (ext.id.empty()) ext.id = folder;
-        ext.name = UnicodeToWide(manifest.get_string("name"));
-        if (ext.name.empty()) ext.name = ext.id;
-        ext.version = UnicodeToWide(manifest.get_string("version"));
         ext.dir = dir;
-        if (const json::Value* permissions = manifest.find("permissions");
-            permissions && permissions->is_array()) {
-            for (const auto& permission : permissions->items())
-                if (permission.is_string())
-                    ext.permissions.push_back(UnicodeToWide(permission.as_string()));
-        }
-        if (const json::Value* commands = manifest.find("commands");
-            commands && commands->is_array()) {
-            for (const auto& item : commands->items()) {
-                if (!item.is_object()) continue;
-                ExtensionCommand cmd;
-                cmd.id = UnicodeToWide(item.get_string("id"));
-                cmd.name = UnicodeToWide(item.get_string("name"));
-                cmd.exec = UnicodeToWide(item.get_string("exec"));
-                if (cmd.name.empty() || cmd.exec.empty()) continue;
-                if (const json::Value* args = item.find("args"); args && args->is_array()) {
-                    for (const auto& arg : args->items())
-                        if (arg.is_string())
-                            cmd.args.push_back(UnicodeToWide(arg.as_string()));
-                }
-                ext.commands.push_back(std::move(cmd));
-            }
+        int64_t schema = 1;
+        const json::Value* schema_value = manifest.find("schema");
+        const bool declared_schema =
+            schema_value && schema_value->get_int(schema) && schema >= 2;
+        if (declared_schema) {
+            ReadPluginManifest(body, folder, ext);
+            // A plugin whose manifest this build rejects is not listed at all:
+            // there is nothing the user could approve or run.
+            if (ext.schema != 2) continue;
+        } else {
+            ReadLegacyManifest(manifest, folder, ext);
         }
         if (const auto it = states.find(ext.id); it != states.end()) {
             ext.enabled = it->second.enabled;
             ext.granted = it->second.granted;
+            if (ext.is_plugin()) {
+                // The approval covers one exact version and capability set.
+                ext.granted = ext.granted && it->second.has_capabilities &&
+                              it->second.plugin_version == ext.version &&
+                              it->second.capabilities == ext.capabilities;
+            }
+        } else if (ext.is_plugin()) {
+            ext.granted = false;
         }
         out.push_back(std::move(ext));
     }
@@ -190,6 +249,19 @@ void GrantExtensionPermissions(const std::wstring& id) {
     SaveStates(states);
 }
 
+void GrantExtensionCapabilities(const std::wstring& id, const std::wstring& version,
+                                const std::vector<std::wstring>& capabilities) {
+    auto states = LoadStates();
+    ExtensionState& state = states[id];
+    state.granted = true;
+    state.enabled = true;
+    state.has_capabilities = true;
+    state.plugin_version = version;
+    state.capabilities = capabilities;
+    std::sort(state.capabilities.begin(), state.capabilities.end());
+    SaveStates(states);
+}
+
 void RevokeExtensionPermissions(const std::wstring& id) {
     auto states = LoadStates();
     states[id].granted = false;
@@ -197,6 +269,7 @@ void RevokeExtensionPermissions(const std::wstring& id) {
 }
 
 std::vector<std::wstring> ExtensionPermissionLines(const InstalledExtension& ext) {
+    if (ext.is_plugin()) return plugin::CapabilityLines(ext.capabilities);
     std::vector<std::wstring> lines;
     for (const std::wstring& permission : ext.permissions) {
         if (permission == L"run-program")
@@ -209,19 +282,6 @@ std::vector<std::wstring> ExtensionPermissionLines(const InstalledExtension& ext
             lines.push_back(permission);
     }
     return lines;
-}
-
-int ExtensionCommandId(int extension_index, int command_index) {
-    return kExtensionCommandBase + extension_index * kExtensionCommandsPerExtension +
-           command_index;
-}
-
-bool ParseExtensionCommandId(int command, int& extension_index, int& command_index) {
-    if (command < kExtensionCommandBase) return false;
-    const int offset = command - kExtensionCommandBase;
-    extension_index = offset / kExtensionCommandsPerExtension;
-    command_index = offset % kExtensionCommandsPerExtension;
-    return true;
 }
 
 bool RunExtensionCommand(const InstalledExtension& ext, const ExtensionCommand& cmd,
