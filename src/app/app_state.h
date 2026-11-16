@@ -368,6 +368,7 @@ struct AppState {
     bool scrollbarSettings = false;  // settings page scrollbar drag (#166/#196)
     // 扩展商店: which tab (浏览商店 / 已安装扩展 / 管理增强包) is open.
     int settingsStoreTab = 0;
+    int settingsStoreFilter = 0;  // 0 all, 1 archives, 2 preview, 3 search, 4 ai, 5 other
     int scrollbarDragStartX = 0;
     int scrollbarDragStartY = 0;
     float scrollbarGrabOffset = 0.0f;

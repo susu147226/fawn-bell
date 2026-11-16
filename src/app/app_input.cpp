@@ -2514,6 +2514,11 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
+        if (hit.region == ui::HitTestResult::SettingsStoreFilter) {
+            s->settingsStoreFilter = std::clamp(hit.index, 0, 5);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::StickyParent) {
             s->stickyParentPress = true;
             return 0;
