@@ -1602,6 +1602,25 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     out.pane_index = paneIndex;
                     return out;
                 }
+                // The inline-tree chevron sits left of the row cell, inside
+                // this gutter, so the row's own hit test never sees it.
+                if (src >= 0 && paneVm.view_mode == ViewMode::Details) {
+                    const ListEntryView& entry = MakeVisibleEntry(paneVm, static_cast<size_t>(src));
+                    if (entry.tree_has_children) {
+                        const float indent = 16.0f * scale_;
+                        const D2D1_RECT_F cell_rc = rowLayout.ItemRect(row);
+                        const float cx = rowLayout.IconRect(row).left +
+                            entry.tree_depth * indent - 13.0f * scale_;
+                        const D2D1_RECT_F chevron = D2D1::RectF(
+                            cx - 9.0f * scale_, cell_rc.top, cx + 9.0f * scale_, cell_rc.bottom);
+                        if (ContainsPt(chevron, x, y)) {
+                            out.region = HitTestResult::TreeChevron;
+                            out.index = src;
+                            out.pane_index = paneIndex;
+                            return out;
+                        }
+                    }
+                }
             }
             if(idx>=0 && paneVm.content_results && !paneVm.content_results->Ready(static_cast<size_t>(idx))) {
                 paneVm.content_results->Prefetch(static_cast<size_t>(idx));

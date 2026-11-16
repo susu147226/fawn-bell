@@ -259,7 +259,9 @@ D2D1_RECT_F ViewLayout::IconRect(int index) const noexcept {
         return {left, cell.top + pad, left + fittedIcon, cell.top + pad + fittedIcon};
     }
     const float top = cell.top + (cell.bottom - cell.top - icon) * 0.5f;
-    return {cell.left + pad, top, cell.left + pad + icon, top + icon};
+    // Details rows leave room for the inline-tree chevron left of the icon.
+    const float lead = (mode_ == ViewMode::Details ? 14.0f : 8.0f) * scale_;
+    return {cell.left + lead, top, cell.left + lead + icon, top + icon};
 }
 
 D2D1_RECT_F ViewLayout::NameRect(int index) const noexcept {
@@ -278,7 +280,8 @@ D2D1_RECT_F ViewLayout::NameRect(int index) const noexcept {
         return {left, cell.top + 7.0f * scale_, cell.right - pad,
                 cell.top + 31.0f * scale_};
     }
-    const float left = cell.left + pad + icon + 8.0f * scale_;
+    const float lead = (mode_ == ViewMode::Details ? 14.0f : 8.0f) * scale_;
+    const float left = cell.left + lead + icon + 8.0f * scale_;
     return {left, cell.top + 1.0f * scale_, cell.right - pad,
             cell.bottom - 1.0f * scale_};
 }
