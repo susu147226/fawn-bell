@@ -2479,19 +2479,42 @@ inline D2D1_RECT_F SettingsStoreOfficialCardRect(const SettingsLayout& lay, floa
 }
 
 inline float SettingsStoreCommunityTop(const SettingsLayout& lay, float scale) {
-    return SettingsStoreOfficialTop(lay, scale) + 3.0f * 100.0f * scale + 20.0f * scale;
+    return SettingsStoreOfficialTop(lay, scale) + 3.0f * 100.0f * scale + 52.0f * scale;
+}
+
+// Category chips above the community list: all, archives, preview, search,
+// AI, other.
+inline D2D1_RECT_F SettingsStoreFilterRect(const SettingsLayout& lay, float scale, int index) {
+    const float left = lay.content.left + 24.0f * scale;
+    const float y = SettingsStoreCommunityTop(lay, scale) - 52.0f * scale;
+    const float width = 68.0f * scale;
+    const float x = left + static_cast<float>(index) * (width + 8.0f * scale);
+    return D2D1::RectF(x, y, x + width, y + 26.0f * scale);
 }
 
 inline D2D1_RECT_F SettingsStoreCommunityCardRect(const SettingsLayout& lay, float scale,
                                                   int index) {
     const float left = lay.content.left + 20.0f * scale;
     const float right = lay.content.right - 20.0f * scale;
-    const float top = SettingsStoreCommunityTop(lay, scale) + static_cast<float>(index) * 100.0f * scale;
-    return D2D1::RectF(left, top, right, top + 92.0f * scale);
+    constexpr int kColumns = 3;
+    const float gap = 12.0f * scale;
+    const float width = (right - left - gap * static_cast<float>(kColumns - 1)) /
+                        static_cast<float>(kColumns);
+    const int column = index % kColumns;
+    const int row = index / kColumns;
+    const float x = left + static_cast<float>(column) * (width + gap);
+    const float top = SettingsStoreCommunityTop(lay, scale) +
+                      static_cast<float>(row) * (124.0f * scale + gap);
+    return D2D1::RectF(x, top, x + width, top + 124.0f * scale);
+}
+
+inline float SettingsStoreCommunityRows(int count) {
+    return static_cast<float>((count + 2) / 3);
 }
 
 inline D2D1_RECT_F SettingsStoreCardButtonRect(const D2D1_RECT_F& card, float scale) {
-    return D2D1::RectF(card.right - 16.0f * scale - 104.0f * scale,
+    const float width = (std::min)(104.0f * scale, card.right - card.left - 32.0f * scale);
+    return D2D1::RectF(card.right - 16.0f * scale - width,
                        card.bottom - 14.0f * scale - 32.0f * scale,
                        card.right - 16.0f * scale, card.bottom - 14.0f * scale);
 }

@@ -916,11 +916,13 @@ struct WindowViewModel {
         std::wstring version;
         std::wstring size_text;
         std::wstring publisher;
+        std::wstring category;
         bool official = false;
         bool trusted = false;
         bool installed = false;
     };
     std::vector<StoreItemView> settings_store_community;
+    int settings_store_filter = 0;  // 0 all, 1 archives, 2 preview, 3 search, 4 ai, 5 other
     struct StoreInstalledView {
         std::wstring id;
         std::wstring name;
@@ -1238,6 +1240,7 @@ struct HitTestResult {
         SettingsStoreLinkPacks, // 浏览商店: jump to the 快速预览 page (packs, sources)
         SettingsStoreOfficial,  // 浏览商店: an official card's button (index)
         SettingsStoreInstall,   // 浏览商店: a community card's button (index)
+        SettingsStoreFilter,    // 浏览商店: a category chip (index)
         SettingsAiAction,    // Settings > AI 助手: see kAiAction* in ui_settings_ai.cpp
         SettingsToggle,
         SettingsIntegration, // 0 master, 1 folders, 2 Win+E, 3 This PC, 4 experimental, 5 retry, 6 restore

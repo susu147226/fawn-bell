@@ -597,13 +597,27 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                     : store.state == app::StoreCatalogState::Ready ? 2 : 3;
                 vm.settings_store_from_cache = store.from_cache;
                 vm.settings_store_install_error = app::StoreInstallError();
+                vm.settings_store_filter = std::clamp(s.settingsStoreFilter, 0, 5);
                 vm.settings_store_community.clear();
                 const auto trusted_publishers = app::TrustedPublishers();
+                const auto matches_filter = [](const std::wstring& category, int filter) {
+                    if (filter == 0) return true;
+                    const bool archive = category == L"fileops" || category == L"archive" ||
+                                         category == L"compression";
+                    if (filter == 1) return archive;
+                    if (filter == 2) return category == L"preview";
+                    if (filter == 3) return category == L"search";
+                    if (filter == 4) return category == L"ai";
+                    return !archive && category != L"preview" && category != L"search" &&
+                           category != L"ai";
+                };
                 for (const auto& ext : store.extensions) {
+                    if (!matches_filter(ext.category, vm.settings_store_filter)) continue;
                     ui::WindowViewModel::StoreItemView item;
                     item.id = ext.id;
                     item.name = ext.name;
                     item.desc = ext.summary;
+                    item.category = ext.category;
                     if (const app::StoreRelease* release = ext.Newest()) {
                         item.version = release->version;
                         if (release->package.size)

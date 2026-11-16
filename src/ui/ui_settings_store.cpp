@@ -168,6 +168,21 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
                        official[i].meta, l10n::Pick(L"下载并安装", L"Download and install"),
                        true, official[i].installed, i);
         }
+        // Category chips above the community list.
+        {
+            static const wchar_t* kFilterCn[6] = {L"全部", L"压缩包", L"预览",
+                                                  L"搜索", L"AI", L"其他"};
+            static const wchar_t* kFilterEn[6] = {L"All", L"Archives", L"Preview",
+                                                  L"Search", L"AI", L"Other"};
+            for (int i = 0; i < 6; ++i) {
+                fluent::ControlState st{};
+                st.checked = vm.settings_store_filter == i;
+                st.hovered = IsHovered(vm, H::SettingsStoreFilter, i);
+                painter_.DrawButton({SettingsStoreFilterRect(lay, s, i),
+                                     l10n::Pick(kFilterCn[i], kFilterEn[i]), {},
+                                     fluent::ButtonKind::Toggle, st});
+            }
+        }
         // 社区增强包.
         section(l10n::Pick(L"社区增强包", L"Community extensions"),
                 SettingsStoreCommunityTop(lay, s) - 24 * s);
@@ -189,12 +204,12 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
                 DrawIconText(r.left + 16 * s, r.top + 16 * s, 22 * s, 22 * s, L"\xE7B8", L"",
                              theme.text_secondary, 0.85f);
                 painter_.DrawText(item.name, D2D1::RectF(r.left + 50 * s, r.top + 12 * s,
-                                                         r.right - 140 * s, r.top + 34 * s),
+                                                         r.right - 16 * s, r.top + 32 * s),
                                   compositor_->TextFormat(), theme.text);
                 DrawTextEndEllipsis(dc, compositor_->DwriteFactory(), compositor_->SmallFormat(),
                                     brTextSecondary_.get(), item.desc, r.left + 50 * s,
-                                    r.top + 36 * s,
-                                    (std::max)(1.0f, r.right - 140 * s - r.left - 50 * s), 20 * s);
+                                    r.top + 34 * s,
+                                    (std::max)(1.0f, r.right - 16 * s - r.left - 50 * s), 20 * s);
                 std::wstring meta = item.version;
                 if (!item.size_text.empty()) {
                     if (!meta.empty()) meta += L" · ";
@@ -208,11 +223,11 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
                         : item.trusted ? l10n::Pick(L"（已信任）", L" (trusted)")
                                        : l10n::Pick(L"（未信任）", L" (not trusted)");
                 }
-                painter_.DrawText(meta, D2D1::RectF(r.left + 16 * s, r.bottom - 28 * s,
-                                                    r.right - 140 * s, r.bottom - 10 * s),
+                painter_.DrawText(meta, D2D1::RectF(r.left + 16 * s, r.top + 60 * s,
+                                                    r.right - 16 * s, r.top + 78 * s),
                                   compositor_->SmallFormat(), theme.text_secondary);
                 if (item.installed) {
-                    painter_.DrawBadge({D2D1::RectF(r.right - 120 * s, r.bottom - 44 * s,
+                    painter_.DrawBadge({D2D1::RectF(r.right - 104 * s, r.bottom - 46 * s,
                                                     r.right - 16 * s, r.bottom - 14 * s),
                                         l10n::Get(l10n::StringId::StoreInstalledBadge),
                                         fluent::BadgeKind::Accent});
@@ -228,7 +243,8 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
         }
         if (!vm.settings_store_install_error.empty()) {
             const float y = SettingsStoreCommunityTop(lay, s) +
-                static_cast<float>(vm.settings_store_community.size()) * 100 * s + 8 * s;
+                SettingsStoreCommunityRows(static_cast<int>(vm.settings_store_community.size())) *
+                    136.0f * s + 8 * s;
             painter_.DrawText(vm.settings_store_install_error, D2D1::RectF(left, y, right, y + 20 * s),
                               compositor_->SmallFormat(), theme.text_secondary);
         }
