@@ -39,6 +39,12 @@ bool EntryLess(const fs::DirEntry& a, const fs::DirEntry& b,
 void SortEntries(std::vector<fs::DirEntry>& entries, ui::SortColumn col, ui::SortDirection dir,
                  const std::function<void()>& tick = {});
 
+// Plugin columns: the sorter asks this for a row's text, so entry_sort stays
+// free of the UI provider (tests and the shell link it without ui/). Null means
+// no plugin column is active and every value reads empty.
+using PluginColumnText = std::wstring (*)(const fs::DirEntry& entry, int index);
+void SetPluginColumnText(PluginColumnText lookup);
+
 // Folder totals for Size order (#58), keyed by lower-cased folder name.
 using FolderSizeLookup = std::unordered_map<std::wstring, uint64_t>;
 // Size order as EntryLess sorts it (grouping and folder mode included), except

@@ -1,6 +1,5 @@
 #include "entry_sort.h"
 #include "entry_group.h"
-#include "../ui/plugin_columns.h"
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 #include <algorithm>
@@ -10,6 +9,10 @@
 #include <string_view>
 
 namespace luling::app {
+
+namespace {
+PluginColumnText g_plugin_column_text = nullptr;
+}
 
 namespace {
 
@@ -111,6 +114,8 @@ FolderSortMode CurrentFolderSortMode() noexcept {
     return g_folder_sort_mode.load(std::memory_order_relaxed);
 }
 
+void SetPluginColumnText(PluginColumnText lookup) { g_plugin_column_text = lookup; }
+
 bool EntryLess(const fs::DirEntry& a, const fs::DirEntry& b,
                ui::SortColumn col, ui::SortDirection dir) {
     if (const EntryGrouping* grouping = CurrentEntryGrouping()) {
@@ -181,17 +186,13 @@ bool Less(const fs::DirEntry& a, const fs::DirEntry& b, ui::SortColumn col,
         break;
     case ui::SortColumn::Plugin1:
     case ui::SortColumn::Plugin2: {
-        // Values come from the plugin host's cache; rows without one sort as
-        // empty text until the next re-sort. Ordinary folder entries have no
-        // full_path, so the cache is also indexed by leaf name.
+        // Values come from the registered provider; rows without one sort as
+        // empty text until the next re-sort.
         const int index = col == ui::SortColumn::Plugin1 ? 0 : 1;
-        const auto lookup = [&](const fs::DirEntry& entry) {
-            if (!entry.full_path.empty())
-                return ui::PluginColumns::Instance().Value(entry.full_path, index);
-            return ui::PluginColumns::Instance().ValueByLeaf(entry.name, index);
-        };
-        const std::wstring va = lookup(a);
-        const std::wstring vb = lookup(b);
+        const std::wstring va =
+            g_plugin_column_text ? g_plugin_column_text(a, index) : std::wstring();
+        const std::wstring vb =
+            g_plugin_column_text ? g_plugin_column_text(b, index) : std::wstring();
         if (va.empty() != vb.empty()) {
             cmp = va.empty() ? 1 : -1;
         } else {

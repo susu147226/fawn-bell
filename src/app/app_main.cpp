@@ -624,6 +624,13 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         if (!s->core.service_window) s->core.service_window = hwnd;
         AiBrokerStart(*s);
         app::PluginClient::Instance().Start(hwnd);
+        // The list worker sorts fs entries; plugin columns answer by path or
+        // leaf name through this callback.
+        app::SetPluginColumnText([](const fs::DirEntry& entry, int index) -> std::wstring {
+            if (!entry.full_path.empty())
+                return ui::PluginColumns::Instance().Value(entry.full_path, index);
+            return ui::PluginColumns::Instance().ValueByLeaf(entry.name, index);
+        });
         // Later windows skip the process-level setup below: services, saved
         // state and the tray already belong to the first window.
         const bool init_core = !s->core.started;
