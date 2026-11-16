@@ -598,15 +598,26 @@ void FillPaneSlots(AppState& s, ui::WindowViewModel& vm) {
                 vm.settings_store_from_cache = store.from_cache;
                 vm.settings_store_install_error = app::StoreInstallError();
                 vm.settings_store_community.clear();
+                const auto trusted_publishers = app::TrustedPublishers();
                 for (const auto& ext : store.extensions) {
                     ui::WindowViewModel::StoreItemView item;
                     item.id = ext.id;
                     item.name = ext.name;
-                    item.desc = ext.desc;
-                    item.version = ext.version;
-                    if (ext.size)
-                        item.size_text = luling::format::ByteSize(
-                            ext.size, false, luling::format::ByteSizeStyle::Compact);
+                    item.desc = ext.summary;
+                    if (const app::StoreRelease* release = ext.Newest()) {
+                        item.version = release->version;
+                        if (release->package.size)
+                            item.size_text = luling::format::ByteSize(
+                                release->package.size, false,
+                                luling::format::ByteSizeStyle::Compact);
+                    }
+                    if (const app::StorePublisher* publisher =
+                            app::FindExtensionPublisher(store, ext)) {
+                        item.publisher = publisher->name;
+                        item.official = publisher->official;
+                        for (const auto& trusted : trusted_publishers)
+                            if (trusted.id == publisher->id) item.trusted = true;
+                    }
                     item.installed = !app::InstalledStoreExtensionVersion(ext.id).empty();
                     vm.settings_store_community.push_back(std::move(item));
                 }

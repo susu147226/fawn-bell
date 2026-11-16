@@ -9,6 +9,7 @@
 #include "app_prompts.h"
 #include "favorites_bar.h"
 #include "store_catalog.h"
+#include "store_trust_ui.h"
 #include "app_commands.h"
 #include "vertical_tabs.h"
 #include "tab_shortcuts.h"
@@ -2990,9 +2991,16 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 OpenSettingsTab(*s, 14);
             } else if (hit.region == R::SettingsStoreInstall) {
                 const auto store = app::StoreCatalogSnapshotCopy();
-                if (hit.index >= 0 && hit.index < static_cast<int>(store.extensions.size()))
-                    app::StartStoreExtensionInstall(
-                        s->hwnd, store.extensions[static_cast<size_t>(hit.index)]);
+                if (hit.index >= 0 && hit.index < static_cast<int>(store.extensions.size())) {
+                    const auto& extension = store.extensions[static_cast<size_t>(hit.index)];
+                    const app::StorePublisher* publisher =
+                        app::FindExtensionPublisher(store, extension);
+                    if (!publisher || !extension.Newest()) {
+                        // An inconsistent catalog entry is never installed.
+                    } else if (app::ConfirmStorePublisherTrust(s->hwnd, *publisher)) {
+                        app::StartStoreExtensionInstall(s->hwnd, extension, *publisher);
+                    }
+                }
             } else {
                 OpenSettingsTab(*s, 14);
             }

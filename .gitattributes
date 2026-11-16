@@ -1,0 +1,4 @@
+# Signed catalog files are consumed byte for byte; never rewrite their line
+# endings or the signature stops matching.
+extensions/index.json -text
+extensions/index.sig.json -text
