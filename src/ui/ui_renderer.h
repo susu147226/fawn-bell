@@ -916,6 +916,9 @@ struct WindowViewModel {
         std::wstring desc;
         std::wstring version;
         std::wstring size_text;
+        std::wstring publisher;
+        bool official = false;
+        bool trusted = false;
         bool installed = false;
     };
     std::vector<StoreItemView> settings_store_community;

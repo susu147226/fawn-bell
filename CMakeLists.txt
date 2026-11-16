@@ -663,6 +663,12 @@ add_executable(luling_store_install_test
     src/common/json_value.cpp)
 target_link_libraries(luling_store_install_test PRIVATE bcrypt shell32 ole32 advapi32)
 
+# Publisher and catalog signatures (RSA-PKCS1-SHA256, domain separated).
+add_executable(luling_store_signature_test
+    src/bench/store_signature_test.cpp
+    src/app/store_signature.cpp)
+target_link_libraries(luling_store_signature_test PRIVATE bcrypt)
+
 # ---- Luling.AI.exe: MCP over stdio. Permissions, confirmations, the five
 # tools and the activity log stay in luling.exe (src/app/ai_broker.cpp).
 add_executable(luling_ai src/ai_host/main.cpp src/common/json_value.cpp)

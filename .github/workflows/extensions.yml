@@ -1,0 +1,31 @@
+name: Extensions
+
+# The store reads extensions/index.json and its signature. Pull requests only
+# change the index, which cannot be signed by the author, so CI validates the
+# structure there; main is verified end to end, including every package.
+
+on:
+  pull_request:
+    paths: ['extensions/**', 'tools/extensions/**']
+  push:
+    branches: [main]
+    paths: ['extensions/**', 'tools/extensions/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate the catalog
+        run: python tools/extensions/catalog.py validate --index extensions/index.json
+      - name: Verify the signature and every package
+        if: github.event_name != 'pull_request'
+        run: python tools/extensions/catalog.py verify --index extensions/index.json

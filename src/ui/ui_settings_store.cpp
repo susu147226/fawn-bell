@@ -200,6 +200,14 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
                     if (!meta.empty()) meta += L" · ";
                     meta += item.size_text;
                 }
+                if (!item.publisher.empty()) {
+                    if (!meta.empty()) meta += L" · ";
+                    meta += item.publisher;
+                    meta += item.official
+                        ? l10n::Pick(L"（官方，已签名）", L" (official, signed)")
+                        : item.trusted ? l10n::Pick(L"（已信任）", L" (trusted)")
+                                       : l10n::Pick(L"（未信任）", L" (not trusted)");
+                }
                 painter_.DrawText(meta, D2D1::RectF(r.left + 16 * s, r.bottom - 28 * s,
                                                     r.right - 140 * s, r.bottom - 10 * s),
                                   compositor_->SmallFormat(), theme.text_secondary);
