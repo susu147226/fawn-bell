@@ -1989,25 +1989,42 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             const bool hot = vm.hover_region == static_cast<int>(HitTestResult::RowSelectAll) &&
                 vm.hover_pane_index == pane_index;
             const float radius = 4.0f * scale_;
+            const bool dark = theme.bg.r < 0.5f;
+            const D2D1_COLOR_F ink = IsHighContrast() ? theme.accent_text
+                : dark ? D2D1::ColorF(0x1A1C2C) : D2D1::ColorF(1.0f, 1.0f, 1.0f);
             if (all || partial) {
-                MakeBrush(dc, theme.accent, brAccent_);
+                D2D1_COLOR_F fill = theme.accent;
+                if (dark && !IsHighContrast()) {
+                    const float k = hot ? 0.58f : 0.50f;
+                    fill = D2D1::ColorF(fill.r + (1.0f - fill.r) * k,
+                                        fill.g + (1.0f - fill.g) * k,
+                                        fill.b + (1.0f - fill.b) * k, 1.0f);
+                }
+                MakeBrush(dc, fill, brAccent_);
                 dc->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius), brAccent_.get());
                 if (all)
                     DrawIconText(box.left, box.top, box.right - box.left, box.bottom - box.top,
-                                 L"\xE73E", L"✓", theme.accent_text, 0.55f);
+                                 L"\xE73E", L"✓", ink, 0.62f);
                 else {
-                    const float inset = 3.0f * scale_;
-                    MakeBrush(dc, theme.accent_text, brTextSecondary_);
+                    const float inset = 3.5f * scale_;
+                    MakeBrush(dc, ink, brTextSecondary_);
                     dc->FillRoundedRectangle(
                         D2D1::RoundedRect(D2D1::RectF(box.left + inset, cy - scale_,
                                                       box.right - inset, cy + scale_), scale_, scale_),
                         brTextSecondary_.get());
                 }
             } else {
-                MakeBrush(dc, hot ? theme.accent : WithAlpha(theme.text_secondary, 0.9f),
-                          brTextSecondary_);
-                dc->DrawRoundedRectangle(D2D1::RoundedRect(box, radius, radius),
-                                         brTextSecondary_.get(), 1.0f / scale_);
+                const float px = std::max(1.0f, std::round(scale_));
+                const float h = px * 0.5f;
+                D2D1_COLOR_F line = IsHighContrast() ? theme.text
+                    : dark ? D2D1::ColorF(1.0f, 1.0f, 1.0f, hot ? 0.66f : 0.42f)
+                           : D2D1::ColorF(0.0f, 0.0f, 0.0f, hot ? 0.56f : 0.36f);
+                MakeBrush(dc, line, brTextSecondary_);
+                dc->DrawRoundedRectangle(
+                    D2D1::RoundedRect(D2D1::RectF(box.left + h, box.top + h,
+                                                  box.right - h, box.bottom - h),
+                                      radius - h, radius - h),
+                    brTextSecondary_.get(), px);
             }
         }
         if (pane_index >= 0 && pane_index < static_cast<int>(painted_columns_.size())) {
@@ -2701,32 +2718,53 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                     (bg.top + bg.bottom - bar_h) * 0.5f, 2.5f * scale_, bar_h, 1.25f * scale_);
             }
             if (draw_shapes && selected) selection_painter.Selected(bg);
+            const bool row_hovered = hover_control_index == src &&
+                (hover_region == static_cast<int>(HitTestResult::Row) ||
+                 hover_region == static_cast<int>(HitTestResult::RowCheck) ||
+                 hover_region == static_cast<int>(HitTestResult::RowStar) ||
+                 hover_region == static_cast<int>(HitTestResult::RowFolderSize) ||
+                 hover_region == static_cast<int>(HitTestResult::RowMore));
             if (draw_shapes && vm.list_checkboxes &&
-                (ShowsRowCheckbox(vm.view_mode) || ShowsGridCheckbox(vm.view_mode))) {
-                // Multi-selection checkbox: in the row's leading gutter when the
-                // view reserves one, on the icon's corner in an icon grid.
+                (ShowsRowCheckbox(vm.view_mode) || ShowsGridCheckbox(vm.view_mode)) &&
+                (vm.always_checkboxes || vm.selected_count > 1 || selected || row_hovered)) {
+                // Pulse's box: a 16-DIP rounded square. At rest just a hairline
+                // outline; selected fills with the accent and a dark tick; while
+                // several are selected the untouched boxes fade to half.
                 const D2D1_RECT_F box = ShowsRowCheckbox(vm.view_mode)
                     ? RowCheckboxRect(bg, scale_)
                     : GridCheckboxRect(layout.IconRect(i), scale_);
-                const bool box_hot =
-                    hover_region == static_cast<int>(HitTestResult::RowCheck) &&
-                    hover_control_index == src;
+                const bool dark = theme.bg.r < 0.5f;
                 const float radius = 4.0f * scale_;
+                const float dim = (vm.selected_count >= 2 && !selected && !row_hovered) ? 0.5f : 1.0f;
                 if (selected) {
-                    MakeBrush(dc, theme.accent, brAccent_);
-                    dc->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius), brAccent_.get());
-                    DrawIconText(box.left, box.top, box.right - box.left, box.bottom - box.top,
-                                 L"\xE73E", L"✓", theme.accent_text, 0.55f);
-                } else {
-                    if (box_hot) {
-                        MakeBrush(dc, theme.fill_pressed, brFillHover_);
-                        dc->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius),
-                                                 brFillHover_.get());
+                    D2D1_COLOR_F fill = theme.accent;
+                    if (dark && !IsHighContrast()) {
+                        const float k = row_hovered ? 0.58f : 0.50f;
+                        fill = D2D1::ColorF(fill.r + (1.0f - fill.r) * k,
+                                            fill.g + (1.0f - fill.g) * k,
+                                            fill.b + (1.0f - fill.b) * k, 1.0f);
+                    } else if (row_hovered && !IsHighContrast()) {
+                        fill = D2D1::ColorF(fill.r * 0.9f, fill.g * 0.9f, fill.b * 0.9f, 1.0f);
                     }
-                    MakeBrush(dc, box_hot ? theme.accent : WithAlpha(theme.text_secondary, 0.9f),
-                              brTextSecondary_);
-                    dc->DrawRoundedRectangle(D2D1::RoundedRect(box, radius, radius),
-                                             brTextSecondary_.get(), 1.0f / scale_);
+                    MakeBrush(dc, WithAlpha(fill, dim), brAccent_);
+                    dc->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius), brAccent_.get());
+                    const D2D1_COLOR_F ink = IsHighContrast() ? theme.accent_text
+                        : dark ? D2D1::ColorF(0x1A1C2C) : D2D1::ColorF(1.0f, 1.0f, 1.0f);
+                    DrawIconText(box.left, box.top, box.right - box.left, box.bottom - box.top,
+                                 L"\xE73E", L"✓", WithAlpha(ink, dim), 0.62f);
+                } else {
+                    const float px = std::max(1.0f, std::round(scale_));
+                    const float half = px * 0.5f;
+                    D2D1_COLOR_F line = IsHighContrast() ? theme.text
+                        : dark ? D2D1::ColorF(1.0f, 1.0f, 1.0f, row_hovered ? 0.66f : 0.42f)
+                               : D2D1::ColorF(0.0f, 0.0f, 0.0f, row_hovered ? 0.56f : 0.36f);
+                    line.a *= dim;
+                    MakeBrush(dc, line, brTextSecondary_);
+                    dc->DrawRoundedRectangle(
+                        D2D1::RoundedRect(D2D1::RectF(box.left + half, box.top + half,
+                                                      box.right - half, box.bottom - half),
+                                          radius - half, radius - half),
+                        brTextSecondary_.get(), px);
                 }
             }
             if (draw_shapes && row_flash > 0.0f && !IsHighContrast()) {
