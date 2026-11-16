@@ -1446,8 +1446,8 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             if (paneVm.list_checkboxes && ShowsRowCheckbox(paneVm.view_mode)) {
                 const float size = kCheckboxSizeDip * scale_;
                 const float cy = (columnTop + listTop) * 0.5f;
-                if (ContainsPt(D2D1::RectF(paneRc.left + 2 * scale_, cy - size * 0.5f,
-                                           paneRc.left + 2 * scale_ + size, cy + size * 0.5f),
+                if (ContainsPt(D2D1::RectF(paneRc.left + 8 * scale_, cy - size * 0.5f,
+                                           paneRc.left + 8 * scale_ + size, cy + size * 0.5f),
                                x, y)) {
                     out.region = HitTestResult::RowSelectAll;
                     out.pane_index = paneIndex;
@@ -1630,7 +1630,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                         if (paneVm.view_mode == ViewMode::Details && entry.tree_has_children) {
                             const float indent = 16.0f * scale_;
                             const D2D1_RECT_F icon = layout.IconRect(viewRow);
-                            const float cx = icon.left + entry.tree_depth * indent - 8.0f * scale_;
+                            const float cx = icon.left + entry.tree_depth * indent - 13.0f * scale_;
                             const D2D1_RECT_F chevron = D2D1::RectF(
                                 cx - 9.0f * scale_, cell.top, cx + 9.0f * scale_, cell.bottom);
                             if (ContainsPt(chevron, x, y)) {
