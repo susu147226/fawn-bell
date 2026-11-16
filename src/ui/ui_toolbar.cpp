@@ -1,4 +1,5 @@
 #include "ui_renderer_internal.h"
+#include "command_icons.h"
 #include "toolbar_layout.h"
 #include "pane_header_icons.h"
 
@@ -103,8 +104,51 @@ ToolbarSelectionChip MainRenderer::SelectionChipAt(const ToolbarLayout& layout, 
     if (selected <= 0 || embedded_) return {};
     return MakeToolbarSelectionChip(layout,scale_,SelectionChipLabelWidth(width,selected),action_count);
 }
+
+namespace {
+constexpr float kIconBoxDip = 18.0f;
+constexpr float kIconStrokeDip = 1.4f;
+}
+
+D2D1_COLOR_F MainRenderer::PrepareIconTones(const Theme& theme, bool dark) {
+    using command_icons::Tone;
+    const auto set = [this](Tone tone, D2D1_COLOR_F color) {
+        icon_tone_colors_[static_cast<size_t>(tone)] = color;
+    };
+    // A slightly softer ink than body text, and one accent part per icon in
+    // its command's colour. Navigation and the clipboard follow the user's
+    // accent; the other hues are fixed per theme.
+    const D2D1_COLOR_F ink = dark ? D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.86f) : HexColor(0x3A465E);
+    const D2D1_COLOR_F accent = dark ? MixColor(theme.accent, HexColor(0xFFFFFF), 0.30f)
+                                     : MixColor(theme.accent, HexColor(0x000000), 0.14f);
+    set(Tone::None, ink);
+    set(Tone::Nav, accent);
+    set(Tone::Clip, accent);
+    set(Tone::New, HexColor(dark ? 0x5ED29B : 0x18874F));
+    set(Tone::Edit, HexColor(dark ? 0xFF9B5E : 0xC2560F));
+    set(Tone::Danger, HexColor(dark ? 0xFF8B85 : 0xC42B1C));
+    set(Tone::View, HexColor(dark ? 0xAE9BFF : 0x6A4FD6));
+    set(Tone::Place, HexColor(dark ? 0xF3B744 : 0xC7860A));
+    return ink;
+}
+
 void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme) {
     auto* dc = compositor_->Dc();
+    struct IconScope {
+        float* stroke; float* box; bool* tones;
+        ~IconScope() { *stroke = 0.0f; *box = 20.0f; *tones = false; }
+    } icon_scope{&icon_stroke_px_, &icon_box_dip_, &icon_tones_};
+    icon_stroke_px_ = kIconStrokeDip * scale_;
+    icon_box_dip_ = kIconBoxDip;
+    // Colour only once something is selected: at rest the toolbar stays ink,
+    // so the accent parts read as "this acts on the selection".
+    icon_tones_ = !IsHighContrast() && vm.pane.selected_count > 0;
+    if (icon_tones_) PrepareIconTones(theme, vm.dark);
+    struct PainterScope {
+        fluent::Painter& painter;
+        ~PainterScope() { painter.SetIconTones(nullptr); }
+    } painter_scope{painter_};
+    painter_.SetIconTones(icon_tones_ ? icon_tone_colors_.data() : nullptr);
     const float left = EffectiveSidebarWidth(rect.right);
     const bool compact = rect.right-left < 600*scale_;
     const auto layout = ToolbarLayoutAt(rect.right,NewButtonWidthPx(compact),vm.pane.filter_expand);

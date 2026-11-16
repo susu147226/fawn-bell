@@ -29,8 +29,19 @@ void MainRenderer::DrawPaneHeaderIcon(const D2D1_RECT_F& rc, PaneHeaderIcon icon
     case PaneHeaderIcon::SwapVertical: command = I::SwapVertical; break;
     }
     MakeBrush(dc, color, brText_);
-    command_icons::Draw(dc, brText_.get(), paneHeaderStroke_.get(), command,
-                        command_icons::CenteredBounds(rc, 18.0f * scale_));
+    const auto bounds = command_icons::CenteredBounds(rc, 18.0f * scale_);
+    // Inside the toolbar scope a selection turns on the command colours; pane
+    // headers and other callers keep drawing in `color` alone.
+    ID2D1Brush* accent = nullptr;
+    if (icon_tones_) {
+        const auto tone = command_icons::ToneOf(command);
+        if (tone != command_icons::Tone::None) {
+            MakeBrush(dc, icon_tone_colors_[static_cast<size_t>(tone)], brIconTone_);
+            accent = brIconTone_.get();
+        }
+    }
+    command_icons::DrawTwoTone(dc, brText_.get(), accent, paneHeaderStroke_.get(), command,
+                               bounds);
 }
 
 } // namespace luling::ui

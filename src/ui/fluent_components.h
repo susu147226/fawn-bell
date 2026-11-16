@@ -387,6 +387,9 @@ public:
     void DrawButton(const ButtonSpec& spec);
     // Main toolbar and file picker command buttons share 20-DIP vector icons.
     void DrawCommandButton(const ButtonSpec& spec);
+    // Inside this scope command icons paint their accent part in `tones`
+    // (indexed by command_icons::Tone); null keeps them single-colour.
+    void SetIconTones(const D2D1_COLOR_F* tones) noexcept { icon_tones_ = tones; }
     void DrawTextFieldFrame(const D2D1_RECT_F& bounds, const ControlState& state,
                            bool hosted_edit = false);
     void DrawTextField(const TextFieldSpec& spec);
@@ -500,6 +503,7 @@ private:
 
     ID2D1SolidColorBrush* Brush(BrushId id) const noexcept;
     ID2D1SolidColorBrush* ScratchBrush(const D2D1_COLOR_F& color);
+    ID2D1SolidColorBrush* ToneBrush(const D2D1_COLOR_F& color);
     void UpdateBrush(BrushId id, const D2D1_COLOR_F& color);
     void Fill(const D2D1_RECT_F& bounds, BrushId brush);
     void FillRounded(const D2D1_RECT_F& bounds, float radius, BrushId brush);
@@ -537,6 +541,8 @@ private:
     std::uint64_t format_generation_ = 0;   // typography::Generation() of the formats
     std::array<ComPtr<ID2D1SolidColorBrush>, static_cast<size_t>(BrushId::Count)> brushes_{};
     ComPtr<ID2D1SolidColorBrush> scratch_brush_;
+    ComPtr<ID2D1SolidColorBrush> tone_brush_;
+    const D2D1_COLOR_F* icon_tones_ = nullptr;
     ComPtr<ID2D1StrokeStyle> round_stroke_;
     ComPtr<IDWriteTextFormat> body_format_;
     ComPtr<IDWriteTextFormat> nav_format_;

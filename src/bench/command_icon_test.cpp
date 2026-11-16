@@ -57,14 +57,26 @@ void Gallery(IWICImagingFactory* wic, ID2D1Factory* factory, const wchar_t* file
     using namespace luling::ui;
     using namespace command_icons;
     constexpr const wchar_t* names[] = {
-        L"Add",L"Close",L"Minimize",L"Maximize",L"Restore",L"Back",L"Forward",L"Up",
-        L"Right",L"Left",L"Down",L"Up",L"Refresh",L"Search",L"Folder",L"Open folder",
-        L"Desktop",L"Computer",L"Star",L"History",L"Download",L"File",L"Image",L"Drive",
-        L"Network",L"Delete",L"Recycle",L"Tag",L"Settings",L"Sun",L"Cut",L"Copy",
-        L"Paste",L"Rename",L"Sort",L"Filter",L"List",L"Grid",L"Split",L"Columns",
-        L"Panel",L"Close panel",L"Check",L"Eye",L"Info",L"Home",L"Tray",L"Pin",
-        L"Link",L"Palette",L"Sliders",L"Warning",L"Lock",L"External",L"Favourite",L"More",
-        L"Split 1",L"Split 2",L"Split 3",L"Split 4",L"Contrast",L"Swap LR",L"Swap TB"
+        L"Add", L"Close", L"Minimize", L"Maximize", L"Restore", L"Back", L"Forward", L"Up",
+        L"ChevronRight", L"ChevronLeft", L"ChevronDown", L"ChevronUp", L"Refresh", L"Search", L"Folder", L"FolderOpen",
+        L"Desktop", L"Computer", L"Star", L"History", L"Download", L"File", L"Image", L"Drive",
+        L"Network", L"Delete", L"Recycle", L"Tag", L"Settings", L"Sun", L"Cut", L"Copy",
+        L"Paste", L"Rename", L"Sort", L"Filter", L"List", L"Grid", L"Split", L"Columns",
+        L"Panel", L"PanelClose", L"Check", L"Eye", L"Info", L"Home", L"Tray", L"Pin",
+        L"Link", L"Palette", L"Sliders", L"Warning", L"Lock", L"OpenExternal", L"StarFilled", L"More",
+        L"SplitSingle", L"SplitStacked", L"SplitThree", L"SplitFour", L"Contrast", L"SwapHorizontal", L"SwapVertical", L"CopyPath",
+        L"BatchRename", L"SelectWild", L"Compare", L"ApplyAll", L"AdvSearch", L"CopyToPane", L"MoveToPane", L"FolderGo",
+        L"FolderAdd", L"FolderGroup", L"FolderDissolve", L"FolderSize", L"Workspace", L"Toolbar", L"Sidebar", L"Undo",
+        L"NewMarkdown", L"Zip", L"SelectAll", L"Invert", L"EyeHidden", L"Shield", L"Compact", L"Zebra",
+        L"SizeBar", L"SmartDate", L"Outline", L"Terminal", L"SearchAll", L"MapDrive", L"Keyboard", L"PinBadge",
+        L"PinFavorites", L"PinQuickAccess", L"PinWorkspace", L"PinNetwork", L"PinToolbar", L"GroupBy", L"App", L"FolderList",
+        L"Reset", L"TextName", L"Package", L"Unpin", L"Stack", L"Video", L"Cloud", L"Error",
+        L"Merge", L"Pause", L"Play", L"Send", L"VBar", L"Move", L"Power", L"Bulb",
+        L"Pointer", L"Import", L"Export", L"Bolt", L"Camera", L"FavBar", L"FullScreen", L"Save",
+        L"Unlock", L"Eject", L"Skip", L"Disconnect", L"Music", L"Wrench", L"Timer", L"Help",
+        L"Puzzle", L"Sparkle", L"Wifi", L"Mic", L"Checkbox", L"Highlight", L"Key", L"Bold",
+        L"Layers", L"Globe", L"Flag", L"Phone", L"CheckCircle", L"CheckCircleFilled", L"Blocked", L"Down",
+        L"Dialog", L"User", L"Exit", L"PaneExpand", L"PaneRestore", L"FileAdd", L"Redo",
     };
     static_assert(std::size(names) == static_cast<size_t>(Icon::Count)-1);
     Ref<IWICBitmap> bitmap;

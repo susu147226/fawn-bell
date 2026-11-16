@@ -1880,6 +1880,8 @@ private:
     TabStripMetrics ComputeTabStrip(const WindowViewModel& vm, float window_w) const;
     void DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    // Fills icon_tone_colors_ for the theme and returns the ink colour.
+    D2D1_COLOR_F PrepareIconTones(const Theme& theme, bool dark);
     void DrawToolbarApps(const WindowViewModel& vm, const ToolbarLayout& layout, const Theme& theme);
     void DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawPane(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
@@ -2185,6 +2187,12 @@ private:
     mutable ComPtr<ID2D1SolidColorBrush> brAccent_;
     mutable ComPtr<ID2D1SolidColorBrush> brAccentHover_;
     mutable ComPtr<ID2D1SolidColorBrush> brAccentText_;
+    mutable ComPtr<ID2D1SolidColorBrush> brIconTone_;
+    // Indexed by command_icons::Tone; filled by PrepareIconTones.
+    std::array<D2D1_COLOR_F, 9> icon_tone_colors_{};
+    bool icon_tones_ = false;      // the active draw scope paints accent parts
+    float icon_stroke_px_ = 0.0f;  // > 0: fixed on-screen stroke width
+    float icon_box_dip_ = 20.0f;   // icon box in DIPs
     mutable ComPtr<ID2D1SolidColorBrush> brTagDot_;
     mutable ComPtr<ID2D1SolidColorBrush> brDanger_;
     mutable ComPtr<ID2D1SolidColorBrush> brDangerHover_;
