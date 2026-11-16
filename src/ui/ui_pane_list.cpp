@@ -33,6 +33,7 @@ struct MtimeMarkInfo {
     bool on = false;
     bool today = false;
     float freshness = 0.0f;
+    int bucket = 6;  // 0 just now, 1 today, 2 yesterday, 3 three, 4 seven, 5 thirty
 };
 
 MtimeMarkInfo MtimeMarkFor(const PaneViewModel& vm, const ListEntryView& entry, uint64_t now_ft) {
@@ -58,6 +59,27 @@ MtimeMarkInfo MtimeMarkFor(const PaneViewModel& vm, const ListEntryView& entry, 
         mark.today = modified_st.wYear == now_st.wYear &&
                      modified_st.wMonth == now_st.wMonth &&
                      modified_st.wDay == now_st.wDay;
+        // the reference's buckets carry the age as a shape: just now, today,
+        // yesterday, three days, seven days, thirty days.
+        constexpr uint64_t kSecond = 10000000ull;
+        constexpr uint64_t kDay = 86400ull * kSecond;
+        SYSTEMTIME midnight_local = now_st;
+        midnight_local.wHour = midnight_local.wMinute = 0;
+        midnight_local.wSecond = midnight_local.wMilliseconds = 0;
+        SYSTEMTIME midnight_sys{};
+        FILETIME midnight_ft{};
+        uint64_t midnight = 0;
+        if (TzSpecificLocalTimeToSystemTime(nullptr, &midnight_local, &midnight_sys) &&
+            SystemTimeToFileTime(&midnight_sys, &midnight_ft)) {
+            midnight = (static_cast<uint64_t>(midnight_ft.dwHighDateTime) << 32) |
+                       midnight_ft.dwLowDateTime;
+        }
+        if (age < 300 * kSecond) mark.bucket = 0;
+        else if (midnight && entry.modified_value >= midnight) mark.bucket = 1;
+        else if (age < 2 * kDay) mark.bucket = 2;
+        else if (age < 3 * kDay) mark.bucket = 3;
+        else if (age < 7 * kDay) mark.bucket = 4;
+        else if (age < 30 * kDay) mark.bucket = 5;
     }
     return mark;
 }
@@ -69,6 +91,42 @@ D2D1_COLOR_F MtimeMarkColor(const PaneViewModel& vm, const Theme& theme, float f
         color = HexColor(kPalettes[vm.mtime_palette - 1]);
     color.a = 0.35f + 0.65f * std::clamp(freshness, 0.0f, 1.0f);
     return color;
+}
+
+// The bucket's shape in a box `size` wide centered on (cx, cy):
+// 0 dot + ring, 1 dot, 2-3 ring with a centre dot, 4 ring, 5 small dot.
+void DrawMtimeMark(ID2D1DeviceContext* dc, ID2D1SolidColorBrush* brush, float cx, float cy,
+                   float size, int bucket, const D2D1_COLOR_F& color) {
+    if (!dc || !brush || bucket < 0 || bucket > 5) return;
+    const auto at = D2D1::Point2F(cx, cy);
+    const auto fill = [&](float radius, float alpha) {
+        brush->SetColor(D2D1::ColorF(color.r, color.g, color.b, color.a * alpha));
+        dc->FillEllipse(D2D1::Ellipse(at, radius, radius), brush);
+    };
+    const auto ring = [&](float radius, float stroke, float alpha) {
+        brush->SetColor(D2D1::ColorF(color.r, color.g, color.b, color.a * alpha));
+        dc->DrawEllipse(D2D1::Ellipse(at, radius, radius), brush, stroke);
+    };
+    switch (bucket) {
+    case 0:
+        fill(size * 0.30f, 1.0f);
+        ring(size * 0.46f, (std::max)(1.0f, size * 0.08f), 0.55f);
+        break;
+    case 1:
+        fill(size * 0.32f, 1.0f);
+        break;
+    case 2:
+    case 3:
+        ring(size * 0.30f, size * 0.13f, 1.0f);
+        fill(size * 0.11f, 1.0f);
+        break;
+    case 4:
+        ring(size * 0.30f, size * 0.12f, 1.0f);
+        break;
+    default:
+        fill(size * 0.15f, 1.0f);
+        break;
+    }
 }
 }
 
@@ -2728,7 +2786,7 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
             if (draw_shapes && vm.list_checkboxes &&
                 (ShowsRowCheckbox(vm.view_mode) || ShowsGridCheckbox(vm.view_mode)) &&
                 (vm.always_checkboxes || vm.selected_count > 1 || selected || row_hovered)) {
-                // Pulse's box: a 16-DIP rounded square. At rest just a hairline
+                // the reference's box: a 16-DIP rounded square. At rest just a hairline
                 // outline; selected fills with the accent and a dark tick; while
                 // several are selected the untouched boxes fade to half.
                 const D2D1_RECT_F box = ShowsRowCheckbox(vm.view_mode)
@@ -3222,18 +3280,23 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                                 MtimeMarkColor(vm, theme, mark.today ? 1.0f : mark.freshness);
                             MakeBrush(dc, mark_color, brTextSecondary_);
                             if (vm.mtime_style == 2) {
-                                const float bar_w = std::max(6.0f * scale_,
-                                    avail * (0.25f + 0.75f * mark.freshness));
+                                // A bar as long as the time left in the range,
+                                // under the date.
+                                const float bar_w = std::round(
+                                    (std::min)(96.0f * scale_, avail) *
+                                    std::clamp(mark.freshness, 0.06f, 1.0f));
+                                D2D1_COLOR_F bar = mark_color;
+                                if (!IsHighContrast()) bar.a *= 0.75f;
+                                MakeBrush(dc, bar, brTextSecondary_);
                                 FillRoundedRect(dc, brTextSecondary_.get(), left,
-                                                cell.bottom - 4.0f * scale_, bar_w,
+                                                cell.bottom - 6.0f * scale_, bar_w,
                                                 2.0f * scale_, scale_);
-                            } else if (vm.mtime_style == 1) {
-                                const float cy = (cell.top + cell.bottom) * 0.5f;
-                                dc->FillEllipse(D2D1::Ellipse(
-                                    D2D1::Point2F(left + 3.0f * scale_, cy),
-                                    3.0f * scale_, 3.0f * scale_), brTextSecondary_.get());
+                            } else {
+                                DrawMtimeMark(dc, brTextSecondary_.get(), left + 11.0f * scale_,
+                                              (cell.top + cell.bottom) * 0.5f, 8.0f * scale_,
+                                              mark.bucket, mark_color);
                             }
-                            const float text_left = vm.mtime_style == 1 ? left + 10.0f * scale_ : left;
+                            const float text_left = vm.mtime_style == 1 ? left + 12.0f * scale_ : left;
                             draw_detail_text(fit(date, std::max(1.0f, avail - (text_left - left))),
                                              text_left, std::max(1.0f, avail - (text_left - left)),
                                              DWRITE_TEXT_ALIGNMENT_LEADING);
@@ -3481,17 +3544,19 @@ void MainRenderer::DrawList(const PaneViewModel& vm, float x, float y, float w, 
                         MtimeMarkColor(vm, theme, mark.today ? 1.0f : mark.freshness);
                     MakeBrush(dc, color, brFillInput_);
                     if (vm.mtime_style == 2) {
-                        const float width = std::max(6.0f * scale_,
-                            (iconRect.right - iconRect.left) * mark.freshness);
+                        const float width = std::round(
+                            (std::min)(96.0f * scale_, iconRect.right - iconRect.left) *
+                            std::clamp(mark.freshness, 0.06f, 1.0f));
+                        D2D1_COLOR_F bar = color;
+                        if (!IsHighContrast()) bar.a *= 0.75f;
+                        MakeBrush(dc, bar, brFillInput_);
                         FillRoundedRect(dc, brFillInput_.get(), iconRect.left,
-                                        iconRect.bottom - 4.0f * scale_, width,
+                                        iconRect.bottom - 6.0f * scale_, width,
                                         2.0f * scale_, scale_);
                     } else {
-                        const float radius = 3.5f * scale_;
-                        dc->FillEllipse(D2D1::Ellipse(
-                            D2D1::Point2F(iconRect.left + radius + scale_,
-                                          iconRect.top + radius + scale_), radius, radius),
-                            brFillInput_.get());
+                        DrawMtimeMark(dc, brFillInput_.get(), iconRect.left + 7.0f * scale_,
+                                      iconRect.top + 7.0f * scale_, 10.0f * scale_,
+                                      mark.bucket, color);
                     }
                 }
             }

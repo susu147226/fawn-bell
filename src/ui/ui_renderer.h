@@ -1161,6 +1161,7 @@ struct HitTestResult {
         SettingsAccentHue,
         SettingsAccentSaturation,
         SettingsAccentLightness,
+        SettingsAccentHex,
         SettingsSysCtx,        // Settings > 系统右键菜单: index = SysCtxHit
         SettingsContentAction,
         AddressSearchClear,

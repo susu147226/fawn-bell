@@ -345,9 +345,20 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
                     D2D1::RoundedRect(D2D1::RectF(lay.accent_swatch.left, lay.accent_swatch.top,
                                                   lay.accent_swatch.right, lay.accent_swatch.bottom),
                                       5 * scale_, 5 * scale_), brAccent_.get());
+                // The code is a field, not a label: clicking it opens the
+                // colour dialog with its hex entry.
+                const bool hex_hot = IsHovered(vm, H::SettingsAccentHex);
+                if (hex_hot) {
+                    MakeBrush(dc, theme.fill_hover, brFillHover_);
+                    FillRoundedRect(dc, brFillHover_.get(),
+                                    lay.accent_hex_rect.left - 6 * scale_, lay.accent_hex_rect.top,
+                                    lay.accent_hex_rect.right - lay.accent_hex_rect.left + 12 * scale_,
+                                    lay.accent_hex_rect.bottom - lay.accent_hex_rect.top, 4 * scale_);
+                }
                 painter_.DrawText(vm.settings_accent_hex.empty() ? std::wstring(L"#------")
                                                                  : (L"#" + vm.settings_accent_hex),
-                                  lay.accent_hex_rect, compositor_->TextFormat(), theme.text,
+                                  lay.accent_hex_rect, compositor_->TextFormat(),
+                                  hex_hot ? theme.accent : theme.text,
                                   fluent::HorizontalAlignment::Right);
             }
             auto accent_slider = [&](const D2D1_RECT_F& row, const D2D1_RECT_F* cells, int value,
@@ -633,6 +644,27 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
         segmented(lay.mtime_palette_card, lay.mtime_palette_row, mtime_palette, mtime_palette_values,
                   vm.settings_mtime_palette, H::SettingsMtimePalette, I::SettingsMtimePalette,
                   I::SettingsMtimePaletteDesc, 6, L"\xE790");
+        // Swatches after the title: the palette names mean little until you
+        // see which fade the marks will take (newest first).
+        {
+            static const uint32_t kSwatch[5] = {0xE74856, 0x00809D, 0xC19C00, 0x8764B8, 0x69797E};
+            const std::wstring title_text = l10n::Get(I::SettingsMtimePalette);
+            const float title_w = MeasureTextWidth(compositor_->DwriteFactory(),
+                                                   compositor_->TextFormat(), title_text);
+            const int palette = std::clamp(vm.settings_mtime_palette, 0, 5);
+            const D2D1_COLOR_F base = palette > 0 ? HexColor(kSwatch[palette - 1]) : theme.accent;
+            const float x = lay.mtime_palette_card.left + 54 * scale_ + title_w + 10 * scale_;
+            const float y = lay.mtime_palette_card.top + 22 * scale_;
+            for (int i = 0; i < 5; ++i) {
+                D2D1_COLOR_F dot = base;
+                dot.a = 0.32f + 0.17f * static_cast<float>(i);
+                MakeBrush(dc, dot, brTagDot_);
+                dc->FillEllipse(
+                    D2D1::Ellipse(D2D1::Point2F(x + static_cast<float>(i) * 10 * scale_, y),
+                                  2.5f * scale_, 2.5f * scale_),
+                    brTagDot_.get());
+            }
+        }
         draw_card(span(lay.mtime_opt_row[0], lay.mtime_opt_row[3]));
         toggle(lay.mtime_opt_row[0], I::SettingsMtimeDimOld, I::SettingsMtimeDimOldDesc,
                L"\xE70F", vm.settings_mtime_dim_old, 41);

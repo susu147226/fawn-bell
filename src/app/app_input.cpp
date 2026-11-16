@@ -2494,6 +2494,25 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
+        if (hit.region == ui::HitTestResult::SettingsAccentHex) {
+            // Type or paste a colour code: the picker's hex field accepts
+            // #RRGGBB directly. An early return keeps the click chain below
+            // within the compiler's nesting limit.
+            uint32_t initial = 0;
+            if (!app::ParseAccentRgb(s->appPrefs.accent_rgb, initial)) {
+                initial = (static_cast<uint32_t>(s->accentColor.r * 255.0f) << 16) |
+                          (static_cast<uint32_t>(s->accentColor.g * 255.0f) << 8) |
+                          static_cast<uint32_t>(s->accentColor.b * 255.0f);
+            }
+            uint32_t picked = initial;
+            POINT screen_pt{};
+            GetCursorPos(&screen_pt);
+            if (ui::ColorPickerPopup::Pick(s->hwnd, &s->compositor, s->menu.get(), s->scale,
+                                           screen_pt, initial, s->darkMode, picked))
+                s->settings.AccentChoice(false, picked);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::StickyParent) {
             s->stickyParentPress = true;
             return 0;

@@ -720,7 +720,7 @@ void Painter::DrawCommandButton(const ButtonSpec& spec) {
     EnsureStrokeStyle();
     const auto bounds = command_icons::CenteredBounds(spec.bounds, Px(20.0f));
     // Accent parts only at rest: pressed, toggled and disabled buttons read as
-    // one command, like the Pulse toolbar.
+    // one command, like the reference toolbar.
     ID2D1Brush* accent = nullptr;
     if (icon_tones_ && !high_contrast_ && state.enabled && !state.selected) {
         const auto tone = command_icons::ToneOf(command);

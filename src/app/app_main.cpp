@@ -1889,7 +1889,8 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             SetCursor(LoadCursorW(nullptr, IDC_HAND));
             return TRUE;
         }
-        if (hit.region == ui::HitTestResult::SettingsAccent) {
+        if (hit.region == ui::HitTestResult::SettingsAccent ||
+            hit.region == ui::HitTestResult::SettingsAccentHex) {
             SetCursor(LoadCursorW(nullptr, IDC_HAND));
             return TRUE;
         }

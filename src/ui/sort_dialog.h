@@ -1,6 +1,6 @@
 #pragma once
 // sort_dialog.h — 排序 panel (the toolbar's Sort button), laid out like
-// Pulse's: the sort keys on the left, a sample list and the direction /
+// the reference's: the sort keys on the left, a sample list and the direction /
 // folder-order segments on the right, 取消 / 应用 at the bottom.
 
 #include <d2d1.h>

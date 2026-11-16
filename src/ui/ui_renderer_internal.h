@@ -2435,7 +2435,7 @@ inline D2D1_RECT_F SettingsStoreInstalledRowRect(const SettingsLayout& lay, floa
     return D2D1::RectF(left, y, right, y + 64.0f * scale);
 }
 
-// 浏览商店 (tab 0), Pulse-style: refresh and status, the trust notice, the
+// 浏览商店 (tab 0), store-style: refresh and status, the trust notice, the
 // official link, three official cards and the community list.
 inline float SettingsStoreBrowseTop(const SettingsLayout& lay, float scale) {
     return SettingsStoreBodyTop(lay, scale);

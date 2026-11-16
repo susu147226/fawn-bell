@@ -383,6 +383,10 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                     return r;
                 }
                 if (vm.settings_accent_editor_open) {
+                    if (ContainsPt(lay.accent_hex_rect, x, y)) {
+                        r.region = HitTestResult::SettingsAccentHex;
+                        return r;
+                    }
                     static constexpr int kAccentMax[3] = {359, 100, 100};
                     const HitTestResult::Region regions[3] = {HitTestResult::SettingsAccentHue,
                                                   HitTestResult::SettingsAccentSaturation,

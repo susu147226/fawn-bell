@@ -19,7 +19,7 @@ constexpr int kKeyCount = 6;
 constexpr float kRowStep = 48.0f;
 constexpr float kListViewLeft = 268.0f;
 // The selected card never moves: the keys slide through it, so the list reads
-// as a wheel picker (Pulse's panel behaves the same way).
+// as a wheel picker (the reference's panel behaves the same way).
 constexpr int kFocusRow = 2;
 
 struct SortKeyDef {
@@ -157,7 +157,7 @@ public:
         ShowWindow(hwnd_, SW_SHOW);
         SetForegroundWindow(hwnd_);
         UpdateWindow(hwnd_);
-        // Expand out of the Sort button, the way Pulse's drop-down does.
+        // Expand out of the Sort button, the way the reference's drop-down does.
         if (compositor_.Dc())
             compositor_.PlayZoom(static_cast<float>(width) * 0.06f, 0.0f, true, 0.16f);
 
@@ -275,7 +275,7 @@ private:
                             row.bottom - 4 * s),
                 small_fmt, theme.text_secondary);
             if (selected && hot) {
-                // Hovering the active key offers the one-click apply, as Pulse does.
+                // Hovering the active key offers the one-click apply, as the reference does.
                 const D2D1_RECT_F pill = D2D1::RectF(row.right - 84 * s, row.top + 9 * s,
                                                      row.right - 10 * s, row.bottom - 9 * s);
                 painter_.FillRoundedRect(pill, (pill.bottom - pill.top) * 0.5f, theme.accent);

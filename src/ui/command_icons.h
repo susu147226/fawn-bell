@@ -37,12 +37,12 @@ enum class Icon {
     PinFavorites, PinQuickAccess, PinWorkspace, PinNetwork, PinToolbar,
     // 分组 (Segoe F168) and a program without an icon (Segoe ECAA).
     GroupBy, App, FolderList,
-    // The other Segoe glyphs Pulse shows (menus, settings, dialogs), drawn on
+    // The other Segoe glyphs the reference shows (menus, settings, dialogs), drawn on
     // the same grid and stroke so no icon comes from the font.
     Reset, TextName, Package, Unpin, Stack, Video, Cloud, Error, Merge, Pause, Play,
     Send, VBar, Move, Power, Bulb, Pointer, Import, Export, Bolt, Camera, FavBar,
     FullScreen, Save, Unlock, Eject, Skip, Disconnect, Music, Wrench, Timer, Help, Puzzle,
-    // The Pulse assistant (command palette hand-off), filled in the accent.
+    // The assistant (command palette hand-off), filled in the accent.
     Sparkle,
     // Settings rows, assistant setup, cloud states and actions that still fell
     // back to the font: Segoe Wifi, Microphone, Checkbox, Highlight, Permissions,
@@ -808,7 +808,7 @@ inline ID2D1PathGeometry* BuildPinnedGeometry(ID2D1Factory* factory, Icon icon) 
 }
 
 // ---------------------------------------------------------------------------
-// Two-tone designs (Pulse 工具栏图标 mockup, https://claude.ai/artifact/7FnZXLUEEbUfVwsCR4tFmU).
+// Two-tone designs (工具栏图标 mockup, https://claude.ai/artifact/7FnZXLUEEbUfVwsCR4tFmU).
 // The icons listed in kDesigns are drawn from this SVG path data instead of
 // BuildGeometry: a body in the ink plus at most one accent part (the
 // clipboard's clip, the rename caret, the bin's lid, the plus of New). Without
@@ -1163,7 +1163,7 @@ inline constexpr Design kDesigns[] = {
     {Icon::Lock, Tone::Place, 238, 3, 241, 0},  // 锁定
     {Icon::Check, Tone::None, 241, 1, 242, 0},  // 完成
     {Icon::Close, Tone::None, 242, 2, 244, 0},  // 关闭
-    {Icon::Sparkle, Tone::Nav, 244, 2, 246, 0},  // Pulse 助手
+    {Icon::Sparkle, Tone::Nav, 244, 2, 246, 0},  // 助手
 };
 
 inline const Design* DesignFor(Icon icon) noexcept {

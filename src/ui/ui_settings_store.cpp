@@ -1,6 +1,6 @@
 // ui_settings_store.cpp — 扩展商店 (settings page 15).
 //
-// 浏览商店 mirrors Pulse's page: refresh and catalog state, the trust notice,
+// 浏览商店 mirrors the reference's page: refresh and catalog state, the trust notice,
 // a link to the pack settings, the official packs as cards, then the community
 // list fetched from the GitHub catalog. 已安装扩展 and 管理增强包 summarize the
 // packs that ship with Luling.
