@@ -98,6 +98,11 @@ std::wstring InstalledStoreExtensionVersion(const std::wstring& id);
 void StartStoreExtensionInstall(HWND notify, StoreExtension extension,
                                 StorePublisher publisher);
 
+// Installs a package the user picked from disk. There is no catalog entry, so
+// the catalog signature cannot cover it: the manifest is still read and the
+// extension id validated before the folder is replaced.
+void StartStoreExtensionInstallFromFile(HWND notify, std::wstring zip_path);
+
 // Latest install error, for the page's status line ("" after success).
 std::wstring StoreInstallError();
 

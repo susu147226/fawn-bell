@@ -1244,6 +1244,7 @@ struct HitTestResult {
         SettingsStoreOfficial,  // 浏览商店: an official card's button (index)
         SettingsStoreInstall,   // 浏览商店: a community card's button (index)
         SettingsStoreFilter,    // 浏览商店: a category chip (index)
+        SettingsStoreInstallFile, // 浏览商店: install a local package
         SettingsAiAction,    // Settings > AI 助手: see kAiAction* in ui_settings_ai.cpp
         SettingsToggle,
         SettingsIntegration, // 0 master, 1 folders, 2 Win+E, 3 This PC, 4 experimental, 5 retry, 6 restore

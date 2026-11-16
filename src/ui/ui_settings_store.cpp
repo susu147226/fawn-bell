@@ -94,6 +94,14 @@ void MainRenderer::DrawSettingsStore(const WindowViewModel& vm, const D2D1_RECT_
             state.hovered = IsHovered(vm, H::SettingsStoreRefresh);
             painter_.DrawButton({refresh, l10n::Pick(L"刷新", L"Refresh"), {},
                                  fluent::ButtonKind::Standard, state});
+            {
+                fluent::ControlState install{};
+                install.enabled = true;
+                install.hovered = IsHovered(vm, H::SettingsStoreInstallFile);
+                painter_.DrawButton({SettingsStoreInstallFileRect(lay, s),
+                                     l10n::Pick(L"从文件安装…", L"Install from file…"), {},
+                                     fluent::ButtonKind::Standard, install});
+            }
             const int catalog = vm.settings_store_catalog_state;
             const std::wstring badge = catalog == 1
                 ? l10n::Pick(L"正在加载目录…", L"Loading catalog…")
