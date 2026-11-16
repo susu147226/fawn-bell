@@ -2484,6 +2484,16 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         ui::WindowViewModel vm = BuildVm(*s, false);
         D2D1_RECT_F rect = D2D1::RectF(0, 0, (float)s->compositor.Width(), (float)s->compositor.Height());
         ui::HitTestResult hit = s->renderer.HitTest(vm, rect, (float)mx, (float)my);
+        // The status-bar layout buttons: an early return keeps this branch out
+        // of the click chain below, which is at the compiler's nesting limit.
+        if (hit.region == ui::HitTestResult::StatusBarLayout) {
+            const int layouts[] = {
+                app::CmdLayoutSingle, app::CmdLayoutTwoVertical, app::CmdLayoutTwoHorizontal,
+                app::CmdLayoutThree, app::CmdLayoutFourGrid};
+            if (hit.index >= 0 && hit.index < 5) DispatchMenuCommand(*s, layouts[hit.index]);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         if (hit.region == ui::HitTestResult::StickyParent) {
             s->stickyParentPress = true;
             return 0;

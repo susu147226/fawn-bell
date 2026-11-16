@@ -246,7 +246,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         }
         if (y >= rect.bottom - status_height_) {
             r.region = StatusBarHitRegion(vm, rect, x, y, scale_, status_height_,
-                                          compositor_);
+                                          compositor_, &r.index);
             return r;
         }
         if (vm.settings_page == 15) {
@@ -1052,7 +1052,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
     // the left folder/selection text must not reopen the copy dialog.
     if (y >= rect.bottom - status_height_) {
         r.region = StatusBarHitRegion(vm, rect, x, y, scale_, status_height_,
-                                      compositor_);
+                                      compositor_, &r.index);
         return r;
     }
 

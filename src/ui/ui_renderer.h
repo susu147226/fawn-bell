@@ -1224,6 +1224,7 @@ struct HitTestResult {
         StatusBarTask,
         StatusBarCancelSearch,
         StatusBarAi,
+        StatusBarLayout,        // index 0..4: single, side by side, stacked, three, four
         SettingsNav,
         SettingsStoreTab,       // 扩展商店: 0 浏览商店, 1 已安装扩展, 2 管理增强包
         SettingsStoreOpenPacks, // 扩展商店: open the 增强包 page
@@ -1885,6 +1886,8 @@ private:
     void DrawToolbarApps(const WindowViewModel& vm, const ToolbarLayout& layout, const Theme& theme);
     void DrawSidebar(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawPane(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
+    // Fade-in preview of the layout a hovered status-bar layout button applies.
+    void DrawLayoutPreview(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawDetailsPanel(const WindowViewModel& vm, const D2D1_RECT_F& rect, const Theme& theme);
     void DrawSinglePane(const WindowViewModel& vm, const PaneViewModel& pane,
                         const D2D1_RECT_F& bounds, int pane_index, bool focused, bool target,
@@ -2029,6 +2032,8 @@ private:
     float embedded_bottom_dip_ = 0.0f;
     float scale_ = 1.0f;
     float title_bar_height_ = kTitleBarHeight;
+    int layout_preview_index_ = -1;
+    ULONGLONG layout_preview_at_ = 0;
     // Title-bar clock card: its frame and internal scroll offset (DIPs).
     D2D1_RECT_F title_clock_rect_{};
     float title_clock_scroll_ = 0.0f;
