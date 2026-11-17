@@ -312,6 +312,15 @@ D2D1_RECT_F MainRenderer::SidebarToggleRect(float w) const {
     return D2D1::RectF(right - size, top, right, top + size);
 }
 
+D2D1_RECT_F MainRenderer::WindowManagerRect(float w) const {
+    // Same size and band as the settings/theme buttons, just left of the pill.
+    const TitleChrome chrome = MakeTitleChrome(w, scale_, title_bar_height_);
+    const float size = 32.0f * scale_;
+    const float top = (title_bar_height_ - size) * 0.5f;
+    const float left = chrome.group_left - 8.0f * scale_ - size;
+    return D2D1::RectF(left, top, left + size, top + size);
+}
+
 D2D1_RECT_F MainRenderer::ToolbarRect(float w) const {
     return D2D1::RectF(EffectiveSidebarWidth(w), title_bar_height_, w, title_bar_height_ + toolbar_height_);
 }
@@ -1165,16 +1174,14 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         const float tabW = strip.Width(vm, i);
         const bool hovered = IsHovered(vm, HitTestResult::Tab, static_cast<int>(i)) ||
                              IsHovered(vm, HitTestResult::TabClose, static_cast<int>(i));
-        const bool connect = active || raised;
+        // No inverse shoulders: the plate is a plain rounded rectangle that
+        // meets the sheet edge without the flared corners.
         ChromeTabShape shape;
         shape.top_radius = theme.radius_control * scale_;
-        // Concentric with the neighboring inactive tab: outer radius = inner + gap.
-        shape.bottom_radius = shape.top_radius + control_gap_;
-        shape.connect_bottom = connect;
+        shape.bottom_radius = shape.top_radius;
+        shape.connect_bottom = false;
         const float tabTop = tabY;
-        // Use the same sheet edge for both opacity modes; overlap shifts the arc center.
-        const float tabBottom = connect ? std::round(h)
-                                        : (std::round(h) - control_gap_);
+        const float tabBottom = std::round(h) - control_gap_;
         const D2D1_RECT_F tabRc = D2D1::RectF(left, tabTop, left + tabW, tabBottom);
         if (raised) {
             D2D1_RECT_F shadow = tabRc;
@@ -1187,9 +1194,72 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             MakeBrush(dc, WithAlpha(theme.surface_sheet, sheet_alpha_), brFillSelected_);
             FillChromeTab(dc, brFillSelected_.get(), tabRc, shape);
         } else if (active) {
-            // A solid light plate remains identifiable over pale chrome and wallpapers.
-            MakeBrush(dc, vm.dark ? WithAlpha(theme.surface_sheet, sheet_alpha_) : HexColor(0xFFFFFF), brFillSelected_);
-            FillChromeTab(dc, brFillSelected_.get(), tabRc, shape);
+            if (!vm.window_active) {
+                // An inactive window keeps the plain plate; the gradient is
+                // only a focus cue.
+                MakeBrush(dc, vm.dark ? WithAlpha(theme.surface_sheet, sheet_alpha_)
+                                      : HexColor(0xFFFFFF), brFillSelected_);
+                FillChromeTab(dc, brFillSelected_.get(), tabRc, shape);
+            } else {
+                // Vertical preset wash: 40% at the top edge fading to nothing
+                // at the bottom, so the plate never ends in a hard band.
+                const float top_alpha = vm.dark ? 0.30f : 0.24f;
+                D2D1_GRADIENT_STOP stops[7]{};
+                int stop_count = 0;
+                if (vm.tab_gradient >= kTabGradientCount) {
+                    // 自定义: any one, two or three picked colours; the set
+                    // ones spread evenly from top to bottom.
+                    uint32_t picks[3]{};
+                    int pick_count = 0;
+                    if (vm.has_tab_gradient_start) picks[pick_count++] = vm.tab_gradient_start;
+                    if (vm.has_tab_gradient_mid) picks[pick_count++] = vm.tab_gradient_mid;
+                    if (vm.has_tab_gradient_end) picks[pick_count++] = vm.tab_gradient_end;
+                    if (pick_count == 0) {
+                        stops[0] = {0.0f, WithAlpha(theme.accent, top_alpha)};
+                        stops[1] = {1.0f, WithAlpha(theme.accent, 0.0f)};
+                        stop_count = 2;
+                    } else if (pick_count == 1) {
+                        const D2D1_COLOR_F only = HexColor(picks[0]);
+                        stops[0] = {0.0f, WithAlpha(only, top_alpha)};
+                        stops[1] = {1.0f, WithAlpha(only, 0.0f)};
+                        stop_count = 2;
+                    } else {
+                        for (int k = 0; k < pick_count; ++k) {
+                            const float pos = pick_count == 2
+                                ? (k == 0 ? 0.0f : 1.0f)
+                                : (k == 0 ? 0.0f : k == 1 ? 0.5f : 1.0f);
+                            stops[k] = {pos, WithAlpha(HexColor(picks[k]),
+                                                       top_alpha * (1.0f - pos))};
+                        }
+                        stop_count = pick_count;
+                    }
+                } else {
+                    const int preset = std::clamp(vm.tab_gradient, 0, kTabGradientCount - 1);
+                    const TabGradientPreset& gradient = kTabGradients[preset];
+                    for (int s = 0; s < gradient.stop_count; ++s) {
+                        stops[s] = {gradient.stops[s].pos,
+                                    WithAlpha(HexColor(gradient.stops[s].rgb),
+                                              top_alpha * (1.0f - gradient.stops[s].pos))};
+                    }
+                    stop_count = gradient.stop_count;
+                }
+                ComPtr<ID2D1GradientStopCollection> collection;
+                ComPtr<ID2D1LinearGradientBrush> wash;
+                if (stop_count > 0 &&
+                    SUCCEEDED(dc->CreateGradientStopCollection(stops, stop_count,
+                                                               &collection)) && collection.get() &&
+                    SUCCEEDED(dc->CreateLinearGradientBrush(
+                        D2D1::LinearGradientBrushProperties(
+                            D2D1::Point2F(tabRc.left, tabRc.top),
+                            D2D1::Point2F(tabRc.left, tabRc.bottom)),
+                        collection.get(), &wash)) && wash.get()) {
+                    FillChromeTab(dc, wash.get(), tabRc, shape);
+                } else {
+                    MakeBrush(dc, vm.dark ? WithAlpha(theme.surface_sheet, sheet_alpha_)
+                                          : HexColor(0xFFFFFF), brFillSelected_);
+                    FillChromeTab(dc, brFillSelected_.get(), tabRc, shape);
+                }
+            }
         } else {
             // Grouped tabs get a tinted body; ungrouped keep the stock look.
             const bool has_color = vm.tabs[i].color_rgb != 0;
@@ -1197,10 +1267,30 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
                 D2D1_COLOR_F tint = HexColor(vm.tabs[i].color_rgb);
                 tint.a *= hovered ? 0.16f : 0.10f;
                 MakeBrush(dc, tint, brFillHover_);
+                FillChromeTab(dc, brFillHover_.get(), tabRc, shape);
+            } else if (hovered) {
+                // Hover plate: a light wash that fades toward the bottom.
+                const D2D1_GRADIENT_STOP stops[] = {
+                    {0.0f, WithAlpha(theme.text, vm.dark ? 0.09f : 0.055f)},
+                    {1.0f, WithAlpha(theme.text, vm.dark ? 0.025f : 0.015f)}};
+                ComPtr<ID2D1GradientStopCollection> collection;
+                ComPtr<ID2D1LinearGradientBrush> wash;
+                if (SUCCEEDED(dc->CreateGradientStopCollection(stops, 2, &collection)) &&
+                    collection.get() &&
+                    SUCCEEDED(dc->CreateLinearGradientBrush(
+                        D2D1::LinearGradientBrushProperties(
+                            D2D1::Point2F(tabRc.left, tabRc.top),
+                            D2D1::Point2F(tabRc.left, tabRc.bottom)),
+                        collection.get(), &wash)) && wash.get()) {
+                    FillChromeTab(dc, wash.get(), tabRc, shape);
+                } else {
+                    MakeBrush(dc, theme.fill_hover, brFillHover_);
+                    FillChromeTab(dc, brFillHover_.get(), tabRc, shape);
+                }
             } else {
-                MakeBrush(dc, hovered ? theme.fill_hover : kTransparent, brFillHover_);
+                MakeBrush(dc, kTransparent, brFillHover_);
+                FillChromeTab(dc, brFillHover_.get(), tabRc, shape);
             }
-            FillChromeTab(dc, brFillHover_.get(), tabRc, shape);
         }
         if (vm.tabs[i].flash > 0.0f) {
             MakeBrush(dc, WithAlpha(theme.accent, (vm.dark ? 0.34f : 0.26f) * vm.tabs[i].flash), brFillHover_);
@@ -1216,7 +1306,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             MakeBrush(dc, line, brAccent_);
             FillChromeTabAccent(dc, brAccent_.get(), tabRc, shape, 2.0f * scale_);
         }
-        if (active) {
+        if (active && vm.window_active) {
             MakeBrush(dc, vm.tabs[i].color_rgb ? HexColor(vm.tabs[i].color_rgb) : theme.accent, brAccent_);
             FillRoundedRect(dc, brAccent_.get(), tabRc.left + 15*scale_, tabRc.bottom - 3*scale_,
                 std::min(28*scale_, tabW - 24*scale_), 2*scale_, scale_);
@@ -1414,7 +1504,9 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         kIconAdd, L"+", theme.text_secondary, true, true);
     // Clock card pinned to the right of the tab strip, at a fixed width.
     if (vm.settings_show_title_clock && TitleClockVisible(right, scale_)) {
-        DrawTitleClock(dc, vm, theme, TitleClockBounds(right, h, scale_));
+        DrawTitleClock(dc, vm, theme,
+                       TitleClockBounds(right, h, scale_,
+                                        window_manager_visible_ ? 36.0f * scale_ : 0.0f));
     } else {
         title_clock_rect_ = {};
         title_clock_scroll_ = 0.0f;
@@ -1428,6 +1520,13 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         title_clock_scroll_ = 0.0f;
         title_clock_max_scroll_ = 0.0f;
         FillRect(dc, brStrokeDivider_.get(), 0.0f, h - 1.0f, right, 1.0f);
+    }
+    if (window_manager_visible_) {
+        // Window management sits with the settings/theme pill, not the tabs.
+        const D2D1_RECT_F manager = WindowManagerRect(right);
+        DrawButton(manager, theme,
+            IsHovered(vm, HitTestResult::WindowManager) ? theme.fill_hover : kTransparent,
+            L"\xE7C4", L"W", theme.text, true, true);
     }
     // Settings + theme: one quiet pill with a hairline between the two, so
     // they read as app actions rather than two more caption buttons.
@@ -1708,10 +1807,11 @@ void MainRenderer::DrawStatusBar(const WindowViewModel& vm, const D2D1_RECT_F& r
         const bool hasAction = sb.hint_action.right > sb.hint_action.left;
         const float actionWidth = hasAction ? sb.hint_action.right - sb.hint_action.left + 8.0f * scale_ : 0.0f;
         const float hintWidth = std::max(0.0f, rightReserved - sb.pad - cancelWidth - actionWidth);
-        small_fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
-        DrawTextRect(dc, small_fmt, brTextSecondary_.get(), vm.status.hint_text,
-            rect.right - rightReserved, y, hintWidth, status_height_);
-        small_fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+        // Left-aligned and ellipsized: a trailing-aligned layout can spill into
+        // the action chip when the text renderer measures differently.
+        DrawTextEndEllipsis(dc, factory, small_fmt, brTextSecondary_.get(),
+                            vm.status.hint_text, rect.right - rightReserved, y, hintWidth,
+                            status_height_);
         if (hasAction) {
             // A soft accent chip: it reads as "you can click this", not as a warning.
             const auto& a = sb.hint_action;
@@ -1909,9 +2009,15 @@ MainRenderer::TabStripMetrics MainRenderer::ComputeTabStrip(
     // The docked assistant lives below the title bar; its column must not push
     // the window tabs to the right.
     m.x0 = EffectiveSidebarWidth(window_w) - AiDockWidth(window_w) + margin_;
-    const float tabsRight = (vm.settings_show_title_clock && TitleClockVisible(window_w, scale_))
-        ? TitleClockBounds(window_w, title_bar_height_, scale_).left - kTitleClockGapDip * scale_
+    float tabsRight = (vm.settings_show_title_clock && TitleClockVisible(window_w, scale_))
+        ? TitleClockBounds(window_w, title_bar_height_, scale_,
+                           window_manager_visible_ ? 36.0f * scale_ : 0.0f).left -
+              kTitleClockGapDip * scale_
         : MakeTitleChrome(window_w, scale_, title_bar_height_).settings_left - 8.0f * scale_;
+    // Without a clock card the window button still needs its slot.
+    if (!vm.settings_show_title_clock || !TitleClockVisible(window_w, scale_)) {
+        if (window_manager_visible_) tabsRight -= 36.0f * scale_;
+    }
 
     // Group chips: one at the start of each consecutive same-group run. Their
     // widths come out of the strip budget before tabs are sized; positions

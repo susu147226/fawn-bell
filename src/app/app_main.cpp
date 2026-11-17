@@ -1455,6 +1455,10 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         break;
 
     case WM_ACTIVATE:
+        if (s) {
+            s->windowActive = LOWORD(wParam) != WA_INACTIVE;
+            InvalidateRect(hwnd, nullptr, FALSE);
+        }
         if (s && LOWORD(wParam) != WA_INACTIVE) s->core.windows.Touch(hwnd);
         // Dialogs the shared ops layer opens belong to the window in use.
         if (s && LOWORD(wParam) != WA_INACTIVE) s->ops.SetUiWindow(hwnd);
@@ -1469,6 +1473,10 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         break;
 
     case WM_ACTIVATEAPP:
+        if (s) {
+            s->windowActive = wParam != 0;
+            InvalidateRect(hwnd, nullptr, FALSE);
+        }
         if (s && !wParam) {
             s->detailsPreviewPanning = false;
             s->renderer.EndDetailsPreviewPan();

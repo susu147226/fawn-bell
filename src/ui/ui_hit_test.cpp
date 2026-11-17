@@ -136,6 +136,13 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
             r.region = HitTestResult::SidebarToggle;
             return r;
         }
+        if (window_manager_visible_) {
+            const D2D1_RECT_F manager = WindowManagerRect(rect.right);
+            if (manager.right > manager.left && ContainsPt(manager, x, y)) {
+                r.region = HitTestResult::WindowManager;
+                return r;
+            }
+        }
         const TabStripMetrics strip = ComputeTabStrip(vm, rect.right);
         auto hitTab = [&](int i) -> bool {
             if (vm.tabs[static_cast<size_t>(i)].hidden) return false;
@@ -207,7 +214,9 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         }
         if (!vertical_tabs_ && vm.settings_show_title_clock &&
             TitleClockVisible(rect.right, scale_)) {
-            const D2D1_RECT_F clock = TitleClockBounds(rect.right, title_bar_height_, scale_);
+            const D2D1_RECT_F clock = TitleClockBounds(
+                rect.right, title_bar_height_, scale_,
+                window_manager_visible_ ? 36.0f * scale_ : 0.0f);
             if (ContainsPt(clock, x, y)) {
                 r.region = HitTestResult::TitleClock;
                 return r;
@@ -575,6 +584,29 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 if (ContainsPt(lay.pinned_names_row, x, y)) {
                     r.region = HitTestResult::SettingsToggle; r.index = 6; return r;
                 }
+                for (int i = 0; i < kTabGradientCount + 1; ++i) {
+                    if (ContainsPt(lay.tab_gradient_choice[i], x, y)) {
+                        r.region = HitTestResult::SettingsTabGradient;
+                        r.index = i;
+                        return r;
+                    }
+                }
+                auto hit_color = [&](const D2D1_RECT_F& btn, HitTestResult::Region set_region,
+                                     HitTestResult::Region clear_region, bool is_set) {
+                    if (!ContainsPt(btn, x, y)) return false;
+                    r.region = is_set && x >= btn.right - 26 * scale_ ? clear_region : set_region;
+                    r.index = 0;
+                    return true;
+                };
+                if (hit_color(lay.tab_gradient_start_btn, HitTestResult::SettingsTabGradientStart,
+                              HitTestResult::SettingsTabGradientClearStart,
+                              vm.has_tab_gradient_start)) return r;
+                if (hit_color(lay.tab_gradient_mid_btn, HitTestResult::SettingsTabGradientMid,
+                              HitTestResult::SettingsTabGradientClearMid,
+                              vm.has_tab_gradient_mid)) return r;
+                if (hit_color(lay.tab_gradient_end_btn, HitTestResult::SettingsTabGradientEnd,
+                              HitTestResult::SettingsTabGradientClearEnd,
+                              vm.has_tab_gradient_end)) return r;
                 for (size_t i = 0; i < lay.tab_manage_rows.size(); ++i) {
                     if (i >= vm.settings_tab_manage.size()) break;
                     const auto& row = lay.tab_manage_rows[i];

@@ -2432,33 +2432,9 @@ void ShowSortDropdown(AppState& s) {
         std::wstring kind;
         app::ParseLulingPath(active->current_path, &kind, nullptr);
         if (kind != L"starred" && kind != L"recent") {
-            // 排序 panel: keys, a sample list, direction and folder order. It
-            // drops down from the toolbar's Sort button.
-            ui::SortDialogSpec spec;
-            spec.column = static_cast<int>(active->sort_column);
-            spec.direction = active->sort_direction == ui::SortDirection::Desc ? 1 : 0;
-            spec.folder_mode = s.appPrefs.folder_sort_mode;
-            const float width = static_cast<float>(s.compositor.Width());
-            const float left = s.renderer.EffectiveSidebarWidth(width);
-            const auto layout = s.renderer.ToolbarLayoutAt(width,
-                s.renderer.NewButtonWidthPx(width - left < 600 * s.scale),
-                s.pane ? s.pane->filter_expand : 0.0f);
-            POINT anchor{static_cast<LONG>(layout.sort.left),
-                         static_cast<LONG>(layout.sort.bottom)};
-            ClientToScreen(s.hwnd, &anchor);
-            if (ui::ShowSortDialog(s.hwnd, anchor, spec, s.darkMode, s.accentColor)) {
-                const ui::SortColumn columns[] = {
-                    ui::SortColumn::Name,    ui::SortColumn::Mtime,   ui::SortColumn::Type,
-                    ui::SortColumn::Size,    ui::SortColumn::Created, ui::SortColumn::Accessed,
-                    ui::SortColumn::Path,
-                };
-                const int index = std::clamp(spec.column, 0, 6);
-                SetSort(s, columns[index], spec.direction == 1 ? ui::SortDirection::Desc
-                                                               : ui::SortDirection::Asc);
-                s.appPrefs.folder_sort_mode = std::clamp(spec.folder_mode, 0, 2);
-                app::SetFolderSortMode(app::FolderSortModeFromInt(s.appPrefs.folder_sort_mode));
-                s.appPrefs.Save();
-            }
+            // The sort button shares the drum picker with grouping: one
+            // interaction for every "choose a view" control.
+            OpenSortWheel(s);
             return;
         }
     }

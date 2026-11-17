@@ -20,6 +20,7 @@
 #include "schedule_panel.h"
 #include "ai_settings_ui.h"
 #include "window_factory.h"
+#include "window_manager_ui.h"
 #include "window_merge.h"
 #include "window_move_merge.h"
 #include "app_hover_preview.h"
@@ -2492,6 +2493,61 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
                 app::CmdLayoutSingle, app::CmdLayoutTwoVertical, app::CmdLayoutTwoHorizontal,
                 app::CmdLayoutThree, app::CmdLayoutFourGrid};
             if (hit.index >= 0 && hit.index < 5) DispatchMenuCommand(*s, layouts[hit.index]);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
+        if (hit.region == ui::HitTestResult::WindowManager) {
+            app::ShowWindowManagerMenu(*s);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
+        if (hit.region == ui::HitTestResult::SettingsTabGradient) {
+            if (hit.index >= 0 && hit.index <= ui::kTabGradientCount) {
+                s->appPrefs.tab_gradient = hit.index;
+                s->appPrefs.Save();
+            }
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
+        if (hit.region == ui::HitTestResult::SettingsTabGradientStart ||
+            hit.region == ui::HitTestResult::SettingsTabGradientMid ||
+            hit.region == ui::HitTestResult::SettingsTabGradientEnd ||
+            hit.region == ui::HitTestResult::SettingsTabGradientClearStart ||
+            hit.region == ui::HitTestResult::SettingsTabGradientClearMid ||
+            hit.region == ui::HitTestResult::SettingsTabGradientClearEnd) {
+            const bool clear =
+                hit.region == ui::HitTestResult::SettingsTabGradientClearStart ||
+                hit.region == ui::HitTestResult::SettingsTabGradientClearMid ||
+                hit.region == ui::HitTestResult::SettingsTabGradientClearEnd;
+            std::wstring* slot =
+                hit.region == ui::HitTestResult::SettingsTabGradientStart ||
+                hit.region == ui::HitTestResult::SettingsTabGradientClearStart
+                    ? &s->appPrefs.tab_gradient_start
+                : hit.region == ui::HitTestResult::SettingsTabGradientMid ||
+                  hit.region == ui::HitTestResult::SettingsTabGradientClearMid
+                    ? &s->appPrefs.tab_gradient_mid
+                    : &s->appPrefs.tab_gradient_end;
+            if (clear) {
+                slot->clear();
+            } else {
+                uint32_t initial = 0;
+                if (!app::ParseAccentRgb(*slot, initial)) {
+                    initial = (static_cast<uint32_t>(s->accentColor.r * 255.0f) << 16) |
+                              (static_cast<uint32_t>(s->accentColor.g * 255.0f) << 8) |
+                              static_cast<uint32_t>(s->accentColor.b * 255.0f);
+                }
+                uint32_t picked = initial;
+                POINT screen_pt{};
+                GetCursorPos(&screen_pt);
+                if (ui::ColorPickerPopup::Pick(s->hwnd, &s->compositor, s->menu.get(), s->scale,
+                                               screen_pt, initial, s->darkMode, picked)) {
+                    wchar_t hex[16]{};
+                    swprintf_s(hex, L"#%06X", picked);
+                    *slot = hex;
+                    s->appPrefs.tab_gradient = ui::kTabGradientCount;
+                }
+            }
+            s->appPrefs.Save();
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }

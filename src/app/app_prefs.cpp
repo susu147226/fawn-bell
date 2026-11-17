@@ -6,6 +6,7 @@
 #include "shell_integration_registry.h"
 #include "session.h"
 #include "../ui/panel_metrics.h"
+#include "../ui/tab_gradient.h"
 #include "../common/json_utils.h"
 #include "../common/hsl_color.h"
 #include "../common/config_json.h"
@@ -196,6 +197,10 @@ std::wstring AppPrefs::ToJson() const {
     out += list_thumbnail_badges ? L"true" : L"false";
     out += L",\n  \"vertical_tabs\":";
     out += vertical_tabs ? L"true" : L"false";
+    out += L",\n  \"tab_gradient\":" + std::to_wstring(tab_gradient);
+    out += L",\n  \"tab_gradient_start\":\"" + tab_gradient_start + L"\"";
+    out += L",\n  \"tab_gradient_mid\":\"" + tab_gradient_mid + L"\"";
+    out += L",\n  \"tab_gradient_end\":\"" + tab_gradient_end + L"\"";
     out += L",\n  \"sidebar_collapsed\":";
     out += sidebar_collapsed ? L"true" : L"false";
     out += L",\n  \"folder_sort_mode\":";
@@ -405,6 +410,11 @@ bool AppPrefs::FromJson(const std::wstring& json) {
     list_selection_outline = luling::json::ExtractBool(json, L"list_selection_outline", false);
     list_thumbnail_badges = luling::json::ExtractBool(json, L"list_thumbnail_badges", true);
     vertical_tabs = luling::json::ExtractBool(json, L"vertical_tabs", false);
+    tab_gradient = std::clamp(luling::json::ExtractInt(json, L"tab_gradient", 1), 0,
+                              ui::kTabGradientCount);
+    tab_gradient_start = luling::json::ExtractString(json, L"tab_gradient_start", L"#2F9DE8");
+    tab_gradient_mid = luling::json::ExtractString(json, L"tab_gradient_mid", L"");
+    tab_gradient_end = luling::json::ExtractString(json, L"tab_gradient_end", L"#2BD9C8");
     sidebar_collapsed = luling::json::ExtractBool(json, L"sidebar_collapsed", false);
     folder_sort_mode = luling::json::ExtractInt(json, L"folder_sort_mode", 0);
     if (folder_sort_mode < 0 || folder_sort_mode > 2) folder_sort_mode = 0;

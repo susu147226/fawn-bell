@@ -34,6 +34,10 @@ struct FluentMenuSwatch {
     // Non-empty => icon button (Segoe Fluent Icons codepoint) instead of a
     // tag color dot: wider hit target, hover pill, theme text color.
     std::wstring glyph;
+    // Non-empty => a layout tile: miniature diagram + caption, used by the
+    // window-management menu's 3x3 arrangement grid.
+    std::wstring label;
+    int layout_diagram = -1;  // 0..7 arrangement, 8 merge
 };
 
 struct FluentMenuItem {
@@ -48,6 +52,8 @@ struct FluentMenuItem {
     std::wstring badge_text;      // right-aligned Fluent badge (takes priority over shortcut)
     bool enabled = true;
     bool separator_after = false;
+    // Small caption row: no icon column, no hover, shortcut right-aligned.
+    bool heading = false;
     bool has_swatch = false;
     bool checked = false;
     bool mixed = false;
@@ -87,6 +93,8 @@ public:
     int HeightPx() const { return height_; }
     float InlineLabelWidthPx() const { return inline_label_width_; }
     float RowHeightPx() const { return row_h_; }
+    // Tiles (label swatches) stand taller than a normal row.
+    float RowHeightPx(int index) const;
     int Count() const { return (int)items_.size(); }
     const FluentMenuItem* At(int i) const;
     // True when row i's label is wider than the menu and gets ellipsized.

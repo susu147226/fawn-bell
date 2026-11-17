@@ -2347,6 +2347,14 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
             static_cast<int>(vm.favorites_bar_items.size()) - 1);
     app::FillWindowTabStrip(vm, s.window_tabs);
     vm.show_pinned_tab_names = s.appPrefs.show_pinned_tab_names;
+    vm.tab_gradient = s.appPrefs.tab_gradient;
+    vm.has_tab_gradient_start =
+        app::ParseAccentRgb(s.appPrefs.tab_gradient_start, vm.tab_gradient_start);
+    vm.has_tab_gradient_mid =
+        app::ParseAccentRgb(s.appPrefs.tab_gradient_mid, vm.tab_gradient_mid);
+    vm.has_tab_gradient_end =
+        app::ParseAccentRgb(s.appPrefs.tab_gradient_end, vm.tab_gradient_end);
+    vm.window_active = s.windowActive;
     vm.settings_list_smart_date = s.appPrefs.list_smart_date;
     vm.settings_list_zebra_rows = s.appPrefs.list_zebra_rows;
     vm.settings_list_size_bar = s.appPrefs.list_size_bar;
@@ -2941,16 +2949,15 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
         // (same rule as the Sort menu's group section).
         int toolbar_group = -1;
         if (const app::Tab* gt = ActiveTab(s)) {
-            std::wstring kind;
-            app::ParseLulingPath(gt->current_path, &kind, nullptr);
-            const bool can_group = !gt->content_results &&
-                ((!gt->current_path.empty() && !fs::IsVirtualPath(gt->current_path)) || kind == L"recent" ||
-                 kind == L"search" || kind == L"saved-search" || kind == L"tag" || kind == L"recycle");
+            // Grouping is offered for every list view, including This PC and
+            // the other virtual folders; the drum hides modes it cannot use.
+            const bool can_group = !gt->content_results;
             const bool list_like = gt->view_mode == ui::ViewMode::Details ||
                                    gt->view_mode == ui::ViewMode::Content;
             if (can_group && list_like && !vm.pane.compare_active) toolbar_group = gt->group_by;
         }
         s.renderer.SetToolbarGroup(toolbar_group);
+        s.renderer.SetWindowManagerVisible(!s.appPrefs.single_window);
     }
     // Toolbar follows the pointer: a file drag over the window swaps the
     // selection chip and the pinned commands for the pinned apps.
@@ -2997,15 +3004,19 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     } else if (vm.settings_page == 7) {
         auto& cache = ui::ThumbnailDiskCache::Shared();
         const uint64_t bytes = cache.BytesOnDisk();
+        constexpr uint64_t budget = ui::ThumbnailDiskCache::kBudgetBytes;
+        vm.settings_thumb_cache_ratio = (std::min)(1.0f,
+            static_cast<float>(static_cast<double>(bytes) / static_cast<double>(budget)));
         if (cache.Root().empty()) {
             vm.settings_thumb_cache_text = l10n::Pick(L"缓存已关闭", L"Cache is off");
-        } else if (bytes == 0) {
-            vm.settings_thumb_cache_text = l10n::Pick(L"还没有缓存", L"Nothing cached yet");
+            vm.settings_thumb_cache_ratio = 0.0f;
         } else {
-            const std::wstring format = l10n::Pick(L"已缓存 %.1f MB；清除后重新生成",
-                                                   L"%.1f MB cached; clear to rebuild");
-            wchar_t text[128]{};
-            swprintf_s(text, format.c_str(), static_cast<double>(bytes) / (1024.0 * 1024.0));
+            const std::wstring format = l10n::Pick(
+                L"已用 %.1f MB / 512 MB · 超出后自动删除最久没用到的",
+                L"%.1f MB of 512 MB used · least recently used entries go first");
+            wchar_t text[160]{};
+            swprintf_s(text, format.c_str(),
+                       static_cast<double>(bytes) / (1024.0 * 1024.0));
             vm.settings_thumb_cache_text = text;
         }
     }

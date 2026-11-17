@@ -161,6 +161,10 @@ enum MenuCmd : int {
     CmdOpenInNewWindow = 3912,  // folder / background: open in a new window
     CmdTabMoveToNewWindow = 3913,  // tab menu: move this tab into a new window
     CmdMergeWindows = 3914,        // toolbar 更多: merge every window into this one
+    CmdWindowNew = 4000,           // 窗口管理: open another window
+    CmdWindowOverview = 4001,      // 窗口管理: switch window
+    CmdWindowArrangeBase = 4010,   // + WindowArrange (9 arrangements)
+    CmdWindowSwitchBase = 4100,    // + index into the enumerated window list
     // Toolbar pinned apps and pin suggestions (自定义工具栏).
     CmdToolbarAppBase = 5100,
     CmdToolbarPinAppBase = 5120,

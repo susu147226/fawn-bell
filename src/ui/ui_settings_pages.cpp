@@ -594,12 +594,28 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
             text(pages_text::ThumbCacheTitle(),
                  D2D1::RectF(r.left + 54 * scale_, r.top + 12 * scale_,
                              lay.thumb_cache_button.left - 12 * scale_, r.top + 34 * scale_));
-            painter_.DrawWrappedCaption(
-                vm.settings_thumb_cache_text.empty() ? pages_text::ThumbCacheDesc()
-                                                     : vm.settings_thumb_cache_text,
-                D2D1::Point2F(r.left + 54 * scale_, r.top + 34 * scale_),
-                std::max(40.0f * scale_, lay.thumb_cache_button.left - r.left - 70 * scale_),
-                theme.text_secondary);
+            const float area_left = r.left + 54 * scale_;
+            const float area_right = lay.thumb_cache_button.left - 12 * scale_;
+            const float bar_w = std::min(200.0f * scale_,
+                std::max(60.0f * scale_, (area_right - area_left) * 0.42f));
+            const float bar_top = r.top + 40 * scale_;
+            MakeBrush(dc, WithAlpha(theme.text, vm.dark ? 0.14f : 0.10f), brFillPressed_);
+            FillRoundedRect(dc, brFillPressed_.get(), area_left, bar_top, bar_w, 3 * scale_,
+                            1.5f * scale_);
+            if (vm.settings_thumb_cache_ratio > 0.0f) {
+                MakeBrush(dc, theme.accent, brAccent_);
+                FillRoundedRect(dc, brAccent_.get(), area_left, bar_top,
+                                std::max(3.0f * scale_, bar_w * vm.settings_thumb_cache_ratio),
+                                3 * scale_, 1.5f * scale_);
+            }
+            const std::wstring cache_text = vm.settings_thumb_cache_text.empty()
+                ? std::wstring(pages_text::ThumbCacheDesc()) : vm.settings_thumb_cache_text;
+            MakeBrush(dc, theme.text_secondary, brTextSecondary_);
+            DrawTextEndEllipsis(dc, compositor_->DwriteFactory(), compositor_->SmallFormat(),
+                                brTextSecondary_.get(), cache_text,
+                                area_left + bar_w + 12 * scale_, r.top + 34 * scale_,
+                                std::max(0.0f, area_right - (area_left + bar_w + 12 * scale_)),
+                                20 * scale_);
             fluent::ControlState st;
             st.enabled = true;
             st.hovered = vm.hover_region == static_cast<int>(H::SettingsThumbCacheClear);
@@ -757,6 +773,136 @@ void MainRenderer::DrawSettingsPages(const WindowViewModel& vm, const D2D1_RECT_
         divider(lay.vertical_tabs_row);
         toggle(lay.pinned_names_row, I::PinnedNames, I::PinnedNamesDesc, L"\xE718",
                vm.show_pinned_tab_names, 6);
+
+        // Active tab gradient presets, plus a custom start/mid/end triple.
+        draw_card(lay.tab_gradient_card);
+        {
+            const int preset = std::clamp(vm.tab_gradient, 0, kTabGradientCount - 1);
+            const bool custom = vm.tab_gradient >= kTabGradientCount;
+            const wchar_t* current_name = custom
+                ? l10n::Pick(L"自定义", L"Custom")
+                : l10n::Pick(kTabGradients[preset].name_zh, kTabGradients[preset].name_en);
+            painter_.DrawText(l10n::Pick(L"活动标签渐变", L"Active tab gradient"),
+                D2D1::RectF(lay.tab_gradient_card.left + 16 * scale_,
+                            lay.tab_gradient_card.top + 12 * scale_,
+                            lay.tab_gradient_card.right - 16 * scale_,
+                            lay.tab_gradient_card.top + 34 * scale_),
+                compositor_->TextFormat(), theme.text);
+            painter_.DrawText(current_name,
+                D2D1::RectF(lay.tab_gradient_card.left + 16 * scale_,
+                            lay.tab_gradient_card.top + 36 * scale_,
+                            lay.tab_gradient_card.right - 16 * scale_,
+                            lay.tab_gradient_card.top + 56 * scale_),
+                compositor_->SmallFormat(), theme.text_secondary);
+
+            auto preview_stops = [&](int i, D2D1_GRADIENT_STOP* stops) -> int {
+                if (i < kTabGradientCount) {
+                    for (int stop = 0; stop < kTabGradients[i].stop_count; ++stop) {
+                        stops[stop] = {kTabGradients[i].stops[stop].pos,
+                                       HexColor(kTabGradients[i].stops[stop].rgb)};
+                    }
+                    return kTabGradients[i].stop_count;
+                }
+                uint32_t picks[3]{};
+                int count = 0;
+                if (vm.has_tab_gradient_start) picks[count++] = vm.tab_gradient_start;
+                if (vm.has_tab_gradient_mid) picks[count++] = vm.tab_gradient_mid;
+                if (vm.has_tab_gradient_end) picks[count++] = vm.tab_gradient_end;
+                if (count == 0) {
+                    stops[0] = {0.0f, theme.accent};
+                    stops[1] = {1.0f, WithAlpha(theme.accent, 0.0f)};
+                    return 2;
+                }
+                for (int k = 0; k < count; ++k) {
+                    const float pos = count == 1 ? 0.0f
+                        : count == 2 ? (k == 0 ? 0.0f : 1.0f)
+                        : (k == 0 ? 0.0f : k == 1 ? 0.5f : 1.0f);
+                    stops[k] = {pos, HexColor(picks[k])};
+                }
+                if (count == 1) stops[1] = {1.0f, WithAlpha(HexColor(picks[0]), 0.0f)};
+                return count == 1 ? 2 : count;
+            };
+
+            const int items = kTabGradientCount + 1;
+            for (int i = 0; i < items; ++i) {
+                const D2D1_RECT_F cell = lay.tab_gradient_choice[i];
+                const D2D1_RECT_F swatch = D2D1::RectF(cell.left, cell.top, cell.right,
+                                                       cell.top + 34 * scale_);
+                D2D1_GRADIENT_STOP stops[7]{};
+                const int stop_count = preview_stops(i, stops);
+                ComPtr<ID2D1GradientStopCollection> collection;
+                ComPtr<ID2D1LinearGradientBrush> brush;
+                if (SUCCEEDED(dc->CreateGradientStopCollection(stops, stop_count, &collection)) &&
+                    collection.get() &&
+                    SUCCEEDED(dc->CreateLinearGradientBrush(
+                        D2D1::LinearGradientBrushProperties(
+                            D2D1::Point2F(swatch.left, swatch.top),
+                            D2D1::Point2F(swatch.right, swatch.bottom)),
+                        collection.get(), &brush)) && brush.get()) {
+                    dc->FillRoundedRectangle(D2D1::RoundedRect(swatch, 5 * scale_, 5 * scale_),
+                                             brush.get());
+                }
+                const wchar_t* name = i >= kTabGradientCount
+                    ? l10n::Pick(L"自定义", L"Custom")
+                    : l10n::Pick(kTabGradients[i].name_zh, kTabGradients[i].name_en);
+                painter_.DrawText(name,
+                    D2D1::RectF(cell.left, swatch.bottom + 1 * scale_, cell.right, cell.bottom),
+                    compositor_->SmallFormat(),
+                    vm.tab_gradient == i ? theme.text : theme.text_secondary,
+                    fluent::HorizontalAlignment::Center);
+                const bool selected = vm.tab_gradient == i;
+                const bool hot = vm.hover_region == static_cast<int>(H::SettingsTabGradient) &&
+                                 vm.hover_control_index == i;
+                if (selected || hot) {
+                    MakeBrush(dc, selected ? theme.accent : theme.stroke_card, brStrokeCard_);
+                    dc->DrawRoundedRectangle(D2D1::RoundedRect(swatch, 5 * scale_, 5 * scale_),
+                                             brStrokeCard_.get(), selected ? 2.0f : 1.0f);
+                }
+            }
+
+            auto color_button = [&](const D2D1_RECT_F& r, bool set, uint32_t rgb,
+                                    const wchar_t* label, H::Region hit, H::Region clear_hit) {
+                const bool hot = vm.hover_region == static_cast<int>(hit);
+                const bool clear_hot = vm.hover_region == static_cast<int>(clear_hit);
+                MakeBrush(dc, hot ? theme.fill_hover : theme.fill_input, brFillInput_);
+                FillRoundedRect(dc, brFillInput_.get(), r.left, r.top, r.right - r.left,
+                                r.bottom - r.top, 6 * scale_);
+                MakeBrush(dc, clear_hot ? theme.danger : theme.stroke_card, brStrokeCard_);
+                dc->DrawRoundedRectangle(D2D1::RoundedRect(r, 6 * scale_, 6 * scale_),
+                                         brStrokeCard_.get(), 1.0f);
+                std::wstring text = label;
+                if (set) {
+                    MakeBrush(dc, HexColor(rgb), brAccent_);
+                    FillRoundedRect(dc, brAccent_.get(), r.left + 6 * scale_, r.top + 6 * scale_,
+                                    20 * scale_, 20 * scale_, 4 * scale_);
+                    wchar_t hex[16]{};
+                    swprintf_s(hex, L"#%06X", rgb);
+                    text += L"  ";
+                    text += hex;
+                } else {
+                    text += l10n::Pick(L"  未设置", L"  Not set");
+                }
+                painter_.DrawText(text,
+                    D2D1::RectF(r.left + 32 * scale_, r.top, r.right - 12 * scale_, r.bottom),
+                    compositor_->SmallFormat(), set ? theme.text : theme.text_secondary);
+                if (set) {
+                    painter_.DrawText(L"×",
+                        D2D1::RectF(r.right - 22 * scale_, r.top, r.right - 6 * scale_, r.bottom),
+                        compositor_->SmallFormat(),
+                        clear_hot ? theme.danger : theme.text_secondary,
+                        fluent::HorizontalAlignment::Center);
+                }
+            };
+            color_button(lay.tab_gradient_start_btn, vm.has_tab_gradient_start,
+                         vm.tab_gradient_start, l10n::Pick(L"开始", L"Start"),
+                         H::SettingsTabGradientStart, H::SettingsTabGradientClearStart);
+            color_button(lay.tab_gradient_mid_btn, vm.has_tab_gradient_mid,
+                         vm.tab_gradient_mid, l10n::Pick(L"过渡", L"Middle"),
+                         H::SettingsTabGradientMid, H::SettingsTabGradientClearMid);
+            color_button(lay.tab_gradient_end_btn, vm.has_tab_gradient_end,
+                         vm.tab_gradient_end, l10n::Pick(L"结束", L"End"),
+                         H::SettingsTabGradientEnd, H::SettingsTabGradientClearEnd);
+        }
 
         section_title(2, pages_text::TabsManage());
         draw_card(lay.tab_manage_card);

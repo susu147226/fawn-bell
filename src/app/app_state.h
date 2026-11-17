@@ -327,6 +327,8 @@ struct AppState {
     std::vector<std::wstring> probeQueue;
 
     bool darkMode = false;
+    // Window has focus; the active tab keeps its gradient only while active.
+    bool windowActive = true;
     unsigned settingsExpanded = ui::kSettingsDefaultExpandedMask;
     // Settings > 快捷键: the row waiting for a key, or -1 (shortcut_map.h).
     int shortcutCapture = -1;

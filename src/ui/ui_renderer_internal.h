@@ -1797,18 +1797,23 @@ StatusBarMetrics MakeStatusBarMetrics(const WindowViewModel& vm, const D2D1_RECT
     } else if (!centered_progress && !vm.status.hint_text.empty()) {
         trailing = &vm.status.hint_text;
     }
-    if (trailing && factory && small_format) {
-        const float perfWidth = std::min(rect.right * 0.50f,
-            MeasureTextWidth(factory, small_format, *trailing) + 16.0f * scale);
-        m.right_reserved += perfWidth + m.pad;
-    }
     if (trailing == &vm.status.hint_text && !vm.status.hint_action_text.empty() &&
         !vm.status.query_cancellable && factory && small_format) {
-        // The action chip sits at the far right; the hint text moves left of it.
+        // The action chip sits at the far right; reserve it before the hint
+        // text is measured so the two can never overlap on a narrow bar.
         const float width = MeasureTextWidth(factory, small_format, vm.status.hint_action_text) + 16.0f * scale;
         m.hint_action = D2D1::RectF(std::max(rect.left, rect.right - m.pad - width), m.bar.top + 5.0f * scale,
                                     rect.right - m.pad, m.bar.bottom - 5.0f * scale);
         m.right_reserved += width + 8.0f * scale;
+    }
+    if (trailing && factory && small_format) {
+        // Never let the trailing block push its left edge past the bar: on a
+        // narrow window the hint text has to ellipsize instead of overlapping
+        // the status text or the action chip.
+        const float room = std::max(0.0f, rect.right - rect.left - m.right_reserved - m.pad);
+        const float perfWidth = std::min({room, rect.right * 0.50f,
+            MeasureTextWidth(factory, small_format, *trailing) + 16.0f * scale});
+        m.right_reserved += perfWidth + m.pad;
     }
     if (vm.status.query_cancellable) {
         const float width = 22.0f * scale;
@@ -1994,9 +1999,10 @@ inline bool TitleClockVisible(float window_w, float scale) {
     return window_w >= 760.0f * scale;
 }
 
-inline D2D1_RECT_F TitleClockBounds(float window_w, float title_h, float scale) {
+inline D2D1_RECT_F TitleClockBounds(float window_w, float title_h, float scale,
+                                     float right_inset = 0.0f) {
     const TitleChrome chrome = MakeTitleChrome(window_w, scale, title_h);
-    const float right = chrome.group_left - 8.0f * scale;
+    const float right = chrome.group_left - 8.0f * scale - right_inset;
     D2D1_RECT_F rc{};
     rc.left = right - kTitleClockWidthDip * scale;
     rc.top = 2.0f * scale;
@@ -2005,10 +2011,13 @@ inline D2D1_RECT_F TitleClockBounds(float window_w, float title_h, float scale) 
     return rc;
 }
 
-inline float TabStripRightForClock(float window_w, float title_h, float scale) {
+inline float TabStripRightForClock(float window_w, float title_h, float scale,
+                                   float right_inset = 0.0f) {
     const TitleChrome chrome = MakeTitleChrome(window_w, scale, title_h);
-    if (!TitleClockVisible(window_w, scale)) return chrome.settings_left - 8.0f * scale;
-    return TitleClockBounds(window_w, title_h, scale).left - kTitleClockGapDip * scale;
+    if (!TitleClockVisible(window_w, scale))
+        return chrome.settings_left - 8.0f * scale - right_inset;
+    return TitleClockBounds(window_w, title_h, scale, right_inset).left -
+           kTitleClockGapDip * scale;
 }
 
 // Settings navigation, grouped like the shell's own page: a small caption per
@@ -2305,6 +2314,11 @@ struct SettingsLayout {
     D2D1_RECT_F hidden_files_row{};
     D2D1_RECT_F protected_files_row{};
     D2D1_RECT_F pinned_names_row{};
+    D2D1_RECT_F tab_gradient_card{};
+    D2D1_RECT_F tab_gradient_choice[19]{};  // 18 presets + 自定义
+    D2D1_RECT_F tab_gradient_start_btn{};
+    D2D1_RECT_F tab_gradient_mid_btn{};
+    D2D1_RECT_F tab_gradient_end_btn{};
     D2D1_RECT_F tab_manage_card{};
     D2D1_RECT_F mtime_style_card{}, mtime_days_card{}, mtime_palette_card{};
     D2D1_RECT_F mtime_style_row[4]{}, mtime_days_row[4]{}, mtime_palette_row[7]{};

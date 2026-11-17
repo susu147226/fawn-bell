@@ -66,6 +66,13 @@ struct AppPrefs {
     // Grid thumbnails: default-program badge, plus playing time on videos.
     bool list_thumbnail_badges = true;
     bool vertical_tabs = false;       // tabs as the first sidebar section
+    // Active tab gradient preset (ui/tab_gradient.h), default 海洋蓝绿.
+    int tab_gradient = 1;
+    // Custom preset colours ("#RRGGBB") used when tab_gradient selects 自定义.
+    // Each may be empty: the user can set any one, two or all three.
+    std::wstring tab_gradient_start = L"#2F9DE8";
+    std::wstring tab_gradient_mid;
+    std::wstring tab_gradient_end = L"#2BD9C8";
     bool sidebar_collapsed = false;   // sidebar folded to its icon rail (Ctrl+B)
     // 0 folders first, 1 follow the sort direction, 2 mixed with files
     int folder_sort_mode = 0;

@@ -4,6 +4,7 @@
 // 标签页), 启动与集成 (启动与托盘 / 资源管理器), 文件操作 (删除 / 暂存区 /
 // 变化记录 / 新手提示). Page 13 is the keyboard shortcut list.
 // Included by ui_renderer_internal.h after SettingsLayout.
+#include "tab_gradient.h"
 // 标签页管理 row geometry, shared by drawing and hit testing.
 inline D2D1_RECT_F TabManageColorRect(const D2D1_RECT_F& row, float s) {
     const float cy = (row.top + row.bottom) * 0.5f;
@@ -267,6 +268,37 @@ inline float LayoutSettingsTabsWindows(SettingsLayout& l, const WindowViewModel&
     l.single_window_row = row(64);
     l.vertical_tabs_row = row(64);
     l.pinned_names_row = row(64);
+    {
+        const int items = kTabGradientCount + 1;
+        const int cols = narrow ? 4 : 6;
+        const int rows = (items + cols - 1) / cols;
+        const float head = narrow ? 98.0f : 64.0f;
+        const float cell_h = 56.0f;
+        l.tab_gradient_card = row(head + rows * cell_h + 46.0f);
+        const float avail = right - left - 32.0f * scale;
+        const float cell = avail / static_cast<float>(cols);
+        for (int i = 0; i < items; ++i) {
+            const int c = i % cols, r = i / cols;
+            const float cell_x = left + 16.0f * scale + static_cast<float>(c) * cell;
+            const float cell_y = l.tab_gradient_card.top + head * scale +
+                                 static_cast<float>(r) * cell_h * scale;
+            l.tab_gradient_choice[i] = D2D1::RectF(cell_x + 3.0f * scale, cell_y + 2.0f * scale,
+                                                   cell_x + cell - 3.0f * scale,
+                                                   cell_y + (cell_h - 4.0f) * scale);
+        }
+        const float btn_y = l.tab_gradient_card.bottom - 44.0f * scale;
+        const float btn_w = 150.0f * scale;
+        const float gap = 10.0f * scale;
+        l.tab_gradient_start_btn = D2D1::RectF(left + 16.0f * scale, btn_y,
+                                               left + 16.0f * scale + btn_w,
+                                               btn_y + 32.0f * scale);
+        l.tab_gradient_mid_btn = D2D1::RectF(l.tab_gradient_start_btn.right + gap, btn_y,
+                                             l.tab_gradient_start_btn.right + gap + btn_w,
+                                             btn_y + 32.0f * scale);
+        l.tab_gradient_end_btn = D2D1::RectF(l.tab_gradient_mid_btn.right + gap, btn_y,
+                                             l.tab_gradient_mid_btn.right + gap + btn_w,
+                                             btn_y + 32.0f * scale);
+    }
 
     y += 24 * scale; l.section[2] = row(28);
     l.tab_manage_rows.clear();

@@ -25,6 +25,7 @@
 #include "name_highlight.h"
 #include "preview_handler_host.h"
 #include "ui_motion.h"
+#include "tab_gradient.h"
 #include "link_pill.h"
 #include "ui_view_morph.h"
 #include "group_wheel.h"
@@ -952,6 +953,14 @@ struct WindowViewModel {
     bool settings_show_hidden_files = false;
     bool settings_show_protected_os_files = false;
     bool show_pinned_tab_names = true;
+    int tab_gradient = kTabGradientDefault;
+    uint32_t tab_gradient_start = 0x2F9DE8;
+    uint32_t tab_gradient_mid = 0;
+    uint32_t tab_gradient_end = 0x2BD9C8;
+    bool has_tab_gradient_start = true;
+    bool has_tab_gradient_mid = false;
+    bool has_tab_gradient_end = true;
+    bool window_active = true;
     bool settings_list_smart_date = true;
     bool settings_list_zebra_rows = true;
     bool settings_list_size_bar = false;
@@ -960,6 +969,7 @@ struct WindowViewModel {
     bool settings_list_thumbnail_badges = true;
     bool settings_vertical_tabs = false;
     std::wstring settings_thumb_cache_text;
+    float settings_thumb_cache_ratio = 0.0f;
     int settings_mtime_style = 0;
     int settings_mtime_days = 7;
     int settings_mtime_palette = 0;
@@ -1169,6 +1179,14 @@ struct HitTestResult {
         SettingsAccentSaturation,
         SettingsAccentLightness,
         SettingsAccentHex,
+        SettingsTabGradient,  // active tab gradient preset (index = preset)
+        SettingsTabGradientStart,
+        SettingsTabGradientMid,
+        SettingsTabGradientEnd,
+        SettingsTabGradientClearStart,
+        SettingsTabGradientClearMid,
+        SettingsTabGradientClearEnd,
+        WindowManager,  // title-bar button: window menu (multi-window mode only)
         SettingsSysCtx,        // Settings > 系统右键菜单: index = SysCtxHit
         SettingsContentAction,
         AddressSearchClear,
@@ -1425,6 +1443,8 @@ public:
     void SetSearchBarMinWidth(float dip) { search_min_dip_ = dip; }
     // Toolbar "Group" button: -1 hidden, 0 not grouped, 1..4 app::GroupBy value.
     void SetToolbarGroup(int group_by) { toolbar_group_ = group_by; }
+    // Window-management button beside the settings pill (multi-window mode).
+    void SetWindowManagerVisible(bool on) { window_manager_visible_ = on; }
     // 自定义工具栏: the New button's main action (0 folder, 1 the type made
     // last, 2 menu only), whether that last type was a text document, and how
     // many commands are pinned.
@@ -1477,6 +1497,9 @@ public:
     std::wstring ToolbarGroupLabel() const;   // "Group: Date" text of the active chip
     float SearchBarMinWidth() const { return search_min_dip_; }
     D2D1_RECT_F SidebarToggleRect(float w) const;
+    // Window-management button next to the sidebar toggle; empty when multi
+    // windows are off or the title bar is too narrow.
+    D2D1_RECT_F WindowManagerRect(float w) const;
     float PaneHeaderHeight() const { return pane_header_height_; }
     float ColumnHeaderHeight() const { return column_header_height_; }
     float RowHeight() const { return row_height_; }
@@ -2064,6 +2087,7 @@ private:
     bool vertical_tabs_ = false;
     float search_min_dip_ = 0.0f;
     int toolbar_group_ = -1;
+    bool window_manager_visible_ = false;
     int pin_count_ = 0;
     int pin_app_from_ = -1;
     bool pin_drop_mode_ = false;
