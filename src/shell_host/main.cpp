@@ -1112,7 +1112,13 @@ DWORD WINAPI ReaderThreadImpl() {
 // ---------------------------------------------------------------------------
 constexpr UINT kCtxIdFirst = 1;
 constexpr UINT kCtxIdLast = 0x7FFF;
-constexpr DWORD kCtxSessionExpireMs = 120 * 1000;
+// How long a session outlives its menu so a click on one of its rows can still
+// be routed to the handler that owns it. The app closes the previous session
+// when the next menu opens, so this only bounds the case where no menu follows:
+// at 120 s every right-click kept 26 handler threads and their extension DLLs
+// resident for two minutes, and a few menus in a row were enough to slow the
+// whole host down.
+constexpr DWORD kCtxSessionExpireMs = 30 * 1000;
 
 struct CtxSessionData {
     uint32_t session_id = 0;   // == REQ_CTX_QUERY request id
@@ -1524,6 +1530,16 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
 
     auto handlers = api.enumerate(
         data->background, data->paths.front(), data->disabled_clsids);
+    // Microsoft SendTo Service builds the whole default menu inside its own
+    // QueryContextMenu while holding the loader lock. Here it never returns:
+    // every menu burned the full stuck budget on it and left a handler thread
+    // behind. Pulse answers with a native Send-to flyout instead; Luling has
+    // none, so the handler is left out rather than paying that on every click.
+    handlers.erase(std::remove_if(handlers.begin(), handlers.end(),
+                                  [](const luling::shell::CtxHandlerDesc& h) {
+                                      return IsSendToHandlerClsid(h.clsid_text);
+                                  }),
+                   handlers.end());
     if (TestStuckHandlerFor(data->paths.front()) &&
         std::find(data->disabled_clsids.begin(), data->disabled_clsids.end(),
                   kTestStuckHandler) == data->disabled_clsids.end()) {
