@@ -116,9 +116,38 @@ int main(int argc, char** argv) {
         Exact(root / L"report-two.txt"), "preview-selected batch changes exact disk spelling");
     if (ops.Status().completed_ops > case_before) undo();
     Check(Exact(root / L"Report.txt") && Exact(root / L"Report-two.txt"), "batch undo restores both spellings");
+    // The batch must walk itself out of the way: chain_1 -> chain_2 is blocked
+    // until chain_2 has become chain_3, or the no-overwrite rename rejects it.
+    make(L"chain_1.txt");
+    make(L"chain_2.txt");
+    OpRequest chain_batch;
+    chain_batch.type = OpType::BatchRename;
+    chain_batch.sources = {(root / L"chain_1.txt").wstring(), (root / L"chain_2.txt").wstring()};
+    chain_batch.new_names = {L"chain_2.txt", L"chain_3.txt"};
+    const auto chain_before = ops.Status().completed_ops;
+    ops.Submit(std::move(chain_batch));
+    Check(Wait(ops, chain_before) && Exact(root / L"chain_2.txt") &&
+        Exact(root / L"chain_3.txt") && !std::filesystem::exists(root / L"chain_1.txt"),
+        "batch rename follows names the batch itself vacates");
     rule = {};
     Check(luling::app::PreviewBatchRename({(root / L"Report.txt").wstring()}, rule)[0].status ==
         luling::app::BatchRenameStatus::Unchanged, "exactly identical preview stays unchanged");
+    // Shifting a run down by one: each destination is another file of the same
+    // batch, which the rename itself moves away. Reporting those as collisions
+    // blocked "bg" with start 0 over bg_1..bg_8 with every row red.
+    make(L"shift_1.txt");
+    make(L"shift_2.txt");
+    rule = {};
+    rule.pattern = L"shift_{n}{ext}";
+    rule.start = 0;
+    const auto shift_preview = luling::app::PreviewBatchRename(
+        {(root / L"shift_1.txt").wstring(), (root / L"shift_2.txt").wstring()}, rule);
+    Check(shift_preview.size() == 2 &&
+        shift_preview[0].status == luling::app::BatchRenameStatus::Ok &&
+        shift_preview[1].status == luling::app::BatchRenameStatus::Ok &&
+        shift_preview[1].new_name == L"shift_1.txt",
+        "a name another row renames away is not a collision");
+    rule = {};
     for (const auto reserved : {L"CON.txt", L"LPT1", L"COM\u00b9.log", L"NUL .txt"}) {
         rule.pattern = reserved;
         Check(luling::app::PreviewBatchRename({(root / L"Report.txt").wstring()}, rule)[0].status ==

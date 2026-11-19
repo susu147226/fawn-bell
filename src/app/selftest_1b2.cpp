@@ -5683,6 +5683,29 @@ void TestRecycleAndBatchRename() {
     const auto unchanged = PreviewBatchRename({ a }, rule);
     Check(!unchanged.empty() && unchanged[0].status == BatchRenameStatus::Unchanged,
           L"batch-rename: unchanged when name stays the same");
+
+    // Shifting a run down by one: every destination is another file of the same
+    // batch, which the rename itself moves away. Those rows must not read as
+    // collisions, or "bg" with start 0 over bg_1..bg_8 is blocked by itself.
+    const std::wstring s1 = std::wstring(temp) + L"luling_shift_1.txt";
+    const std::wstring s2 = std::wstring(temp) + L"luling_shift_2.txt";
+    HANDLE fs1 = CreateFileW(s1.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE fs2 = CreateFileW(s2.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (fs1 != INVALID_HANDLE_VALUE) CloseHandle(fs1);
+    if (fs2 != INVALID_HANDLE_VALUE) CloseHandle(fs2);
+    rule = {};
+    rule.pattern = L"luling_shift_{n}";
+    rule.start = 0;
+    const auto shifted = PreviewBatchRename({ s1, s2 }, rule);
+    Check(shifted.size() == 2 && shifted[0].status == BatchRenameStatus::Ok &&
+              shifted[1].status == BatchRenameStatus::Ok &&
+              shifted[1].new_name == L"luling_shift_1.txt",
+          L"batch-rename: a name another row renames away is not a collision");
+    DeleteFileW(s1.c_str());
+    DeleteFileW(s2.c_str());
+
     DeleteFileW(a.c_str());
     DeleteFileW(b.c_str());
 
