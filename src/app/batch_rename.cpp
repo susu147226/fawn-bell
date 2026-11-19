@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace luling::app {
 namespace {
@@ -182,6 +183,11 @@ std::vector<BatchRenameItem> PreviewBatchRename(const std::vector<std::wstring>&
     std::vector<BatchRenameItem> items;
     items.reserve(paths.size());
     std::unordered_map<std::wstring, int> new_counts;
+    // Sources this batch renames away. A destination that is one of them is
+    // only occupied until the rename runs, so it must not read as a collision:
+    // bg_1.mp4 -> bg_0.mp4 with bg_1.mp4 also being renamed is two files
+    // shifting by one, not a clash.
+    std::unordered_set<std::wstring> vacated;
     // Grouped mode (the 按序号 menu commands) numbers every extension group
     // from rule.start in natural order, so a.jpg b.jpg c.png becomes
     // a_0.jpg b_1.jpg c_0.png.
@@ -228,6 +234,9 @@ std::vector<BatchRenameItem> PreviewBatchRename(const std::vector<std::wstring>&
             std::wstring key = JoinName(ParentOf(paths[i]), items.back().new_name);
             for (auto& c : key) c = Fold(c);
             new_counts[key] += 1;
+            std::wstring own = fs::NormalizePath(paths[i]);
+            for (auto& c : own) c = Fold(c);
+            vacated.insert(std::move(own));
         }
     }
     for (auto& item : items) {
@@ -242,8 +251,11 @@ std::vector<BatchRenameItem> PreviewBatchRename(const std::vector<std::wstring>&
         const std::wstring normalized = fs::NormalizePath(dest);
         if (GetFileAttributesW(normalized.c_str()) == INVALID_FILE_ATTRIBUTES) continue;
         const std::wstring source = fs::NormalizePath(item.source_path);
-        if (_wcsicmp(normalized.c_str(), source.c_str()) != 0)
-            item.status = BatchRenameStatus::Collision;
+        if (_wcsicmp(normalized.c_str(), source.c_str()) == 0) continue;
+        std::wstring folded = normalized;
+        for (auto& c : folded) c = Fold(c);
+        if (vacated.count(folded) != 0) continue;
+        item.status = BatchRenameStatus::Collision;
     }
     return items;
 }

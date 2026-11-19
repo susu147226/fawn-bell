@@ -4850,36 +4850,73 @@ void OpsManager::RunShellOp(const OpRequest& req, uint64_t task_id) {
         std::wstring failed_name;
         DWORD failed_code = ERROR_SUCCESS;
         bool cancelled = false;
-        for (size_t i = 0; i < req.sources.size(); ++i) {
-            if (stopping_.load() || shell_cancel_requested_.load()) { cancelled = true; break; }
-            const std::wstring& name = i < req.new_names.size() ? req.new_names[i] : req.new_name;
-            SetStatus([&](OpStatus& st) {
-                st.current_item = FileName(req.sources[i]);
-                st.completed_items = i;
-                if (!req.sources.empty())
-                    st.percent = 100.0f * static_cast<float>(i) / static_cast<float>(req.sources.size());
-            });
-            if (stopping_.load() || shell_cancel_requested_.load()) { cancelled = true; break; }
-            // Each item uses the same no-overwrite filesystem rename.
-            std::wstring local_error;
-            DWORD local_code = ERROR_SUCCESS;
-            const auto local = RenameInProcess(req.sources[i], name, &local_error, &local_code);
-            if (local == RenameResult::Rejected) {
-                if (failed_source.empty()) {
-                    failed_source = req.sources[i];
-                    failed_name = name;
-                    failed_code = local_code;
+        const size_t count = req.sources.size();
+        std::vector<std::wstring> names(count);
+        for (size_t i = 0; i < count; ++i)
+            names[i] = i < req.new_names.size() ? req.new_names[i] : req.new_name;
+        std::vector<bool> finished(count, false);
+        std::vector<std::wstring> live(req.sources.begin(), req.sources.end());
+        // A rename whose target is still the source of another row of this same
+        // batch has to wait for that row: bg_0..bg_7 -> bg_1..bg_8 in order
+        // would have every item rejected by the no-overwrite rename except the
+        // one target that happened to be free.
+        auto occupied_by_pending = [&](size_t self, const std::wstring& path) {
+            for (size_t j = 0; j < count; ++j) {
+                if (j == self || finished[j]) continue;
+                if (_wcsicmp(live[j].c_str(), path.c_str()) == 0) return true;
+            }
+            return false;
+        };
+        size_t remaining = count;
+        bool final_pass = false;
+        while (remaining > 0) {
+            bool progressed = false;
+            for (size_t i = 0; i < count; ++i) {
+                if (finished[i]) continue;
+                if (stopping_.load() || shell_cancel_requested_.load()) { cancelled = true; break; }
+                const std::wstring& name = names[i];
+                SetStatus([&](OpStatus& st) {
+                    st.current_item = FileName(req.sources[i]);
+                    st.completed_items = count - remaining;
+                    if (!req.sources.empty())
+                        st.percent = 100.0f * static_cast<float>(count - remaining) /
+                                     static_cast<float>(req.sources.size());
+                });
+                if (stopping_.load() || shell_cancel_requested_.load()) { cancelled = true; break; }
+                const std::wstring dest = JoinPath(ParentOf(live[i]), name);
+                if (!final_pass && _wcsicmp(dest.c_str(), live[i].c_str()) != 0 &&
+                    occupied_by_pending(i, dest))
+                    continue;
+                // Each item uses the same no-overwrite filesystem rename.
+                std::wstring local_error;
+                DWORD local_code = ERROR_SUCCESS;
+                const auto local = RenameInProcess(live[i], name, &local_error, &local_code);
+                finished[i] = true;
+                --remaining;
+                progressed = true;
+                if (local == RenameResult::Rejected) {
+                    if (failed_source.empty()) {
+                        failed_source = req.sources[i];
+                        failed_name = name;
+                        failed_code = local_code;
+                    }
+                    last_error = local_error;
+                    continue;
                 }
-                last_error = local_error;
-                continue;
+                if (local == RenameResult::Completed) {
+                    ok_sources.push_back(req.sources[i]);
+                    ok_names.push_back(name);
+                    ok_destinations.push_back(dest);
+                    continue;
+                }
             }
-            if (local == RenameResult::Completed) {
-                ok_sources.push_back(req.sources[i]);
-                ok_names.push_back(name);
-                ok_destinations.push_back(JoinPath(ParentOf(req.sources[i]), name));
-                continue;
+            if (cancelled) break;
+            if (!progressed) {
+                // What is left depends on itself (a swap, say): run one last
+                // pass so each row reports its own conflict.
+                if (final_pass) break;
+                final_pass = true;
             }
-
         }
         current_req_id_.store(0);
         shell_cancel_requested_ = false;
