@@ -23,6 +23,7 @@
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
+#include <psapi.h>
 #include <algorithm>
 #include <cstdio>
 #include <atomic>
@@ -1496,14 +1497,14 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
 
     constexpr UINT kIdsPerHandler = 256;
     constexpr DWORD kFastBudgetMs = 80;
-    // Handlers still busy by then are not responding: the menu settles without
-    // them and they are reported as slow (#65). This is also how long the app
-    // waits for the finished snapshot and how long an early pick sits before
-    // the host runs it, so it has to stay short — measured working extensions
-    // answer inside a second, while a hung one (SendTo, some packaged handlers)
-    // never returns and used to burn the whole previous 5s budget on every
-    // right-click. §8.14's timeout is meant to cost one menu, not five seconds.
-    constexpr DWORD kHandlerStuckMs = 900;
+    // The menu no longer waits for this: finished rows stream out from the fast
+    // budget onwards, so this is only how long the host keeps the session open
+    // for stragglers, and how long an early pick sits before it is run. It used
+    // to be 900 ms, but a handler that is merely slow to load (antivirus
+    // scanning its DLL, the loader lock held by SendTo) was then still
+    // unanswered at the limit and got reported as hung — the app disables those
+    // permanently, which is how healthy extensions disappeared from the menu.
+    constexpr DWORD kHandlerStuckMs = 5000;
     const ULONGLONG started = GetTickCount64();
     UINT qcm_flags = QueryContextMenuFlags(*data);
 
@@ -1584,35 +1585,69 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
         }
         return out;
     };
-    auto collect_slow = [&] {
-        std::vector<std::wstring> slow;
-        // Same budget the loop below settles at: a worker still unanswered
-        // when it breaks has to be reported, or the app never learns to skip it.
-        const bool late = GetTickCount64() - started >= kHandlerStuckMs;
+    // Auto-disable feeds on this list, so it names only a handler that is
+    // provably hung on its own: still unanswered at the stuck limit while every
+    // other worker finished. Slow-but-finished handlers are never reported —
+    // the menu does not wait for them (rows stream out as workers finish), so
+    // their elapsed time says nothing about being stuck. Blaming every
+    // unfinished worker (and every finished-but-slow one) is what permanently
+    // disabled healthy extensions. SendTo holds the loader lock while it builds
+    // the default menu, so while it is running an unanswered worker may merely
+    // be waiting for its own DLL to load and is not blamed either.
+    auto collect_hung = [&] {
+        std::vector<std::wstring> hung;
+        if (GetTickCount64() - started < kHandlerStuckMs) return hung;
+        bool send_to_running = false;
+        const HandlerWorker* stuck = nullptr;
+        size_t stuck_count = 0;
         for (const auto& w : workers) {
-            if (!w) continue;
-            // SendTo wraps the whole default menu, so its elapsed time is
-            // structurally the sum of every other worker; its worst case is an
-            // empty flyout, never a hang. Exempt it from the auto-disable (#77).
-            if (IsSendToHandlerClsid(w->desc.clsid_text)) continue;
-            // Still inside QueryContextMenu: not responding (#65).
-            const bool slow_one = worker_done(*w) ? w->elapsed_ms >= 1000 : late;
-            if (slow_one && !w->desc.clsid_text.empty()) slow.push_back(w->desc.clsid_text);
+            if (!w || worker_done(*w)) continue;
+            if (IsSendToHandlerClsid(w->desc.clsid_text)) {
+                send_to_running = true;
+                continue;
+            }
+            stuck = w.get();
+            ++stuck_count;
         }
-        return slow;
+        if (stuck_count != 1 || !stuck || stuck->desc.clsid_text.empty()) return hung;
+        if (send_to_running) return hung;
+        hung.push_back(stuck->desc.clsid_text);
+        return hung;
+    };
+
+    auto done_count = [&] {
+        size_t n = 0;
+        for (const auto& w : workers)
+            if (w && worker_done(*w)) ++n;
+        return n;
     };
 
     if (!workers.empty()) {
+        // Throttled so a burst of finishing extensions repaints the open menu a
+        // few times, not once per worker.
+        constexpr ULONGLONG kPartialGapMs = 60;
         bool sent_partial = false;
+        size_t partial_done = 0;
+        ULONGLONG partial_at = 0;
         while (!all_workers_done() && !SessionCloseRequested(sid)) {
             pump_session_messages();
             if (SessionCloseRequested(sid)) break;
             const ULONGLONG elapsed = GetTickCount64() - started;
             if (elapsed >= kHandlerStuckMs) break;
-            if (!sent_partial && elapsed >= kFastBudgetMs) {
-                items = collect_items();
-                SendCtxItems(sid, items, CTX_ITEMS_PARTIAL);
-                sent_partial = true;
+            if (elapsed >= kFastBudgetMs) {
+                // First snapshot at the fast budget, then one more whenever
+                // further workers finished: a single slow extension must not
+                // hold back every row that arrived after it until the stuck
+                // limit (发送到 needs ~150 ms on a busy machine).
+                const size_t done = done_count();
+                if (!sent_partial ||
+                    (done != partial_done && elapsed - partial_at >= kPartialGapMs)) {
+                    items = collect_items();
+                    SendCtxItems(sid, items, CTX_ITEMS_PARTIAL);
+                    sent_partial = true;
+                    partial_done = done;
+                    partial_at = elapsed;
+                }
             }
             std::vector<HANDLE> waits;
             waits.reserve(workers.size());
@@ -1624,6 +1659,10 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
                 const ULONGLONG left = elapsed >= kFastBudgetMs ? 1 : (kFastBudgetMs - elapsed);
                 timeout = left > 0xFFFFFFFFULL ? 200 : static_cast<DWORD>(left);
                 if (timeout == 0) timeout = 1;
+            } else if (done_count() != partial_done) {
+                // Finished rows are waiting for the throttle gap: wake for it.
+                const ULONGLONG since = GetTickCount64() - started - partial_at;
+                timeout = since >= kPartialGapMs ? 1 : static_cast<DWORD>(kPartialGapMs - since);
             }
             MsgWaitForMultipleObjects(static_cast<DWORD>(waits.size()), waits.data(),
                                       FALSE, timeout, QS_ALLINPUT);
@@ -1645,7 +1684,7 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
                    data->paths.empty() ? L"" : data->paths.front().c_str());
         api.log(slow);
     }
-    SendCtxItems(sid, items, 0, collect_slow());
+    SendCtxItems(sid, items, 0, collect_hung());
 
     auto dispatch_invoke = [&](std::unique_ptr<CtxInvokeMsg> inv) {
         if (!inv) return;
@@ -1872,6 +1911,18 @@ DWORD WINAPI PackagedVerbsPrewarm(LPVOID) {
 // and costs a cold start on the next right-click. One hung handler is therefore
 // kept; only this many means the leaked threads outweigh a restart.
 constexpr size_t kMaxAbandonedThreads = 8;
+// Third-party menu handlers that stay resident grow this process into the GB
+// range without ever hanging, and a plain count of stuck threads misses that.
+// Past this much committed memory an idle host restarts instead.
+constexpr SIZE_T kMaxPrivateBytes = 256ull * 1024 * 1024;
+
+SIZE_T PrivateBytes() {
+    PROCESS_MEMORY_COUNTERS_EX pmc{};
+    if (!K32GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
+                                 sizeof(pmc)))
+        return 0;
+    return pmc.PrivateUsage;
+}
 
 void MaybeRecycleHost() {
     if (g.requests_in_flight.load() != 0) return;
@@ -1882,11 +1933,14 @@ void MaybeRecycleHost() {
         CloseHandle(thread); // it returned after all
         return true;
     }), stuck.end());
-    if (stuck.size() < kMaxAbandonedThreads || g_ctx_threads != 0 ||
+    const SIZE_T private_bytes = PrivateBytes();
+    const bool too_many_stuck = stuck.size() >= kMaxAbandonedThreads;
+    const bool too_big = private_bytes > kMaxPrivateBytes;
+    if ((!too_many_stuck && !too_big) || g_ctx_threads != 0 ||
         !g_ctx_sessions.empty() || g.requests_in_flight.load() != 0) return;
-    wchar_t line[128];
-    swprintf_s(line, L"Recycling host: %zu context menu handler thread(s) never returned",
-               stuck.size());
+    wchar_t line[160];
+    swprintf_s(line, L"Recycling host: %zu abandoned handler thread(s), %llu MB private",
+               stuck.size(), static_cast<unsigned long long>(private_bytes / (1024 * 1024)));
     HostLog(line);
     // Not ExitProcess: DLL detach would run beside threads that may hold the
     // loader lock or a heap lock.
