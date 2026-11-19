@@ -1497,14 +1497,11 @@ DWORD CtxSessionThreadImpl(LPVOID param, const CtxSessionApi& api = {}) {
 
     constexpr UINT kIdsPerHandler = 256;
     constexpr DWORD kFastBudgetMs = 80;
-    // The menu no longer waits for this: finished rows stream out from the fast
-    // budget onwards, so this is only how long the host keeps the session open
-    // for stragglers, and how long an early pick sits before it is run. It used
-    // to be 900 ms, but a handler that is merely slow to load (antivirus
-    // scanning its DLL, the loader lock held by SendTo) was then still
-    // unanswered at the limit and got reported as hung — the app disables those
-    // permanently, which is how healthy extensions disappeared from the menu.
-    constexpr DWORD kHandlerStuckMs = 5000;
+    // How long the menu waits for stragglers before it settles, and how long an
+    // early pick sits before the host runs it. Kept short because the app now
+    // opens the menu on the first snapshot instead of waiting for rows, so this
+    // only bounds the session; collect_hung decides who to blame, not this.
+    constexpr DWORD kHandlerStuckMs = 900;
     const ULONGLONG started = GetTickCount64();
     UINT qcm_flags = QueryContextMenuFlags(*data);
 

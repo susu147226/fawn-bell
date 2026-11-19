@@ -375,6 +375,7 @@ void ContextMenuController::StartQuery(
     if (background && extension_.empty()) extension_ = ipc::kBackgroundVerbKey;
     token_ = token;
     com_ready_ = false;
+    com_partial_seen_ = false;
     com_items_.clear();
     query_started_at_ = token == 0 ? 0 : GetTickCount64();
     static_verbs_.clear();
@@ -401,6 +402,7 @@ void ContextMenuController::Close() {
     extended_ = false;
     disabled_handlers_.clear();
     com_ready_ = false;
+    com_partial_seen_ = false;
     com_items_.clear();
     static_verbs_.clear();
     extension_.clear();
@@ -414,16 +416,20 @@ void ContextMenuController::WaitUntilReady(
     if (pump_messages) pump_messages();
     if (com_ready_) return;
     const ULONGLONG deadline = GetTickCount64() + timeout_ms;
-    // A partial snapshot (handlers that missed the host's fast budget) is still
-    // useful: show those rows instead of an empty Explorer section.
-    while (!com_ready_ && com_items_.empty()) {
+    // Three ways the menu can open now: the final answer arrived, a partial did
+    // (the host pushes one at 80 ms, possibly with no rows yet), or the cached
+    // layout already filled com_items_ (SeedComItemsFromCache). Waiting for
+    // rows alone cost the full timeout whenever the first snapshot was empty;
+    // waiting for a partial alone would delay every repeat right-click on a
+    // path whose layout was already known.
+    while (!com_ready_ && !com_partial_seen_ && com_items_.empty()) {
         const ULONGLONG now = GetTickCount64();
         if (now >= deadline) break;
         MsgWaitForMultipleObjects(0, nullptr, FALSE,
                                   static_cast<DWORD>(deadline - now), QS_ALLINPUT);
         if (pump_messages) pump_messages();
     }
-    if (!com_ready_) {
+    if (!com_ready_ && !com_partial_seen_ && com_items_.empty()) {
         wchar_t line[160]{};
         swprintf_s(line, L"wait incomplete token=%u items=%zu", token_, com_items_.size());
         diagnostics::DebugLog("menu", line);
@@ -604,6 +610,7 @@ ContextMenuController::QueryCompletion ContextMenuController::CompleteComQuery(
     com_items_ = std::move(items);
     result.accepted = true;
     result.partial = partial;
+    if (partial) com_partial_seen_ = true;
     {
         wchar_t line[160]{};
         swprintf_s(line, L"result token=%u items=%zu partial=%d", token, com_items_.size(),
