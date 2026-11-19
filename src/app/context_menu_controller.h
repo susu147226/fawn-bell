@@ -94,6 +94,11 @@ private:
     std::vector<std::wstring> disabled_handlers_;
     bool menu_open_ = false;
     bool com_ready_ = false;
+    // A partial answer arrived for this session. It may hold no rows yet (the
+    // host pushes its first snapshot at 80 ms, before most handlers answered),
+    // and it still ends the pre-open wait: the menu opens with whatever is
+    // known and RefreshOpenCtxMenu fills the rest in as handlers land.
+    bool com_partial_seen_ = false;
     std::vector<ops::ShellMenuItem> com_items_;
     std::vector<ops::ShellMenuItem> menu_com_items_;
     std::vector<StaticVerb> static_verbs_;
