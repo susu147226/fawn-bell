@@ -1024,37 +1024,41 @@ void MainRenderer::DrawTitleClock(ID2D1DeviceContext* dc, const WindowViewModel&
                 calendar::NextFestival(now.wYear, now.wMonth, now.wDay, next_festival,
                                        next_festival_days);
             }
-            // Recompute the terms for the day on screen. Caching them across days
-            // let one half of this line use yesterday's date, which showed up as
-            // "霜降15天—今天—1天立冬" on the day 立冬 itself.
-            std::wstring prev_term, next_term;
-            int prev_term_days = 0, next_term_days = 0;
-            calendar::SolarTermsAround(now.wYear, now.wMonth, now.wDay, prev_term,
-                                       prev_term_days, next_term, next_term_days);
-
             std::wstring line1;
-            bool accent = false;
-            if (!cached_day.festival.empty()) {
-                line1 = cached_day.festival;
-                accent = true;
-            } else if (!next_festival.empty()) {
-                wchar_t text[64]{};
-                swprintf_s(text, L"距离 %s %d 天", next_festival.c_str(), next_festival_days);
-                line1 = text;
-                accent = true;
-            } else if (!cached_day.solar_term.empty()) {
-                line1 = cached_day.solar_term;
-                accent = true;
-            }
             std::wstring term_line;
-            if (!prev_term.empty()) {
-                term_line = prev_term;
-                if (prev_term_days > 0) term_line += std::to_wstring(prev_term_days) + L"天";
-            }
-            term_line += l10n::Pick(L"—今天—", L"—today—");
-            if (!next_term.empty()) {
-                if (next_term_days > 0) term_line += std::to_wstring(next_term_days) + L"天";
-                term_line += next_term;
+            const bool term_today = !cached_day.solar_term.empty();
+            bool accent = term_today;
+            if (term_today) {
+                // A solar term outranks festivals: on the term's own day the card
+                // names it and shows its description instead of the countdown.
+                line1 = cached_day.solar_term;
+                term_line = calendar::SolarTermDescription(cached_day.solar_term);
+            } else {
+                // Recompute the terms for the day on screen. Caching them across days
+                // let one half of this line use yesterday's date, which showed up as
+                // "霜降15天—今天—1天立冬" on the day 立冬 itself.
+                std::wstring prev_term, next_term;
+                int prev_term_days = 0, next_term_days = 0;
+                calendar::SolarTermsAround(now.wYear, now.wMonth, now.wDay, prev_term,
+                                           prev_term_days, next_term, next_term_days);
+                if (!cached_day.festival.empty()) {
+                    line1 = cached_day.festival;
+                    accent = true;
+                } else if (!next_festival.empty()) {
+                    wchar_t text[64]{};
+                    swprintf_s(text, L"距离 %s %d 天", next_festival.c_str(), next_festival_days);
+                    line1 = text;
+                    accent = true;
+                }
+                if (!prev_term.empty()) {
+                    term_line = prev_term;
+                    if (prev_term_days > 0) term_line += std::to_wstring(prev_term_days) + L"天";
+                }
+                term_line += l10n::Pick(L"—今天—", L"—today—");
+                if (!next_term.empty()) {
+                    if (next_term_days > 0) term_line += std::to_wstring(next_term_days) + L"天";
+                    term_line += next_term;
+                }
             }
             MakeBrush(dc, accent ? theme.accent : secondary,
                       accent ? brAccent_ : brTextSecondary_);
