@@ -4815,6 +4815,16 @@ LRESULT HandleKeyDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
         bool handled = true;
 
+        // Settings has no chip in the tab strip: Esc closes it like a second
+        // click on the settings button. Menus, drags and editors keep theirs.
+        if (wParam == VK_ESCAPE && !ctrl && !alt && !shift && IsSettingsTab(tab) &&
+            !s->addressSearching && !s->filterEditing && s->renameIndex < 0 &&
+            (GetFocus() == hwnd || GetFocus() == nullptr)) {
+            CloseSettings(*s);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
+
         // Rebindable commands win over the fixed chain below; when a default
         // was remapped away nothing here matches, and its old branch is gone.
         {

@@ -2501,6 +2501,7 @@ void NewBackgroundTab(AppState& s, const std::wstring& path) {
 }
 
 void OpenSettingsTab(AppState& s, int page) {
+    if (!IsSettingsTab(ActiveTab(s))) s.settings.set_return_tab(s.window_tabs.Active());
     s.settings.SelectPage(page);
     const std::wstring path = app::MakeSettingsPath(
         app::SettingsController::PageName(s.settings.page()));
@@ -2529,6 +2530,19 @@ void OpenSettingsTab(AppState& s, int page) {
     ApplyLayoutPreset(s, app::LayoutPreset::Single);
     if (app::Tab* tab = ActiveTab(s))
         tab->virtual_title = l10n::Get(l10n::StringId::Settings);
+}
+void CloseSettings(AppState& s) {
+    if (!IsSettingsTab(ActiveTab(s))) return;
+    const size_t active = s.window_tabs.active;
+    const size_t count = s.window_tabs.items.size();
+    size_t target = count;
+    for (size_t i = 0; i < count; ++i)
+        if (i != active && s.window_tabs.items[i].get() == s.settings.return_tab()) target = i;
+    s.settings.set_return_tab(nullptr);
+    if (target == count) target = active > 0 ? active - 1 : (count > 1 ? active + 1 : count);
+    // Bound elsewhere drops the settings tab once another tab is active.
+    if (target < count) SwitchTab(s, target);
+    else NewTab(s, NewTabPath(s));  // settings was the only tab
 }
 void CloseLayoutTab(AppState& s, size_t idx) {
     if (idx >= s.window_tabs.items.size()) return;

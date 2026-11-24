@@ -54,7 +54,10 @@ bool RunShortcutCommand(AppState& s, int command) {
     case C::AddressBar: ShowOmnibar(s, OmnibarMode::Path); return true;
     case C::SelectAll: DispatchMenuCommand(s, CmdSelectAll); return true;
     case C::NewTab: OpenNewTab(s); return true;
-    case C::CloseTab: CloseActiveTab(s); return true;
+    case C::CloseTab:
+        if (IsSettingsTab(ActiveTab(s))) CloseSettings(s);
+        else CloseActiveTab(s);
+        return true;
     case C::NewWindow: PostMessageW(s.hwnd, WM_NEW_WINDOW, 0, 0); return true;
     case C::MergeWindows: MergeWindowsInto(s); return true;
     case C::Sidebar: ToggleSidebarCollapsed(s); return true;
