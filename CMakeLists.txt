@@ -190,6 +190,10 @@ target_link_libraries(luling_localization_test PRIVATE luling_localization)
 add_executable(luling_crash_test src/bench/crash_reporter_test.cpp)
 target_link_libraries(luling_crash_test PRIVATE luling_crash_reporter)
 
+add_executable(luling_lunar_calendar_test
+    src/bench/lunar_calendar_test.cpp
+    src/app/lunar_calendar.cpp)
+
 add_executable(luling_diagnostics_recovery_test src/bench/diagnostics_recovery_test.cpp)
 target_link_libraries(luling_diagnostics_recovery_test PRIVATE luling_crash_reporter)
 
