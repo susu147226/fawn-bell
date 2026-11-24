@@ -96,6 +96,9 @@ void OpenTabAt(AppState& s, const std::wstring& path);
 void NewTab(AppState& s, const std::wstring& path);
 void NewBackgroundTab(AppState& s, const std::wstring& path);
 void OpenSettingsTab(AppState& s, int page);
+// Settings has no chip in the tab strip: closes it and returns to the tab it
+// was opened from (or a new tab when it was the only one).
+void CloseSettings(AppState& s);
 void CloseLayoutTab(AppState& s, size_t idx);
 void CloseActiveTab(AppState& s);
 void SwitchTab(AppState& s, size_t idx);

@@ -121,6 +121,10 @@ public:
     int page() const noexcept { return page_; }
     float scroll() const noexcept { return scroll_; }
     void SetScroll(float value, float maximum) noexcept;
+    // The tab settings was opened from. Settings has no chip in the strip, so
+    // Esc, Ctrl+W, or switching away returns to that tab.
+    const void* return_tab() const noexcept { return return_tab_; }
+    void set_return_tab(const void* tab) noexcept { return_tab_ = tab; }
     void ScrollBy(float delta, float scale, float maximum) noexcept;
     // The settings navigation column scrolls on its own when it overflows.
     float nav_scroll() const noexcept { return nav_scroll_; }
@@ -329,6 +333,7 @@ private:
     int page_ = 0;
     float scroll_ = 0.0f;
     float nav_scroll_ = 0.0f;
+    const void* return_tab_ = nullptr;
     PackState packs_;
     uint64_t packs_checked_ = 0;
     // Set when a pack install succeeds; read once by TakePackRestartPrompt().

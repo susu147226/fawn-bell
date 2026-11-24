@@ -1995,6 +1995,13 @@ void FillWindowTabStrip(ui::WindowViewModel& vm, const WindowTabs& tabs) {
         ui::TabView tv;
         tv.title = LayoutTabTitle(*tabs.items[i]);
         tv.active = i == tabs.active;
+        // Settings has no chip in the strip (its settings button stands in);
+        // hidden tabs keep their index in the strip's click and drag mapping.
+        std::wstring virtual_kind;
+        if (const app::Tab* folder = tabs.items[i]->ActiveFolder();
+            folder && ParseLulingPath(folder->current_path, &virtual_kind, nullptr) &&
+            virtual_kind == L"settings")
+            tv.hidden = true;
         tv.pinned = tabs.items[i]->pinned;
         tv.marker_rgb = tabs.items[i]->marker_rgb;
         if (tabs.items[i]->tab_group != 0) {
@@ -2002,7 +2009,7 @@ void FillWindowTabStrip(ui::WindowViewModel& vm, const WindowTabs& tabs) {
                 if (tabs.tab_groups[gi].id == tabs.items[i]->tab_group) {
                     tv.group = static_cast<int>(gi);
                     tv.color_rgb = tabs.tab_groups[gi].color_rgb;
-                    tv.hidden = tabs.tab_groups[gi].collapsed;
+                    tv.hidden = tv.hidden || tabs.tab_groups[gi].collapsed;
                     break;
                 }
             }

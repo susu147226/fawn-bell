@@ -279,6 +279,18 @@ void SyncVisibleWatches(AppState& s) {
 }
 
 void BindCurrentLayout(AppState& s) {
+    // Settings has no chip in the tab strip (the settings button stands in):
+    // once another tab is active the settings tab goes away. Page and scroll
+    // live in s.settings, so reopening comes back the same.
+    if (!s.tabDragging) {
+        for (size_t i = s.window_tabs.items.size(); i-- > 0;) {
+            app::LayoutTab& layout = *s.window_tabs.items[i];
+            if (i == s.window_tabs.active || layout.pinned || layout.panes.size() != 1 ||
+                s.window_tabs.items.size() <= 1 || !IsSettingsTab(layout.ActiveFolder()))
+                continue;
+            s.window_tabs.CloseTab(i);
+        }
+    }
     app::LayoutTab* tab = s.window_tabs.Active();
     if (!tab || tab->panes.empty()) {
         s.pane = nullptr;

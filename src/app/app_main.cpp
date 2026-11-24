@@ -336,6 +336,35 @@ static bool SessionWritable(const AppState& s) {
         !ShellTagHeadlessLaunch();
 }
 
+// Settings has no chip in the strip; a session never carries its tab. The
+// active index points at the tab settings was opened from instead.
+static int AppendSessionTabs(const app::WindowTabs& tabs, const void* return_tab,
+                             std::vector<app::LayoutTabSnapshot>& out) {
+    int active = -1;
+    int returned = -1;
+    for (size_t i = 0; i < tabs.items.size(); ++i) {
+        const app::LayoutTab& layout = *tabs.items[i];
+        bool settings = false;
+        for (const auto& pane : layout.panes)
+            if (pane && IsSettingsTab(pane->ActiveTab())) {
+                settings = true;
+                break;
+            }
+        if (settings) continue;
+        const int index = static_cast<int>(out.size());
+        if (i == tabs.active) active = index;
+        if (tabs.items[i].get() == return_tab) returned = index;
+        out.push_back(app::CaptureLayoutTab(layout));
+    }
+    if (out.empty()) {
+        // Settings was the only tab: keep it so the window still reopens.
+        for (const auto& layout : tabs.items)
+            if (layout) out.push_back(app::CaptureLayoutTab(*layout));
+        return static_cast<int>(tabs.active);
+    }
+    return active >= 0 ? active : (returned >= 0 ? returned : 0);
+}
+
 static app::WindowSessionSnapshot CaptureSessionWindow(AppState& w) {
     app::WindowSessionSnapshot snap;
     WINDOWPLACEMENT wp{ sizeof(wp) };
@@ -345,11 +374,10 @@ static app::WindowSessionSnapshot CaptureSessionWindow(AppState& w) {
     }
     snap.layout = CaptureWindowLayout(w);
     RememberLayoutFocus(w);
-    snap.active_layout_tab = static_cast<int>(w.window_tabs.active);
     for (const auto& group : w.window_tabs.tab_groups)
         snap.tab_groups.push_back({group.id, group.name, group.color_rgb, group.collapsed});
-    for (const auto& layout : w.window_tabs.items)
-        snap.layout_tabs.push_back(app::CaptureLayoutTab(*layout));
+    snap.active_layout_tab =
+        AppendSessionTabs(w.window_tabs, w.settings.return_tab(), snap.layout_tabs);
     snap.undo_json = w.ops.UndoToJson();
     return snap;
 }
@@ -363,13 +391,18 @@ static app::SessionSnapshot CaptureWindowSession(AppState& s, HWND hwnd) {
     }
     snap.dark = s.darkMode;
     app::Tab* tab = ActiveTab(s);
-    if (tab) snap.active_path = tab->current_path;
+    if (tab && IsSettingsTab(tab)) {
+        if (const auto* back = static_cast<const app::LayoutTab*>(s.settings.return_tab());
+            back && back->ActiveFolder())
+            snap.active_path = back->ActiveFolder()->current_path;
+    } else if (tab) {
+        snap.active_path = tab->current_path;
+    }
     RememberLayoutFocus(s);
-    snap.active_layout_tab = static_cast<int>(s.window_tabs.active);
     for (const auto& group : s.window_tabs.tab_groups)
         snap.tab_groups.push_back({group.id, group.name, group.color_rgb, group.collapsed});
-    for (const auto& layout : s.window_tabs.items)
-        snap.layout_tabs.push_back(app::CaptureLayoutTab(*layout));
+    snap.active_layout_tab =
+        AppendSessionTabs(s.window_tabs, s.settings.return_tab(), snap.layout_tabs);
     snap.tray = s.tray;
     snap.undo_json = s.ops.UndoToJson();
     snap.sidebar_collapsed = static_cast<int>(s.sidebarCollapsedMask);
