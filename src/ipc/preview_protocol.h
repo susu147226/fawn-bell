@@ -54,7 +54,10 @@ constexpr uint32_t kPreviewRequestFlagDocumentImage = 1u << 6;
 // cheaper picture (embedded cover or thumbnail) or fail fast where the full
 // path would spend seconds on something the card cannot use.
 constexpr uint32_t kPreviewRequestFlagCard = 1u << 7;
-constexpr uint32_t kPreviewMaxTextChars = 32768;
+// Matches the host's decoded-text cap (1 MiB chars in preview_decoders.cpp).
+// A 32K bound made the client discard a whole response once a source file was
+// longer than that, so ordinary code files showed "预览读取失败".
+constexpr uint32_t kPreviewMaxTextChars = 1024u * 1024u;
 constexpr uint32_t kPreviewMaxArchiveChars = 512u * 1024u;
 constexpr uint32_t kPreviewMaxTableChars = 2u * 1024u * 1024u;
 constexpr uint32_t kPreviewMinPixelSize = 32;
